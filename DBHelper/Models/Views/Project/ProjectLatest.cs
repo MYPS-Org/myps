@@ -13,7 +13,7 @@ namespace DBHelper.Models.Views.Project
         [Key]
         public int Id { get; set; }
         public int RevisionId { get; set; }
-        public int StageFK { get; set; }
+        public int? StageFK { get; set; }
         public string ProjectPK { get; set; } = string.Empty;
         public string ProgramFK { get; set; } = string.Empty;
         public string ProgramId { get; set; } = string.Empty;
@@ -30,5 +30,6 @@ namespace DBHelper.Models.Views.Project
         public DateTime? LastUpdatedDate { get; set; }
         public string RevisionCreatedBy { get; set; } = string.Empty;
         public DateTime RevisionCreatedDate { get; set; }
+        public string Source { get; set; } = string.Empty;
     }
 }

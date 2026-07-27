@@ -3,18 +3,20 @@
     #region Stages
     public enum EnumProgramStage
     {
-        RDIP = 1,
-        PIP = 2,
-        RBP = 3,
-        BP = 4,
-        NEP = 5,
-        NEPE = 6,
-        HGAB = 7,
-        HGABI = 8,
-        GAA = 9,
-        GAAR = 10,
-        TF = 11,
-        TFR = 12,
+        RBP = 8,
+        BP = 1,
+        NEP = 2,
+        NEPE = 3,
+        HGAB = 4,
+        HGABI = 5,
+        GAA = 6,
+        GAAR = 7,
+         
+        RDIP = 9,
+        UDIP = 10,
+        PIP = 11,
+        TF = 12,
+        TFR = 13
     }
     #endregion
     #region Type

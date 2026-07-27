@@ -6,6 +6,7 @@ using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views.Program;
 using DBHelper.Models.Views.Project;
 using Helpers;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,7 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                var SelectedStage = new[] { EnumProgramStage.RBP, EnumProgramStage.BP }.Select(stage => (int)stage).ToList();
+                var SelectedStage = new[] { EnumProgramStage.RDIP, EnumProgramStage.PIP }.Select(stage => (int)stage).ToList();
                 var SelectedStatus = new[] { EnumProgramStatus.Working, EnumProgramStatus.Approved }.Select(stage => (int)stage).ToList();
 
                 var AvailableStages = await _db.tOptionProgramStage.Where(x => SelectedStage.Contains(x.Id)).ToListAsync();
@@ -48,134 +49,80 @@ namespace WebAPI.Controllers.Programs
             }
         }
 
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto, CancellationToken cancellationToken)
         {
-            try
+            var filters = new List<(
+                string Clause,
+                string ParamName,
+                object? Value)>();
+
+
+            if (!string.IsNullOrWhiteSpace(
+                    dto.Filters.Name))
             {
-                if (dto.Filters == null)
-                {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
-                }
+                filters.Add((
+                    "v.Name = @Name",
+                    "@Name",
+                    $"%{dto.Filters.Name.Trim()}%"));
+            }
 
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
+            if (!string.IsNullOrWhiteSpace(dto.Filters.StageName))
+            {
+                filters.Add((
+                    "v.StageName = @StageName",
+                    "@StageName",
+                    dto.Filters.StageName));
+            }
 
-                var filterDefs = new List<(string Clause, string ParamName, object Value)>();
+            if (dto.Filters.StartYear.HasValue)
+            {
+                filters.Add((
+                    "v.StartYear = @StartYear",
+                    "@StartYear",
+                    dto.Filters.StartYear.Value));
+            }
 
-                if (!string.IsNullOrEmpty(dto.Filters.Name))
-                    filterDefs.Add(("v.[Name] LIKE @name", "@name", $"%{dto.Filters.Name}%"));
+            if (!string.IsNullOrWhiteSpace(dto.Filters.Type))
+            {
+                filters.Add((
+                    "v.Type = @Type",
+                    "@Type",
+                    dto.Filters.Type));
+            }
+            if (_Session.ApplyFilter)
+            {
+                filters.Add((
+                    "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
+                    "@regCode", _Session.RegCode));
+            }
 
-                if (dto.Filters.StartYear.HasValue)
-                    filterDefs.Add(("v.StartYear = @startYear", "@startYear", dto.Filters.StartYear.Value));
+            FilterDataResult<ProgramLatest> result =
+                await _db.FilterDataCursor<
+                    ProgramLatest,
+                    ShowProgramFilterDTO>(
+                        tableName: "vProgramLatest",
+                        dto: dto,
+                        filter: filters,
+                        keyColumn: "Id",
+                        descending: true,
+                        includeTotal: true,
+                        ct: cancellationToken);
 
-                if (!string.IsNullOrEmpty(dto.Filters.StageName))
-                    filterDefs.Add(("v.StageName = @stageName", "@stageName", dto.Filters.StageName));
-
-                if (!string.IsNullOrEmpty(dto.Filters.Type))
-                    filterDefs.Add(("v.[Type] = @type", "@type", dto.Filters.Type));
-
-                if (_Session.ApplyFilter)
-                {
-                    filterDefs.Add((
-                        "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
-                        "@regCode", _Session.RegCode));
-                }
-
-                string filterWhere = filterDefs.Count > 0
-                    ? " WHERE " + string.Join(" AND ", filterDefs.Select(f => f.Clause))
-                    : "";
-
-                SqlParameter[] BuildParams(params SqlParameter[] extra) =>
-                    filterDefs.Select(f => new SqlParameter(f.ParamName, f.Value))
-                              .Concat(extra)
-                              .ToArray();
-
-                long? pageStartId = null;
-                if (dto.page > 1)
-                {
-                    string pageIndexSql = $@"
-                        SELECT ((rn - 1) / @limit) + 1 AS PageNumber, Id AS PageStartId
-                        FROM (
-                            SELECT v.Id, ROW_NUMBER() OVER (ORDER BY v.Id DESC) AS rn
-                            FROM dbo.vProgramLatest v{filterWhere}
-                        ) x
-                        WHERE (rn - 1) % @limit = 0 AND ((rn - 1) / @limit) + 1 = @page";
-
-                    var pageParams = BuildParams(
-                        new SqlParameter("@limit", dto.limit),
-                        new SqlParameter("@page", dto.page));
-
-                    var pageRow = await _db.Set<PaginationPages>()
-                        .FromSqlRaw(pageIndexSql, pageParams)
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync();
-
-                    if (pageRow == null)
+            if (result.HasError)
+            {
+                return new BadRequestObjectResult(
+                    new ErrorResult
                     {
-                        var emptyCountParams = BuildParams();
-                        var emptyCount = await _db.Set<PaginationCount>()
-                            .FromSqlRaw($"SELECT COUNT_BIG(*) AS TotalCount FROM dbo.vProgramLatest v{filterWhere}", emptyCountParams)
-                            .AsNoTracking()
-                            .FirstOrDefaultAsync();
-
-                        long total = emptyCount?.TotalCount ?? 0;
-                        return Ok(new FilteredResult<ProgramLatest>
-                        {
-                            lists = new List<ProgramLatest>(),
-                            totalPages = (int)Math.Ceiling((double)total / dto.limit),
-                            page = dto.page,
-                            limit = dto.limit,
-                            total = total
-                        });
-                    }
-
-                    pageStartId = pageRow.PageStartId;
-                }
-
-                string fetchWhere = filterWhere;
-                var fetchExtraParams = new List<SqlParameter> { new SqlParameter("@limit", dto.limit) };
-
-                if (pageStartId.HasValue)
-                {
-                    fetchWhere += (filterWhere.Length > 0 ? " AND" : " WHERE") + " v.Id <= @pageStartId";
-                    fetchExtraParams.Add(new SqlParameter("@pageStartId", pageStartId.Value));
-                }
-
-                string fetchSql = $@"
-                    SELECT TOP (@limit) *
-                    FROM dbo.vProgramLatest v{fetchWhere}
-                    ORDER BY v.Id DESC";
-
-                var projects = await _db.vProgramLatest
-                    .FromSqlRaw(fetchSql, BuildParams(fetchExtraParams.ToArray()))
-                    .AsNoTracking()
-                    .ToListAsync();
-
-                string countSql = $"SELECT COUNT_BIG(*) AS TotalCount FROM dbo.vProgramLatest v{filterWhere}";
-                var countParams = BuildParams();
-
-                var records = await _db.Set<PaginationCount>()
-                    .FromSqlRaw(countSql, countParams)
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync() ?? new PaginationCount { TotalCount = 0 };
-
-                var totalPages = (int)Math.Ceiling((double)records.TotalCount / dto.limit);
-
-                return Ok(new FilteredResult<ProgramLatest>
-                {
-                    lists = projects,
-                    totalPages = totalPages,
-                    page = dto.page,
-                    limit = dto.limit,
-                    total = records.TotalCount
-                });
+                        Title = "Pagination error",
+                        Message =
+                            result.ToString() ??
+                            "Unable to retrieve the records."
+                    });
             }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
+
+            return Ok(result.Data);
         }
         
         [HttpPost]

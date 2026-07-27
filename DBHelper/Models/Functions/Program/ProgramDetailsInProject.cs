@@ -5,7 +5,7 @@ namespace DBHelper.Models.Functions.Program
 {
     public class ProgramDetailsInProject
     {
-        [Required]
+        [Key]
         public int StageFKId { get; set; }
         [Required]
         [MaxLength(200)]

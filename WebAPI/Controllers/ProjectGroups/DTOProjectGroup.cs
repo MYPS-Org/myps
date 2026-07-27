@@ -51,8 +51,8 @@ namespace WebAPI.Controllers.ProjectGroup
     }
     public class UpdateProjectGroupDetailsDTO
     {
-        [Required]
-        public DBHelper.Models.Views.Project.ProjectGroups GroupDetails { get; set; } = new DBHelper.Models.Views.ProjectGroups();
+        //[Required]
+        //public DBHelper.Models.Views.Project.ProjectGroups GroupDetails { get; set; } = new DBHelper.Models.Views.ProjectGroups();
         [Required]
         public List<DBHelper.Models.Views.Project.ProjectsInGroup> Projects { get; set; } = new List<DBHelper.Models.Views.Project.ProjectsInGroup>();
     }

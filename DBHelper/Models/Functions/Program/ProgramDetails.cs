@@ -6,7 +6,6 @@ namespace DBHelper.Models.Functions.Program
 {
     public class ProgramDetails
     {
-        [Required]
         [Key]
         public int StageFKId { get; set; }
         [Required]

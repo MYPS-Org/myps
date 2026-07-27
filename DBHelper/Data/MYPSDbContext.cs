@@ -1,4 +1,5 @@
-﻿using DBHelper.Models.Functions.Program;
+﻿using DBHelper.Models.Enums;
+using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Table.Lookups;
 using DBHelper.Models.Table.Lookups.Project;
@@ -92,6 +93,10 @@ namespace DBHelper.Data
         public DbSet<OptionGlobalSearch> tOptionGlobalSearch { get; set; }
         public DbSet<OptionCodeTables> tOptionCodeTables { get; set; }
         public DbSet<OptionReportProgram> tOptionReportProgram { get; set; }
+        #endregion
+
+        #region Raw SQL
+        public virtual DbSet<PaginationCount> PaginationCounts { get; set; }
         #endregion
 
         #endregion
@@ -245,8 +250,12 @@ namespace DBHelper.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
-            modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
+            modelBuilder.Entity<Models.Views.AdminAreas.AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
+            modelBuilder.Entity<Models.Views.AdminAreas.AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
+            modelBuilder.Entity<Models.Views.AdminAreas.AdminOfficeRegion>().HasNoKey().ToView("vAdminOfficeRegion");
+            modelBuilder.Entity<UserVisibleProjects>().HasNoKey().ToView("fUserVisibleProjects");
+            modelBuilder.Entity<UserVisiblePrograms>().HasNoKey().ToView("fUserVisiblePrograms");
+            modelBuilder.Entity<PaginationCount>().HasNoKey().ToView("PaginationCount");
             // Component Cost → Costs Per Year
             modelBuilder.Entity<ProjectComponentCost>()
                 .HasMany(x => x.CostsPerYear)

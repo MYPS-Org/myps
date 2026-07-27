@@ -1,5 +1,6 @@
 ﻿using DBHelper.Models.Enums;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DBHelper.Models.Functions.Program
 {
@@ -26,13 +27,12 @@ namespace DBHelper.Models.Functions.Program
         [Required]
         [MaxLength(1000)]
         public string[] DataSecurityGroup { get; set; } = Array.Empty<string>();
-        [Required]
         [MaxLength(50)]
-        public string ProgramType { get; set; } = string.Empty;
+        public string? ProgramType { get; set; }
         [Required]
         public int StartYear { get; set; }
         public int? ProjectCount { get; set; }
-        [Required]
-        public Double Amount { get; set; }
+        [Column(TypeName = "decimal(38,2)")]
+        public decimal? Amount { get; set; }
     }
 }

@@ -28,7 +28,8 @@ namespace DBHelper.Models.Table.Program
         [Required]
         public EnumProgramStatus Status { get; set; }
         [Required]
-        public Double Cost { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Cost { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

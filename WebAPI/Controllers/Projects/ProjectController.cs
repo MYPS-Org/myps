@@ -206,8 +206,57 @@ namespace WebAPI.Controllers.Projects
         #endregion
 
         #region Project Lists
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjects([FromBody] ShowProjectDTO dto, CancellationToken cancellationToken)
+        {
+            var filters = new List<(
+                string Clause,
+                string ParamName,
+                object? Value)>();
+
+
+
+            if (!string.IsNullOrEmpty(dto.Filters.ProgramId))
+                filters.Add(("v.ProgramId LIKE @programId", "@programId", $"%{dto.Filters.ProgramId}%"));
+
+            if (!string.IsNullOrEmpty(dto.Filters.ProjectId))
+                filters.Add(("v.ProjectId = @projectId", "@projectId", dto.Filters.ProjectId));
+
+            if (_Session.ApplyFilter)
+            {
+                filters.Add((
+                    "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
+                    "@regCode", _Session.RegCode));
+            }
+            FilterDataResult<ProjectLatest> result =
+                await _db.FilterDataCursor<
+                    ProjectLatest,
+                    ShowProjectFilterDTO>(
+                        tableName: "vProjectLatest",
+                        dto: dto,
+                        filter: filters,
+                        keyColumn: "Id",
+                        descending: true,
+                        includeTotal: true,
+                        ct: cancellationToken);
+
+            if (result.HasError)
+            {
+                return new BadRequestObjectResult(
+                    new ErrorResult
+                    {
+                        Title = "Pagination error",
+                        Message =
+                            result.ToString() ??
+                            "Unable to retrieve the records."
+                    });
+            }
+
+            return Ok(result.Data);
+        }
+        [HttpPost]
+        public async Task<IActionResult> ShowProjectsA([FromBody] ShowProjectDTO dto, CancellationToken cancellationToken)
         {
             try
             {

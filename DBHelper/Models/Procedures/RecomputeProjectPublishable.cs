@@ -4,7 +4,7 @@ namespace DBHelper.Models.Procedures
 {
     public class RecomputeProjectPublishable
     {
-        [Required]
+        [Key]
         public int ProjectsEvaluated { get; set; }
     }
 }
