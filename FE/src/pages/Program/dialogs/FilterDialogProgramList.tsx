@@ -49,7 +49,7 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
         const clearedFilters: ProgramFilter = {
             Name: currentFilters.Name ?? '', // preserve the current search term
             StartYear: null,
-            GroupName: '',
+            Type: '',
             StageName: '',
         };
         setLocalFilters(clearedFilters);
@@ -57,7 +57,7 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
         onClose();
     };
 
-    const handleFilterChange = (field: 'GroupName' | 'StageName', value: string) => {
+    const handleFilterChange = (field: 'Type' | 'StageName', value: string) => {
         setLocalFilters((prev: ProgramFilter) => ({
             ...prev,
             [field]: value
@@ -79,7 +79,7 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
 
     // StartYear (renamed from YearStart in ProgramFilter) and other dialog-managed fields
     const hasActiveFilters = localFilters.StartYear ||
-                            localFilters.GroupName ||
+                            localFilters.Type ||
                             localFilters.StageName;
 
     return (
@@ -127,21 +127,21 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
                             </select>
                         </div>
 
-                        {/* Program Group Filter */}
+                        {/* Program Type Filter */}
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Program Group
+                                Program Type
                             </label>
                             <select
-                                name="GroupName"
-                                value={localFilters.GroupName || ''}
-                                onChange={(e) => handleFilterChange('GroupName', e.target.value)}
+                                name="Type"
+                                value={localFilters.Type || ''}
+                                onChange={(e) => handleFilterChange('Type', e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                             >
-                                <option value="">All Groups</option>
-                                {programEnums?.Groups?.map(group => (
-                                    <option key={group.Id} value={group.GroupName}>
-                                        {group.GroupName}
+                                <option value="">All Types</option>
+                                {programEnums?.Types?.map(type => (
+                                    <option key={type.Id} value={type.Name}>
+                                        {type.Name}
                                     </option>
                                 ))}
                             </select>
@@ -183,10 +183,10 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
                                         </span>
                                     )}
 
-                                    {localFilters.GroupName && (
+                                    {localFilters.Type && (
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm text-blue-800 ring-1 ring-blue-200">
-                                            <span className="font-medium">Group:</span>
-                                            {localFilters.GroupName}
+                                            <span className="font-medium">Type:</span>
+                                            {localFilters.Type}
                                         </span>
                                     )}
 
