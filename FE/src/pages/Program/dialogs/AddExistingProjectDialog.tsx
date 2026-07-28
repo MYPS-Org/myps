@@ -35,7 +35,7 @@ const AddExistingProjectDialog: React.FC<AddExistingProjectDialogProps> = ({
       const response = await fetchProject({
         page: 1,
         limit: 500,
-        filters: {},
+        Filters: {},
       });
       // Exclude projects already belonging to this program
       const available = (response.Data?.lists || []).filter(

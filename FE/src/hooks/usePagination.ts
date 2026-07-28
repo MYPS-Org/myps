@@ -3,6 +3,9 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 interface UsePaginationOptions<TFilters> {
     initialFilters?: TFilters;
     limit?: number;
+    /** Static sort passed on every request. No column-sort UI wires this yet — set once at hook init. */
+    sortField?: string;
+    sortDirection?: 0 | 1;
 }
 
 interface UsePaginationReturn<TFilters, TItem> {
@@ -34,7 +37,8 @@ export function usePagination<TFilters, TItem>(
     fetchFn: (params: PaginatedRequest<TFilters>) => Promise<{ Data: PaginationResponse<TItem> }>,
     options: UsePaginationOptions<TFilters> = {}
 ): UsePaginationReturn<TFilters, TItem> {
-    const { initialFilters, limit = 10 } = options;
+    const { initialFilters, limit = 10, sortField, sortDirection } = options;
+    const sortParams = { SortField: sortField, sortDirection };
 
     const [data, setData] = useState<PaginationResponse<TItem>>({
         lists: [],
@@ -75,13 +79,13 @@ export function usePagination<TFilters, TItem>(
     // Empty deps array is intentional: this effect should only run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
-        fetchData({ Filters: initialFilters, limit, page: 1 });
+        fetchData({ Filters: initialFilters, limit, page: 1, ...sortParams });
     }, []);
 
     /** Plain page-jump — no Direction or cursor fields sent. */
     const goToPage = useCallback((page: number) => {
-        fetchData({ Filters: currentFilters, limit, page });
-    }, [fetchData, currentFilters, limit]);
+        fetchData({ Filters: currentFilters, limit, page, ...sortParams });
+    }, [fetchData, currentFilters, limit, sortField, sortDirection]);
 
     /** Keyset next-page navigation — sends Direction: 1 and the next cursor from the last response. */
     const goNext = useCallback(() => {
@@ -89,10 +93,11 @@ export function usePagination<TFilters, TItem>(
             Filters: currentFilters,
             limit,
             page: data.page + 1,
+            ...sortParams,
             Direction: 1,
             NextFilteredId: cursorRef.current.next,
         });
-    }, [fetchData, currentFilters, limit, data.page]);
+    }, [fetchData, currentFilters, limit, data.page, sortField, sortDirection]);
 
     /** Keyset previous-page navigation — sends Direction: 2 and the previous cursor from the last response. */
     const goPrevious = useCallback(() => {
@@ -100,10 +105,11 @@ export function usePagination<TFilters, TItem>(
             Filters: currentFilters,
             limit,
             page: data.page - 1,
+            ...sortParams,
             Direction: 2,
             PreviousFilteredId: cursorRef.current.previous,
         });
-    }, [fetchData, currentFilters, limit, data.page]);
+    }, [fetchData, currentFilters, limit, data.page, sortField, sortDirection]);
 
     /**
      * Apply a new filter set, resetting to page 1.
@@ -113,13 +119,13 @@ export function usePagination<TFilters, TItem>(
     const applyFilters = useCallback((filters: TFilters) => {
         cursorRef.current = { previous: null, next: null };
         setCurrentFilters(filters);
-        fetchData({ Filters: filters, limit, page: 1 });
-    }, [fetchData, limit]);
+        fetchData({ Filters: filters, limit, page: 1, ...sortParams });
+    }, [fetchData, limit, sortField, sortDirection]);
 
     /** Re-fetch the current page/filters without cursors — safe to call after a delete. */
     const refresh = useCallback(() => {
-        fetchData({ Filters: currentFilters, limit, page: data.page });
-    }, [fetchData, currentFilters, limit, data.page]);
+        fetchData({ Filters: currentFilters, limit, page: data.page, ...sortParams });
+    }, [fetchData, currentFilters, limit, data.page, sortField, sortDirection]);
 
     // Degrade gracefully when the BE response omits the new keyset fields (un-migrated pages).
     const hasPrevious = data.HasPrevious ?? data.page > 1;
