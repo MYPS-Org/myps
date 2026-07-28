@@ -5,9 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Infra
 {
-    public class FutureBridge
+    public class FutureRoadSections
     {
         [Key]
         public int Id { get; set; }
@@ -17,20 +17,16 @@ namespace DBHelper.Models.Table
         public int InfraExistingOrFutureId { get; set; }
         [Required]
         [MaxLength(100)]
-        public string RoadSectionId { get; set; } = string.Empty;
+        public string RoadId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
-        public string BridgeId { get; set; } = string.Empty;
+        public string RoadSectionId { get; set; } = string.Empty;
         [Required]
         [MaxLength(200)]
-        public string Name { get; set; } = string.Empty;
+        public string RoadLength { get; set; } = string.Empty;
         [Required]
-        public Double From { get; set; }
-        [Required]
-        public Double Length { get; set; }
-        public Double? CarriageWay { get; set; }
-        [Required]
-        public Double OverallWidth { get; set; }
+        [MaxLength(100)]
+        public string DEO { get; set; } = string.Empty;
         [Required]
         [MaxLength(200)]
         public string CreatedBy { get; set; } = string.Empty;

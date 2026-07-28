@@ -617,7 +617,7 @@ SELECT * FROM Ranked WHERE rn = 1
 | `DEO` | `tOptionAdminAreaDistrictEngineeringOffice.Name` |
 | `ImplementingOffice` | `vAdminImplementingOffice.Name` |
 | `Category` | `tOptionProjectCategory.CategoryName` |
-| `Thrust` | `tProjectThrustLists.ThrustDescription` |
+| `Thrust` | `tOptionProjectThrustList.ThrustDescription` |
 
 ### How It Works
 
@@ -779,7 +779,7 @@ Region                          ← tOptionAdminAreaRegion.Name
 └─ Tier                         ← tProjectRevisions.Tier
    └─ DEO                      ← tOptionAdminAreaDistrictEngineeringOffice.Name
       └─ Legislative District   ← tOptionAdminAreaCongressionalDistrict.Name
-         └─ Category + Thrust   ← tOptionProjectCategory.CategoryName + tProjectThrustLists.*
+         └─ Category + Thrust   ← tOptionProjectCategory.CategoryName + tOptionProjectThrustList.*
             └─ Project          ← ProjectId + ProjectDescription
                └─ Component    ← ComponentId (CW1/CW2) + ScopeDescription + ComponentCost
                   └─ Work Location ← DetailsOfWork + LengthOfWork + PhysicalTarget + TargetUnit
@@ -794,10 +794,10 @@ Region                          ← tOptionAdminAreaRegion.Name
 | `DEO` | `tOptionAdminAreaDistrictEngineeringOffice.Name` | District Engineering Office |
 | `LegislativeDistrict` | `tOptionAdminAreaCongressionalDistrict.Name` | Legislative District |
 | `CategoryName` | `tOptionProjectCategory.CategoryName` | Category (e.g. OO-1, OO-2) |
-| `ThrustProgramName` | `tProjectThrustLists.ProgramName` | Thrust program (e.g. "Ensure Safe and Reliable National Road System") |
-| `ThrustSubProgramName` | `tProjectThrustLists.SubProgramName` | Sub-program (e.g. "Asset Preservation") |
-| `ThrustActivityName` | `tProjectThrustLists.ActivityName` | Activity (e.g. "Preventive Maintenance") |
-| `ThrustDescription` | `tProjectThrustLists.ThrustDescription` | Full thrust description |
+| `ThrustProgramName` | `tOptionProjectThrustList.ProgramName` | Thrust program (e.g. "Ensure Safe and Reliable National Road System") |
+| `ThrustSubProgramName` | `tOptionProjectThrustList.SubProgramName` | Sub-program (e.g. "Asset Preservation") |
+| `ThrustActivityName` | `tOptionProjectThrustList.ActivityName` | Activity (e.g. "Preventive Maintenance") |
+| `ThrustDescription` | `tOptionProjectThrustList.ThrustDescription` | Full thrust description |
 | `ProjectId` | `tProjectRevisions.ProjectId` | Stage-scoped project ID |
 | `ProjectDescription` | `tProjectRevisions.Description` | Project name / description |
 | `ComponentId` | `tProjectComponentCost.ComponentId` | Component type (CW1, CW2, etc.) |
@@ -851,10 +851,10 @@ EXEC pGenerateRBPComponents
 ```
 Region
 └─ Category (OO1 / OO2 / CSSP / LP)          ← tOptionProjectCategory.CategoryName
-   └─ Thrust Program                          ← tProjectThrustLists.ProgramName
-      └─ Thrust Sub-Program                   ← tProjectThrustLists.SubProgramName
-         └─ Thrust Activity                   ← tProjectThrustLists.ActivityName
-            └─ Infrastructure Type            ← tProjectThrustLists.InfrastructureType
+   └─ Thrust Program                          ← tOptionProjectThrustList.ProgramName
+      └─ Thrust Sub-Program                   ← tOptionProjectThrustList.SubProgramName
+         └─ Thrust Activity                   ← tOptionProjectThrustList.ActivityName
+            └─ Infrastructure Type            ← tOptionProjectThrustList.InfrastructureType
                └─ Project                     ← ProjectId + Description + spatial + costs
 ```
 
@@ -864,10 +864,10 @@ Region
 |---|---|---|
 | `Region` | `tOptionAdminAreaRegion.Name` | Region name |
 | `CategoryName` | `tOptionProjectCategory.CategoryName` | Category (OO-1, OO-2, CSSP, LP) |
-| `ThrustProgramName` | `tProjectThrustLists.ProgramName` | e.g. "Ensure Safe and Reliable National Road System" |
-| `ThrustSubProgramName` | `tProjectThrustLists.SubProgramName` | e.g. "Asset Preservation Program" |
-| `ThrustActivityName` | `tProjectThrustLists.ActivityName` | e.g. "Preventive Maintenance" |
-| `ThrustInfrastructureType` | `tProjectThrustLists.InfrastructureType` | e.g. "Primary Roads", "Secondary Roads" |
+| `ThrustProgramName` | `tOptionProjectThrustList.ProgramName` | e.g. "Ensure Safe and Reliable National Road System" |
+| `ThrustSubProgramName` | `tOptionProjectThrustList.SubProgramName` | e.g. "Asset Preservation Program" |
+| `ThrustActivityName` | `tOptionProjectThrustList.ActivityName` | e.g. "Preventive Maintenance" |
+| `ThrustInfrastructureType` | `tOptionProjectThrustList.InfrastructureType` | e.g. "Primary Roads", "Secondary Roads" |
 | `ProjectId` | `tProjectRevisions.ProjectId` | Stage-scoped project ID |
 | `ProjectDescription` | `tProjectRevisions.Description` | Project name / road description |
 | `CityMunicipality` | `tOptionAdminAreaCityMunicipality.Name` | City/Municipality |

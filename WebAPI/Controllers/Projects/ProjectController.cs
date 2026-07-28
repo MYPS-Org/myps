@@ -329,7 +329,6 @@ namespace WebAPI.Controllers.Projects
                     _Session = _Session,
                     Tier = dto.Tier,
                     Category = dto.Category,
-                    Thrust  = dto.Thrust,
                     Region  = dto.Region,
                     Province  = dto.Province,
                     City  = dto.City,
@@ -478,6 +477,7 @@ namespace WebAPI.Controllers.Projects
                 var ProjectStage = ValidateProjectId.Data.ProjectStage;
                 #endregion
 
+                string ProejctFK = ProjectParent.ProjectPK;
                 string ProgramFK = ProjectParent.ProgramFK;
                 EnumProgramStage StageId = ProjectStage.StageId;
 
@@ -485,30 +485,16 @@ namespace WebAPI.Controllers.Projects
                 var Program = await _db.fProgramDetailsInProject.FromSqlInterpolated($"SELECT * FROM fProgramDetailsInProject({ProgramFK},{StageId})").AsNoTracking().FirstOrDefaultAsync(cancellationToken);
 
                 #region Funding Profile
-                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisions.Id && !x.IsDeleted).ToListAsync(cancellationToken);
+                var Funding = await _db.fProjectFundingProfile.FromSqlInterpolated($"SELECT * FROM fProjectFundingProfile({ProejctFK},{StageId})").AsNoTracking().ToListAsync(cancellationToken);
                 #endregion
 
                 #region Project Components
-                //var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectRevisionFK == Project.Id && !x.IsDeleted).ToListAsync(cancellationToken);
-                var ProjectComponents = await _db.tProjectComponentCost
-                    .AsNoTracking()
-                    .Where(component =>
-                        component.ProjectRevisionFK == ProjectRevisions.Id &&
-                        !component.IsDeleted)
 
-                    // Component Cost → Cost Per Year
-                    .Include(component =>
-                        component.CostsPerYear.Where(year => !year.IsDeleted))
+                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProejctFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
+                var ComponentCostYear = await _db.fProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({ProejctFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
 
-                    // Component Cost → Work Items → Work Locations
-                    .Include(component =>
-                        component.WorkItem.Where(item => !item.IsDeleted))
-                    .ThenInclude(item =>
-                        item.WorkLocations.Where(location => !location.IsDeleted))
-
-                    // Recommended because multiple collection Includes are loaded
-                    .AsSplitQuery()
-                    .ToListAsync(cancellationToken);
+                var MajorItemOfWork = await _db.fProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProejctFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
+                var MajorWorkLocation = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({ProejctFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
 
                 #endregion
 
@@ -528,11 +514,11 @@ namespace WebAPI.Controllers.Projects
                     ProgramDetails = Program,
                     ProjectDetails = ProjectRevisions,
                     FundingProfile = Funding,
-                    Components = ProjectComponents,
-                    //ComponentCosts = ComponentCost,
-                    //ComponentCostPerYear = ComponentCostYear,
-                    //MajorItemOfWorks = MajorItemOfWork,
-                    //MajorItemLocations = MajorWorkLocation,
+                    //Components = ProjectComponents,
+                    ComponentCosts = ComponentCost,
+                    ComponentCostPerYear = ComponentCostYear,
+                    MajorItemOfWorks = MajorItemOfWork,
+                    MajorItemLocations = MajorWorkLocation,
                     //ProjectNotes = Notes,
 
                     Docs = Doc,
@@ -612,7 +598,6 @@ namespace WebAPI.Controllers.Projects
                     _Session = _Session,
                     Tier = dto.ProjectDetails.Tier,
                     Category = dto.ProjectDetails.Category,
-                    Thrust = dto.ProjectDetails.Thrust,
                     Region = dto.ProjectDetails.Region,
                     Province = dto.ProjectDetails.Province,
                     City = dto.ProjectDetails.City,

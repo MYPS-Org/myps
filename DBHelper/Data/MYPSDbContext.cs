@@ -1,6 +1,7 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Functions.Project;
+using DBHelper.Models.Table.Infra;
 using DBHelper.Models.Table.Lookups;
 using DBHelper.Models.Table.Lookups.Project;
 using DBHelper.Models.Table.Permission;
@@ -110,13 +111,13 @@ namespace DBHelper.Data
         public DbSet<ProjectRevisions> tProjectRevisions { get; set; }
         public DbSet<Models.Table.Project.ProjectStages> tProjectStages { get; set; }
 
-        public DbSet<ProjectFundingProfile> tProjectFundingProfile { get; set; }
+        public DbSet<Models.Table.Project.ProjectFundingProfile> tProjectFundingProfile { get; set; }
 
-        public DbSet<ProjectComponentCost> tProjectComponentCost { get; set; }
-        public DbSet<ProjectComponentCostPerYear> tProjectComponentCostPerYear { get; set; }
+        public DbSet<Models.Table.Project.ProjectComponentCost> tProjectComponentCost { get; set; }
+        public DbSet<Models.Table.Project.ProjectComponentCostPerYear> tProjectComponentCostPerYear { get; set; }
 
-        public DbSet<ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
-        public DbSet<ProjectMajorWorkLocations> tProjectMajorWorkLocations { get; set; }
+        public DbSet<Models.Table.Project.ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
+        public DbSet<Models.Table.Project.ProjectMajorWorkLocations> tProjectMajorWorkLocations { get; set; }
 
 
         public DbSet<Models.Table.ProjectNotes> tProjectNotes { get; set; }
@@ -132,6 +133,13 @@ namespace DBHelper.Data
         public DbSet<Models.Functions.Project.ProjectStages> fProjectStages { get; set; }
         public DbSet<Models.Functions.Project.UserVisibleProjects> fUserVisibleProjects { get; set; }
         public DbSet<Models.Functions.Project.ProjectDetails> fProjectDetails { get; set; }
+        public DbSet<Models.Functions.Project.ProjectFundingProfile> fProjectFundingProfile { get; set; }
+
+        public DbSet<Models.Functions.Project.ProjectComponentCost> fProjectComponentCost { get; set; }
+        public DbSet<Models.Functions.Project.ProjectComponentCostPerYear> fProjectComponentCostPerYear { get; set; }
+
+        public DbSet<Models.Functions.Project.ProjectMajorWorkItem> fProjectMajorWorkItem { get; set; }
+        public DbSet<Models.Functions.Project.ProjectMajorWorkLocations> fProjectMajorWorkLocations { get; set; }
         #endregion
 
         #region Lookups
@@ -211,10 +219,10 @@ namespace DBHelper.Data
         #region Infra
 
         #region Tables
-        public DbSet<Models.Table.FutureRoads> tFutureRoads { get; set; }
-        public DbSet<Models.Table.FutureRoadsClassification> tFutureRoadsClassification { get; set; }
-        public DbSet<Models.Table.FutureRoadSections> tFutureRoadSections { get; set; }
-        public DbSet<Models.Table.FutureBridge> tFutureBridge { get; set; }
+        public DbSet<FutureRoads> tFutureRoads { get; set; }
+        public DbSet<FutureRoadsClassification> tFutureRoadsClassification { get; set; }
+        public DbSet<FutureRoadSections> tFutureRoadSections { get; set; }
+        public DbSet<FutureBridge> tFutureBridge { get; set; }
         #endregion
 
         #region Lookups
@@ -259,21 +267,21 @@ namespace DBHelper.Data
             modelBuilder.Entity<UserVisiblePrograms>().HasNoKey().ToView("fUserVisiblePrograms");
             modelBuilder.Entity<PaginationCount>().HasNoKey().ToView("PaginationCount");
             // Component Cost → Costs Per Year
-            modelBuilder.Entity<ProjectComponentCost>()
+            modelBuilder.Entity<Models.Table.Project.ProjectComponentCost>()
                 .HasMany(x => x.CostsPerYear)
                 .WithOne(x => x.ComponentCost)
                 .HasForeignKey(x => x.ComponentCostFK)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Component Cost → Major Work Items
-            modelBuilder.Entity<ProjectComponentCost>()
+            modelBuilder.Entity<Models.Table.Project.ProjectComponentCost>()
                 .HasMany(x => x.WorkItem)
                 .WithOne(x => x.ComponentCost)
                 .HasForeignKey(x => x.ComponentCostFK)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Major Work Item → Work Locations
-            modelBuilder.Entity<ProjectMajorWorkItem>()
+            modelBuilder.Entity<Models.Table.Project.ProjectMajorWorkItem>()
                 .HasMany(x => x.WorkLocations)
                 .WithOne(x => x.WorkItem)
                 .HasForeignKey(x => x.WorkItemFK)

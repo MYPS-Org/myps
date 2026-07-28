@@ -129,7 +129,7 @@ namespace WebAPI.Controllers.Importing
     //        {
     //            return new GenerateProjecttResponse { IsValid = false, Message = $"Incorrect Project Category in ProjectId: {details.ProjectId}, Selected Category: {details.Category}" };
     //        }
-    //        var Thrust = _db.tProjectThrustLists.AsNoTracking().FirstOrDefault(x => x.ThrustDescription == details.Thrust);
+    //        var Thrust = _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefault(x => x.ThrustDescription == details.Thrust);
     //        if (Thrust == null)
     //        {
     //            return new GenerateProjecttResponse { IsValid = false, Message = $"Incorrect Thrust in ProjectId: {details.ProjectId}, Selected Thrust: {details.Thrust}" };
@@ -323,7 +323,7 @@ namespace WebAPI.Controllers.Importing
     //    }
     //    public static GenerateComponentCostResponse GenerateComponentCost(this MYPSDbContext _db, ImportComponentCost ComponentCost, ImportProjectReference ProjectRef)
     //    {
-    //        var Component = _db.tOptionProjectComponent.AsNoTracking().FirstOrDefault(x => x.ComponentName == ComponentCost.ComponentType);
+    //        var Component = _db.tOptionProjectComponentType.AsNoTracking().FirstOrDefault(x => x.ComponentName == ComponentCost.ComponentType);
     //        if (Component == null) {
     //            return new GenerateComponentCostResponse
     //            {

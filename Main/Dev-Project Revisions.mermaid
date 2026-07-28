@@ -221,7 +221,7 @@ erDiagram
         int         ValidUntil
     }
 
-    tProjectThrustLists {
+    tOptionProjectThrustList {
         int         Id                  PK
         int         PAPKey              UK
         nvarchar    ProgramName
@@ -400,7 +400,7 @@ erDiagram
         datetime    UpdatedDate
     }
 
-    tOptionProjectComponent {
+    tOptionProjectComponentType {
         int         Id                  PK
         nvarchar    ComponentId         UK
         nvarchar    ComponentName
@@ -449,7 +449,7 @@ erDiagram
 
     %% Revision Projects option dropdown references (defined in Programs and Projects ERD)
     tOptionProjectCategory                       ||--o{ tRevisionProjects : "CategoryId > Category"
-    tProjectThrustLists                          ||--o{ tRevisionProjects : "PAPKey > Thrust"
+    tOptionProjectThrustList                          ||--o{ tRevisionProjects : "PAPKey > Thrust"
     tOptionProjectOrigin                         ||--o{ tRevisionProjects : "NameId > Origin"
     tOptionAdminAreaCityMunicipality             ||--o{ tRevisionProjects : "GdbId > City"
     tOptionAdminAreaProvince                     ||--o{ tRevisionProjects : "GdbId > Province"
@@ -467,12 +467,12 @@ erDiagram
 
     %% Revision Component Cost relationships (option dropdowns from Programs and Projects ERD)
     tRevisionProjects               ||--o{ tRevisionProjectComponentCost        : "ProjectId"
-    tOptionProjectComponent         ||--o{ tRevisionProjectComponentCost        : "ComponentId"
+    tOptionProjectComponentType         ||--o{ tRevisionProjectComponentCost        : "ComponentId"
     tRevisionProjectComponentCost   ||--o{ tRevisionProjectComponentCostPerYear : "CostId > ComponentCostId"
 
     %% Revision Major Work relationships (option dropdowns from Programs and Projects ERD)
     tRevisionProjects               ||--o{ tRevisionProjectMajorWorkItem        : "ProjectId"
-    tOptionProjectComponent         ||--o{ tRevisionProjectMajorWorkItem        : "ComponentId"
+    tOptionProjectComponentType         ||--o{ tRevisionProjectMajorWorkItem        : "ComponentId"
     tOptionScopeOfWork              ||--o{ tRevisionProjectMajorWorkItem        : "Enum > WorkTypeId"
     tOptionInfraType                ||--o{ tRevisionProjectMajorWorkItem        : "InfraCode > InfraType"
     tRevisionProjectMajorWorkItem   ||--o{ tRevisionProjectMajorWorkLocations   : "ReferenceId > ParentId"

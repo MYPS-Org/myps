@@ -21,7 +21,7 @@ namespace DBHelper.Models.Functions.Project
         [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
-        [MaxLength(200)]
+        [MaxLength(400)]
         public string? AlternateId { get; set; }
         [Required]
         public string Description { get; set; } = string.Empty;
@@ -29,14 +29,11 @@ namespace DBHelper.Models.Functions.Project
         [MaxLength(20)]
         public string Region { get; set; } = string.Empty;
         [MaxLength(20)]
-        [Required]
-        public string Province { get; set; } = string.Empty;
+        public string? Province { get; set; }
         [MaxLength(20)]
-        [Required]
-        public string City { get; set; } = string.Empty;
+        public string? City { get; set; }
         [MaxLength(20)]
-        [Required]
-        public string LegislativeDistrict { get; set; } = string.Empty;
+        public string? LegislativeDistrict { get; set; }
         [Required]
         [MaxLength(20)]
         public string DEO { get; set; } = string.Empty;
@@ -52,8 +49,7 @@ namespace DBHelper.Models.Functions.Project
         public int Category { get; set; }
         [MaxLength(200)]
         public string? CategoryName { get; set; }
-        [Required]
-        public int Thrust { get; set; }
+        public int? Thrust { get; set; }
         [MaxLength(400)]
         public string? ThrustName { get; set; }
         [Required]
@@ -64,11 +60,9 @@ namespace DBHelper.Models.Functions.Project
         public int Agency { get; set; }
         [MaxLength(200)]
         public string? AgencyName { get; set; }
-        [Required]
         public int ImplementationMode { get; set; }
         [MaxLength(50)]
         public string? ImplementationModeName { get; set; }
-        [Required]
         public int EmergencyMode { get; set; }
         [MaxLength(50)]
         public string? EmergencyModeName { get; set; }
@@ -76,17 +70,14 @@ namespace DBHelper.Models.Functions.Project
         public int RegionWide { get; set; }
         [MaxLength(200)]
         public string? RegionWideName { get; set; }
-        [Required]
         public int Feasibility { get; set; }
         [MaxLength(50)]
         public string? FeasibilityName { get; set; }
         public DateTime? FeasibilityDate { get; set; }
-        [Required]
         public int DetailedDesign { get; set; }
         [MaxLength(50)]
         public string? DetailedDesignName { get; set; }
         public DateTime? DetailedDesignDate { get; set; }
-        [Required]
         public int RowAvailable { get; set; }
         [MaxLength(50)]
         public string? RowAvailableName { get; set; }
@@ -106,5 +97,8 @@ namespace DBHelper.Models.Functions.Project
         public string RevisionCreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime RevisionCreatedDate { get; set; }
+        [Required]
+        [MaxLength(8)]
+        public string Source { get; set; } = string.Empty;
     }
 }

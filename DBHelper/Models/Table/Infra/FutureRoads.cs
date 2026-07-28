@@ -5,9 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Infra
 {
-    public class FutureRoadSections
+    public class FutureRoads
     {
         [Key]
         public int Id { get; set; }
@@ -19,14 +19,10 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string RoadId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string RoadSectionId { get; set; } = string.Empty;
-        [Required]
         [MaxLength(200)]
-        public string RoadLength { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string DEO { get; set; } = string.Empty;
+        public int Classification { get; set; }
         [Required]
         [MaxLength(200)]
         public string CreatedBy { get; set; } = string.Empty;

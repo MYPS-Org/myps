@@ -114,7 +114,7 @@ erDiagram
 
     %% ─── COMPONENT GROUP ─────────────────────────────────────
 
-    tOptionProjectComponent {
+    tOptionProjectComponentType {
         int         Id                  PK
         nvarchar    ComponentId         UK
         nvarchar    ComponentName
@@ -274,7 +274,7 @@ erDiagram
         int         ValidUntil
     }
 
-    tProjectThrustLists {
+    tOptionProjectThrustList {
         int         Id                  PK
         int         PAPKey              UK
         nvarchar    ProgramName
@@ -472,14 +472,14 @@ erDiagram
 
     %% Component Cost relationships
     tProjects               ||--o{ tProjectComponentCost        : "ReferenceId > ProjectId"
-    tOptionProjectComponent ||--o{ tProjectComponentCost        : "ComponentId"
+    tOptionProjectComponentType ||--o{ tProjectComponentCost        : "ComponentId"
     tProjectComponentCost   ||--o{ tProjectComponentCostPerYear : "CostId > ComponentCostId"
     tOptionProgramStage     ||--o{ tProjectComponentCost        : "Name > StageName"
     tOptionProgramStage     ||--o{ tProjectComponentCostPerYear : "Name > StageName"
 
     %% Major Work relationships
     tProjects               ||--o{ tProjectMajorWorkItem        : "ReferenceId > ProjectId"
-    tOptionProjectComponent ||--o{ tProjectMajorWorkItem        : "ComponentId"
+    tOptionProjectComponentType ||--o{ tProjectMajorWorkItem        : "ComponentId"
     tOptionScopeOfWork      ||--o{ tProjectMajorWorkItem        : "Enum > WorkTypeId"
     tOptionInfraType        ||--o{ tProjectMajorWorkItem        : "InfraCode > InfraType"
     tProjectMajorWorkItem   ||--o{ tProjectMajorWorkLocations   : "ReferenceId > ParentId"
@@ -493,7 +493,7 @@ erDiagram
 
     %% ProjectRevisions lookup relationships
     tOptionProjectCategory              ||--o{ tProjectRevisions : "CategoryId > Category"
-    tProjectThrustLists                 ||--o{ tProjectRevisions : "PAPKey > Thrust"
+    tOptionProjectThrustList                 ||--o{ tProjectRevisions : "PAPKey > Thrust"
     tOptionProjectOrigin                ||--o{ tProjectRevisions : "NameId > Origin"
     tOptionAdminAreaCityMunicipality    ||--o{ tProjectRevisions : "GdbId > City"
     tOptionAdminAreaProvince            ||--o{ tProjectRevisions : "GdbId > Province"

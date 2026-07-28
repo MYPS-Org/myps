@@ -27,4 +27,8 @@
     <None Include="Models\Table\RevisionRules.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Models\Table\Revision\" />
+  </ItemGroup>
+
 </Project>

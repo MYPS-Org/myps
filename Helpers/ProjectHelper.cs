@@ -273,7 +273,6 @@ namespace Helpers
             public DBHelper.Models.Views.Users _Session { get; set; } = new DBHelper.Models.Views.Users();
             public int Tier { get; set; }
             public int Category { get; set; }
-            public int Thrust { get; set; }
             public string Region { get; set; } = string.Empty;
             public string Province { get; set; } = string.Empty;
             public string City { get; set; } = string.Empty;
@@ -309,12 +308,12 @@ namespace Helpers
                 return response;
             }
 
-            var ValidateThrust = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == p.Thrust, cancellationToken);
-            if (ValidateThrust == null)
-            {
-                response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid."; response.Title = "Invalid Sub-Category";
-                return response;
-            }
+            //var ValidateThrust = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == p.Thrust, cancellationToken);
+            //if (ValidateThrust == null)
+            //{
+            //    response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid."; response.Title = "Invalid Sub-Category";
+            //    return response;
+            //}
             string UserId = p._Session.UserId;
             var ValidateRegion = await _db.fUserVisibleRegions
                 .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleRegions({UserId})")

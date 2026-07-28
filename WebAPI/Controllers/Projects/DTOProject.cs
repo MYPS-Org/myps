@@ -95,7 +95,7 @@ namespace WebAPI.Controllers.Projects
         public int ProjectRevisionFK { get; set; }
         [Required]
         [MaxLength(10)]
-        // FK -> dbo.tOptionProjectComponent(ComponentId)
+        // FK -> dbo.tOptionProjectComponentType(ComponentId)
         public string ComponentType { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
