@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using OfficeOpenXml;
+using System.Data;
 using System.Text.Json;
 namespace WebAPI.Controllers.GlobalSearch
 {
@@ -42,7 +43,7 @@ namespace WebAPI.Controllers.GlobalSearch
                 return ExceptionHandler(ex);
             }
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Search([FromBody] SearchDTO dto, CancellationToken cancellationToken)
         {
@@ -204,20 +205,58 @@ namespace WebAPI.Controllers.GlobalSearch
 
                     var filtersJson = JsonSerializer.Serialize(filters);
 
+                    var filtersParameter = new Microsoft.Data.SqlClient.SqlParameter(
+                        "@Filters",
+                        SqlDbType.NVarChar,
+                        -1)
+                    {
+                        Value = filtersJson
+                    };
+
                     var selectedRevisions = await _db.fProgramStages
-                        .FromSqlInterpolated($"""
-                            SELECT DISTINCT result.*
-                            FROM OPENJSON({filtersJson})
+                        .FromSqlRaw(
+                            """
+                        IF ISJSON(@Filters) <> 1
+                        BEGIN
+                            THROW 50001, 'The supplied program-stage filter is not valid JSON.', 1;
+                        END;
+
+                        ;WITH ParsedFilters AS
+                        (
+                            SELECT
+                                LTRIM(RTRIM(ProgramPK)) AS ProgramPK,
+                                StageId
+                            FROM OPENJSON(@Filters)
                             WITH
                             (
-                                ProgramFK uniqueidentifier '$.ProgramFK',
-                                StageId int '$.StageId'
-                            ) filter
-                            CROSS APPLY dbo.fProgramStages(
-                                filter.ProjectFK,
-                                filter.StageId
-                            ) result
-                        """)
+                                ProgramPK nvarchar(200) '$.ProgramPK',
+                                StageId   int           '$.StageId'
+                            )
+                        ),
+                        ValidFilters AS
+                        (
+                            SELECT DISTINCT
+                                ProgramPK,
+                                StageId
+                            FROM ParsedFilters
+                            WHERE NULLIF(ProgramPK, N'') IS NOT NULL
+                              AND StageId IS NOT NULL
+                        ),
+                        DistinctPrograms AS
+                        (
+                            SELECT DISTINCT
+                                ProgramPK
+                            FROM ValidFilters
+                        )
+                        SELECT DISTINCT
+                            result.*
+                        FROM DistinctPrograms AS program
+                        CROSS APPLY dbo.fProgramStages(program.ProgramPK) AS result
+                        INNER JOIN ValidFilters AS filter
+                            ON filter.ProgramPK = result.ProgramPK
+                           AND filter.StageId = result.StageId;
+                        """,
+                            filtersParameter)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
                     return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions} project/s found." });
