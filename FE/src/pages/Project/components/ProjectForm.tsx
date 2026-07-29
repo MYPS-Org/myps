@@ -117,6 +117,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
     initialData?.ProjectDetails || {
       Id: 0,
+      ProjectPK: '',
+      ProjectType: '',
       ProgramId: '',
       ProgramName: '',
       StageName: '',
@@ -145,7 +147,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Feasibility: 0,
       DetailedDesign: 0,
       RowAvailable: 0,
+      RegionWide: 0,
       Tier: 1,
+      CreatedDate: '',
+      RevisionCreatedBy: '',
+      RevisionCreatedDate: '',
+      Source: '',
     }
   );
 
