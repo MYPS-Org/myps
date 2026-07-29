@@ -46,27 +46,26 @@ export interface ProgramLatest {
 }
 
 export interface ProgramDetails {
-	Id: number;
+	StageFKId: number;
+	ProgramPK: string;
 	ProgramId: string;
-	RevisionNumber: number;
-	Name: string;
 	StageId: number;
 	StageName: string;
-	IsSkipped: boolean;
-	IsPublished: boolean;
-	SkipReason: string;
-	UserGroup: number[];
-	RegionCode: string;
+	RevisionId: number;
+	Name: string;
 	Status: number;
+	StatusName?: string;
+	Cost: number;
 	Type: number;
-	Cost?: number;
-	DataSecurityGroup?: string[];
-	YearStart: number;
-	YearEnd: number;
+	ProgramType?: string;
+	StartYear: number;
+	UserGroup: string[];
+	DataSecurityGroup: string[];
+	IsPublished: boolean;
+	IsDeleted: boolean;
+	IsSkipped: boolean;
 	CreatedBy: string;
 	CreatedDate: string;
-	UpdatedBy?: string;
-	UpdatedDate?: string;
 }
 
 export interface StageList {
