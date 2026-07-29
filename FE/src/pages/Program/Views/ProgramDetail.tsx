@@ -29,27 +29,24 @@ const ProgramDetail: React.FC = () => {
   const { showToast } = useToast();
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
-      	Id: 0,
+        StageFKId: 0,
+        ProgramPK: '',
         ProgramId: '',
-        RevisionNumber: 0,
+        RevisionId: 0,
         Name: '',
         StageId: 0,
         StageName: '',
         IsSkipped: false,
-      IsPublished: false,
-        SkipReason: '',
+        IsPublished: false,
+        IsDeleted: false,
         UserGroup: [],
-        RegionCode: '',
         Status: 0,
         Type: 0,
         Cost: 0,
         DataSecurityGroup: [],
-        YearStart: 0,
-        YearEnd: 0,
+        StartYear: 0,
         CreatedBy: '',
         CreatedDate: '',
-        UpdatedBy: '',
-        UpdatedDate: '',
     },
     IsActive: false,
     Projects: [],
@@ -63,27 +60,24 @@ const ProgramDetail: React.FC = () => {
   });
   const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
-      	Id: 0,
+        StageFKId: 0,
+        ProgramPK: '',
         ProgramId: '',
-        RevisionNumber: 0,
+        RevisionId: 0,
         Name: '',
         StageId: 0,
         StageName: '',
         IsSkipped: false,
-        SkipReason: '',
         IsPublished: false,
+        IsDeleted: false,
         UserGroup: [],
-        RegionCode: '',
         Status: 0,
         Type: 0,
         Cost: 0,
         DataSecurityGroup: [],
-        YearStart: 0,
-        YearEnd: 0,
+        StartYear: 0,
         CreatedBy: '',
         CreatedDate: '',
-        UpdatedBy: '',
-        UpdatedDate: '',
     },
     IsActive: false,
     Projects: [],
@@ -165,7 +159,7 @@ const ProgramDetail: React.FC = () => {
     };
 
   const handleAddProject = () => {
-    navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}&stageName=${programEnums?.Details.StageName}`);
+    navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramPK}&stageName=${programEnums?.Details.StageName}`);
   };
 
   const handleAddExistingProject = () => {
@@ -180,7 +174,7 @@ const ProgramDetail: React.FC = () => {
         type: 'success',
         message: 'Projects restored successfully.',
       });
-      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+      await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
     } catch (error) {
       console.error('Error restoring projects:', error);
       showToast({
@@ -196,12 +190,12 @@ const ProgramDetail: React.FC = () => {
     try {
       setIsLoading(true);
       // TODO: Call API to link selected projects to this program
-      console.log('Adding existing projects to program:', programEnums?.Details.ProgramId, projectIds);
+      console.log('Adding existing projects to program:', programEnums?.Details.ProgramPK, projectIds);
       showToast({
         type: 'success',
         message: `${projectIds.length} project${projectIds.length !== 1 ? 's' : ''} added successfully.`,
       });
-      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+      await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
     } catch (error) {
       console.error('Error adding existing projects:', error);
       showToast({
@@ -236,14 +230,13 @@ const ProgramDetail: React.FC = () => {
   };
 
   const handleUserGroupToggle = (userGroupId: string) => {
-    const numericId = parseInt(userGroupId);
     setProgramEnums(prev => ({
       ...prev,
       Details: {
         ...prev.Details,
-        UserGroup: (prev.Details.UserGroup || []).includes(numericId)
-          ? (prev.Details.UserGroup || []).filter(id => id !== numericId)
-          : [...(prev.Details.UserGroup || []), numericId]
+        UserGroup: (prev.Details.UserGroup || []).includes(userGroupId)
+          ? (prev.Details.UserGroup || []).filter(id => id !== userGroupId)
+          : [...(prev.Details.UserGroup || []), userGroupId]
       }
     }));
   };
@@ -315,7 +308,7 @@ const ProgramDetail: React.FC = () => {
         });
       }
       console.log('Update program details');
-      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+      await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
     } catch (error) {
       showToast({
         type: 'error',
@@ -342,26 +335,13 @@ const ProgramDetail: React.FC = () => {
       return sorted1.every((val, index) => val === sorted2[index]);
     };
 
-    // Helper function to compare number arrays
-    const numberArraysEqual = (arr1: number[] | number = [], arr2: number[] | number = []) => {
-      // Handle if they're not arrays (backward compatibility)
-      if (!Array.isArray(arr1) || !Array.isArray(arr2)) {
-        return arr1 === arr2;
-      }
-      if (arr1.length !== arr2.length) return false;
-      const sorted1 = [...arr1].sort((a, b) => a - b);
-      const sorted2 = [...arr2].sort((a, b) => a - b);
-      return sorted1.every((val, index) => val === sorted2[index]);
-    };
-    
     // Check if any editable field has changed
     return (
       currentDetails.Name === defaultDetails.Name &&
-      currentDetails.YearStart === defaultDetails.YearStart &&
-      currentDetails.YearEnd === defaultDetails.YearEnd &&
+      currentDetails.StartYear === defaultDetails.StartYear &&
       currentDetails.Status === defaultDetails.Status &&
       currentDetails.Type === defaultDetails.Type &&
-      numberArraysEqual(currentDetails.UserGroup, defaultDetails.UserGroup) &&
+      arraysEqual(currentDetails.UserGroup, defaultDetails.UserGroup) &&
       arraysEqual(currentDetails.DataSecurityGroup, defaultDetails.DataSecurityGroup)
     );
   };
@@ -393,12 +373,12 @@ const ProgramDetail: React.FC = () => {
 
   const handleConfirmPublish = async() => {
     try {
-      await publishToPCMA(programEnums?.Details.ProgramId);
+      await publishToPCMA(programEnums?.Details.ProgramPK);
       showToast({
         type: 'success',
         message: 'Program published to PCMA successfully.',
       });
-      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+      await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
     } catch (error) {
       console.error('Error publishing program to PCMA:', error);
       showToast({
@@ -465,8 +445,8 @@ const ProgramDetail: React.FC = () => {
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Start Year</label>
                 <input
                   type="number"
-                  onChange={(e) => handleChange('YearStart', e.target.value)}
-                  value={programEnums?.Details.YearStart}
+                  onChange={(e) => handleChange('StartYear', e.target.value)}
+                  value={programEnums?.Details.StartYear}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                   disabled
                 />
@@ -485,15 +465,6 @@ const ProgramDetail: React.FC = () => {
                   ))}
                 </select>
               </div>
-              {/* <div>
-                <label className="block text-left text-sm font-medium text-gray-700 mb-1">End Year</label>
-                <input
-                  type="number"
-                  onChange={(e) => handleChange('YearEnd', e.target.value)}
-                  value={programEnums?.Details.YearEnd}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-                />
-              </div> */}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -532,10 +503,10 @@ const ProgramDetail: React.FC = () => {
                 id: group.Id?.toString() || '',
                 name: group.GroupName ?? '',
               }))}
-              selectedIds={(Array.isArray(programEnums?.Details.UserGroup) ? programEnums.Details.UserGroup : []).map(id => id?.toString() || '')}
+              selectedIds={programEnums?.Details.UserGroup || []}
               onToggle={handleUserGroupToggle}
               onSelectAll={() => {
-                const allGroupIds = programEnums?.Dropdowns.Groups.map(g => g.Id) || [];
+                const allGroupIds = (programEnums?.Dropdowns.Groups || []).map(g => g.Id?.toString() || '');
                 handleChange('UserGroup', allGroupIds);
               }}
               onClearAll={() => handleChange('UserGroup', [])}
@@ -663,21 +634,21 @@ const ProgramDetail: React.FC = () => {
               </Button>
             )}
             <BatchActionsDropdown
-              programId={programEnums?.Details.ProgramId ?? ''}
+              programId={programEnums?.Details.ProgramPK ?? ''}
               programName={programEnums?.Details.Name ?? ''}
               isActive={programEnums.IsActive}
               stageId={programEnums?.Details.StageId ?? 0}
               defaultStatus={defaultProgramEnums.Details.Status}
-              onRefresh={() => fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName)}
+              onRefresh={() => fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName)}
               onLoadingChange={setIsLoading}
             />
             <ActionsDropdown
-              programId={programEnums?.Details.ProgramId ?? ''}
+              programId={programEnums?.Details.ProgramPK ?? ''}
               programName={programEnums?.Details.Name ?? ''}
               stageName={programEnums?.Details.StageName ?? ''}
               stageId={programEnums?.Details.StageId ?? 0}
               stages={programEnums?.Dropdowns.Stages || []}
-              onRefresh={() => fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName)}
+              onRefresh={() => fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName)}
               onLoadingChange={setIsLoading}
             />
           </div>
@@ -791,7 +762,7 @@ const ProgramDetail: React.FC = () => {
           onClose={() => setIsPublishDialogOpen(false)}
           onConfirm={handleConfirmPublish}
           programName={programEnums?.Details.Name}
-          programId={programEnums?.Details.ProgramId}
+          programId={programEnums?.Details.ProgramPK}
         />
       )}
 
@@ -803,7 +774,7 @@ const ProgramDetail: React.FC = () => {
           isOpen={isAddExistingProjectDialogOpen}
           onClose={() => setIsAddExistingProjectDialogOpen(false)}
           onSubmit={handleAddExistingProjectSubmit}
-          programId={programEnums?.Details.ProgramId}
+          programId={programEnums?.Details.ProgramPK}
           programName={programEnums?.Details.Name}
         />
       )}
@@ -814,7 +785,7 @@ const ProgramDetail: React.FC = () => {
           isOpen={isBatchRestoreDialogOpen}
           onClose={() => setIsBatchRestoreDialogOpen(false)}
           onSubmit={handleBatchRestoreSubmit}
-          programId={programEnums?.Details.ProgramId}
+          programId={programEnums?.Details.ProgramPK}
           programName={programEnums?.Details.Name}
         />
       )}

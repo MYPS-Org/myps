@@ -53,12 +53,12 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const parsedName = parseExistingName(program?.Name || '');
     
     const [formData, setFormData] = useState({
-        ProgramId: program?.ProgramId || '',
+        ProgramId: program?.ProgramPK || '',
         Name: parsedName.baseName,
         AddedName: parsedName.additionalName,
         Stage: isSkip ? skipStageId : nextStageId,
         StageName: isSkip ? skipStage?.Name || '' : nextStage?.Name || '',
-        YearStart: program?.YearStart || new Date().getFullYear()
+        StartYear: program?.StartYear || new Date().getFullYear()
     });
 
     const [isLoading, setIsLoading] = useState(false);
@@ -66,12 +66,12 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     // Auto-generate suggested name based on next stage and year
     const generateSuggestedName = () => {
         if (isSkip) {
-            if (skipStage && formData.YearStart) {
-                return `${skipStage.Name} ${formData.YearStart}`;
+            if (skipStage && formData.StartYear) {
+                return `${skipStage.Name} ${formData.StartYear}`;
             }
         } else {
-            if (nextStage && formData.YearStart) {
-                return `${nextStage.Name} ${formData.YearStart}`;
+            if (nextStage && formData.StartYear) {
+                return `${nextStage.Name} ${formData.StartYear}`;
             }
         }
         return parsedName.baseName;
@@ -80,12 +80,12 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const handleChange = (field: string, value: any) => {
         setFormData(prev => {
             const newFormData = { ...prev, [field]: value };
-            
-            // Auto-generate name when Stage or YearStart changes
-            if (field === 'YearStart') {
+
+            // Auto-generate name when Stage or StartYear changes
+            if (field === 'StartYear') {
                 newFormData.Name = generateSuggestedName();
             }
-            
+
             return newFormData;
         });
     };
@@ -125,12 +125,12 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const handleClose = () => {
         const resetParsedName = parseExistingName(program?.Name || '');
         setFormData({
-            ProgramId: program?.ProgramId || '',
+            ProgramId: program?.ProgramPK || '',
             Name: resetParsedName.baseName,
             AddedName: resetParsedName.additionalName,
             Stage: isSkip ? skipStageId : nextStageId,
             StageName: isSkip ? skipStage?.Name || '' : nextStage?.Name || '',
-            YearStart: program?.YearStart || new Date().getFullYear()
+            StartYear: program?.StartYear || new Date().getFullYear()
         });
         onClose();
     };
@@ -143,7 +143,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
             Name: generateSuggestedName(),
             AddedName: currentParsedName.additionalName
         }));
-    }, [nextStageId, program.YearStart, program.Name]);
+    }, [nextStageId, program.StartYear, program.Name]);
 
     return (
         <Dialog open={isOpen} onClose={onClose} className="fixed z-[9999] inset-0 overflow-y-auto">
@@ -197,8 +197,8 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                                 </label>
                                 <input
                                     type="number"
-                                    value={formData.YearStart}
-                                    onChange={(e) => handleChange('YearStart', Number(e.target.value))}
+                                    value={formData.StartYear}
+                                    onChange={(e) => handleChange('StartYear', Number(e.target.value))}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                                     required
                                 />
