@@ -355,7 +355,7 @@ namespace WebAPI.Controllers.GlobalSearch
                               revision.ProjectId.Contains(dto.SearchFor)
                         select new
                         {
-                            revision.ProjectFK,
+                            ProjectPK = revision.ProjectFK,
                             stage.StageId
                         })
                         .Distinct()
@@ -372,19 +372,55 @@ namespace WebAPI.Controllers.GlobalSearch
 
                     var filtersJson = JsonSerializer.Serialize(filters);
 
-                    var selectedRevisions = await _db.fProjectStages
+                    var filtersParameter = new Microsoft.Data.SqlClient.SqlParameter(
+                        "@Filters",
+                        SqlDbType.NVarChar,
+                        -1)
+                    {
+                        Value = filtersJson
+                    };
+
+                    var selectedRevisions = await _db.fProjectDetails
                         .FromSqlInterpolated($"""
-                            SELECT DISTINCT result.*
-                            FROM OPENJSON({filtersJson})
+                        IF ISJSON(@Filters) <> 1
+                        BEGIN
+                            THROW 50001, 'The supplied project-stage filter is not valid JSON.', 1;
+                        END;
+
+                        ;WITH ParsedFilters AS
+                        (
+                            SELECT
+                                LTRIM(RTRIM(ProjectPK)) AS ProjectPK,
+                                StageId
+                            FROM OPENJSON(@Filters)
                             WITH
                             (
-                                ProjectFK uniqueidentifier '$.ProjectFK',
-                                StageId int '$.StageId'
-                            ) filter
-                            CROSS APPLY dbo.fProjectStages(
-                                filter.ProjectFK,
-                                filter.StageId
-                            ) result
+                                ProjectPK nvarchar(200) '$.ProjectPK',
+                                StageId   int           '$.StageId'
+                            )
+                        ),
+                        ValidFilters AS
+                        (
+                            SELECT DISTINCT
+                                ProjectPK,
+                                StageId
+                            FROM ParsedFilters
+                            WHERE NULLIF(ProjectPK, N'') IS NOT NULL
+                                AND StageId IS NOT NULL
+                        ),
+                        DistinctProjects AS
+                        (
+                            SELECT DISTINCT
+                                ProjectPK,
+                                StageId
+                            FROM ValidFilters
+                        )
+                        SELECT DISTINCT
+                            result.*
+                        FROM DistinctProjects AS project
+                        CROSS APPLY dbo.fProjectDetails(project.ProjectPK, project.StageId) AS result
+                        INNER JOIN ValidFilters AS filter
+                            ON filter.ProjectPK = result.ProjectPK
                         """)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
