@@ -64,13 +64,14 @@ namespace WebAPI.Controllers.GlobalSearch
                 {
                     return new BadRequestObjectResult(new { Message = $"Category '{dto.Category}' not found.", Title = "Invalid Category" });
                 }
+                int SearchLength = 3;
                 if (dto.Category == "Alternate ID")
                 {
-                    if (dto.SearchFor.Length <= 3)
+                    if (dto.SearchFor.Length <= SearchLength)
                     {
                         return new BadRequestObjectResult(new
                         {
-                            Message = $"{dto.Category} must contain at least 4 characters.",
+                            Message = $"{dto.Category} must contain at least {SearchLength + 1} characters.",
                             Title = "Invalid Search"
                         });
                     }
@@ -82,7 +83,7 @@ namespace WebAPI.Controllers.GlobalSearch
                               revision.AlternateId.Contains(dto.SearchFor)
                         select new
                         {
-                            revision.ProjectFK,
+                            ProjectPK = revision.ProjectFK,
                             stage.StageId
                         })
                         .Distinct()
@@ -99,31 +100,68 @@ namespace WebAPI.Controllers.GlobalSearch
 
                     var filtersJson = JsonSerializer.Serialize(filters);
 
-                    var selectedRevisions = await _db.fProjectStages
+                    var filtersParameter = new Microsoft.Data.SqlClient.SqlParameter(
+                        "@Filters",
+                        SqlDbType.NVarChar,
+                        -1)
+                    {
+                        Value = filtersJson
+                    };
+
+                    var selectedRevisions = await _db.fProjectDetails
                         .FromSqlInterpolated($"""
-                            SELECT DISTINCT result.*
-                            FROM OPENJSON({filtersJson})
+                        IF ISJSON(@Filters) <> 1
+                        BEGIN
+                            THROW 50001, 'The supplied project-stage filter is not valid JSON.', 1;
+                        END;
+
+                        ;WITH ParsedFilters AS
+                        (
+                            SELECT
+                                LTRIM(RTRIM(ProjectPK)) AS ProjectPK,
+                                StageId
+                            FROM OPENJSON(@Filters)
                             WITH
                             (
-                                ProjectFK uniqueidentifier '$.ProjectFK',
-                                StageId int '$.StageId'
-                            ) filter
-                            CROSS APPLY dbo.fProjectStages(
-                                filter.ProjectFK,
-                                filter.StageId
-                            ) result
+                                ProjectPK nvarchar(200) '$.ProjectPK',
+                                StageId   int           '$.StageId'
+                            )
+                        ),
+                        ValidFilters AS
+                        (
+                            SELECT DISTINCT
+                                ProjectPK,
+                                StageId
+                            FROM ParsedFilters
+                            WHERE NULLIF(ProjectPK, N'') IS NOT NULL
+                                AND StageId IS NOT NULL
+                        ),
+                        DistinctProjects AS
+                        (
+                            SELECT DISTINCT
+                                ProjectPK,
+                                StageId
+                            FROM ValidFilters
+                        )
+                        SELECT DISTINCT
+                            result.*
+                        FROM DistinctProjects AS project
+                        CROSS APPLY dbo.fProjectDetails(project.ProjectPK, project.StageId) AS result
+                        INNER JOIN ValidFilters AS filter
+                            ON filter.ProjectPK = result.ProjectPK
                         """)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
-                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions} project/s found." });
+                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });
                 }
                 if (dto.Category == "Description")
                 {
-                    if (dto.SearchFor.Length <= 3)
+                    SearchLength = 4;
+                    if (dto.SearchFor.Length <= SearchLength)
                     {
                         return new BadRequestObjectResult(new
                         {
-                            Message = $"{dto.Category} must contain at least 4 characters.",
+                            Message = $"{dto.Category} must contain at least {SearchLength + 1} characters.",
                             Title = "Invalid Search"
                         });
                     }
@@ -135,7 +173,7 @@ namespace WebAPI.Controllers.GlobalSearch
                               revision.Description.Contains(dto.SearchFor)
                         select new
                         {
-                            revision.ProjectFK,
+                            ProjectPK = revision.ProjectFK,
                             stage.StageId
                         })
                         .Distinct()
@@ -152,31 +190,67 @@ namespace WebAPI.Controllers.GlobalSearch
 
                     var filtersJson = JsonSerializer.Serialize(filters);
 
-                    var selectedRevisions = await _db.fProjectStages
+                    var filtersParameter = new Microsoft.Data.SqlClient.SqlParameter(
+                        "@Filters",
+                        SqlDbType.NVarChar,
+                        -1)
+                    {
+                        Value = filtersJson
+                    };
+
+                    var selectedRevisions = await _db.fProjectDetails
                         .FromSqlInterpolated($"""
-                            SELECT DISTINCT result.*
-                            FROM OPENJSON({filtersJson})
+                        IF ISJSON(@Filters) <> 1
+                        BEGIN
+                            THROW 50001, 'The supplied project-stage filter is not valid JSON.', 1;
+                        END;
+
+                        ;WITH ParsedFilters AS
+                        (
+                            SELECT
+                                LTRIM(RTRIM(ProjectPK)) AS ProjectPK,
+                                StageId
+                            FROM OPENJSON(@Filters)
                             WITH
                             (
-                                ProjectFK uniqueidentifier '$.ProjectFK',
-                                StageId int '$.StageId'
-                            ) filter
-                            CROSS APPLY dbo.fProjectStages(
-                                filter.ProjectFK,
-                                filter.StageId
-                            ) result
+                                ProjectPK nvarchar(200) '$.ProjectPK',
+                                StageId   int           '$.StageId'
+                            )
+                        ),
+                        ValidFilters AS
+                        (
+                            SELECT DISTINCT
+                                ProjectPK,
+                                StageId
+                            FROM ParsedFilters
+                            WHERE NULLIF(ProjectPK, N'') IS NOT NULL
+                                AND StageId IS NOT NULL
+                        ),
+                        DistinctProjects AS
+                        (
+                            SELECT DISTINCT
+                                ProjectPK,
+                                StageId
+                            FROM ValidFilters
+                        )
+                        SELECT DISTINCT
+                            result.*
+                        FROM DistinctProjects AS project
+                        CROSS APPLY dbo.fProjectDetails(project.ProjectPK, project.StageId) AS result
+                        INNER JOIN ValidFilters AS filter
+                            ON filter.ProjectPK = result.ProjectPK
                         """)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
-                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions} project/s found." });
+                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });
                 }
                 if (dto.Category == "Program Name")
                 {
-                    if (dto.SearchFor.Length <= 3)
+                    if (dto.SearchFor.Length <= SearchLength)
                     {
                         return new BadRequestObjectResult(new
                         {
-                            Message = $"{dto.Category} must contain at least 4 characters.",
+                            Message = $"{dto.Category} must contain at least {SearchLength + 1} characters.",
                             Title = "Invalid Search"
                         });
                     }
@@ -188,7 +262,7 @@ namespace WebAPI.Controllers.GlobalSearch
                               revision.Name.Contains(dto.SearchFor)
                         select new
                         {
-                            revision.ProgramFK,
+                            ProgramPK = revision.ProgramFK,
                             stage.StageId
                         })
                         .Distinct()
@@ -213,7 +287,7 @@ namespace WebAPI.Controllers.GlobalSearch
                         Value = filtersJson
                     };
 
-                    var selectedRevisions = await _db.fProgramStages
+                    var selectedRevisions = await _db.fProgramDetails
                         .FromSqlRaw(
                             """
                         IF ISJSON(@Filters) <> 1
@@ -240,34 +314,36 @@ namespace WebAPI.Controllers.GlobalSearch
                                 StageId
                             FROM ParsedFilters
                             WHERE NULLIF(ProgramPK, N'') IS NOT NULL
-                              AND StageId IS NOT NULL
+                                AND StageId IS NOT NULL
                         ),
                         DistinctPrograms AS
                         (
                             SELECT DISTINCT
-                                ProgramPK
+                                ProgramPK,
+                                StageId
                             FROM ValidFilters
                         )
                         SELECT DISTINCT
                             result.*
                         FROM DistinctPrograms AS program
-                        CROSS APPLY dbo.fProgramStages(program.ProgramPK) AS result
+                        CROSS APPLY dbo.fProgramDetails(program.ProgramPK, program.StageId) AS result
                         INNER JOIN ValidFilters AS filter
                             ON filter.ProgramPK = result.ProgramPK
-                           AND filter.StageId = result.StageId;
+                            AND filter.StageId = result.StageId;
                         """,
                             filtersParameter)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
-                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions} project/s found." });
+                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });
                 }
                 if (dto.Category == "Project ID")
                 {
-                    if (dto.SearchFor.Length <= 7)
+                    SearchLength = 7;
+                    if (dto.SearchFor.Length <= SearchLength)
                     {
                         return new BadRequestObjectResult(new
                         {
-                            Message = $"{dto.Category} must contain at least 4 characters.",
+                            Message = $"{dto.Category} must contain at least {SearchLength + 1} characters.",
                             Title = "Invalid Search"
                         });
                     }
@@ -312,15 +388,15 @@ namespace WebAPI.Controllers.GlobalSearch
                         """)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
-                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions} project/s found." });
+                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });
                 }
                 if (dto.Category == "Bridge")
                 {
-                    if (dto.SearchFor.Length <= 3)
+                    if (dto.SearchFor.Length <= SearchLength)
                     {
                         return new BadRequestObjectResult(new
                         {
-                            Message = $"{dto.Category} must contain at least 4 characters.",
+                            Message = $"{dto.Category} must contain at least {SearchLength + 1} characters.",
                             Title = "Invalid Search"
                         });
                     }
@@ -329,11 +405,11 @@ namespace WebAPI.Controllers.GlobalSearch
                 }
                 if (dto.Category == "Road Sections")
                 {
-                    if (dto.SearchFor.Length <= 3)
+                    if (dto.SearchFor.Length <= SearchLength)
                     {
                         return new BadRequestObjectResult(new
                         {
-                            Message = $"{dto.Category} must contain at least 4 characters.",
+                            Message = $"{dto.Category} must contain at least {SearchLength + 1} characters.",
                             Title = "Invalid Search"
                         });
                     }
@@ -342,11 +418,11 @@ namespace WebAPI.Controllers.GlobalSearch
                 }
                 if (dto.Category == "Roads")
                 {
-                    if (dto.SearchFor.Length <= 3)
+                    if (dto.SearchFor.Length <= SearchLength)
                     {
                         return new BadRequestObjectResult(new
                         {
-                            Message = $"{dto.Category} must contain at least 4 characters.",
+                            Message = $"{dto.Category} must contain at least {SearchLength + 1} characters.",
                             Title = "Invalid Search"
                         });
                     }
