@@ -82,7 +82,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ImportingStatus> tImportingStatus { get; set; }
         public DbSet<Models.Table.CodeTableTransactionLog> tCodeTableTransactionLog { get; set; }
         public DbSet<Models.Table.LoginHistory> tLoginHistory { get; set; }
-        public DbSet<Models.Table.ImportJobResult> tImportJobResult { get; set; }
+        //public DbSet<Models.Table.ImportJobResult> tImportJobResult { get; set; }
         #endregion
 
         #region Views

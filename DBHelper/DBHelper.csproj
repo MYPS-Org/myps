@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Models\Table\CodeTableTransactionLog - Copy.cs" />
+    <Compile Remove="Models\Table\ImportJobResult.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Models\Table\CodeTableTransactionLog - Copy.cs" />
+    <None Include="Models\Table\ImportJobResult.cs" />
     <None Include="Models\Table\CodeTableTransactionLog.cs" />
     <None Include="Models\Table\Lookups\OptionSearchCategory.cs" />
     <None Include="Models\Table\RevisionRules.cs" />
