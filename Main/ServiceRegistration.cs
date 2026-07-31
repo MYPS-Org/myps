@@ -86,23 +86,30 @@ namespace Main
         }
         public static async Task<IServiceCollection> AuthRolesBasedOnDbAsync(this IServiceCollection services)
         {
-            // Create temporary provider to fetch AppDbContext
-            using (var serviceProvider = services.BuildServiceProvider())
-            using (var scope = serviceProvider.CreateScope())
+            try
             {
-                var db = scope.ServiceProvider.GetRequiredService<MYPSDbContext>();
-                var roles = await db.tGroups.Select(r => r.GroupName).ToListAsync();
-                if (roles != null)
+                // Create temporary provider to fetch AppDbContext
+                using (var serviceProvider = services.BuildServiceProvider())
+                using (var scope = serviceProvider.CreateScope())
                 {
-                    services.AddAuthorization(options =>
+                    var db = scope.ServiceProvider.GetRequiredService<MYPSDbContext>();
+                    var roles = await db.tGroups.Select(r => r.GroupName).ToListAsync();
+                    if (roles != null)
                     {
-                        foreach (var role in roles)
+                        services.AddAuthorization(options =>
                         {
-                            options.AddPolicy(role!, policy => policy.RequireRole(role!));
-                        }
-                    });
+                            foreach (var role in roles)
+                            {
+                                options.AddPolicy(role!, policy => policy.RequireRole(role!));
+                            }
+                        });
 
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                return services;
             }
             return services;
         }

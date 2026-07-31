@@ -39,7 +39,7 @@ builder.Services.AddSocketMicroService();
 builder.Services.AddDinkToPdf();
 
 
-await builder.Services.AuthRolesBasedOnDbAsync();
+//await builder.Services.AuthRolesBasedOnDbAsync();
 
 builder.Services.AddEndpointsApiExplorer();
 

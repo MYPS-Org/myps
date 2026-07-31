@@ -87,7 +87,10 @@ namespace Helpers
                 {
                     string comparisonOperator = GetComparisonOperator(
                         dto.Direction,
-                        descending);
+                        !descending);
+                    //string comparisonOperator = GetComparisonOperator(
+                    //    dto.Direction,
+                    //    descending);
 
                     fetchPredicates.Add(
                         $"{key} {comparisonOperator} @__cursor");
