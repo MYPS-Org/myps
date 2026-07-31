@@ -109,7 +109,7 @@ namespace WebAPI.Controllers.GlobalSearch
                     };
 
                     var selectedRevisions = await _db.fProjectDetails
-                        .FromSqlInterpolated($"""
+                        .FromSqlRaw($"""
                         IF ISJSON(@Filters) <> 1
                         BEGIN
                             THROW 50001, 'The supplied project-stage filter is not valid JSON.', 1;
@@ -149,7 +149,7 @@ namespace WebAPI.Controllers.GlobalSearch
                         CROSS APPLY dbo.fProjectDetails(project.ProjectPK, project.StageId) AS result
                         INNER JOIN ValidFilters AS filter
                             ON filter.ProjectPK = result.ProjectPK
-                        """)
+                        """, filtersParameter)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
                     return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });
@@ -199,7 +199,7 @@ namespace WebAPI.Controllers.GlobalSearch
                     };
 
                     var selectedRevisions = await _db.fProjectDetails
-                        .FromSqlInterpolated($"""
+                        .FromSqlRaw($"""
                         IF ISJSON(@Filters) <> 1
                         BEGIN
                             THROW 50001, 'The supplied project-stage filter is not valid JSON.', 1;
@@ -239,7 +239,7 @@ namespace WebAPI.Controllers.GlobalSearch
                         CROSS APPLY dbo.fProjectDetails(project.ProjectPK, project.StageId) AS result
                         INNER JOIN ValidFilters AS filter
                             ON filter.ProjectPK = result.ProjectPK
-                        """)
+                        """, filtersParameter)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
                     return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });
@@ -381,7 +381,7 @@ namespace WebAPI.Controllers.GlobalSearch
                     };
 
                     var selectedRevisions = await _db.fProjectDetails
-                        .FromSqlInterpolated($"""
+                        .FromSqlRaw($"""
                         IF ISJSON(@Filters) <> 1
                         BEGIN
                             THROW 50001, 'The supplied project-stage filter is not valid JSON.', 1;
@@ -421,7 +421,7 @@ namespace WebAPI.Controllers.GlobalSearch
                         CROSS APPLY dbo.fProjectDetails(project.ProjectPK, project.StageId) AS result
                         INNER JOIN ValidFilters AS filter
                             ON filter.ProjectPK = result.ProjectPK
-                        """)
+                        """, filtersParameter)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
                     return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });

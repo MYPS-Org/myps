@@ -70,15 +70,15 @@ namespace DBHelper.Models.Functions.Project
         public int RegionWide { get; set; }
         [MaxLength(200)]
         public string? RegionWideName { get; set; }
-        public int Feasibility { get; set; }
+        public int? Feasibility { get; set; }
         [MaxLength(50)]
         public string? FeasibilityName { get; set; }
         public DateTime? FeasibilityDate { get; set; }
-        public int DetailedDesign { get; set; }
+        public int? DetailedDesign { get; set; }
         [MaxLength(50)]
         public string? DetailedDesignName { get; set; }
         public DateTime? DetailedDesignDate { get; set; }
-        public int RowAvailable { get; set; }
+        public int? RowAvailable { get; set; }
         [MaxLength(50)]
         public string? RowAvailableName { get; set; }
         [Required]

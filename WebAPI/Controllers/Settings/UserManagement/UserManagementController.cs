@@ -779,6 +779,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto, CancellationToken cancellationToken)
         {
@@ -838,6 +839,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateViewPermissionDetails([FromBody] UpdateViewPermissionDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -964,6 +966,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowPermissionGroups()
         {
@@ -977,7 +980,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        
+
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SyncAPIPermissions()
         {
@@ -1067,6 +1071,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdatePermissionControllerDetails([FromBody] UpdatePermissionControllerDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -1099,6 +1104,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdatePermissionActionDetails([FromBody] UpdatePermissionActionDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -1232,6 +1238,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
         #endregion
         #region USER GROUP TAB
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowUserGroupDropdowns()
         {
@@ -1312,6 +1319,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupDTO dto, CancellationToken cancellationToken)
         {
@@ -1373,6 +1381,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateUserGroup([FromBody] UpdateUserGroupDTO dto, CancellationToken cancellationToken)
         {
