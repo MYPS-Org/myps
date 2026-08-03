@@ -432,6 +432,31 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
+
+        [HttpPost]
+        public async Task<IActionResult> SearchProgram([FromBody] SearchProgramDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if(dto.Filter.Length < 3)
+                {
+                    return new BadRequestObjectResult(new { Message = "Filter must be at least 3 characters long", Title = "Invalid Filter" });
+                }
+                var SearchedProgram = await _db.vProgramLatest.AsNoTracking().Where(x => 
+                    x.Status != EnumProgramStatus.Approved.ToString()
+                    && x.StageName != EnumProgramStage.GAAR.ToString()
+                    && (x.Name.Contains(dto.Filter) || x.ProgramId.Contains(dto.Filter) || x.Type.Contains(dto.Filter)))
+                .ToListAsync(cancellationToken);
+                return Ok(new
+                {
+                    Programs = SearchedProgram
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         #endregion
 
         #region Project Details and Update Project

@@ -12,15 +12,16 @@ namespace DBHelper.Models.Table.Lookups
     {
         [Key]
         public int Id { get; set; }
-        public bool IsActive { get; set; } = false;
+        [Required]
+        public int ReasonId { get; set; }
         [Required]
         [MaxLength(100)]
         public string Reason { get; set; } = string.Empty;
         [Required]
+        // FK -> dbo.tOptionRevisionHeader(RevisionGroupId)
         public int RevisionGroupId { get; set; }
-        [Required]
-        public int ReasonId { get; set; }
         public int?[] CategoryId { get; set; } = Array.Empty<int?>();
-        public bool IsDeleted { get; set; } = false;
+        [Required]
+        public bool IsActive { get; set; }
     }
 }
