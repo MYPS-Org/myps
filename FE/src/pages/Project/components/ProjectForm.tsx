@@ -1109,7 +1109,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 setProgramDetails={setProgramDetails}
                 onChange={handleProgramDetailsChange}
                 mode={mode}
-                programs={componentDropdowns?.Programs}
                 initialData={initialData}
                 initialStageName={initialStageName}
               />
