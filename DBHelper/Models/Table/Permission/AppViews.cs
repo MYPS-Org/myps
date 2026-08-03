@@ -13,8 +13,9 @@ namespace DBHelper.Models.Table.Permission
         public int Id { get; set; }
         [MaxLength(50)]
         public string? ModuleName { get; set; }
+        [Required]
         [MaxLength(50)]
-        public string? RouteName { get; set; }
+        public string RouteName { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
         public string RoutePath { get; set; } = string.Empty;
