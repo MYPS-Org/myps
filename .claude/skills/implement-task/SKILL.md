@@ -1,6 +1,6 @@
 ---
 name: implement-task
-description: 'Execute an approved plan from documents/plans/ — senior-engineer implements the senior tasks directly, junior-engineer implements the junior tasks (parallelized across non-overlapping files), then tech-writer handles documentation tasks. Updates the plan file Status and appends a Completion Log when done. Use when: a plan file exists in documents/plans/ and is ready to be built, resuming a partially-implemented plan, or after create-plan has produced an approved plan. Asks which plan file if not given.'
+description: 'Execute an approved plan from documents/plans/ directly in the main conversation. Updates the plan file Status and appends a Completion Log when done. Use when: a plan file exists in documents/plans/ and is ready to be built, resuming a partially-implemented plan, or after create-plan has produced an approved plan. Asks which plan file if not given.'
 argument-hint: 'Path to a plan file in documents/plans/ (e.g. documents/plans/dark-mode.md), or just the plan slug/title'
 ---
 
@@ -31,40 +31,27 @@ Read the plan in full. Check the `Status:` line:
 - If it already reads `Implemented`, ask the user (one question) whether to re-run it, treat it as a fresh plan, or cancel — don't silently redo completed work.
 
 Parse out:
-- `## Goal` and `## Approach` (context to pass to every agent)
-- The three task lists under `### Senior`, `### Junior`, `### Documentation`
+- `## Goal` and `## Approach` (context to hold through the rest of the work)
+- The task lists under `### Implementation` and `### Documentation`
 - `## Files / Components Touched`
 
 If any of those sections are missing or empty, treat that step as a no-op (skip it) rather than guessing content.
 
-### Step 2 — senior-engineer: Senior Tasks
+If the plan still uses the old `### Senior` / `### Junior` / `### Documentation` split (from before this workflow moved to inline execution), just treat Senior+Junior as one combined Implementation list.
 
-If the Senior task list is non-empty, invoke the `senior-engineer` subagent:
-- Give it the plan's Goal, Approach, and the specific Senior task items.
-- Instruct it explicitly: "Implement this now — the plan is already approved. Do not re-plan or ask for approval."
-- Ask it to report back: what it changed, any deviations from the plan, and any additional scoped work it surfaces that belongs in the Junior list.
+### Step 2 — Implement
 
-If the Senior list is empty, skip this step.
+Work through the Implementation task list directly (no subagent delegation) — the plan is already approved, so implement now without re-planning or asking for approval again. Match the existing code style in each file you touch (`Read` before `Edit`). If a task turns out far bigger than its scoped description (e.g. it actually requires new architectural decisions not covered in the Approach), stop and flag it to the user rather than silently expanding scope.
 
-### Step 3 — junior-engineer: Junior Tasks
+Track any deviations from the plan and any additional scoped work that surfaces along the way — you'll need this for the Completion Log and for Step 3.
 
-Combine the plan's Junior task list with anything senior-engineer surfaced in Step 2. For each task, invoke `junior-engineer` with the task text, the relevant file paths, and a reminder to match existing code style.
+### Step 3 — Documentation
 
-- Group tasks by file overlap: dispatch tasks touching disjoint files in parallel (one message, multiple `Agent` calls).
-- Run tasks that touch the same file sequentially, so edits don't clobber each other.
-- Collect each agent's completion summary.
-
-If the combined Junior list is empty, skip this step.
-
-### Step 4 — tech-writer: Documentation Tasks
-
-If the Documentation task list is non-empty, invoke `tech-writer`:
-- Give it the plan's Goal/Approach plus a consolidated summary of what was *actually* built in Steps 2-3 (not the original plan text — implementation may have deviated).
-- It updates the user manual section, writes a changelog entry, and adds doc comments per its own rules.
+If the Documentation task list is non-empty, do it now: update the relevant user manual section, write a changelog entry, and add/update doc comments (JSDoc for JS/TS, XML docs for C#, PHPDoc for PHP) for anything non-obvious you touched in Step 2. Base this on what was *actually* built in Step 2, not the original plan text — implementation may have deviated. Write for the audience the doc is for (end users for the manual, developers for inline comments); don't restate what the code does when the identifier names already make it obvious.
 
 If the Documentation list is empty, skip this step.
 
-### Step 5 — Update the Plan File
+### Step 4 — Update the Plan File
 
 `Edit` the plan file:
 - Change `Status: Ready for implementation` to `Status: Implemented`.
@@ -73,23 +60,22 @@ If the Documentation list is empty, skip this step.
 ```markdown
 ## Completion Log
 Date: <YYYY-MM-DD>
-- Senior: <what senior-engineer did, or "none">
-- Junior: <what junior-engineer did, per task, or "none">
-- Documentation: <what tech-writer did, or "none">
+- Implementation: <what was done, or "none">
+- Documentation: <what was done, or "none">
 Deviations / flags: <anything that didn't match the original plan, or "none">
-Files changed: <list, from agent summaries or git status/diff>
+Files changed: <list, from git status/diff>
 ```
 
-### Step 6 — Summary
+### Step 5 — Summary
 
 Report to the user:
 - Plan file path and its updated status.
-- Task counts completed (senior / junior / doc).
+- Task counts completed (implementation / documentation).
 - Files actually changed.
-- Any deviations or flags raised by an agent.
+- Any deviations or flags raised during implementation.
 - Suggest running `code-review` next.
 
 ---
 
 ## Guardrail
-If, mid-implementation, a task turns out far bigger than its scoped description (e.g. a "junior" task actually requires architectural decisions), stop and flag it to the user rather than silently expanding scope or having junior-engineer improvise architecture.
+If, mid-implementation, a task turns out far bigger than its scoped description, stop and flag it to the user rather than silently expanding scope or improvising architecture.

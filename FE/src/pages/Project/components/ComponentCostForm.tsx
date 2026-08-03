@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import type { ComponentCost, ComponentCostPerYear, MajorItemOfWorksWithDropdown } from "../Model";
+import type { ComponentCost, ComponentCostPerYear, MajorItemOfWorksWithDropdown, ComponentTypeEnum } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
@@ -14,19 +14,21 @@ interface ComponentCostFormProps {
   onAdd: (cost: ComponentCost, costPerYear: ComponentCostPerYear[]) => void;
   onEdit: (index: number, updatedCost: ComponentCost, costPerYear: ComponentCostPerYear[]) => void;
   onDelete: (index: number) => void;
-  initialData?: any; // Optional initial data for dropdowns or other purposes
+  initialData?: any; // Optional initial data (project/program context) for the dialog
+  componentTypes?: ComponentTypeEnum[];
   maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
   disabled?: boolean;
 }
 
-const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
-  componentCosts, 
+const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
+  componentCosts,
   componentCostPerYear = [],
   majorItems = [],
-  onAdd, 
-  onEdit, 
+  onAdd,
+  onEdit,
   onDelete,
   initialData,
+  componentTypes = [],
   maxAmountCost,
   disabled = false
 }) => {
@@ -55,7 +57,6 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const handleOpenAddModal = () => {
     setModalMode('add');
     setEditingIndex(null);
-    // console.log('componentTypes:', initialData?.Dropdowns?.ComponentTypes);
     setIsModalOpen(true);
   };
 
@@ -319,7 +320,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
             componentCostPerYear.filter(cost => cost.ComponentCostId === componentCosts[editingIndex].CostId && !cost.IsDeleted) : 
             []}
           mode={modalMode}
-          componentTypes={initialData?.Dropdowns?.ComponentTypes}
+          componentTypes={componentTypes}
           componentCosts={componentCosts}
           ProjectId={initialData?.ProjectDetails?.ProjectId}
           ReferenceId={initialData?.ProjectDetails?.ReferenceId}

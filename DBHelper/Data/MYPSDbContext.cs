@@ -237,8 +237,8 @@ namespace DBHelper.Data
         #region Tables
         public DbSet<Models.Table.User.Users> tUsers { get; set; }
         public DbSet<Models.Table.Permission.AppModules> tAppModules { get; set; }
-        public DbSet<ApiControllers> tPermissionControllers { get; set; }
-        public DbSet<ApiActions> tPermissionActions { get; set; }
+        public DbSet<ApiControllers> tApiControllers { get; set; }
+        public DbSet<ApiActions> tApiActions { get; set; }
         public DbSet<AppViews> tAppViews { get; set; }
         public DbSet<GroupRoles> tGroupRoles { get; set; }
         public DbSet<Models.Table.User.UserGroups> tUserGroups { get; set; }

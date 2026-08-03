@@ -358,6 +358,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // Thrusts: [],
     // Origins: [],
     // Cities: [],
+    Programs: [],
     ComponentTypes: [],
     // LDs: [],
     // OperatingUnits: [],

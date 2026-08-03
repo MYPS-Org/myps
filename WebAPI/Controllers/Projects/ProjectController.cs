@@ -24,7 +24,7 @@ namespace WebAPI.Controllers.Projects
 
         #region Others
         [HttpPost]
-        public async Task<IActionResult> ShowProjectDropdowns([FromBody] ProjectDetailsDTO dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> ShowProjectDropdowns(CancellationToken cancellationToken)
         {
             try
             {
@@ -101,7 +101,7 @@ namespace WebAPI.Controllers.Projects
             }
         }
         [HttpPost]
-        public async Task<IActionResult> ShowProjectComponentDropdowns([FromBody] ProjectDetailsDTO dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> ShowProjectComponentDropdowns(CancellationToken cancellationToken)
         {
             try
             {
