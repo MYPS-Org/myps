@@ -791,7 +791,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 var existingViews = await _db.tAppViews.ToListAsync();
 
                 var existingPathMap = existingViews
-                    .ToDictionary(x => x.RoutePath, x => x, StringComparer.OrdinalIgnoreCase);
+                    .ToDictionary(x => x.RouteName, x => x, StringComparer.OrdinalIgnoreCase);
 
                 // 2. Separate incoming routes into new and existing
                 var newRoutes = new List<AppViews>();
