@@ -65,10 +65,21 @@ namespace WebAPI.Controllers.Programs
                         dto.Filters.Name))
                 {
                     filters.Add((
-                        $"v.Name LIKE '%{dto.Filters.Name.Trim()}%'",
-                        //"v.Name LIKE '%@Name%'",
+                        "v.Name LIKE @Name",
                         "@Name",
                         $"%{dto.Filters.Name.Trim()}%"));
+
+                    //Working
+                    //filters.Add((
+                    //    $"v.Name LIKE '%' + @Name + '%'",
+                    //    "@Name",
+                    //    dto.Filters.Name.Trim()));
+
+                    //Working
+                    //filters.Add((
+                    //    $"v.Name LIKE '%{dto.Filters.Name.Trim()}%'",
+                    //    "@Name",
+                    //    $"%{dto.Filters.Name.Trim()}%"));
 
                     //filters.Add((
                     //    "v.Name = @Name",
@@ -251,6 +262,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = CurrentDate,
                 };
                 await _db.tPrograms.AddAsync(newProgram);
+                await _db.SaveChangesAsync();
                 var newRevisions = new DBHelper.Models.Table.Program.ProgramRevisions()
                 {
                     ProgramFK = NewProgramUniqueId,
@@ -291,7 +303,8 @@ namespace WebAPI.Controllers.Programs
         }
         #endregion
         #region Program Details
-        
+
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ProgramDetails([FromBody] ProgramDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -355,7 +368,8 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto, CancellationToken cancellationToken)
         {
@@ -434,12 +448,28 @@ namespace WebAPI.Controllers.Programs
                 var ProjectRevisions = await _db.tProjectRevisions.Where(x => ReferenceIds.Contains(x.ProjectFK)).AsNoTracking().ToListAsync();
                 var ProjectStages = await _db.tProjectStages.Where(x => ReferenceIds.Contains(x.ProjectFK)).AsNoTracking().ToListAsync();
 
-                _db.tPrograms.Remove(ProgramParent);
-                _db.tProgramRevisions.RemoveRange(ProgramRevisions);
-                _db.tProgramStages.RemoveRange(ProgramStage);
-                _db.tProjects.RemoveRange(ProjectsInProgram);
-                _db.tProjectRevisions.RemoveRange(ProjectRevisions);
                 _db.tProjectStages.RemoveRange(ProjectStages);
+                await _db.SaveChangesAsync();
+                _db.tProjectRevisions.RemoveRange(ProjectRevisions);
+                await _db.SaveChangesAsync();
+
+                _db.tProjects.RemoveRange(ProjectsInProgram);
+                await _db.SaveChangesAsync();
+
+                _db.tProgramStages.RemoveRange(ProgramStage);
+                await _db.SaveChangesAsync();
+                _db.tProgramRevisions.RemoveRange(ProgramRevisions);
+                await _db.SaveChangesAsync();
+
+                _db.tPrograms.Remove(ProgramParent);
+
+                //_db.tPrograms.Remove(ProgramParent);
+                //_db.tProgramRevisions.RemoveRange(ProgramRevisions);
+                //_db.tProgramStages.RemoveRange(ProgramStage);
+                //_db.tProjects.RemoveRange(ProjectsInProgram);
+                //_db.tProjectRevisions.RemoveRange(ProjectRevisions);
+                //_db.tProjectStages.RemoveRange(ProjectStages);
+
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new

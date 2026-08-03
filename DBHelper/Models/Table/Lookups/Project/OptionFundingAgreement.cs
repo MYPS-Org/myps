@@ -24,16 +24,12 @@ namespace DBHelper.Models.Table.Lookups.Project
         [Required]
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
-        [Required]
         [MaxLength(50)]
-        public string FinancingSourceSegmentCode { get; set; } = string.Empty;
+        public string? FinancingSourceSegmentCode { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
     }
 }
