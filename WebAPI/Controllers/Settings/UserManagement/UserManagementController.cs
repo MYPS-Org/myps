@@ -799,7 +799,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 foreach (var route in dto.RoutesAvailable)
                 {
-                    if (existingPathMap.TryGetValue(route.path, out var existing))
+                    if (existingPathMap.TryGetValue(route.RouteName, out var existing))
                     {
                         // Update RouteName if it changed
                         if (!string.Equals(existing.RouteName, route.RouteName, StringComparison.OrdinalIgnoreCase))
