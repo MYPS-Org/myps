@@ -65,7 +65,7 @@ namespace WebAPI.Controllers.Projects
         // FK -> dbo.tOptionFundingAgreement(Code)
         public string AgreementCode { get; set; } = string.Empty;
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
@@ -102,7 +102,7 @@ namespace WebAPI.Controllers.Projects
         public string ComponentId { get; set; } = string.Empty;
         public string? Description { get; set; }
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Total { get; set; }
         [Required]
         [MaxLength(100)]
@@ -125,7 +125,7 @@ namespace WebAPI.Controllers.Projects
         // FK -> dbo.tProjectComponentCost(Id)
         public int ComponentCostFK { get; set; }
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
         [Required]
         public int Year { get; set; }

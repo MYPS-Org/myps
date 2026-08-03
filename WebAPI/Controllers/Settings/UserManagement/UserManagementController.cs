@@ -1,5 +1,4 @@
-﻿using Confluent.Kafka;
-using DBHelper.Data;
+﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Table.Permission;
@@ -8,12 +7,14 @@ using DBHelper.Models.Views.Program;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System.Reflection;
 using WebAPI.Controllers.Programs;
 using WebAPI.Controllers.Settings.Modules;
+using WebAPI.MicroService;
 
 namespace WebAPI.Controllers.Settings.UserManagement
 {
@@ -21,7 +22,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
     [Route("api/[controller]/[action]")]
     public class UserManagementController : CoreController
     {
-        public UserManagementController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+        public UserManagementController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
 
         #region MODULE TAB
         [AllowAnonymous]

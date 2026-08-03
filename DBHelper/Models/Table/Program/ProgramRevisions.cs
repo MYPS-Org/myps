@@ -27,7 +27,7 @@ namespace DBHelper.Models.Table.Program
         [Required]
         public EnumProgramStatus Status { get; set; }
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Cost { get; set; }
         [Required]
         [MaxLength(100)]

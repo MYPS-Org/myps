@@ -18,7 +18,7 @@ namespace DBHelper.Models.Functions.Project
         [MaxLength(50)]
         public string AgreementCode { get; set; } = string.Empty;
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }

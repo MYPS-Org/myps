@@ -7,6 +7,7 @@ namespace DBHelper.Models.Functions.Program
     public class ProgramDetails
     {
         [Key]
+        [Required]
         public int StageFKId { get; set; }
         [Required]
         [MaxLength(200)]
@@ -29,7 +30,6 @@ namespace DBHelper.Models.Functions.Program
         [MaxLength(50)]
         public string? StatusName { get; set; }
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
         public decimal Cost { get; set; }
         [Required]
         public int Type { get; set; }
@@ -39,10 +39,10 @@ namespace DBHelper.Models.Functions.Program
         public int StartYear { get; set; }
         [Required]
         [MaxLength(1000)]
-        public string UserGroup { get; set; } = string.Empty;
+        public int[] UserGroup { get; set; } = Array.Empty<int>();
         [Required]
         [MaxLength(1000)]
-        public string DataSecurityGroup { get; set; } = string.Empty;
+        public string[] DataSecurityGroup { get; set; } = Array.Empty<string>();
         [Required]
         public bool IsPublished { get; set; }
         [Required]

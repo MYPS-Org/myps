@@ -1,5 +1,4 @@
-﻿using Confluent.Kafka;
-using DBHelper.Data;
+﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using Helpers;
@@ -9,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Collections.Concurrent;
@@ -17,7 +17,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
-using static Confluent.Kafka.ConfigPropertyNames;
+using WebAPI.MicroService;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WebAPI.Controllers
@@ -25,14 +25,14 @@ namespace WebAPI.Controllers
     [PermissionFilter]
     public abstract class CoreController : Controller
     {
-        public MYPSDbContext _db;
+        public MYPSDbContext _db;   
         public PCMADbContext _pcma;
         public DBHelper.Models.Views.Users _Session = new DBHelper.Models.Views.Users();
-        private readonly IProducer<Null, string> _producer;
-        public CoreController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma)
+        public IHubContext<SignalRHub> _hubContext;
+        public CoreController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma)
         {
             _db = db;
-            _producer = producer;
+            _hubContext = hub;
             _pcma = pcma;
         }
         public override void OnActionExecuting(ActionExecutingContext context)

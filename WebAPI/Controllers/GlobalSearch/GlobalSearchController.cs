@@ -1,5 +1,4 @@
-﻿using Confluent.Kafka;
-using Dapper;
+﻿using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
@@ -7,18 +6,21 @@ using DBHelper.Models.Views;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using OfficeOpenXml;
 using System.Data;
 using System.Text.Json;
+using WebAPI.MicroService;
+
 namespace WebAPI.Controllers.GlobalSearch
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     public class GlobalSearchController : CoreController
     {
-        public GlobalSearchController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+        public GlobalSearchController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
 
         [HttpPost]
         public async Task<IActionResult> GetSearchCategory()

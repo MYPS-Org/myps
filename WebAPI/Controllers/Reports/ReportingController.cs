@@ -1,4 +1,4 @@
-﻿//using Confluent.Kafka;
+﻿//using Microsoft.AspNetCore.SignalR;
 //using DBHelper.Data;
 //using DBHelper.Models.Enums;
 //using DBHelper.Models.Extra;
@@ -30,7 +30,7 @@
 //    [Route("api/[controller]/[action]")]
 //    public class ReportingController : CoreController
 //    {
-//        public ReportingController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+//        public ReportingController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
 
 //        private static string GetStageFullName(string? stageName) => stageName?.ToUpperInvariant() switch
 //        {

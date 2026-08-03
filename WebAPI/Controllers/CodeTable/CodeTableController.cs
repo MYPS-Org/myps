@@ -1,4 +1,4 @@
-﻿using Confluent.Kafka;
+﻿using Microsoft.AspNetCore.SignalR;
 using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
@@ -24,13 +24,14 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Transactions;
 using System.Xml;
+using WebAPI.MicroService;
 namespace WebAPI.Controllers.CodeTable
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     public class CodeTableController : CoreController
     {
-        public CodeTableController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+        public CodeTableController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
 
         [HttpPost]
         public async Task<IActionResult> GetAllCodeTables()

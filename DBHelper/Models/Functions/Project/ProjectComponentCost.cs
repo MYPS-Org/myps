@@ -24,7 +24,7 @@ namespace DBHelper.Models.Functions.Project
         public string ComponentId { get; set; } = string.Empty;
         public string? Description { get; set; }
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Total { get; set; }
         public byte? ConstructionStatusCode { get; set; }
         [MaxLength(300)]

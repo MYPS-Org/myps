@@ -30,7 +30,7 @@
 //    [Route("api/[controller]/[action]")]
 //    public class ImportingController : CoreController
 //    {
-//        public ImportingController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+//        public ImportingController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
         
 //        [HttpPost]
 //        public async Task<IActionResult> ImportProject([FromBody] ImportProjectDTO dto, CancellationToken cancellationToken)

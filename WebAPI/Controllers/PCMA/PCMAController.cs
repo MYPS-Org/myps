@@ -17,7 +17,7 @@
 //    [Route("api/[controller]/[action]")]
 //    public class PCMAController : CoreController
 //    {
-//        public PCMAController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+//        public PCMAController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
 //        [HttpPost]
 //        public async Task<IActionResult> PublishProgram([FromBody] PublishProgramDTO dto, CancellationToken cancellationToken)
 //        {

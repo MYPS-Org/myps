@@ -1,5 +1,4 @@
-﻿using Confluent.Kafka;
-using DBHelper.Data;
+﻿using DBHelper.Data;
 using DBHelper.Models.Dtos;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
@@ -9,8 +8,10 @@ using Helpers;
 using Helpers.API;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
+using WebAPI.MicroService;
 
 namespace WebAPI.Controllers.MockUps
 {
@@ -18,7 +19,7 @@ namespace WebAPI.Controllers.MockUps
     [Route("api/[controller]/[action]")]
     public class PISController : CoreController
     {
-        public PISController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+        public PISController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto, CancellationToken cancellationToken)

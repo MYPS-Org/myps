@@ -1,14 +1,11 @@
-﻿using Confluent.Kafka;
-using DBHelper.Data;
-using DBHelper.Models.Table;
+﻿using DBHelper.Data;
 using DinkToPdf.Contracts;
 using DinkToPdf;
 using Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Runtime.InteropServices;
 using System.Runtime.Loader;
+using Hangfire;
 
 namespace Main
 {
@@ -29,6 +26,13 @@ namespace Main
                 options.EnableDetailedErrors();
                 options.LogTo(Console.WriteLine, LogLevel.Information);
             });
+            Services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(Appsetting.DbConnections.MYPSDb));
+
+            Services.AddHangfireServer();
 
             return Services;
         }
@@ -108,16 +112,16 @@ namespace Main
         }
         public static IServiceCollection AddSocketMicroService(this IServiceCollection services)
         {
-            services.AddSingleton<IProducer<Null, string>>(sp =>
-            {
-                var config = new ProducerConfig
-                {
-                    BootstrapServers = Appsetting.KafkaConfigs.KafkaServer,
-                    Acks = Acks.All
-                };
-                return new ProducerBuilder<Null, string>(config).Build();
-            });
-            //services.AddHostedService<OrderWorker>();
+            //services.AddSingleton<IProducer<Null, string>>(sp =>
+            //{
+            //    var config = new ProducerConfig
+            //    {
+            //        BootstrapServers = Appsetting.KafkaConfigs.KafkaServer,
+            //        Acks = Acks.All
+            //    };
+            //    return new ProducerBuilder<Null, string>(config).Build();
+            //});
+            ////services.AddHostedService<OrderWorker>();
             return services;
         }
         public static IServiceCollection AddDinkToPdf(this IServiceCollection services)

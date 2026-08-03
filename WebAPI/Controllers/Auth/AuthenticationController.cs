@@ -1,5 +1,4 @@
-﻿using Confluent.Kafka;
-using DBHelper.Data;
+﻿using DBHelper.Data;
 using DBHelper.Models.Table;
 using Helpers;
 using Helpers.API;
@@ -9,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -16,6 +16,7 @@ using Novell.Directory.Ldap;
 using System.Configuration;
 using System.Net;
 using System.Security.Claims;
+using WebAPI.MicroService;
 
 namespace WebAPI.Controllers.Auth
 {
@@ -23,7 +24,7 @@ namespace WebAPI.Controllers.Auth
     [Route("api/[controller]/[action]")]
     public class AuthController : CoreController
     {
-        public AuthController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base (db, producer, pcma) { }
+        public AuthController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base (db, hub, pcma) { }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto dto, CancellationToken cancellationToken)

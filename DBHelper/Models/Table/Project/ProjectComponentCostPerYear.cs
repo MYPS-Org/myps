@@ -17,7 +17,7 @@ namespace DBHelper.Models.Table.Project
         // FK -> dbo.tProjectComponentCost(Id)
         public int ComponentCostFK { get; set; }
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
         [Required]
         public int Year { get; set; }

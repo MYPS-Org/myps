@@ -1,4 +1,4 @@
-﻿//using Confluent.Kafka;
+﻿//using Microsoft.AspNetCore.SignalR;
 //using DBHelper.Data;
 //using DBHelper.Models.Enums;
 //using DBHelper.Models.Table;
@@ -15,7 +15,7 @@
 //    [Route("api/[controller]/[action]")]
 //    public class ProjectGroupController : CoreController
 //    {
-//        public ProjectGroupController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+//        public ProjectGroupController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
 //        #region Project Lists
         
 //        [HttpPost]

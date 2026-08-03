@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace WebAPI.MicroService
 {
-    public class RegistrationHub : Hub
+    public class SignalRHub : Hub
     {
         public async Task SubscribeToOrder(string orderId)
         {

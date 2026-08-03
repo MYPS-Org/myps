@@ -1,42 +1,26 @@
-﻿using Confluent.Kafka;
-using Dapper;
+﻿using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
-using DBHelper.Models.Table.Lookups;
-using DBHelper.Models.Table.Program;
 using DBHelper.Models.Table.Project;
-using DBHelper.Models.Views;
-using DBHelper.Models.Views.Program;
 using DBHelper.Models.Views.Project;
 using Helpers;
-using JetBrains.Annotations;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
-using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using OfficeOpenXml;
 using System.Data;
-using System.Data.SqlClient;
-using System.Drawing;
-using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Timers;
-using System.Xml;
-using WebAPI.Controllers.Programs;
 using static Helpers.ProjectHelper;
+
 namespace WebAPI.Controllers.Projects
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     public class ProjectController : CoreController
     {
-        public ProjectController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+        public ProjectController(MYPSDbContext db, IHubContext<MicroService.SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
 
         #region Others
         [HttpPost]

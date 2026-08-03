@@ -1,15 +1,11 @@
-using Confluent.Kafka;
-using DBHelper.Data;
-using DBHelper.Models.Table;
+
+using Hangfire;
+using Hangfire.Hubs;
 using Helpers;
 using Main;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using OfficeOpenXml;
-using WebAPI.Controllers;
 using WebAPI.MicroService;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -77,6 +73,7 @@ if (!app.Environment.IsProduction())
     {
         app.UseDeveloperExceptionPage();
         app.AddDevSwaggerUI();
+        app.UseHangfireDashboard("/hangfire"); // optional: remove in production
     }
 }
 app.UseStaticFiles(); // For wwwroot
@@ -90,7 +87,13 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+var registrationHub = app.MapHub<SignalRHub>("/notificationHub");
+var importHub = app.MapHub<ImportHub>("/hubs/import");
+if (!app.Environment.IsProduction())
+{
+    registrationHub.RequireCors("AllowReactApp");
+    importHub.RequireCors("AllowReactApp");
+}
 //SPA fallback
 app.MapFallbackToFile("index.html");
-app.MapHub<RegistrationHub>("/notificationHub").RequireCors("AllowReactApp");
 app.Run();

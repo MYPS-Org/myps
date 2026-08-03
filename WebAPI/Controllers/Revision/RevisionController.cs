@@ -1,5 +1,5 @@
 ﻿//using Castle.Components.DictionaryAdapter.Xml;
-//using Confluent.Kafka;
+//using Microsoft.AspNetCore.SignalR;
 //using DBHelper.Data;
 //using DBHelper.Models.Enums;
 //using DBHelper.Models.Extra;
@@ -22,7 +22,7 @@
 //    [Route("api/[controller]/[action]")]
 //    public class RevisionController : CoreController
 //    {
-//        public RevisionController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+//        public RevisionController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
         
 //        [HttpPost]
 //        public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto, CancellationToken cancellationToken)

@@ -1,28 +1,20 @@
-﻿using Confluent.Kafka;
+﻿using Microsoft.AspNetCore.SignalR;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Table.Infra;
-using DBHelper.Models.Views;
-using DBHelper.Models.Views.Program;
 using Helpers;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data.SqlClient;
-using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Xml;
-using static Eaf.Domain.Uow.EafDataFilters;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using WebAPI.MicroService;
+
 namespace WebAPI.Controllers.Programs
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     public class FutureInfraController : CoreController
     {
-        public FutureInfraController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+        public FutureInfraController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
 
         [HttpPost]
         public async Task<IActionResult> GetInfraInfo()

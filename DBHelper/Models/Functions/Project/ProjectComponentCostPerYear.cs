@@ -15,7 +15,7 @@ namespace DBHelper.Models.Functions.Project
         [Key]
         public int Id { get; set; }
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
         [Required]
         public int Year { get; set; }

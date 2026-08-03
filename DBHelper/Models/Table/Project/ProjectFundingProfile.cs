@@ -25,7 +25,7 @@ namespace DBHelper.Models.Table.Project
         // FK -> dbo.tOptionFundingAgreement(Code)
         public string AgreementCode { get; set; } = string.Empty;
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
