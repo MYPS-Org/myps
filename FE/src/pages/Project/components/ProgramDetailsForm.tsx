@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
+import SearchableDropdown from "../../../components/ui/SearchableDropdown";
+import { formatDropdownOptions } from "../../../utils/GlobalFunctions";
 import type { ProgramList } from "../../Program/Model";
+import { searchProgram } from "../Service";
 
 interface ProgramDetailsFormProps {
   initialData?: any;
@@ -7,62 +10,73 @@ interface ProgramDetailsFormProps {
   setProgramDetails: React.Dispatch<React.SetStateAction<ProgramList>>;
   onChange?: (updatedDetails: ProgramList) => void;
   mode?: 'add' | 'edit';
-  programs?: ProgramList[];
   initialStageName?: string;
 }
 
+const emptyProgramDetails: ProgramList = {
+  Id: 0,
+  RevisionId: 0,
+  ProgramId: '',
+  StageName: '',
+  Name: '',
+  GroupName: '',
+  RegionCode: '',
+  Status: undefined,
+  Type: '',
+  Cost: 0,
+  YearStart: 0,
+  YearEnd: 0,
+  CreatedBy: '',
+  CreatedDate: '',
+  IsPublishable: false,
+};
 
 const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
   programDetails,
   setProgramDetails,
   onChange,
   mode = 'add',
-  programs,
   initialStageName
 }) => {
-  const [searchFormData, setSearchFormData] = useState('');
-  const [isLoading] = useState(false);
+  const [programs, setPrograms] = useState<ProgramList[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Update searchFormData when programDetails changes
+  // Load programs from /Program/ShowProgram as soon as the form mounts in add mode
   useEffect(() => {
-    if (programDetails?.ProgramId) {
-      setSearchFormData(programDetails.ProgramId);
-    }
-  }, [programDetails?.ProgramId]);
+    if (mode !== 'add') return;
+    let cancelled = false;
+    setIsLoading(true);
+    searchProgram('')
+      .then((response) => {
+        if (cancelled) return;
+        const results = (response.Data.Programs || []).filter((program) => {
+          // Filter out GAA-R programs
+          if (program.StageName === 'GAA-R') return false;
+          // If initialStageName is provided, only show programs with matching stageName
+          if (initialStageName && program.StageName !== initialStageName) return false;
+          return true;
+        });
+        setPrograms(results);
+      })
+      .catch((error) => {
+        console.error('Error loading programs:', error);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, initialStageName]);
 
-  const setProgram = (value: string) => {
-    console.log('Selected program value:', value);
-      const selectedProgram = programs?.find(
-        program => program.ProgramId === value
-      );
-      console.log(programs);
-      if(!selectedProgram) {
-        // Clear the program details if no program is selected
-        const emptyProgramDetails: ProgramList = {
-        Id: 0,
-        RevisionId: 0,
-        ProgramId: '',
-        StageName: '',
-        Name: '',
-        GroupName: '',
-        RegionCode: '',
-        Status: undefined,
-        Type: '',
-        Cost: 0,
-        YearStart: 0,
-        YearEnd: 0,
-        CreatedBy: '',
-        CreatedDate: '',
-        IsPublishable: false,
-        // IsPublished: false,
-        };
-        setProgramDetails(emptyProgramDetails);
-        setSearchFormData('');
-        return;
-      }
-      onChange?.(selectedProgram as ProgramList);
-      setSearchFormData(selectedProgram!.ProgramId);
-      setProgramDetails(selectedProgram as ProgramList);
+  const setProgram = (value: string | number) => {
+    const selectedProgram = programs.find(program => program.ProgramId === value);
+    if (!selectedProgram) {
+      setProgramDetails(emptyProgramDetails);
+      return;
+    }
+    onChange?.(selectedProgram);
+    setProgramDetails(selectedProgram);
   }
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -72,28 +86,18 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
           <div className="w-full flex flex-row text-left gap-5 items-center">
                 <div className='w-full flex flex-row text-left gap-5 items-center'>
                   <label className="w-1/3 text-gray-600">Program Name</label>
-                  <select
-                    value={searchFormData}
-                    onChange={(e) => setProgram(e.target.value)}
-                    className='w-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md truncate'
-                    disabled={mode !== 'add'}
-                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                  >
-                    <option value="">Select Program</option>
-                    {programs?.filter((program) => {
-                      // Filter out GAA-R programs
-                      if (program.StageName === 'GAA-R') return false;
-                      // If initialStageName is provided, only show programs with matching stageName
-                      if (initialStageName && program.StageName !== initialStageName) return false;
-                      return true;
-                    }).map((program) => (
-                      <option key={program.Id} value={program.ProgramId}>
-                        {program.Name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="w-2/3 min-w-0">
+                    <SearchableDropdown
+                      options={formatDropdownOptions(programs, 'ProgramId', 'Name', 'Id')}
+                      value={programDetails?.ProgramId || ''}
+                      onChange={setProgram}
+                      placeholder={isLoading ? 'Loading programs...' : 'Select Program'}
+                      searchPlaceholder="Search program..."
+                      disabled={isLoading}
+                      allowClear
+                    />
+                  </div>
               </div>
-              {isLoading && <p className="text-sm text-blue-600 mt-1">Loading program details...</p>}
           </div>
           ) : (
           <div className='flex flex-row text-left gap-5 items-center'>
