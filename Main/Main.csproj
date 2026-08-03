@@ -27,20 +27,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="2.11.1" />
     <PackageReference Include="DinkToPdf" Version="1.0.8" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.24" />
     <PackageReference Include="HtmlToPdfCore" Version="2.0.9" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.16" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.16" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="8.0.16" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Analyzers" Version="8.0.16" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.16">
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.29" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.29" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="8.0.29" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Analyzers" Version="8.0.29" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.29">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.16" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.16" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.29" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.29" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <!-- Replace WkHtmlToPdf with the package that includes native libraries -->
     <PackageReference Include="Wkhtmltopdf.NetCore" Version="3.0.2" />
@@ -48,6 +47,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DBHelper\DBHelper.csproj" />
+    <ProjectReference Include="..\Hangfire\Hangfire.csproj" />
     <ProjectReference Include="..\Helpers\Helpers.csproj" />
     <ProjectReference Include="..\WebAPI\WebAPI.csproj" />
   </ItemGroup>

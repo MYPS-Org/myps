@@ -1,15 +1,11 @@
-using Confluent.Kafka;
-using DBHelper.Data;
-using DBHelper.Models.Table;
+
+using Hangfire;
+using Hangfire.Hubs;
 using Helpers;
 using Main;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using OfficeOpenXml;
-using WebAPI.Controllers;
 using WebAPI.MicroService;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,7 +35,7 @@ builder.Services.AddSocketMicroService();
 builder.Services.AddDinkToPdf();
 
 
-await builder.Services.AuthRolesBasedOnDbAsync();
+//await builder.Services.AuthRolesBasedOnDbAsync();
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -51,9 +47,13 @@ if (!builder.Environment.IsProduction())
         {
             builder
             //.WithOrigins("http://localhost:8080", "http://192.168.50.201:8080", "http://myps.eptisa-dev.com")
-            .AllowCredentials()
+            .WithOrigins(
+                "http://dpwh.eptisa-dev.com",
+                "http://myps.eptisa-dev.com"
+            )
+            .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowAnyHeader();
+            .AllowCredentials();
         });
     });
     if(builder.Environment.IsDevelopment()) builder.Services.AddDevSwagger();
@@ -73,6 +73,7 @@ if (!app.Environment.IsProduction())
     {
         app.UseDeveloperExceptionPage();
         app.AddDevSwaggerUI();
+        app.UseHangfireDashboard("/hangfire"); // optional: remove in production
     }
 }
 app.UseStaticFiles(); // For wwwroot
@@ -86,7 +87,13 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+var registrationHub = app.MapHub<SignalRHub>("/notificationHub");
+var importHub = app.MapHub<ImportHub>("/hubs/import");
+if (!app.Environment.IsProduction())
+{
+    registrationHub.RequireCors("AllowReactApp");
+    importHub.RequireCors("AllowReactApp");
+}
 //SPA fallback
 app.MapFallbackToFile("index.html");
-app.MapHub<RegistrationHub>("/notificationHub").RequireCors("AllowReactApp");
 app.Run();

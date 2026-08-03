@@ -1,6 +1,5 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
-using DBHelper.Models.Views;
 using Eaf.Webhooks;
 using System.ComponentModel.DataAnnotations;
 using System.Security;
@@ -52,9 +51,9 @@ namespace WebAPI.Controllers.ProjectGroup
     }
     public class UpdateProjectGroupDetailsDTO
     {
+        //[Required]
+        //public DBHelper.Models.Views.Project.ProjectGroups GroupDetails { get; set; } = new DBHelper.Models.Views.ProjectGroups();
         [Required]
-        public DBHelper.Models.Views.ProjectGroups GroupDetails { get; set; } = new DBHelper.Models.Views.ProjectGroups();
-        [Required]
-        public List<DBHelper.Models.Views.ProjectsInGroup> Projects { get; set; } = new List<DBHelper.Models.Views.ProjectsInGroup>();
+        public List<DBHelper.Models.Views.Project.ProjectsInGroup> Projects { get; set; } = new List<DBHelper.Models.Views.Project.ProjectsInGroup>();
     }
 }

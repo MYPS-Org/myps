@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Models\Table\ImportJobResult.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.16" />
@@ -22,9 +26,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Models\Table\ImportJobResult.cs" />
     <None Include="Models\Table\CodeTableTransactionLog.cs" />
-    <None Include="Models\Table\OptionSearchCategory.cs" />
+    <None Include="Models\Table\Lookups\OptionSearchCategory.cs" />
     <None Include="Models\Table\RevisionRules.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\Table\Revision\" />
   </ItemGroup>
 
 </Project>

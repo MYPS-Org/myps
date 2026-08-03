@@ -3,10 +3,14 @@ using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
+using DBHelper.Models.Table.Lookups;
+using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views;
+using DBHelper.Models.Views.Program;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using OfficeOpenXml;
@@ -15,6 +19,7 @@ using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Net;
 using System.Net.Http.Json;
@@ -205,56 +210,6 @@ namespace Helpers
         public static string GenerateReferenceId(this string ReferenceId, string StageName)
         {
             return ReferenceId + "-" + ("tCountComponentCost").GenerateCode() + "-" + StageName;
-        }
-        public static string GenerateProjectID(this MYPSDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, DBHelper.Models.Table.OptionProjectCategory Category, string IslandCode)
-        {
-            string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
-            string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
-
-            //var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
-            //    .Where(x => x.Category == Category.CategoryId
-            //        && x.ProjectSuffix == FirstSegment
-            //        && x.IslandCode == IslandCode
-            //        && x.YearStart == ProgramDetails.YearStart)
-            //    .OrderByDescending(x => x.MaxId)
-            //    .FirstOrDefault();
-            //int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
-
-
-            //int nextId = Math.Max(maxExisting + 1, Category.Minimum);
-            //string ThirdSegment = nextId.ToString("D5");
-
-
-            var param = new Dictionary<string, object>
-            {
-                { "@ProjectSuffix", FirstSegment },
-                { "@CategoryId", Category.CategoryId },
-                { "@YearStart", ProgramDetails.YearStart },
-                { "@IslandCode", IslandCode }
-            };
-
-            string ThirdSegment = Sql.NormalQuery<string>(
-                Appsetting.DbConnections.MYPSDb,
-                "EXEC pGenerateThirdSegment @ProjectSuffix, @CategoryId, @YearStart, @IslandCode",
-                param
-            ).FirstOrDefault() ?? string.Empty;
-            return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{IslandCode}";
-        }
-        public static string GenerateProjec1stSegment(this string StageName)
-        {
-            var stageGroups = new Dictionary<string, string[]>
-            {
-                { "BP", new[] { "BP", "RBP", "UPMO", "UBP" } },
-                { "MY", new[] { "RDIP", "UDIP", "PIP" } },
-                { "P",  new[] { "NEP", "HGAB", "GAA" } }
-            };
-            return stageGroups.FirstOrDefault(g => g.Value.Contains(StageName)).Key ?? "P";
-        }
-        public static string GenerateProjec2ndSegment(this int endYear)
-        {
-            int startYear = 2016;
-            int count = endYear - startYear;
-            return count.ToString("D3");
         }
         public static string GenerateCode(this string TableName)
         {
@@ -775,70 +730,6 @@ namespace Helpers
                 throw new Exception($"An error occured while sending email. Please contact support service.");
             }
         }
-
-        public static FilterDataResult<T> FilterData<T, TFilter>(this List<T> table, EnumPagination<TFilter> dto)
-        {
-            var result = new FilterDataResult<T>();
-
-            if (dto == null || dto.Filters == null)
-            {
-                result.HasError = true;
-                result.ErrorMessage = "Expected Parameters missing.";
-                return result;
-            }
-
-            // default sort field
-            dto.SortField = string.IsNullOrWhiteSpace(dto.SortField) ? "Id" : dto.SortField;
-
-            // validate sort field against T
-            var prop = typeof(T)
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .FirstOrDefault(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-
-            if (prop == null)
-            {
-                result.HasError = true;
-                result.ErrorMessage = $"Invalid Column: {dto.SortField} to sort.";
-                return result;
-            }
-
-            // ensure sort direction
-            dto.sortDirection ??= sortDirectionList.DESC;
-            if (!Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!.Value))
-            {
-                result.HasError = true;
-                result.ErrorMessage = $"Sorting Direction: {dto.sortDirection} not allowed.";
-                return result;
-            }
-
-            // normalize pagination
-            if (dto.page < 1) dto.page = 1;
-            if (dto.limit < 1) dto.limit = 10;
-
-            // in-memory ordering using reflection
-            Func<T, object?> keySelector = x => prop.GetValue(x);
-
-            IEnumerable<T> ordered = dto.sortDirection!.Value == sortDirectionList.ASC
-                ? table.OrderBy(keySelector)
-                : table.OrderByDescending(keySelector);
-
-            int total = ordered.Count();
-            var lists = ordered.Skip((dto.page - 1) * dto.limit).Take(dto.limit).ToList();
-            int totalPages = dto.limit > 0 ? (int)Math.Ceiling((double)total / dto.limit) : 0;
-
-            result.HasError = false;
-            result.ErrorMessage = null;
-            result.Data = new FilteredResult<T>
-            {
-                lists = lists,
-                page = dto.page,
-                limit = dto.limit,
-                total = total,
-                totalPages = totalPages
-            };
-
-            return result;
-        }
         public static UpdateRevisionDataResult<TDest> UpdateRevisionData<TSrc, TDest>(
             this List<string>? allowedKeys,
             string User,
@@ -907,71 +798,71 @@ namespace Helpers
                 RevisionTransaction = Transaction
             };
         }
-        public static bool ValidateProjectForPublish(DBHelper.Models.Table.ProjectRevisions pr, List<DBHelper.Models.Table.ProjectComponentCostPerYear>? pc)
-        {
-            //var validation = new List<ProjectValidation>();
-            if (pr == null)
-            {
-                return false;// validation;
-            }
-            #region Project Location Validation
-            if (string.IsNullOrEmpty(pr.DEO) || string.IsNullOrEmpty(pr.LegislativeDistrict) || string.IsNullOrEmpty(pr.ImplementingOffice) || string.IsNullOrEmpty(pr.OperatingUnit)) {
-                return false;
-            }
-            #endregion
-            #region Component Cost Per Year Validation
-            if(pc != null)
-            {
-                var HasBlankData = pc.FirstOrDefault(x => x.Amount == null || x.Year == null || x.StartDate == null || x.EndDate == null);
-                if (HasBlankData != null)
-                {
-                    return false;
-                }
-            }
-            #endregion
-            return true;
-        }
-        public static bool ValidateProjectForPublishv2(DBHelper.Models.Table.ProjectRevisions pr, DBHelper.Models.Table.ProjectComponentCost? pc)
-        {
-            //var validation = new List<ProjectValidation>();
-            if (pr == null)
-            {
-                return false;// validation;
-            }
-            #region Project Location Validation
-            string ProjectLocation = string.Empty;
-            if (string.IsNullOrEmpty(pr.DEO)) {
-                ProjectLocation = "ProjectLocation: DEO field is required.";
-            }
-            if (string.IsNullOrEmpty(pr.LegislativeDistrict)) {
-                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Legislative District field is required." : ProjectLocation + " Legislative District field is required.";
-            }
-            if (string.IsNullOrEmpty(pr.ImplementingOffice)) {
-                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Implementing Office field is required." : ProjectLocation + " Implementing Office field is required.";
-            }
-            if (string.IsNullOrEmpty(pr.OperatingUnit)) {
-                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Operating Unit field is required." : ProjectLocation + " Operating Unit field is required.";
-            }
-            if(!string.IsNullOrEmpty(ProjectLocation))
-            {
-                return false;
-            }
-            #endregion
-            #region Component Cost Validation
-            string ComponentCost = string.Empty;
-            if(!string.IsNullOrEmpty(ComponentCost))
-            {
-                return false;
-            }
-            #endregion
-            /*
-            ProjectLocation: DEO LD Municipality IO OU
-            Project Implementation Plan: Planned Start Date Planned End Date
-            OverLapping Projects: GIS
-            Major Items of Work: Validated Major Work Locations
-             */
-            return true;
-        }
+        //public static bool ValidateProjectForPublish(ProjectRevisions pr, List<ProjectComponentCostPerYear>? pc)
+        //{
+        //    //var validation = new List<ProjectValidation>();
+        //    if (pr == null)
+        //    {
+        //        return false;// validation;
+        //    }
+        //    #region Project Location Validation
+        //    if (string.IsNullOrEmpty(pr.DEO) || string.IsNullOrEmpty(pr.LegislativeDistrict) || string.IsNullOrEmpty(pr.ImplementingOffice) || string.IsNullOrEmpty(pr.OperatingUnit)) {
+        //        return false;
+        //    }
+        //    #endregion
+        //    #region Component Cost Per Year Validation
+        //    if(pc != null)
+        //    {
+        //        var HasBlankData = pc.FirstOrDefault(x => x.Amount == null || x.Year == null || x.StartDate == null || x.EndDate == null);
+        //        if (HasBlankData != null)
+        //        {
+        //            return false;
+        //        }
+        //    }
+        //    #endregion
+        //    return true;
+        //}
+        //public static bool ValidateProjectForPublishv2(ProjectRevisions pr, ProjectComponentCost? pc)
+        //{
+        //    //var validation = new List<ProjectValidation>();
+        //    if (pr == null)
+        //    {
+        //        return false;// validation;
+        //    }
+        //    #region Project Location Validation
+        //    string ProjectLocation = string.Empty;
+        //    if (string.IsNullOrEmpty(pr.DEO)) {
+        //        ProjectLocation = "ProjectLocation: DEO field is required.";
+        //    }
+        //    if (string.IsNullOrEmpty(pr.LegislativeDistrict)) {
+        //        ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Legislative District field is required." : ProjectLocation + " Legislative District field is required.";
+        //    }
+        //    if (string.IsNullOrEmpty(pr.ImplementingOffice)) {
+        //        ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Implementing Office field is required." : ProjectLocation + " Implementing Office field is required.";
+        //    }
+        //    if (string.IsNullOrEmpty(pr.OperatingUnit)) {
+        //        ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Operating Unit field is required." : ProjectLocation + " Operating Unit field is required.";
+        //    }
+        //    if(!string.IsNullOrEmpty(ProjectLocation))
+        //    {
+        //        return false;
+        //    }
+        //    #endregion
+        //    #region Component Cost Validation
+        //    string ComponentCost = string.Empty;
+        //    if(!string.IsNullOrEmpty(ComponentCost))
+        //    {
+        //        return false;
+        //    }
+        //    #endregion
+        //    /*
+        //    ProjectLocation: DEO LD Municipality IO OU
+        //    Project Implementation Plan: Planned Start Date Planned End Date
+        //    OverLapping Projects: GIS
+        //    Major Items of Work: Validated Major Work Locations
+        //     */
+        //    return true;
+        //}
         public static bool IsValidFutureInfraId(this string First2Letter, string id)
         {
             Regex RFutureInfra = new Regex(

@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAPI", "WebAPI\WebAPI.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReportGeneration", "ReportGeneration\ReportGeneration.csproj", "{952F5BEC-674B-4AC7-9970-BE78D469851D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire", "Hangfire\Hangfire.csproj", "{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +52,12 @@ Global
 		{952F5BEC-674B-4AC7-9970-BE78D469851D}.Release|Any CPU.Build.0 = Release|Any CPU
 		{952F5BEC-674B-4AC7-9970-BE78D469851D}.Staging|Any CPU.ActiveCfg = Staging|Any CPU
 		{952F5BEC-674B-4AC7-9970-BE78D469851D}.Staging|Any CPU.Build.0 = Staging|Any CPU
+		{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}.Staging|Any CPU.ActiveCfg = Release|Any CPU
+		{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}.Staging|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

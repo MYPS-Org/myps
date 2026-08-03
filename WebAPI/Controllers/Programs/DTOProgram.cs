@@ -13,9 +13,9 @@ namespace WebAPI.Controllers.Programs
     public class ShowProgramFilterDTO
     {
         public string? Name { get; set; }
-        public string? YearStart { get; set; }
-        public string? GroupName { get; set; }
+        public int? StartYear { get; set; }
         public string? StageName { get; set; }
+        public string? Type { get; set; }
     }
     public class AddProgramDTO
     {
@@ -72,7 +72,7 @@ namespace WebAPI.Controllers.Programs
         public int[] UserGroup { get; set; } = new int[] { };
         public EnumProgramStatus Status { get; set; }
         public EnumProgramType Type { get; set; }
-        public Double? Cost { get; set; }
+        public Double Cost { get; set; } = 0;
         public int YearStart { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }

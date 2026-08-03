@@ -1,8 +1,11 @@
-﻿using Confluent.Kafka;
+﻿using Microsoft.AspNetCore.SignalR;
 using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
+using DBHelper.Models.Table.AdminAreas;
+using DBHelper.Models.Table.Lookups;
+using DBHelper.Models.Table.Lookups.Project;
 using DBHelper.Models.Views;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
@@ -21,14 +24,15 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Transactions;
 using System.Xml;
+using WebAPI.MicroService;
 namespace WebAPI.Controllers.CodeTable
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     public class CodeTableController : CoreController
     {
-        public CodeTableController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
-        
+        public CodeTableController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+
         [HttpPost]
         public async Task<IActionResult> GetAllCodeTables()
         {
@@ -43,7 +47,7 @@ namespace WebAPI.Controllers.CodeTable
 
                 //Project
                 var projectCategories = await _db.tOptionProjectCategory.AsNoTracking().ToListAsync();
-                var projectThrusts = await _db.tProjectThrustLists.AsNoTracking().ToListAsync();
+                var projectThrusts = await _db.tOptionProjectThrustList.AsNoTracking().ToListAsync();
                 var projectAgencies = await _db.tOptionProjectAgency.AsNoTracking().ToListAsync();
                 var projectOrigins = await _db.tOptionProjectOrigin.AsNoTracking().ToListAsync();
 
@@ -51,7 +55,7 @@ namespace WebAPI.Controllers.CodeTable
                 var Sources = await _db.tOptionFundingSource.AsNoTracking().ToListAsync();
                 var scopeOfWorks = await _db.tOptionScopeOfWork.AsNoTracking().ToListAsync();
                 var infraTypes = await _db.tOptionInfraType.AsNoTracking().ToListAsync();
-                var projectComponents = await _db.tOptionProjectComponent.AsNoTracking().ToListAsync();
+                var projectComponents = await _db.tOptionProjectComponentType.AsNoTracking().ToListAsync();
 
                 //Revision
                 var revisionHeaders = await _db.tOptionRevisionHeader.AsNoTracking().ToListAsync();
@@ -89,25 +93,25 @@ namespace WebAPI.Controllers.CodeTable
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> GetAdminAreas()
         {
             try
             {
-                var regions   = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var regions = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var provinces = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var cities    = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var deos      = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var deos = await _db.vAdminDEO.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
 
                 return Ok(new
                 {
-                    Regions   = regions,
+                    Regions = regions,
                     Provinces = provinces,
-                    Cities    = cities,
+                    Cities = cities,
                     Districts = districts,
-                    DEOs      = deos
+                    DEOs = deos
                 });
             }
             catch (Exception ex)
@@ -116,69 +120,69 @@ namespace WebAPI.Controllers.CodeTable
             }
         }
 
-        
+
         [HttpPost]
-        public async Task<IActionResult> GetTransactionLog([FromBody] GetTransactionLogDTO dto)
+        public async Task<IActionResult> GetTransactionLog([FromBody] GetTransactionLogDTO dto, CancellationToken cancellationToken)
         {
             try
             {
                 string AffectedTable = string.Empty;
-                switch(dto.TableCode)
+                switch (dto.TableCode)
                 {
                     case "ProgramStage":
                         AffectedTable = "tOptionProgramStage";
-                    break;
+                        break;
                     case "ProgramStatus":
                         AffectedTable = "tOptionProgramStatus";
                         break;
                     case "ProgramType":
                         AffectedTable = "tOptionProgramType";
-                    break;
+                        break;
                     case "ProjectCategory":
                         AffectedTable = "tOptionProjectCategory";
-                    break;
+                        break;
                     case "ProjectThrust":
-                        AffectedTable = "tOptionProjectCategory";
-                    break;
+                        AffectedTable = "tOptionProjectThrustList";
+                        break;
                     case "ProjectAgency":
                         AffectedTable = "tOptionProjectAgency";
-                    break;
+                        break;
                     case "ProjectOrigin":
                         AffectedTable = "tOptionProjectOrigin";
-                    break;
+                        break;
                     case "FundingAgreement":
                         AffectedTable = "tOptionFundingAgreement";
-                    break;
+                        break;
                     case "FundingSource":
                         AffectedTable = "tOptionFundingSource";
-                    break;
+                        break;
                     case "ProjectScopeOfWork":
                         AffectedTable = "tOptionScopeOfWork";
-                    break;
+                        break;
                     case "ProjectInfraType":
                         AffectedTable = "tOptionInfraType";
-                    break;
+                        break;
                     case "ProjectComponent":
-                        AffectedTable = "tOptionProjectComponent";
-                    break;
+                        AffectedTable = "tOptionProjectComponentType";
+                        break;
                     case "RevisionHeader":
                         AffectedTable = "tOptionRevisionHeader";
-                    break;
+                        break;
                     case "RevisionCategory":
                         AffectedTable = "tOptionRevisionCategory";
-                    break;
+                        break;
                     case "RevisionReasons":
                         AffectedTable = "tOptionRevisionReasons";
-                    break;
+                        break;
                     case "RevisionRules":
                         AffectedTable = "tRevisionRules";
-                    break;
+                        break;
                     case "RevisionDocuments":
                         AffectedTable = "tOptionRevisionDocuments";
-                    break;
+                        break;
                     case "RevisionStatus":
                         AffectedTable = "tOptionRevisionStatus";
-                    break;
+                        break;
                 }
                 var CodeTableLists = await _db.tCodeTableTransactionLog.Where(x => x.AffectedTable == AffectedTable).ToListAsync();
                 return Ok(new
@@ -191,9 +195,9 @@ namespace WebAPI.Controllers.CodeTable
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> UpdateCodeTable([FromBody] UpdateCodeTableDTO dto)
+        public async Task<IActionResult> UpdateCodeTable([FromBody] UpdateCodeTableDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -400,7 +404,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Program Type has been selected, please select a program type."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Type == (EnumProgramType)data.NameId);
+                    var CheckIfAlreadyUse = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.Type == (EnumProgramType)data.NameId);
                     if (CheckIfAlreadyUse == null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -570,7 +574,7 @@ namespace WebAPI.Controllers.CodeTable
                 {
                     tablename = "Project Thrust";
                     transactionLog.AffectedTable = "tOptionProjectCategory";
-                    var data = JsonConvert.DeserializeObject<ProjectThrustLists>(dto.Json);
+                    var data = JsonConvert.DeserializeObject<OptionProjectThrustList>(dto.Json);
                     #region Validation
                     if (data == null)
                     {
@@ -589,7 +593,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected project thrust is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckDescriptionIfExists = await _db.tProjectThrustLists.AsNoTracking().FirstOrDefaultAsync(x => x.ThrustDescription == data.ThrustDescription);
+                    var CheckDescriptionIfExists = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.ThrustDescription == data.ThrustDescription);
                     if (CheckDescriptionIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -598,7 +602,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project thrust {data.ThrustDescription} already exists, please select another project thrust."
                         });
                     }
-                    var CheckIfPAPKeyExist = await _db.tProjectThrustLists.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == data.PAPKey);
+                    var CheckIfPAPKeyExist = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == data.PAPKey);
                     if (CheckIfPAPKeyExist != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -607,7 +611,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project thrust PAP key {data.PAPKey} already exists, please select another project thrust PAP key."
                         });
                     }
-                    var CheckUpdate = await _db.tProjectThrustLists.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+                    var CheckUpdate = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -622,7 +626,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        await _db.tProjectThrustLists.AddAsync(data);
+                        await _db.tOptionProjectThrustList.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
                     {
@@ -689,13 +693,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
                             CheckUpdate.IsActive = data.IsActive;
                         }
-                        _db.tProjectThrustLists.Update(CheckUpdate);
+                        _db.tOptionProjectThrustList.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
                     {
                         transactionLog.NewValue = string.Empty;
                         transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate);
-                        _db.tProjectThrustLists.Remove(CheckUpdate);
+                        _db.tOptionProjectThrustList.Remove(CheckUpdate);
                     }
                 }
                 else if (dto.Code == "ProjectAgency")
@@ -885,7 +889,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Funding Agreement has been selected, please select a funding agreement."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.AsNoTracking().FirstOrDefaultAsync(x => x.Agreement == data.Code);
+                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.AsNoTracking().FirstOrDefaultAsync(x => x.AgreementCode == data.Code);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1002,7 +1006,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Funding Source has been selected, please select a funding source."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.AsNoTracking().FirstOrDefaultAsync(x => x.Source == data.Organization);
+                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.AsNoTracking().FirstOrDefaultAsync(x => x.SourceOrg == data.Organization);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1096,7 +1100,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Scope Of Work has been selected, please select a scope of work."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.AsNoTracking().FirstOrDefaultAsync(x => x.WorkTypeId == data.Enum);
+                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.AsNoTracking().FirstOrDefaultAsync(x => x.WorkTypeFK == data.Enum);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1199,7 +1203,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.MinAmount}";
                             CheckUpdate.MinAmount = data.MinAmount;
                         }
-                        if(CheckUpdate.IsActive != data.IsActive)
+                        if (CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1229,7 +1233,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Infra Type has been selected, please select an infra type."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.AsNoTracking().FirstOrDefaultAsync(x => x.InfraType == data.InfraName);
+                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.AsNoTracking().FirstOrDefaultAsync(x => x.InfraTypeFK == data.InfraName);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1311,8 +1315,8 @@ namespace WebAPI.Controllers.CodeTable
                 else if (dto.Code == "ProjectComponent")
                 {
                     tablename = "Project Component";
-                    transactionLog.AffectedTable = "tOptionProjectComponent";
-                    var data = JsonConvert.DeserializeObject<OptionProjectComponent>(dto.Json);
+                    transactionLog.AffectedTable = "tOptionProjectComponentType";
+                    var data = JsonConvert.DeserializeObject<OptionProjectComponentType>(dto.Json);
                     #region Validation
                     if (data == null)
                     {
@@ -1331,7 +1335,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected project component is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionProjectComponent.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentName == data.ComponentName);
+                    var CheckNameIfExists = await _db.tOptionProjectComponentType.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentName == data.ComponentName);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1340,7 +1344,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project component {data.ComponentName} already exists, please select another project component."
                         });
                     }
-                    var CheckIfComponentIdExist = await _db.tOptionProjectComponent.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentId == data.ComponentId);
+                    var CheckIfComponentIdExist = await _db.tOptionProjectComponentType.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentId == data.ComponentId);
                     if (CheckIfComponentIdExist != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1349,7 +1353,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project component id {data.ComponentId} already exists, please select another project component id."
                         });
                     }
-                    var CheckUpdate = await _db.tOptionProjectComponent.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+                    var CheckUpdate = await _db.tOptionProjectComponentType.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1364,7 +1368,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        await _db.tOptionProjectComponent.AddAsync(data);
+                        await _db.tOptionProjectComponentType.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
                     {
@@ -1396,13 +1400,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
                             CheckUpdate.IsActive = data.IsActive;
                         }
-                        _db.tOptionProjectComponent.Update(CheckUpdate);
+                        _db.tOptionProjectComponentType.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
                     {
                         transactionLog.NewValue = string.Empty;
                         transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate);
-                        _db.tOptionProjectComponent.Remove(CheckUpdate);
+                        _db.tOptionProjectComponentType.Remove(CheckUpdate);
                     }
                 }
                 else if (dto.Code == "RevisionHeader")
@@ -1842,7 +1846,7 @@ namespace WebAPI.Controllers.CodeTable
                         }
                         if (CheckUpdate.CategoryId != data.CategoryId)
                         {
-                            if(data.CategoryId != null)
+                            if (data.CategoryId != null)
                             {
                                 var CheckCategoryId = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == data.CategoryId);
                                 if (CheckCategoryId == null)
@@ -1974,26 +1978,33 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        if (existing.GdbId != data.GdbId)
-                        {
-                            transactionLog.AffectedColumn = "GdbId";
-                            transactionLog.NewValue = data.GdbId!;
-                            transactionLog.OldValue = existing.GdbId!;
-                            existing.GdbId = data.GdbId;
-                        }
-                        if(existing.Name != data.Name)
-                        {
-                            transactionLog.AffectedColumn = "Name";
-                            transactionLog.NewValue = data.Name!;
-                            transactionLog.OldValue = existing.Name!;
-                            existing.Name = data.Name;
-                        }
                         if (existing.ParticipantId != data.ParticipantId)
                         {
                             transactionLog.AffectedColumn = "ParticipantId";
                             transactionLog.NewValue = data.ParticipantId!;
                             transactionLog.OldValue = existing.ParticipantId!;
                             existing.ParticipantId = data.ParticipantId;
+                        }
+                        if (existing.Name != data.Name)
+                        {
+                            transactionLog.AffectedColumn = "Name";
+                            transactionLog.NewValue = data.Name!;
+                            transactionLog.OldValue = existing.Name!;
+                            existing.Name = data.Name;
+                        }
+                        if (existing.Code != data.Code)
+                        {
+                            transactionLog.AffectedColumn = "Code";
+                            transactionLog.NewValue = data.Code!;
+                            transactionLog.OldValue = existing.Code!;
+                            existing.Code = data.Code;
+                        }
+                        if (existing.Hierarchy != data.Hierarchy)
+                        {
+                            transactionLog.AffectedColumn = "Hierarchy";
+                            transactionLog.NewValue = data.Hierarchy!;
+                            transactionLog.OldValue = existing.Hierarchy!;
+                            existing.Hierarchy = data.Hierarchy;
                         }
                         if (existing.IslandCode != data.IslandCode)
                         {
@@ -2002,12 +2013,12 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.IslandCode!;
                             existing.IslandCode = data.IslandCode;
                         }
-                        if (existing.IsActive != data.IsActive)
+                        if (existing.Deprecated != data.Deprecated)
                         {
-                            transactionLog.AffectedColumn = "IsActive";
-                            transactionLog.NewValue = data.IsActive ? "True" : "False";
-                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
-                            existing.IsActive = data.IsActive;
+                            transactionLog.AffectedColumn = "Deprecated";
+                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
+                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
+                            existing.Deprecated = data.Deprecated;
                         }
                         _db.tOptionAdminAreaRegion.Update(existing);
                     }
@@ -2033,13 +2044,6 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        if (existing.GdbId != data.GdbId)
-                        {
-                            transactionLog.AffectedColumn = "GdbId";
-                            transactionLog.NewValue = data.GdbId!;
-                            transactionLog.OldValue = existing.GdbId!;
-                            existing.GdbId = data.GdbId;
-                        }
                         if (existing.Name != data.Name)
                         {
                             transactionLog.AffectedColumn = "Name";
@@ -2054,6 +2058,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Code!;
                             existing.Code = data.Code;
                         }
+                        if (existing.Hierarchy != data.Hierarchy)
+                        {
+                            transactionLog.AffectedColumn = "Hierarchy";
+                            transactionLog.NewValue = data.Hierarchy!;
+                            transactionLog.OldValue = existing.Hierarchy!;
+                            existing.Hierarchy = data.Hierarchy;
+                        }
                         if (existing.RegionParticipantId != data.RegionParticipantId)
                         {
                             transactionLog.AffectedColumn = "RegionParticipantId";
@@ -2061,19 +2072,12 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.RegionParticipantId!;
                             existing.RegionParticipantId = data.RegionParticipantId;
                         }
-                        if (existing.RegionName != data.RegionName)
+                        if (existing.Deprecated != data.Deprecated)
                         {
-                            transactionLog.AffectedColumn = "RegionName";
-                            transactionLog.NewValue = data.RegionName!;
-                            transactionLog.OldValue = existing.RegionName!;
-                            existing.RegionName = data.RegionName;
-                        }
-                        if (existing.IsActive != data.IsActive)
-                        {
-                            transactionLog.AffectedColumn = "IsActive";
-                            transactionLog.NewValue = data.IsActive ? "True" : "False";
-                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
-                            existing.IsActive = data.IsActive;
+                            transactionLog.AffectedColumn = "Deprecated";
+                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
+                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
+                            existing.Deprecated = data.Deprecated;
                         }
                         _db.tOptionAdminAreaProvince.Update(existing);
                     }
@@ -2099,13 +2103,6 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        if (existing.GdbId != data.GdbId)
-                        {
-                            transactionLog.AffectedColumn = "GdbId";
-                            transactionLog.NewValue = data.GdbId!;
-                            transactionLog.OldValue = existing.GdbId!;
-                            existing.GdbId = data.GdbId;
-                        }
                         if (existing.Name != data.Name)
                         {
                             transactionLog.AffectedColumn = "Name";
@@ -2120,26 +2117,26 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Code!;
                             existing.Code = data.Code;
                         }
-                        if (existing.ProvinceGdbId != data.ProvinceGdbId)
+                        if (existing.Hierarchy != data.Hierarchy)
                         {
-                            transactionLog.AffectedColumn = "ProvinceGdbId";
-                            transactionLog.NewValue = data.ProvinceGdbId!;
-                            transactionLog.OldValue = existing.ProvinceGdbId!;
-                            existing.ProvinceGdbId = data.ProvinceGdbId;
+                            transactionLog.AffectedColumn = "Hierarchy";
+                            transactionLog.NewValue = data.Hierarchy!;
+                            transactionLog.OldValue = existing.Hierarchy!;
+                            existing.Hierarchy = data.Hierarchy;
                         }
-                        if (existing.ProvinceName != data.ProvinceName)
+                        if (existing.ProvinceId != data.ProvinceId)
                         {
-                            transactionLog.AffectedColumn = "ProvinceName";
-                            transactionLog.NewValue = data.ProvinceName!;
-                            transactionLog.OldValue = existing.ProvinceName!;
-                            existing.ProvinceName = data.ProvinceName;
+                            transactionLog.AffectedColumn = "ProvinceId";
+                            transactionLog.NewValue = data.ProvinceId.ToString();
+                            transactionLog.OldValue = existing.ProvinceId.ToString();
+                            existing.ProvinceId = data.ProvinceId;
                         }
-                        if (existing.IsActive != data.IsActive)
+                        if (existing.Deprecated != data.Deprecated)
                         {
-                            transactionLog.AffectedColumn = "IsActive";
-                            transactionLog.NewValue = data.IsActive ? "True" : "False";
-                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
-                            existing.IsActive = data.IsActive;
+                            transactionLog.AffectedColumn = "Deprecated";
+                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
+                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
+                            existing.Deprecated = data.Deprecated;
                         }
                         _db.tOptionAdminAreaCityMunicipality.Update(existing);
                     }
@@ -2165,13 +2162,6 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        if (existing.GdbId != data.GdbId)
-                        {
-                            transactionLog.AffectedColumn = "GdbId";
-                            transactionLog.NewValue = data.GdbId!;
-                            transactionLog.OldValue = existing.GdbId!;
-                            existing.GdbId = data.GdbId;
-                        }
                         if (existing.Name != data.Name)
                         {
                             transactionLog.AffectedColumn = "Name";
@@ -2186,26 +2176,26 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Code!;
                             existing.Code = data.Code;
                         }
-                        if (existing.ProvinceGdbId != data.ProvinceGdbId)
+                        if (existing.Hierarchy != data.Hierarchy)
                         {
-                            transactionLog.AffectedColumn = "ProvinceGdbId";
-                            transactionLog.NewValue = data.ProvinceGdbId!;
-                            transactionLog.OldValue = existing.ProvinceGdbId!;
-                            existing.ProvinceGdbId = data.ProvinceGdbId;
+                            transactionLog.AffectedColumn = "Hierarchy";
+                            transactionLog.NewValue = data.Hierarchy!;
+                            transactionLog.OldValue = existing.Hierarchy!;
+                            existing.Hierarchy = data.Hierarchy;
                         }
-                        if (existing.ProvinceName != data.ProvinceName)
+                        if (existing.ProvinceId != data.ProvinceId)
                         {
-                            transactionLog.AffectedColumn = "ProvinceName";
-                            transactionLog.NewValue = data.ProvinceName!;
-                            transactionLog.OldValue = existing.ProvinceName!;
-                            existing.ProvinceName = data.ProvinceName;
+                            transactionLog.AffectedColumn = "ProvinceId";
+                            transactionLog.NewValue = data.ProvinceId.ToString();
+                            transactionLog.OldValue = existing.ProvinceId.ToString();
+                            existing.ProvinceId = data.ProvinceId;
                         }
-                        if (existing.IsActive != data.IsActive)
+                        if (existing.Deprecated != data.Deprecated)
                         {
-                            transactionLog.AffectedColumn = "IsActive";
-                            transactionLog.NewValue = data.IsActive ? "True" : "False";
-                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
-                            existing.IsActive = data.IsActive;
+                            transactionLog.AffectedColumn = "Deprecated";
+                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
+                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
+                            existing.Deprecated = data.Deprecated;
                         }
                         _db.tOptionAdminAreaCongressionalDistrict.Update(existing);
                     }
@@ -2218,26 +2208,19 @@ namespace WebAPI.Controllers.CodeTable
                 else if (dto.Code == "AdminAreaDEO")
                 {
                     tablename = "Admin Area District Engineering Office";
-                    transactionLog.AffectedTable = "tOptionAdminAreaDistrictEngineeringOffice";
-                    var data = JsonConvert.DeserializeObject<OptionAdminAreaDistrictEngineeringOffice>(dto.Json);
+                    transactionLog.AffectedTable = "tOptionAdminOffice";
+                    var data = JsonConvert.DeserializeObject<OptionAdminOffice>(dto.Json);
                     if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-                    var existing = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+                    var existing = await _db.tOptionAdminOffice.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id && x.OfficeType == "DEO");
                     if (existing == null && dto.TransactionType != CodeTransactionType.Create)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"DEO with Id {data.Id} was not found." });
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminAreaDistrictEngineeringOffice.AddAsync(data);
+                        await _db.tOptionAdminOffice.AddAsync(data);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        if (existing.GdbId != data.GdbId)
-                        {
-                            transactionLog.AffectedColumn = "GdbId";
-                            transactionLog.NewValue = data.GdbId!;
-                            transactionLog.OldValue = existing.GdbId!;
-                            existing.GdbId = data.GdbId;
-                        }
                         if (existing.Name != data.Name)
                         {
                             transactionLog.AffectedColumn = "Name";
@@ -2252,47 +2235,19 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.ParticipantId!;
                             existing.ParticipantId = data.ParticipantId;
                         }
-                        if (existing.ProvinceGdbId != data.ProvinceGdbId)
+                        if (existing.Deprecated != data.Deprecated)
                         {
-                            transactionLog.AffectedColumn = "ProvinceGdbId";
-                            transactionLog.NewValue = data.ProvinceGdbId!;
-                            transactionLog.OldValue = existing.ProvinceGdbId!;
-                            existing.ProvinceGdbId = data.ProvinceGdbId;
+                            transactionLog.AffectedColumn = "Deprecated";
+                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
+                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
+                            existing.Deprecated = data.Deprecated;
                         }
-                        if (existing.ProvinceName != data.ProvinceName)
-                        {
-                            transactionLog.AffectedColumn = "ProvinceName";
-                            transactionLog.NewValue = data.ProvinceName!;
-                            transactionLog.OldValue = existing.ProvinceName!;
-                            existing.ProvinceName = data.ProvinceName;
-                        }
-                        if (existing.RegionParticipantId != data.RegionParticipantId)
-                        {
-                            transactionLog.AffectedColumn = "RegionParticipantId";
-                            transactionLog.NewValue = data.RegionParticipantId!;
-                            transactionLog.OldValue = existing.RegionParticipantId!;
-                            existing.RegionParticipantId = data.RegionParticipantId;
-                        }
-                        if (existing.RegionName != data.RegionName)
-                        {
-                            transactionLog.AffectedColumn = "RegionName";
-                            transactionLog.NewValue = data.RegionName!;
-                            transactionLog.OldValue = existing.RegionName!;
-                            existing.RegionName = data.RegionName;
-                        }
-                        if (existing.IsActive != data.IsActive)
-                        {
-                            transactionLog.AffectedColumn = "IsActive";
-                            transactionLog.NewValue = data.IsActive ? "True" : "False";
-                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
-                            existing.IsActive = data.IsActive;
-                        }
-                        _db.tOptionAdminAreaDistrictEngineeringOffice.Update(existing);
+                        _db.tOptionAdminOffice.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
                     {
                         transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
-                        _db.tOptionAdminAreaDistrictEngineeringOffice.Remove(existing);
+                        _db.tOptionAdminOffice.Remove(existing);
                     }
                 }
                 else

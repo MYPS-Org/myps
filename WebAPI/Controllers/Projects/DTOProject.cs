@@ -1,11 +1,13 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
-using DBHelper.Models.Functions;
+using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Table;
+using DBHelper.Models.Table.Project;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,6 +27,8 @@ namespace WebAPI.Controllers.Projects
     }
     public class AddProjectDTO : ProjectDetails
     {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
         public bool IsAllowedToProceed { get; set; } = false;
     }
     public class ProjectDetailsDTO
@@ -37,37 +41,34 @@ namespace WebAPI.Controllers.Projects
     public class UpdateProjectDetailsDTO
     {
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
+        public List<FundingProfileDTO> FundingProfile { get; set; } = new List<FundingProfileDTO>();
         public List<ProjectComponentCostDTO> ComponentCosts { get; set; } = new List<ProjectComponentCostDTO>();
         public List<ProjectComponentCostPerYearDTO> ComponentCostPerYear { get; set; } = new List<ProjectComponentCostPerYearDTO>();
         public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
         public List<ProjectMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
         public List<ProjectSupportingDocs> Docs { get; set; } = new List<ProjectSupportingDocs>();
-        public List<FundingProfileDTO> FundingProfile { get; set; } = new List<FundingProfileDTO>();
         public bool IsAllowedToProceed { get; set; } = false;
     }
-    public class ProjectComponentCostDTO
+    public class FundingProfileDTO
     {
-        [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string ProjectId { get; set; } = string.Empty;
+        // FK -> dbo.tProjectRevisions(Id)
+        public int ProjectRevisionFK { get; set; }
         [Required]
         [MaxLength(100)]
-        public string CostId { get; set; } = string.Empty;
+        // FK -> dbo.tOptionFundingSource(Organization)
+        public string SourceOrg { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string ComponentType { get; set; } = string.Empty;
+        [MaxLength(50)]
+        // FK -> dbo.tOptionFundingAgreement(Code)
+        public string AgreementCode { get; set; } = string.Empty;
         [Required]
-        [MaxLength(10)]
-        public string ComponentId { get; set; } = string.Empty;
-        public string? Description { get; set; }
+        [Column(TypeName = "decimal(18,5)")]
+        public decimal Amount { get; set; }
         [Required]
-        public Double Total { get; set; }
-        [Required]
-        [MaxLength(10)]
-        public string StageName { get; set; } = string.Empty;
+        public Double Percentage { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
@@ -76,96 +77,149 @@ namespace WebAPI.Controllers.Projects
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
-        public bool IsDeleted { get; set; } = false;
+        [Required]
+        public bool IsDeleted { get; set; }
+    }
+    public class ProjectComponentCostDTO
+    {
+        /// <summary>
+        /// Temporary client-generated identifier used to maintain
+        /// parent-child relationships before database IDs exist.
+        /// Not persisted to SQL Server.
+        /// </summary>
+        public Guid ClientId { get; init; } = Guid.NewGuid();
+        [Required]
+        public int Id { get; set; }
+        [Required]
+        // FK -> dbo.tProjectRevisions(Id)
+        public int ProjectRevisionFK { get; set; }
+        [Required]
+        [MaxLength(10)]
+        // FK -> dbo.tOptionProjectComponentType(ComponentId)
+        public string ComponentType { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        [Required]
+        [Column(TypeName = "decimal(18,5)")]
+        public decimal Total { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
+        public ICollection<ProjectComponentCostPerYearDTO> CostsPerYear { get; set; } = new List<ProjectComponentCostPerYearDTO>();
+        public ICollection<ProjectMajorWorkItemDTO> WorkItems { get; set; } = new List<ProjectMajorWorkItemDTO>();
     }
     public class ProjectComponentCostPerYearDTO
     {
+        public Guid? ComponentClientId { get; set; }
         [Required]
         public int Id { get; set; }
+        // FK -> dbo.tProjectComponentCost(Id)
+        public int ComponentCostFK { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string ComponentCostId { get; set; } = string.Empty;
-        public Double? Amount { get; set; }
-        public int? Year { get; set; }
+        [Column(TypeName = "decimal(18,5)")]
+        public decimal Amount { get; set; }
+        [Required]
+        public int Year { get; set; }
+        [MaxLength(50)]
+        public string? UACS { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public string? StageName { get; set; } = string.Empty;
+        [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
+        [Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(100)]
-        public string UpdatedBy { get; set; } = string.Empty;
+        public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
         [Required]
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
+        public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
     }
-    //public class ProjectComponentCostYearDTO
-    //{
-    //    [Required]
-    //    public long Id { get; set; }
-    //    public string ParentId { get; set; } = string.Empty;
-    //    [Required]
-    //    public int CostYear { get; set; }
-    //    [Required]
-    //    public Double Cost { get; set; }
-    //    public DateTime? StartDate { get; set; }
-    //    public DateTime? EndDate { get; set; }
-    //}
     public class ProjectMajorWorkItemDTO
     {
+        /// <summary>
+        /// Temporary client-generated identifier used to maintain
+        /// parent-child relationships before database IDs exist.
+        /// Not persisted to SQL Server.
+        /// </summary>
+        public Guid ClientId { get; init; } = Guid.NewGuid();
+        public Guid? ComponentClientId { get; set; }
         [Required]
         public int Id { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string ProjectId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(100)]
-        public string ReferenceId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(50)]
-        public string ComponentId { get; set; } = string.Empty;
+        // FK -> dbo.tProjectComponentCost(Id)
+        public int ComponentCostFK { get; set; }
         [Required]
         public int YearOfWork { get; set; }
         [Required]
-        public int WorkTypeId { get; set; }
+        // FK -> dbo.tOptionScopeOfWork(Enum)
+        public int WorkTypeFK { get; set; }
         [Required]
-        [MaxLength(50)]
-        public string InfraType { get; set; } = string.Empty;
+        [MaxLength(10)]
+        // FK -> dbo.tOptionInfraType(InfraCode)
+        public string InfraTypeFK { get; set; } = string.Empty;
         [Required]
-        public bool IsDeleted { get; set; } = false;
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
+        public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
+        public ICollection<ProjectMajorWorkLocationsDTO> WorkLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
     }
     public class ProjectMajorWorkLocationsDTO
     {
+        public Guid? WorkItemClientId { get; set; }
         [Required]
         public int Id { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string ParentId { get; set; } = string.Empty;
-        [MaxLength(10)]
-        public string? StageName { get; set; } = string.Empty;
+        // FK -> dbo.tProjectMajorWorkItem(Id)
+        public int WorkItemFK { get; set; }
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
         public string? DetailedScope { get; set; }
         [Required]
-        public int TargetUnitId { get; set; }               
+        public int TargetUnitId { get; set; }
+        [Required]
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        public Double? StartX { get; set; }
-        public Double? StartY { get; set; }
-        public Double? EndX { get; set; }
-        public Double? EndY { get; set; }
+        public double? StartX { get; set; }
+        public double? StartY { get; set; }
+        public double? EndX { get; set; }
+        public double? EndY { get; set; }
         [Required]
-        public Double PhysicalTarget { get; set; }
+        public double PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
         public string? EndStationLimit { get; set; }
-        public Double? EndChainage { get; set; }
-        public Double? StartChainage { get; set; }
-        public Double? Length { get; set; }
+        public double? StartChainage { get; set; }
+        public double? EndChainage { get; set; }
+        public double? Length { get; set; }
         [Required]
-        public bool IsDeleted { get; set; } = false;
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
+        public ProjectMajorWorkItemDTO WorkItem { get; set; } = null!;
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {
@@ -195,22 +249,5 @@ namespace WebAPI.Controllers.Projects
     {
         [Required]
         public int Id { get; set; }
-    }
-    public class FundingProfileDTO
-    {
-        public int Id { get; set; }
-        [Required]
-        public string ProjectId { get; set; } = string.Empty;
-        [Required]
-        public string Source { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(50)]
-        public string Agreement { get; set; } = string.Empty;
-        [Required]
-        public Double Amount { get; set; }
-        [Required]
-        public Double Percentage { get; set; }
-        [Required]
-        public bool IsDeleted { get; set; } = false;
     }
 }

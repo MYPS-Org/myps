@@ -1,27 +1,21 @@
-﻿using Confluent.Kafka;
+﻿using Microsoft.AspNetCore.SignalR;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
-using DBHelper.Models.Views;
+using DBHelper.Models.Table.Infra;
 using Helpers;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data.SqlClient;
-using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Xml;
-using static Eaf.Domain.Uow.EafDataFilters;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using WebAPI.MicroService;
+
 namespace WebAPI.Controllers.Programs
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     public class FutureInfraController : CoreController
     {
-        public FutureInfraController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
-        
+        public FutureInfraController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+
         [HttpPost]
         public async Task<IActionResult> GetInfraInfo()
         {
@@ -45,7 +39,7 @@ namespace WebAPI.Controllers.Programs
             }
         }
         #region Future Roads
-        
+
         [HttpPost]
         public async Task<IActionResult> InitFilterFutureRoads()
         {
@@ -64,89 +58,58 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> ShowFutureRoads([FromBody] ShowFutureRoadsDTO dto)
+        public async Task<IActionResult> ShowFutureRoads([FromBody] ShowFutureRoadsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
-                if (dto.Filters == null)
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+
+                if (!string.IsNullOrEmpty(dto.Filters.Name))
+                    filters.Add(( "v.Name = @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.RoadId))
+                    filters.Add(("v.RoadId = @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
+
+                FilterDataResult<FutureRoads> result =
+                    await _db.FilterDataCursor<
+                        FutureRoads,
+                        ShowFutureRoadsFilterDTO>(
+                            tableName: "tFutureRoads",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
-                }
-                if (!string.IsNullOrEmpty(dto.SortField))
-                {
-                    bool isValid = typeof(DBHelper.Models.Table.FutureRoads)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-                    }
-                }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
-
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
-                }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.tFutureRoads.AsNoTracking();
-
-                // Apply filters to base query
-                if (!string.IsNullOrEmpty(dto.Filters?.Name))
-                    baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.RoadId))
-                    baseQuery = baseQuery.Where(e => e.RoadId.ToString() == dto.Filters.RoadId);
-
-                if (!string.IsNullOrEmpty(dto.Filters?.Classification))
-                {
-                    var FilteredClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.Classification == dto.Filters.Classification);
-                    int ClassificationId = FilteredClassification != null ? FilteredClassification.ClassificationId : 0;
-                    baseQuery = baseQuery.Where(e => e.Classification == ClassificationId);
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ToString() ??
+                                "Unable to retrieve the records."
+                        });
                 }
 
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
-
-                // Apply sorting and pagination
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-                // Apply pagination and execute query
-                 List<DBHelper.Models.Table.FutureRoads> permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                var response = new
-                {
-                    lists = permissionLists,
-                    dto.page,
-                    dto.limit,
-                    total = totalRecords,
-                    totalPages
-                };
-
-                return Ok(response); // Remove the extra wrapper
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> EditFutureRoads([FromBody] EditFutureRoadsDTO dto)
+        public async Task<IActionResult> EditFutureRoads([FromBody] EditFutureRoadsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -205,19 +168,19 @@ namespace WebAPI.Controllers.Programs
 
                 }
                 var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
-                if(checkClassification == null)
+                if (checkClassification == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid.", Title = "Invalid Classification" });
                 }
-                DateTime currentDate = Functions.CurrentDate();;
+                DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
                 List<TransactionLog> Transactions = new List<TransactionLog>();
-                if(checkRoad.RoadId != dto.RoadId)
+                if (checkRoad.RoadId != dto.RoadId)
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkRoad.RoadId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkRoad.RoadId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "RoadId",
                         OldValue = checkRoad.RoadId,
@@ -231,8 +194,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkRoad.RoadId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkRoad.RoadId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "Name",
                         OldValue = checkRoad.Name,
@@ -248,8 +211,8 @@ namespace WebAPI.Controllers.Programs
                     var OldClassification = await _db.tFutureRoadsClassification.FirstOrDefaultAsync(x => x.ClassificationId == checkRoad.Classification);
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkRoad.RoadId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkRoad.RoadId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "Classification",
                         OldValue = OldClassification?.Classification,
@@ -270,7 +233,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                        Message = "Future Road added successfully.",
+                    Message = "Future Road added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -280,9 +243,9 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> AddFutureRoads([FromBody] AddFutureRoadsDTO dto)
+        public async Task<IActionResult> AddFutureRoads([FromBody] AddFutureRoadsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -306,13 +269,13 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Future Road ID '{dto.Name}' already exists in the System.", Title = "Road ID Already Exists" });
                 }
                 var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
-                if(checkClassification == null)
+                if (checkClassification == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid.", Title = "Invalid Classification" });
                 }
-                DateTime currentDate = Functions.CurrentDate();;
+                DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
-                var newFutureRoad = new DBHelper.Models.Table.FutureRoads()
+                var newFutureRoad = new FutureRoads()
                 {
                     RoadId = dto.RoadId,
                     Name = dto.Name,
@@ -335,9 +298,9 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> DeleteFutureRoad([FromBody] DeleteFutureRoadDTO dto)
+        public async Task<IActionResult> DeleteFutureRoad([FromBody] DeleteFutureRoadDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -355,7 +318,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
                 }
-                if (checkRoad.NetworkStatusId != 2) {
+                if (checkRoad.NetworkStatusId != 2)
+                {
                     return new BadRequestObjectResult(new
                     {
                         Message = "Only future roads that were not migrated from RBIA are eligible for deletion.",
@@ -365,7 +329,8 @@ namespace WebAPI.Controllers.Programs
                 var RoadSectionIds = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == dto.RoadId).ToListAsync();
                 HashSet<string> RoadIds = RoadSectionIds.Select(x => x.RoadSectionId).ToHashSet<string>();
                 var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => RoadIds.Contains(x.InfraId)).ToListAsync();
-                if (ValidateRoadSections.Count > 0) {
+                if (ValidateRoadSections.Count > 0)
+                {
                     return new BadRequestObjectResult(new
                     {
                         Message = "The selected road has road sections that are currently in use and cannot be deleted.",
@@ -400,13 +365,13 @@ namespace WebAPI.Controllers.Programs
         }
         #endregion
         #region Future Road Section
-        
+
         [HttpPost]
         public async Task<IActionResult> InitFilterFutureRoadSections()
         {
             try
             {
-                var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().ToListAsync();
+                var DEO = await _db.vAdminDEO.AsNoTracking().ToListAsync();
                 var response = new
                 {
                     DEOs = DEO
@@ -419,87 +384,64 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> ShowFutureRoadSections([FromBody] ShowFutureRoadSectionsDTO dto)
+        public async Task<IActionResult> ShowFutureRoadSections([FromBody] ShowFutureRoadSectionsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
-                if (dto.Filters == null)
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+
+
+                if (!string.IsNullOrEmpty(dto.Filters.RoadId))
+                    filters.Add(("v.RoadId = @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.RoadSectionId))
+                    filters.Add(("v.RoadSectionId = @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.DEO))
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
-                }
-                if (!string.IsNullOrEmpty(dto.SortField))
-                {
-                    bool isValid = typeof(DBHelper.Models.Table.FutureRoadSections)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-                    }
-                }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
-
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
-                }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.tFutureRoadSections.AsNoTracking();
-
-                // Apply filters to base query
-                if (!string.IsNullOrEmpty(dto.Filters?.RoadId))
-                    baseQuery = baseQuery.Where(e => e.RoadId!.Contains(dto.Filters.RoadId));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.RoadSectionId))
-                    baseQuery = baseQuery.Where(e => e.RoadSectionId.ToString() == dto.Filters.RoadSectionId);
-
-                if (!string.IsNullOrEmpty(dto.Filters?.DEO))
-                {
-                    baseQuery = baseQuery.Where(e => e.DEO.ToString() == dto.Filters.DEO);
+                    filters.Add(("v.DEO = @DEO", "@DEO", $"%{dto.Filters.DEO.Trim()}%"));
                 }
 
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
+                FilterDataResult<FutureRoadSections> result =
+                    await _db.FilterDataCursor<
+                        FutureRoadSections,
+                        ShowFutureRoadSectionsFilterDTO>(
+                            tableName: "tFutureRoadSections",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
 
-                // Apply sorting and pagination
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-                // Apply pagination and execute query
-                List<DBHelper.Models.Table.FutureRoadSections> permissionLists = await sortedQuery
-                   .Skip((dto.page - 1) * dto.limit)
-                   .Take(dto.limit)
-                   .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                var response = new
+                if (result.HasError)
                 {
-                    lists = permissionLists,
-                    dto.page,
-                    dto.limit,
-                    total = totalRecords,
-                    totalPages
-                };
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ToString() ??
+                                "Unable to retrieve the records."
+                        });
+                }
 
-                return Ok(response); // Remove the extra wrapper
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> AddFutureRoadSections([FromBody] AddFutureRoadSectionsDTO dto)
+        public async Task<IActionResult> AddFutureRoadSections([FromBody] AddFutureRoadSectionsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -512,14 +454,14 @@ namespace WebAPI.Controllers.Programs
                         Title = "Invalid Road Section ID Format"
                     });
                 }
-                var checkDEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
+                var checkDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"DEO '{dto.DEO}' is not valid.", Title = "Invalid DEO" });
                 }
-                DateTime currentDate = Functions.CurrentDate();;
+                DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
-                var newFutureRoadSection = new DBHelper.Models.Table.FutureRoadSections()
+                var newFutureRoadSection = new FutureRoadSections()
                 {
                     RoadId = dto.RoadId,
                     RoadSectionId = dto.RoadSectionId,
@@ -543,9 +485,9 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> EditFutureRoadSections([FromBody] EditFutureRoadSectionsDTO dto)
+        public async Task<IActionResult> EditFutureRoadSections([FromBody] EditFutureRoadSectionsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -582,20 +524,20 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} does exist in the system.", Title = "Invalid Road ID" });
                 }
-                var checkDEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
+                var checkDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"DEO {dto.RoadId} does exist in the system.", Title = "Invalid DEO" });
                 }
-                DateTime currentDate = Functions.CurrentDate();;
+                DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
                 List<TransactionLog> Transactions = new List<TransactionLog>();
                 if (checkRoad.RoadId != dto.RoadId)
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkRoad.RoadId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkRoad.RoadId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "RoadId",
                         OldValue = checkRoad.RoadId,
@@ -609,8 +551,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkRoad.RoadId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkRoad.RoadId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "RoadSectionId",
                         OldValue = checkRoad.RoadSectionId,
@@ -624,8 +566,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkRoad.RoadId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkRoad.RoadId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "RoadLength",
                         OldValue = checkRoad.RoadLength,
@@ -639,8 +581,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkRoad.RoadId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkRoad.RoadId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "RoadLength",
                         OldValue = checkRoad.RoadLength,
@@ -654,8 +596,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkRoad.RoadId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkRoad.RoadId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "DEO",
                         OldValue = checkRoad.DEO,
@@ -686,9 +628,9 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> DeleteFutureRoadSection([FromBody] DeleteFutureRoadSectionDTO dto)
+        public async Task<IActionResult> DeleteFutureRoadSection([FromBody] DeleteFutureRoadSectionDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -751,13 +693,13 @@ namespace WebAPI.Controllers.Programs
         }
         #endregion
         #region Future Bridge
-        
+
         [HttpPost]
         public async Task<IActionResult> InitFilterFutureBridge()
         {
             try
             {
-                var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().ToListAsync();
+                var DEO = await _db.vAdminDEO.AsNoTracking().ToListAsync();
                 var response = new
                 {
                     DEOs = DEO
@@ -770,87 +712,63 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
         [HttpPost]
-        public async Task<IActionResult> ShowFutureBridge([FromBody] ShowFutureBridgeDTO dto)
+        public async Task<IActionResult> ShowFutureBridge([FromBody] ShowFutureBridgeDTO dto, CancellationToken cancellationToken)
         {
             try
             {
-                if (dto.Filters == null)
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+
+
+                if (!string.IsNullOrEmpty(dto.Filters.BridgeId))
+                    filters.Add(("v.BridgeId = @BridgeId", "@BridgeId", $"%{dto.Filters.BridgeId.Trim()}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.RoadSectionId))
+                    filters.Add(("v.RoadSectionId = @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.Name))
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
-                }
-                if (!string.IsNullOrEmpty(dto.SortField))
-                {
-                    bool isValid = typeof(DBHelper.Models.Table.FutureBridge)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-                    }
-                }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
-
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
-                }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.tFutureBridge.AsNoTracking();
-
-                // Apply filters to base query
-                if (!string.IsNullOrEmpty(dto.Filters?.RoadSectionId))
-                    baseQuery = baseQuery.Where(e => e.RoadSectionId!.Contains(dto.Filters.RoadSectionId));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.BridgeId))
-                    baseQuery = baseQuery.Where(e => e.BridgeId.ToString() == dto.Filters.BridgeId);
-
-                if (!string.IsNullOrEmpty(dto.Filters?.Name))
-                {
-                    baseQuery = baseQuery.Where(e => e.Name.ToString() == dto.Filters.Name);
+                    filters.Add(("v.Name = @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
                 }
 
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
+                FilterDataResult<FutureBridge> result =
+                    await _db.FilterDataCursor<
+                        FutureBridge,
+                        ShowFutureBridgeFilterDTO>(
+                            tableName: "tFutureRoadSections",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
 
-                // Apply sorting and pagination
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-                // Apply pagination and execute query
-                List<DBHelper.Models.Table.FutureBridge> permissionLists = await sortedQuery
-                   .Skip((dto.page - 1) * dto.limit)
-                   .Take(dto.limit)
-                   .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                var response = new
+                if (result.HasError)
                 {
-                    lists = permissionLists,
-                    dto.page,
-                    dto.limit,
-                    total = totalRecords,
-                    totalPages
-                };
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ToString() ??
+                                "Unable to retrieve the records."
+                        });
+                }
 
-                return Ok(response); // Remove the extra wrapper
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> AddFutureBridge([FromBody] AddFutureBridgeDTO dto)
+        public async Task<IActionResult> AddFutureBridge([FromBody] AddFutureBridgeDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -873,9 +791,9 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section '{dto.RoadSectionId}' is not valid.", Title = "Invalid Road Section" });
                 }
-                DateTime currentDate = Functions.CurrentDate();;
+                DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
-                var newFutureBridge = new DBHelper.Models.Table.FutureBridge()
+                var newFutureBridge = new FutureBridge()
                 {
                     RoadSectionId = dto.RoadSectionId,
                     BridgeId = dto.BridgeId,
@@ -902,9 +820,9 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> EditFutureBridge([FromBody] EditFutureBridgeDTO dto)
+        public async Task<IActionResult> EditFutureBridge([FromBody] EditFutureBridgeDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -922,7 +840,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
                 }
-                var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x =>x.RoadSectionId == dto.RoadSectionId);
+                var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} does not exist in the system. Please use other Road ID.", Title = "Invalid Road Section ID" });
@@ -933,7 +851,7 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} does not exist in the system.", Title = "Invalid Bridge ID" });
                 }
                 var CheckIfUsedinProject = await _db.tProjectMajorWorkLocations.AsNoTracking().FirstOrDefaultAsync(x => x.InfraId == checkBridge.BridgeId);
-                if(CheckIfUsedinProject != null)
+                if (CheckIfUsedinProject != null)
                 {
                     return new BadRequestObjectResult(new
                     {
@@ -946,15 +864,15 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge Name {dto.Name} already exist in the system.", Title = "Invalid Bridge Name" });
                 }
-                DateTime currentDate = Functions.CurrentDate();;
+                DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
                 List<TransactionLog> Transactions = new List<TransactionLog>();
                 if (checkBridge.RoadSectionId != dto.RoadSectionId)
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.RoadSectionId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkBridge.RoadSectionId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "RoadSectionId",
                         OldValue = checkBridge.RoadSectionId,
@@ -968,8 +886,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.BridgeId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkBridge.BridgeId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "BridgeId",
                         OldValue = checkBridge.BridgeId,
@@ -983,8 +901,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.BridgeId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkBridge.BridgeId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "Name",
                         OldValue = checkBridge.Name,
@@ -998,8 +916,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.BridgeId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkBridge.BridgeId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "From",
                         OldValue = checkBridge.From.ToString(),
@@ -1013,8 +931,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.BridgeId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkBridge.BridgeId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "Length",
                         OldValue = checkBridge.Length.ToString(),
@@ -1028,8 +946,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.BridgeId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = checkBridge.BridgeId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "CarriageWay",
                         OldValue = checkBridge.CarriageWay.ToString(),
@@ -1060,9 +978,9 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
-        public async Task<IActionResult> DeleteFutureBridg([FromBody] DeleteFutureBridgeDTO dto)
+        public async Task<IActionResult> DeleteFutureBridg([FromBody] DeleteFutureBridgeDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1080,7 +998,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge does not exists in the System", Title = "Invalid Bridge" });
                 }
-                if(checkBridge.NetworkStatusId != 2)
+                if (checkBridge.NetworkStatusId != 2)
                 {
                     return new BadRequestObjectResult(new
                     {

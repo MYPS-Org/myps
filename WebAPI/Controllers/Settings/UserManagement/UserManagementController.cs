@@ -1,17 +1,20 @@
-﻿using Confluent.Kafka;
-using DBHelper.Data;
+﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
+using DBHelper.Models.Table.Permission;
 using DBHelper.Models.Views;
+using DBHelper.Models.Views.Program;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Newtonsoft.Json;
 using System.Reflection;
-using System.Text.Json;
+using WebAPI.Controllers.Programs;
 using WebAPI.Controllers.Settings.Modules;
+using WebAPI.MicroService;
 
 namespace WebAPI.Controllers.Settings.UserManagement
 {
@@ -19,72 +22,49 @@ namespace WebAPI.Controllers.Settings.UserManagement
     [Route("api/[controller]/[action]")]
     public class UserManagementController : CoreController
     {
-        public UserManagementController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+        public UserManagementController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+
         #region MODULE TAB
-        // ── ShowAppModules ────────────────────────────────────────────────────────────
-        // Fetches vAppModules (raw), deserializes the JSON Controllers/Views columns,
-        // and projects to the AppModules response model with full Linked info.
-        // ─────────────────────────────────────────────────────────────────────────────
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowAppModules([FromBody] ModulePaginationDto dto)
+        public async Task<IActionResult> ShowAppModules([FromBody] ModulePaginationDto dto, CancellationToken cancellationToken)
         {
             try
             {
-                if (dto.Filters == null)
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+
+                if (!string.IsNullOrEmpty(dto.Filters.ModuleName))
+                    filters.Add(("v.[Name] LIKE @ModuleName", "@ModuleName", $"%{dto.Filters.ModuleName}%"));
+
+                FilterDataResult<DBHelper.Models.Views.AppModules> result =
+                    await _db.FilterDataCursor<
+                        DBHelper.Models.Views.AppModules,
+                        ModuleFilterDTO>(
+                            tableName: "vAppModules",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ToString() ??
+                                "Unable to retrieve the records."
+                        });
                 }
 
-                // Validate sort field against AppModules (scalar columns only)
-                if (!string.IsNullOrEmpty(dto.SortField))
-                {
-                    bool isValid = typeof(DBHelper.Models.Views.AppModules)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-                    }
-                }
-
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString())
-                    ? sortDirectionList.DESC
-                    : dto.sortDirection;
-
-                if (!Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!))
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
-                }
-
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.vAppModules.AsNoTracking();
-
-                var totalRecords = await baseQuery.CountAsync();
-
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                    ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                    : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-                var rawList = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
-
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                return Ok(new
-                {
-                    lists = rawList,
-                    dto.page,
-                    dto.limit,
-                    total = totalRecords,
-                    totalPages
-                });
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -113,7 +93,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                var newModule = new DBHelper.Models.Table.AppModules
+                var newModule = new DBHelper.Models.Table.Permission.AppModules
                 {
                     ModuleName = dto.ModuleName,
                     Description = dto.Description
@@ -135,14 +115,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                         if (linkedControllerNames.Any())
                         {
-                            var controllers = await _db.tPermissionControllers
+                            var controllers = await _db.tApiControllers
                                 .Where(x => linkedControllerNames.Contains(x.ControllerName))
                                 .ToListAsync();
 
                             foreach (var ctrl in controllers)
                                 ctrl.ModuleName = newModule.ModuleName;
 
-                            _db.tPermissionControllers.UpdateRange(controllers);
+                            _db.tApiControllers.UpdateRange(controllers);
                         }
                     }
                 }
@@ -160,14 +140,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                         if (linkedRouteNames.Any())
                         {
-                            var views = await _db.tPermissionViews
+                            var views = await _db.tAppViews
                                 .Where(x => linkedRouteNames.Contains(x.RouteName))
                                 .ToListAsync();
 
                             foreach (var view in views)
                                 view.ModuleName = newModule.ModuleName;
 
-                            _db.tPermissionViews.UpdateRange(views);
+                            _db.tAppViews.UpdateRange(views);
                         }
                     }
                 }
@@ -190,7 +170,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
         // ── UpdateAppModule ───────────────────────────────────────────────────────────
         // Updates the module description, then reconciles controller and view linkages:
-        //   - Linked = true  → sets tPermissionControllers/tPermissionViews.ModuleName = this module
+        //   - Linked = true  → sets tApiControllers/tPermissionViews.ModuleName = this module
         //   - Linked = false → clears ModuleName to NULL (unlinks from this module)
         //
         // NOTE: Only controllers/views listed in the payload are touched.
@@ -222,12 +202,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var Controllers = JsonConvert.DeserializeObject<List<AppModuleControllerModel>>(dto.Controllers);
                     var controllerNames = Controllers.Where(x => x.Linked).Select(c => c.ControllerName).ToList();
 
-                    //var dbControllers = await _db.tPermissionControllers
+                    //var dbControllers = await _db.tApiControllers
                     //    .AsNoTracking()
                     //    .Where(x => controllerNames.Contains(x.ControllerName))
                     //    .ToListAsync();
 
-                    var AllController = await _db.tPermissionControllers
+                    var AllController = await _db.tApiControllers
                         .AsNoTracking()
                         .Where(x => x.ModuleName == dto.ModuleName)
                         .ToListAsync();
@@ -241,12 +221,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         ctrl.ModuleName = IsLinked ? getModule.ModuleName : null;
                     }
 
-                    _db.tPermissionControllers.UpdateRange(AllController);
+                    _db.tApiControllers.UpdateRange(AllController);
 
                     //Update any controllers that are currently not linked to any module (ModuleName is NULL) but are marked Linked = true in the payload, to link to this module.a
                     if (AllController.Count != controllerNames.Count)
                     {
-                        var NoModulController = await _db.tPermissionControllers
+                        var NoModulController = await _db.tApiControllers
                             .AsNoTracking()
                             .Where(x => string.IsNullOrEmpty(x.ModuleName))
                             .ToListAsync();
@@ -257,7 +237,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                                 bool IsLinked = (controllerNames.FirstOrDefault(x => x == ctrl.ControllerName) != null) ? true : false;
                                 ctrl.ModuleName = IsLinked ? getModule.ModuleName : null;
                             }
-                            _db.tPermissionControllers.UpdateRange(NoModulController);
+                            _db.tApiControllers.UpdateRange(NoModulController);
                         }
                     }
                 }
@@ -271,7 +251,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     //var dbViews = await _db.tPermissionViews
                     //    .Where(x => routeNames.Contains(x.RouteName))
                     //    .ToListAsync();
-                    var AllViews = await _db.tPermissionViews
+                    var AllViews = await _db.tAppViews
                         .AsNoTracking()
                         .Where(x => x.ModuleName == dto.ModuleName)
                         .ToListAsync();
@@ -285,11 +265,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         view.ModuleName = IsLinked ? getModule.ModuleName : null;
                     }
 
-                    _db.tPermissionViews.UpdateRange(AllViews);
+                    _db.tAppViews.UpdateRange(AllViews);
                     //Update any views that are currently not linked to any module (ModuleName is NULL) but are marked Linked = true in the payload, to link to this module.
                     if (AllViews.Count != routeNames.Count)
                     {
-                        var NoModulViews = await _db.tPermissionViews
+                        var NoModulViews = await _db.tAppViews
                             .AsNoTracking()
                             .Where(x => string.IsNullOrEmpty(x.ModuleName))
                             .ToListAsync();
@@ -300,7 +280,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                                 bool IsLinked = (routeNames.FirstOrDefault(x => x == view.RouteName) != null) ? true : false;
                                 view.ModuleName = IsLinked ? getModule.ModuleName : null;
                             }
-                            _db.tPermissionViews.UpdateRange(NoModulViews);
+                            _db.tAppViews.UpdateRange(NoModulViews);
                         }
                     }
                 }
@@ -343,7 +323,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 // Block if any controller is still linked
-                var linkedController = await _db.tPermissionControllers
+                var linkedController = await _db.tApiControllers
                     .FirstOrDefaultAsync(x => x.ModuleName == getModule.ModuleName);
 
                 if (linkedController != null)
@@ -357,7 +337,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 // Block if any view is still linked
-                var linkedView = await _db.tPermissionViews
+                var linkedView = await _db.tAppViews
                     .FirstOrDefaultAsync(x => x.ModuleName == getModule.ModuleName);
 
                 if (linkedView != null)
@@ -394,8 +374,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
             try
             {
                 var CountUsers = await _db.vUsers.CountAsync();
-                var CountPermissions = await _db.tPermissionActions.CountAsync();
-                var CountRoutePermissions = await _db.tPermissionViews.CountAsync();
+                var CountPermissions = await _db.tApiActions.CountAsync();
+                var CountRoutePermissions = await _db.tAppViews.CountAsync();
                 var CountGroups = await _db.tGroups.CountAsync();
                 List<DBHelper.Models.Views.Users> UserLists = await _db.vUsers
                 .AsNoTracking()
@@ -418,86 +398,65 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
+        public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto, CancellationToken cancellationToken)
         {
             try
             {
-                if (dto.Filters == null)
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+                if (!string.IsNullOrEmpty(dto.Filters.EmployeeId))
+                    filters.Add(("v.[Name] LIKE @EmployeeId", "@EmployeeId", $"%{dto.Filters.EmployeeId}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.UserId))
+                    filters.Add(("v.[Name] LIKE @UserId", "@UserId", $"%{dto.Filters.UserId}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.Name))
+                    filters.Add(("v.[Name] LIKE @Name", "@Name", $"%{dto.Filters.Name}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.Email))
+                    filters.Add(("v.[Name] LIKE @Email", "@Email", $"%{dto.Filters.Email}%"));
+
+                if (dto.Filters.IsActive != null)
+                    filters.Add(("v.[Name] LIKE @IsActive", "@IsActive", $"%{dto.Filters.IsActive}%"));
+
+                FilterDataResult<DBHelper.Models.Views.Users> result =
+                    await _db.FilterDataCursor<
+                        DBHelper.Models.Views.Users,
+                        UserFilterDTO>(
+                            tableName: "vUsers",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ToString() ??
+                                "Unable to retrieve the records."
+                        });
                 }
-                if (!string.IsNullOrEmpty(dto.SortField))
-                {
-                    bool isValid = typeof(DBHelper.Models.Views.Users)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-                    }
-                }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
-                }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.vUsers.AsNoTracking();
-                // Apply filters to base query
-                if (!string.IsNullOrEmpty(dto.Filters?.EmployeeId))
-                    baseQuery = baseQuery.Where(e => e.EmployeeId!.Contains(dto.Filters.EmployeeId));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.UserId))
-                    baseQuery = baseQuery.Where(e => e.UserId!.Contains(dto.Filters.UserId));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.Name))
-                    baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.Email))
-                    baseQuery = baseQuery.Where(e => e.Email!.Contains(dto.Filters.Email));
-
-                if (dto.Filters?.IsActive != null)
-                    baseQuery = baseQuery.Where(e => e.IsActive == dto.Filters.IsActive);
-
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
-
-                // Apply sorting and pagination
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-                // Apply pagination and execute query
-                List<DBHelper.Models.Views.Users> permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                var response = new
-                {
-                    lists = permissionLists,
-                    dto.page,
-                    dto.limit,
-                    total = totalRecords,
-                    totalPages
-                };
-
-                return Ok(response); // Remove the extra wrapper
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
+
         [HttpPost]
         public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto)
         {
@@ -634,7 +593,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     // Create new UserGroups record if it doesn't exist
                     if (dto.UserGroupIds.Length > 0)
                     {
-                        var newUserGroup = new DBHelper.Models.Table.UserGroups
+                        var newUserGroup = new DBHelper.Models.Table.User.UserGroups
                         {
                             UserId = getUser.UserId,
                             GroupIds = dto.UserGroupIds,
@@ -730,7 +689,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 // 4. Create new User
-                var newUser = new DBHelper.Models.Table.Users
+                var newUser = new DBHelper.Models.Table.User.Users
                 {
                     EmployeeId = dto.EmployeeId?.Trim(),
                     UserId = dto.UserId.Trim(),
@@ -747,7 +706,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 // 5. Create UserGroups record linking User to GroupIds
                 if (dto.UserGroupIds.Length > 0)
                 {
-                    var newUserGroup = new DBHelper.Models.Table.UserGroups
+                    var newUserGroup = new DBHelper.Models.Table.User.UserGroups
                     {
                         UserId = newUser.UserId,
                         GroupIds = dto.UserGroupIds,
@@ -776,94 +735,71 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
         #endregion
         #region VIEW PERMISSIONS TAB
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowViewPermissions([FromBody] ShowViewPermissionsDTO dto)
+        public async Task<IActionResult> ShowViewPermissions([FromBody] ShowViewPermissionsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
-                if (dto.Filters == null)
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+                if (!string.IsNullOrEmpty(dto.Filters.RoutePath))
+                    filters.Add(("v.[Name] LIKE @RoutePath", "@RoutePath", $"%{dto.Filters.RoutePath}%"));
+
+                FilterDataResult<AppViews> result =
+                    await _db.FilterDataCursor<
+                        AppViews,
+                        ShowViewPermissionsFilterDTO>(
+                            tableName: "tAppViews",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ErrorMessage ??
+                                "Unable to retrieve the records."
+                        });
                 }
-                if (!string.IsNullOrEmpty(dto.SortField))
-                {
-                    bool isValid = typeof(DBHelper.Models.Views.APIPermissions)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-                    }
-                }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
-                }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.tPermissionViews.AsNoTracking();
-
-                if (!string.IsNullOrEmpty(dto.Filters?.RoutePath))
-                    baseQuery = baseQuery.Where(e => e.RoutePath!.Contains(dto.Filters.RoutePath));
-
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
-                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                // Apply sorting and pagination
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-                // Apply pagination and execute query
-                var permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                var response = new
-                {
-                    lists = permissionLists, // Match your frontend expectation
-                    dto.page,
-                    dto.limit,
-                    total = totalRecords,
-                    totalPages
-                };
-
-                return Ok(response); // Remove the extra wrapper
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
-        
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto)
+        public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
                 // 1. Get all existing PermissionViews from DB
-                var existingViews = await _db.tPermissionViews.ToListAsync();
+                var existingViews = await _db.tAppViews.ToListAsync();
 
                 var existingPathMap = existingViews
                     .ToDictionary(x => x.RoutePath, x => x, StringComparer.OrdinalIgnoreCase);
 
                 // 2. Separate incoming routes into new and existing
-                var newRoutes = new List<PermissionViews>();
-                var updatedRoutes = new List<PermissionViews>();
+                var newRoutes = new List<AppViews>();
+                var updatedRoutes = new List<AppViews>();
 
                 foreach (var route in dto.RoutesAvailable)
                 {
-                    if (existingPathMap.TryGetValue(route.path, out var existing))
+                    if (existingPathMap.TryGetValue(route.RouteName, out var existing))
                     {
                         // Update RouteName if it changed
                         if (!string.Equals(existing.RouteName, route.RouteName, StringComparison.OrdinalIgnoreCase))
@@ -875,7 +811,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     else
                     {
                         // New route — add it
-                        newRoutes.Add(new PermissionViews
+                        newRoutes.Add(new AppViews
                         {
                             RouteName = route.RouteName,
                             RoutePath = route.path,
@@ -884,10 +820,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 if (newRoutes.Count > 0)
-                    await _db.tPermissionViews.AddRangeAsync(newRoutes);
+                    await _db.tAppViews.AddRangeAsync(newRoutes);
 
                 if (updatedRoutes.Count > 0)
-                    _db.tPermissionViews.UpdateRange(updatedRoutes);
+                    _db.tAppViews.UpdateRange(updatedRoutes);
 
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -904,13 +840,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> UpdateViewPermissionDetails([FromBody] UpdateViewPermissionDetailsDTO dto)
+        public async Task<IActionResult> UpdateViewPermissionDetails([FromBody] UpdateViewPermissionDetailsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getPermission = await _db.tPermissionViews.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getPermission = await _db.tAppViews.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -920,7 +857,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
                 getPermission.Description = dto.Description;
-                _db.tPermissionViews.Update(getPermission);
+                _db.tAppViews.Update(getPermission);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync(); return Ok(new
                 {
@@ -940,7 +877,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getAction = await _db.tPermissionViews.FirstOrDefaultAsync(x => x.Id == id);
+                var getAction = await _db.tAppViews.FirstOrDefaultAsync(x => x.Id == id);
                 if (getAction == null)
                 {
                     return new BadRequestObjectResult(new
@@ -963,7 +900,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                _db.tPermissionViews.Remove(getAction);
+                _db.tAppViews.Remove(getAction);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -981,83 +918,62 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
         #endregion
         #region PERMISSIONS TAB
+
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
+        public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
-                if (dto.Filters == null)
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+                if (!string.IsNullOrEmpty(dto.Filters.ControllerName))
+                    filters.Add(("v.[Name] LIKE @ControllerName", "@ControllerName", $"%{dto.Filters.ControllerName}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.ControllerDescription))
+                    filters.Add(("v.[Name] LIKE @ControllerDescription", "@ControllerDescription", $"%{dto.Filters.ControllerDescription}%"));
+
+                FilterDataResult<APIPermissions> result =
+                    await _db.FilterDataCursor<
+                        APIPermissions,
+                        ShowPermissionFilterDTO>(
+                            tableName: "vAPIPermissions",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ToString() ??
+                                "Unable to retrieve the records."
+                        });
                 }
-                if (!string.IsNullOrEmpty(dto.SortField))
-                {
-                    bool isValid = typeof(DBHelper.Models.Views.APIPermissions)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-                    }
-                }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
-                }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.vAPIPermissions.AsNoTracking();
-
-                if (!string.IsNullOrEmpty(dto.Filters?.ControllerName))
-                    baseQuery = baseQuery.Where(e => e.ControllerName!.Contains(dto.Filters.ControllerName));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.ControllerDescription))
-                    baseQuery = baseQuery.Where(e => e.ControllerDescription!.Contains(dto.Filters.ControllerDescription));
-
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
-                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                // Apply sorting and pagination
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-                // Apply pagination and execute query
-                var permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                var response = new
-                {
-                    lists = permissionLists, // Match your frontend expectation
-                    dto.page,
-                    dto.limit,
-                    total = totalRecords,
-                    totalPages
-                };
-
-                return Ok(response); // Remove the extra wrapper
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowPermissionGroups()
         {
             try
             {
-                List<PermissionControllers> Groups = await _db.tPermissionControllers.ToListAsync();
+                List<ApiControllers> Groups = await _db.tApiControllers.ToListAsync();
                 return Ok(Groups);
             }
             catch (Exception ex)
@@ -1065,7 +981,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        
+
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SyncAPIPermissions()
         {
@@ -1079,15 +996,15 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     .ToList()
                     .OrderBy(x => x.Name);
 
-                // 2. Sync controllers to tPermissionControllers
-                var existingControllers = await _db.tPermissionControllers.ToListAsync();
+                // 2. Sync controllers to tApiControllers
+                var existingControllers = await _db.tApiControllers.ToListAsync();
                 var existingNames = existingControllers
                     .Select(x => x.ControllerName)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 var newControllers = controllerTypes
                     .Where(t => !existingNames.Contains(t.Name))
-                    .Select(t => new PermissionControllers
+                    .Select(t => new ApiControllers
                     {
                         ControllerName = t.Name
                     })
@@ -1095,7 +1012,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 if (newControllers.Count > 0)
                 {
-                    await _db.tPermissionControllers.AddRangeAsync(newControllers);
+                    await _db.tApiControllers.AddRangeAsync(newControllers);
                     await _db.SaveChangesAsync();
                 }
 
@@ -1108,15 +1025,15 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 ).ToList()
                 .OrderBy(x => x.ActionName);
 
-                // 4. Sync actions to tPermissionActions
-                var existingActions = await _db.tPermissionActions.ToListAsync();
+                // 4. Sync actions to tApiActions
+                var existingActions = await _db.tApiActions.ToListAsync();
                 var existingActionKeys = existingActions
                     .Select(x => x.ActionName)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 var newActions = discoveredActions
                     .Where(a => !existingActionKeys.Contains(a.ActionName))
-                    .Select(a => new PermissionActions
+                    .Select(a => new ApiActions
                     {
                         ControllerName = a.ControllerName,
                         ActionName = a.ActionName,
@@ -1126,17 +1043,17 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 if (newActions.Count > 0)
                 {
-                    await _db.tPermissionActions.AddRangeAsync(newActions);
+                    await _db.tApiActions.AddRangeAsync(newActions);
                 }
 
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                var allControllers = await _db.tPermissionControllers
+                var allControllers = await _db.tApiControllers
                     .OrderBy(x => x.ControllerName)
                     .ToListAsync();
 
-                var allActions = await _db.tPermissionActions
+                var allActions = await _db.tApiActions
                     .OrderBy(x => x.ControllerName)
                     .ThenBy(x => x.ActionName)
                     .ToListAsync();
@@ -1155,13 +1072,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> UpdatePermissionControllerDetails([FromBody] UpdatePermissionControllerDetailsDTO dto)
+        public async Task<IActionResult> UpdatePermissionControllerDetails([FromBody] UpdatePermissionControllerDetailsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getPermission = await _db.tPermissionControllers.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getPermission = await _db.tApiControllers.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1172,7 +1090,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
                 getPermission.Description = dto.Description;
                 getPermission.ModuleName = dto.ModuleName;
-                _db.tPermissionControllers.Update(getPermission);
+                _db.tApiControllers.Update(getPermission);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
@@ -1187,13 +1105,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> UpdatePermissionActionDetails([FromBody] UpdatePermissionActionDetailsDTO dto)
+        public async Task<IActionResult> UpdatePermissionActionDetails([FromBody] UpdatePermissionActionDetailsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getPermission = await _db.tPermissionActions.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getPermission = await _db.tApiActions.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1203,7 +1122,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
                 getPermission.Description = dto.Description;
-                _db.tPermissionActions.Update(getPermission);
+                _db.tApiActions.Update(getPermission);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
@@ -1224,7 +1143,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getPermission = await _db.tPermissionControllers.FirstOrDefaultAsync(x => x.Id == id);
+                var getPermission = await _db.tApiControllers.FirstOrDefaultAsync(x => x.Id == id);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1245,7 +1164,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                var hasActions = await _db.tPermissionActions
+                var hasActions = await _db.tApiActions
                     .AnyAsync(x => x.ControllerName == getPermission.ControllerName);
 
                 if (hasActions)
@@ -1257,7 +1176,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                _db.tPermissionControllers.Remove(getPermission);
+                _db.tApiControllers.Remove(getPermission);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -1279,7 +1198,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getAction = await _db.tPermissionActions.FirstOrDefaultAsync(x => x.Id == id);
+                var getAction = await _db.tApiActions.FirstOrDefaultAsync(x => x.Id == id);
                 if (getAction == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1302,7 +1221,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                _db.tPermissionActions.Remove(getAction);
+                _db.tApiActions.Remove(getAction);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -1320,6 +1239,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
         #endregion
         #region USER GROUP TAB
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowUserGroupDropdowns()
         {
@@ -1329,15 +1249,15 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     .AsNoTracking()
                     .OrderBy(x => x.ModuleName)
                     .ToListAsync();
-                var PermissionControllers = await _db.tPermissionControllers
+                var PermissionControllers = await _db.tApiControllers
                     .AsNoTracking()
                     .OrderBy(x => x.ControllerName)
                     .ToListAsync();
-                var PermissionActions = await _db.tPermissionActions
+                var PermissionActions = await _db.tApiActions
                     .AsNoTracking()
                     .OrderBy(x => x.ActionName)
                     .ToListAsync();
-                var PermissionViews = await _db.tPermissionViews
+                var PermissionViews = await _db.tAppViews
                     .AsNoTracking()
                     .OrderBy(x => x.RoutePath)
                     .ToListAsync();
@@ -1355,78 +1275,54 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDto dto)
+        public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDTO dto, CancellationToken cancellationToken)
         {
             try
             {
-                if (dto.Filters == null)
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+                if (!string.IsNullOrEmpty(dto.Filters.GroupName))
+                    filters.Add(("v.[Name] LIKE @GroupName", "@GroupName", $"%{dto.Filters.GroupName}%"));
+
+                FilterDataResult<DBHelper.Models.Views.UserGroups> result =
+                    await _db.FilterDataCursor<
+                        DBHelper.Models.Views.UserGroups,
+                        UserGroupFilterDTO>(
+                            tableName: "vUserGroups",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ToString() ??
+                                "Unable to retrieve the records."
+                        });
                 }
-                if (!string.IsNullOrEmpty(dto.SortField))
-                {
-                    bool isValid = typeof(DBHelper.Models.Views.UserGroups)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-                    }
-                }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
-                }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.vUserGroups.AsNoTracking();
-
-                // Apply filters to base query
-                if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
-                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
-
-
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
-                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                // Apply sorting and pagination
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-                // Apply pagination and execute query
-                var permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                var response = new
-                {
-                    lists = permissionLists, // Match your frontend expectation
-                    dto.page,
-                    dto.limit,
-                    total = totalRecords,
-                    totalPages
-                };
-
-                return Ok(response); // Remove the extra wrapper
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupDTO dto)
+        public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1454,7 +1350,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         Title = "Group Already Exists"
                     });
                 }
-                var NewGroup = new DBHelper.Models.Table.Groups
+                var NewGroup = new DBHelper.Models.Table.User.Groups
                 {
                     GroupName = dto.GroupName.Trim(),
                     Description = dto.Description?.Trim(),
@@ -1464,7 +1360,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 };
                 await _db.tGroups.AddAsync(NewGroup);
                 await _db.SaveChangesAsync();
-                var NewGroupRoles = new GroupRoles
+                var NewGroupRoles = new DBHelper.Models.Table.User.GroupRoles
                 {
                     GroupId = NewGroup.Id,
                     ActionIds = Array.Empty<int>(),
@@ -1486,8 +1382,9 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> UpdateUserGroup([FromBody] UpdateUserGroupDTO dto)
+        public async Task<IActionResult> UpdateUserGroup([FromBody] UpdateUserGroupDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1526,14 +1423,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                // 4. Validate ActionIds exist in tPermissionActions
+                // 4. Validate ActionIds exist in tApiActions
                 if (dto.PermissionActionIds.Length > 0)
                 {
-                    var existingActionIds = await _db.tPermissionActions
+                    var existingActionIds = await _db.tApiActions
                         .Where(x => dto.PermissionActionIds.Contains(x.Id))
                         .Select(x => x.Id)
                         .ToListAsync();
-                    var existingActions= await _db.tPermissionActions
+                    var existingActions= await _db.tApiActions
                         .Where(x => x.ControllerName == "ProjectController")
                         .ToListAsync();
 
@@ -1556,7 +1453,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 // 5. Validate ViewIds exist in tPermissionViews
                 if (dto.PermissionViewIds.Length > 0)
                 {
-                    var existingViewIds = await _db.tPermissionViews
+                    var existingViewIds = await _db.tAppViews
                         .Where(x => dto.PermissionViewIds.Contains(x.Id))
                         .Select(x => x.Id)
                         .ToListAsync();
@@ -1593,7 +1490,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 else
                 {
                     // Create new GroupRoles if it doesn't exist
-                    var newGroupRoles = new GroupRoles
+                    var newGroupRoles = new DBHelper.Models.Table.User.GroupRoles
                     {
                         GroupId = dto.Id,
                         ActionIds = dto.PermissionActionIds.OrderBy(x => x).ToArray(),
