@@ -24,7 +24,7 @@
 
 import React from 'react';
 import type { LSWallet, WalletStage } from '../Model.d';
-import type { ProjectEnums } from '../../Project/Model.d';
+import type { ProgramList } from '../../Program/Model';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { formatDropdownOptions } from '../../../utils/GlobalFunctions';
 
@@ -33,7 +33,8 @@ interface WalletProgramDetailsSectionProps {
   onChange: (field: keyof LSWallet, value: LSWallet[keyof LSWallet]) => void;
   errors?: Partial<Record<keyof LSWallet, string>>;
   disabled?: boolean;
-  projectEnums: ProjectEnums | null;
+  /** Program list — sourced from ShowProjectComponentDropdowns (Dropdowns.Programs). */
+  programs?: ProgramList[];
   mode?: 'add' | 'edit';
 }
 
@@ -42,11 +43,11 @@ const WalletProgramDetailsSection: React.FC<WalletProgramDetailsSectionProps> = 
   onChange,
   errors = {},
   disabled = false,
-  projectEnums,
+  programs,
   mode = 'add',
 }) => {
   const handleProgramChange = (value: string) => {
-    const selected = projectEnums?.Programs?.find(p => p.ProgramId === value);
+    const selected = programs?.find(p => p.ProgramId === value);
     if (selected) {
       onChange('ProgramId', selected.ProgramId);
       onChange('ProgramName', selected.Name);
@@ -73,11 +74,11 @@ const WalletProgramDetailsSection: React.FC<WalletProgramDetailsSectionProps> = 
   // Resolve the program stage for display. In both add and edit mode, read from
   // ProgramStageName (the informational snapshot stored at wallet creation).
   // In add mode before a program is selected, ProgramStageName is undefined so
-  // we fall back to deriving it live from projectEnums as a convenience.
+  // we fall back to deriving it live from the programs list as a convenience.
   const displayStageName =
     wallet.ProgramStageName ??
     (mode === 'add'
-      ? (projectEnums?.Programs?.find(p => p.ProgramId === wallet.ProgramId)?.StageName ?? '')
+      ? (programs?.find(p => p.ProgramId === wallet.ProgramId)?.StageName ?? '')
       : '');
 
   return (
@@ -96,7 +97,7 @@ const WalletProgramDetailsSection: React.FC<WalletProgramDetailsSectionProps> = 
                   // Exclude GAA-R programs — new wallets should not be created against
                   // archived/final-stage programs. Wallets already at GAA-R get there
                   // via WF-2 stage cascade after creation.
-                  projectEnums?.Programs?.filter(p => p.StageName !== 'GAA-R') ?? [],
+                  programs?.filter(p => p.StageName !== 'GAA-R') ?? [],
                   'ProgramId',
                   'Name'
                 )}

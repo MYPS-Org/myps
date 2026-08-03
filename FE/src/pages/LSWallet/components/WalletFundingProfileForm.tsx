@@ -6,17 +6,17 @@
 //
 // DIFFERENCES from FundingProfileForm:
 //   - Typed to WalletFundingProfile (not FundingProfile).
-//   - Source and Agreement use plain text inputs instead of SearchableDropdowns
-//     because Sources/Agreements come from getProjectDetails().Dropdowns which
-//     requires an existing project ID. This is a pre-existing, already-documented
-//     Project-module limitation (LSWallet.md notes the same gap). When the
-//     backend provides these lookups directly, swap to SearchableDropdowns.
+//   - Source and Agreement use SearchableDropdown, sourced from
+//     ShowProjectComponentDropdowns (Dropdowns.Sources / Dropdowns.Agreements) —
+//     this lookup no longer requires an existing project ID, so the previous
+//     plain-text-input workaround has been removed.
 //   - No initialData prop (no dependency on ProjectFormPayload).
 //   - Replaces FundingProfileSection.tsx.
 // =============================================================================
 
 import React, { useState, useEffect, useRef } from 'react';
 import type { WalletFundingProfile } from '../Model.d';
+import type { SourceEnum, AgreementEnum } from '../../Project/Model.d';
 import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import {
@@ -32,13 +32,17 @@ import {
   handleCurrencyBlur,
   handleCurrencyChange,
   handleCurrencyFocus,
+  formatDropdownOptions,
 } from '../../../utils/GlobalFunctions';
+import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 
 interface WalletFundingProfileFormProps {
   fundingProfiles: WalletFundingProfile[];
   onAdd: () => void;
   onEdit: (index: number, updatedProfile: WalletFundingProfile) => void;
   onDelete: (index: number) => void;
+  sources?: SourceEnum[];
+  agreements?: AgreementEnum[];
   onTotalAmountChange?: (totalAmount: number) => void;
   disabled?: boolean;
 }
@@ -48,6 +52,8 @@ const WalletFundingProfileForm: React.FC<WalletFundingProfileFormProps> = ({
   onAdd,
   onEdit,
   onDelete,
+  sources,
+  agreements,
   onTotalAmountChange = () => {},
   disabled = false,
 }) => {
@@ -190,28 +196,30 @@ const WalletFundingProfileForm: React.FC<WalletFundingProfileFormProps> = ({
             return (
               <TableRow key={profile.Id === 0 ? `new-${index}` : profile.Id}>
                 <TableCell className="w-1/3">
-                  {/* Plain text input: Sources dropdown not available on create
-                      (same limitation as Project add mode). */}
-                  <input
-                    type="text"
+                  <SearchableDropdown
+                    options={formatDropdownOptions(sources || [], 'Organization', 'Name', 'Id')}
                     value={profile.Source || ''}
-                    onChange={(e) => onEdit(index, { ...profile, Source: e.target.value })}
-                    className={`w-full px-2 py-1 border border-gray-300 rounded ${getDisabledClass(disabled)}`}
-                    placeholder="Enter funding source"
+                    onChange={(value) => onEdit(index, { ...profile, Source: String(value), Agreement: '' })}
+                    placeholder="Select Source"
                     disabled={disabled}
-                    maxLength={200}
+                    allowClear={true}
+                    searchPlaceholder="Search sources..."
                   />
                 </TableCell>
                 <TableCell className="w-1/3">
-                  {/* Plain text input: Agreements dropdown not available on create. */}
-                  <input
-                    type="text"
+                  <SearchableDropdown
+                    options={formatDropdownOptions(
+                      agreements?.filter((a) => a.SourceOrg === profile.Source) || [],
+                      'Code',
+                      'Name',
+                      'Id'
+                    )}
                     value={profile.Agreement || ''}
-                    onChange={(e) => onEdit(index, { ...profile, Agreement: e.target.value })}
-                    className={`w-full px-2 py-1 border border-gray-300 rounded ${getDisabledClass(disabled)}`}
-                    placeholder="Enter agreement"
-                    disabled={disabled}
-                    maxLength={200}
+                    onChange={(value) => onEdit(index, { ...profile, Agreement: String(value) })}
+                    placeholder="Select Agreement"
+                    disabled={!profile.Source || disabled}
+                    allowClear={true}
+                    searchPlaceholder="Search agreements..."
                   />
                 </TableCell>
                 <TableCell className="w-1/6">
