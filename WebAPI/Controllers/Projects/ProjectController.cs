@@ -282,6 +282,7 @@ namespace WebAPI.Controllers.Projects
         #endregion
 
         #region Add Project
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] AddProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -364,6 +365,8 @@ namespace WebAPI.Controllers.Projects
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjects.AddAsync(SubmitProject);
+                await _db.SaveChangesAsync();
+
                 var ProjectRevision = new ProjectRevisions()
                 {
                     ProjectFK = ProjectPK,
@@ -460,6 +463,7 @@ namespace WebAPI.Controllers.Projects
         #endregion
 
         #region Project Details and Update Project
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectDetails([FromBody] ProjectDetailsDTO dto, CancellationToken cancellationToken)
         {
