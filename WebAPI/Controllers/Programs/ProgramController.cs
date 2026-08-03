@@ -49,7 +49,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto, CancellationToken cancellationToken)
         {
@@ -65,9 +65,16 @@ namespace WebAPI.Controllers.Programs
                         dto.Filters.Name))
                 {
                     filters.Add((
-                        "v.Name = @Name",
+                        $"v.Name LIKE '%{dto.Filters.Name.Trim()}%'",
+                        //"v.Name LIKE '%@Name%'",
                         "@Name",
                         $"%{dto.Filters.Name.Trim()}%"));
+
+                    //filters.Add((
+                    //    "v.Name = @Name",
+                    //    "@Name",
+                    //    $"%{dto.Filters.Name.Trim()}%"));
+
                 }
 
                 if (!string.IsNullOrWhiteSpace(dto.Filters.StageName))
