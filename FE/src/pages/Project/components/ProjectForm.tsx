@@ -32,7 +32,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject, fetchProjectGeoJSON, importProject } from '../Service';
+import { addProjectDetails, getProjectEnums, getComponentsEnums, updateEntireProject, fetchProjectGeoJSON, importProject } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import ImportLumpsumDialog from '../dialogs/ImportLumpsumDialog';
 import type { ImportedProject } from '../Model.d';
@@ -61,6 +61,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
+  const [componentDropdowns, setComponentDropdowns] = useState<Dropdowns | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
   const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
   const [reviseProject] = useState<boolean>(false);
@@ -161,7 +162,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // );
 
   useEffect(() => {
-    // Load project enums
+    // Load project details dropdowns (ShowProjectDropdowns)
     const loadProjectEnums = async () => {
       try {
         const response = await getProjectEnums();
@@ -172,7 +173,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       }
     };
 
+    // Load component dropdowns (ShowProjectComponentDropdowns) — Program Details,
+    // Funding Profile, Component Cost, Major Item of Work, Work Location, Notes
+    const loadComponentDropdowns = async () => {
+      try {
+        const response = await getComponentsEnums();
+        console.log('Component Dropdowns:', response.Data);
+        setComponentDropdowns(response.Data);
+      } catch (error) {
+        console.error('Error loading component dropdowns:', error);
+      }
+    };
+
     loadProjectEnums();
+    loadComponentDropdowns();
     // loadInfrastructureData();
 
     // Set program details if in edit mode and initialData is present
@@ -208,8 +222,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // Separate useEffect to handle initialProgramId
   useEffect(() => {
-    if (initialProgramId && projectEnums?.Programs) {
-      const selectedProgram = projectEnums.Programs.find(
+    if (initialProgramId && componentDropdowns?.Programs) {
+      const selectedProgram = componentDropdowns.Programs.find(
         program => program.ProgramId === initialProgramId && program.StageName === initialStageName
       );
       if (selectedProgram) {
@@ -223,7 +237,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         }));
       }
     }
-  }, [initialProgramId, initialStageName, projectEnums?.Programs]);
+  }, [initialProgramId, initialStageName, componentDropdowns?.Programs]);
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
     initialData?.ComponentCosts || []
   );
@@ -254,7 +268,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         TargetUnitId: item.TargetUnitId || 0,
         TargetUnit: item.TargetUnit || '',
         MajorItemLocations: itemWorkLocations, // Combine WorkLocations from separate array
-        DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType.includes(item.InfraType)) || []
+        // Backfilled once component dropdowns load — see MajorItemOfWorksForm's dropDowns effect
+        DropdownData: []
       };
     });
   });
@@ -283,29 +298,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     const total = fundingProfiles.reduce((sum, profile) => profile?.IsDeleted ? sum : sum + (profile.Percentage || 0), 0);
     setTotalPercentage(total);
   }, [fundingProfiles]);
-
-  const [Dropdowns] = useState<Dropdowns>(
-    initialData?.Dropdowns || {
-    // Categories: [],
-    // Thrusts: [],
-    // Origins: [],
-    // Cities: [],
-    ComponentTypes: [],
-    // LDs: [],
-    // OperatingUnits: [],
-    // IOs: [],
-    // DEOs: [],
-    // Agencies: [],
-    // Feasibility: [],
-    // ImplementationModes: [],
-    // EmergencyModes: [],
-    Agreements: [],
-    Sources: [],
-    ScopeOfWorks: [],
-    InfraTypes: [],
-    SupportingDocs: [],
-    Revisions: { Headers: [], Reasons: [], Categories: [] }
-  });
 
   const [infraData] = useState<InfraData>({
     RoadSections: [],
@@ -1039,7 +1031,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </MenuButton>
                   <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="py-1">
-                      {Dropdowns?.Revisions?.Headers.map((types) => (
+                      {componentDropdowns?.Revisions?.Headers.map((types) => (
                         <MenuItem key={types.Id}>
                           {({ active }) => (
                             <button
@@ -1117,7 +1109,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 setProgramDetails={setProgramDetails}
                 onChange={handleProgramDetailsChange}
                 mode={mode}
-                projectEnums={projectEnums || undefined}
+                programs={componentDropdowns?.Programs}
                 initialData={initialData}
                 initialStageName={initialStageName}
               />
@@ -1181,7 +1173,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               onAdd={handleAddFundingProfile}
               onEdit={handleEditFundingProfile}
               onDelete={handleDeleteFundingProfile}
-              initialData={initialData ? { ...initialData, Dropdowns } : undefined}
+              sources={componentDropdowns?.Sources}
+              agreements={componentDropdowns?.Agreements}
               onTotalAmountChange={setMaxAmountCost}
               disabled={isDisabled}
             />
@@ -1203,6 +1196,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}
             initialData={initialData}
+            componentTypes={componentDropdowns?.ComponentTypes}
             maxAmountCost={maxAmountCost}
             disabled={isDisabled}
           />
@@ -1223,8 +1217,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             onAdd={handleAddMajorItem}
             onEdit={handleEditMajorItem}
             onDelete={handleDeleteMajorItem}
-            dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
-            infraTypeEnums={initialData?.Dropdowns?.InfraTypes}
+            dropDowns={componentDropdowns?.ScopeOfWorks}
+            infraTypeEnums={componentDropdowns?.InfraTypes}
             programDetails={initialData?.ProgramDetails}
             disabled={isDisabled}
             deo={projectDetails.DEO}
@@ -1245,7 +1239,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               onEdit={handleEditDoc}
               onDelete={handleDeleteDoc}
               initialData={initialData}
-              dropDownOptions={initialData?.Dropdowns?.SupportingDocs}
+              dropDownOptions={componentDropdowns?.SupportingDocs}
               disabled={isDisabled}
             />
           </div>
@@ -1264,9 +1258,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         projectId={initialData?.ProjectDetails.ProjectId || ''}
         stageName={initialData?.ProgramDetails?.StageName || ''}
         selectedRevHeaderId={selectedRevHeaderId}
-        revHeaders={Dropdowns?.Revisions?.Headers}
-        categories={Dropdowns?.Revisions?.Categories}
-        reasons={Dropdowns?.Revisions?.Reasons}
+        revHeaders={componentDropdowns?.Revisions?.Headers}
+        categories={componentDropdowns?.Revisions?.Categories}
+        reasons={componentDropdowns?.Revisions?.Reasons}
       />
 
       {/* Save/Update Confirmation Dialog */}
