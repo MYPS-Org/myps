@@ -110,10 +110,10 @@ const currentPath = (localStorage.getItem('currentPath') != undefined) ? localSt
 					<BriefcaseIcon />
 					<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
 				</SidebarItem>
-				{/* <SidebarItem href="/lumpsum" current={currentPath === '/lumpsum'}>
-					<BanknotesIcon />
-					<SidebarLabel className="text-gray-500">Lump Sum</SidebarLabel>
-				</SidebarItem> */}
+				<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/lumpsum')?.RouteName || '')} href="/lumpsum" current={currentPath === '/lumpsum'}>
+					<BriefcaseIcon />
+					<SidebarLabel className="text-gray-500">LS Wallet</SidebarLabel>
+				</SidebarItem>
 				<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/revision')?.RouteName || '')} href="/revision" current={currentPath === '/revision'}>
 					<ArrowPathIcon />
 					<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
