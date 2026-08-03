@@ -1,6 +1,7 @@
 import { httpClient, gisClient, type ApiResponse } from "../../services/httpClient";
-import type { ProgramList } from "../Program/Model";
-import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, Dropdowns, ProjectFormPayload, ProjectFilter, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO } from "./Model.d";
+import type { ProgramList, ProgramLatest } from "../Program/Model";
+import { fetchProgram } from "../Program/Service";
+import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, Dropdowns, ProjectFormPayload, ProjectFilter, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO, SearchProgram } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: PaginatedRequest<ProjectFilter>) => {
@@ -28,12 +29,36 @@ export const initProgramDetails = async (programId: number) => {
     }
 }
 
-export const searchProgram = async (programName: string) => {
+const mapToProgramList = (program: ProgramLatest): ProgramList => ({
+    Id: program.Id,
+    RevisionId: program.RevisionId,
+    ProgramId: program.ProgramId,
+    NumberOfProjects: program.NumberOfProjects,
+    TypeName: program.Type,
+    StageName: program.StageName,
+    StageId: program.StageId,
+    Name: program.Name,
+    RegionCode: '',
+    Type: program.Type,
+    YearStart: program.StartYear,
+    YearEnd: program.StartYear,
+    CreatedBy: '',
+    CreatedDate: '',
+    IsPublishable: true,
+});
+
+export const searchProgram = async (programName: string, limit: number = 100): Promise<ApiResponse<SearchProgram>> => {
     try {
-        const response = await httpClient.post<ProgramList>(`/Project/Search/${programName}`, null, {
-            preloaderMessage: 'Searching program...'
+        const response = await fetchProgram({
+            Filters: { Name: programName, StartYear: null, StageName: '', Type: '' },
+            page: 1,
+            limit,
+            sortDirection: 0,
         });
-        return response;
+        return {
+            ...response,
+            Data: { Programs: (response.Data.lists || []).map(mapToProgramList) }
+        };
     } catch (ErrorResponse) {
         console.error('Error searching program:', ErrorResponse);
         throw ErrorResponse;

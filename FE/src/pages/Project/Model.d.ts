@@ -381,6 +381,12 @@ export interface Dropdowns {
 	// Revisions
 	Revisions?: RevisionDropdown;
 }
+
+// Shape of the /Program/ShowProgram response, adapted for the Program Details
+// type-ahead search in ProgramDetailsForm.tsx.
+export interface SearchProgram {
+	Programs?: ProgramList[];
+}
 export interface DropdownSupportingDocs {
 	Id: number;
 	Code: string;
