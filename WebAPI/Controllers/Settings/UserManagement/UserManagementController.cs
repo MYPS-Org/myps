@@ -115,14 +115,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                         if (linkedControllerNames.Any())
                         {
-                            var controllers = await _db.tPermissionControllers
+                            var controllers = await _db.tApiControllers
                                 .Where(x => linkedControllerNames.Contains(x.ControllerName))
                                 .ToListAsync();
 
                             foreach (var ctrl in controllers)
                                 ctrl.ModuleName = newModule.ModuleName;
 
-                            _db.tPermissionControllers.UpdateRange(controllers);
+                            _db.tApiControllers.UpdateRange(controllers);
                         }
                     }
                 }
@@ -170,7 +170,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
         // ── UpdateAppModule ───────────────────────────────────────────────────────────
         // Updates the module description, then reconciles controller and view linkages:
-        //   - Linked = true  → sets tPermissionControllers/tPermissionViews.ModuleName = this module
+        //   - Linked = true  → sets tApiControllers/tPermissionViews.ModuleName = this module
         //   - Linked = false → clears ModuleName to NULL (unlinks from this module)
         //
         // NOTE: Only controllers/views listed in the payload are touched.
@@ -202,12 +202,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var Controllers = JsonConvert.DeserializeObject<List<AppModuleControllerModel>>(dto.Controllers);
                     var controllerNames = Controllers.Where(x => x.Linked).Select(c => c.ControllerName).ToList();
 
-                    //var dbControllers = await _db.tPermissionControllers
+                    //var dbControllers = await _db.tApiControllers
                     //    .AsNoTracking()
                     //    .Where(x => controllerNames.Contains(x.ControllerName))
                     //    .ToListAsync();
 
-                    var AllController = await _db.tPermissionControllers
+                    var AllController = await _db.tApiControllers
                         .AsNoTracking()
                         .Where(x => x.ModuleName == dto.ModuleName)
                         .ToListAsync();
@@ -221,12 +221,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         ctrl.ModuleName = IsLinked ? getModule.ModuleName : null;
                     }
 
-                    _db.tPermissionControllers.UpdateRange(AllController);
+                    _db.tApiControllers.UpdateRange(AllController);
 
                     //Update any controllers that are currently not linked to any module (ModuleName is NULL) but are marked Linked = true in the payload, to link to this module.a
                     if (AllController.Count != controllerNames.Count)
                     {
-                        var NoModulController = await _db.tPermissionControllers
+                        var NoModulController = await _db.tApiControllers
                             .AsNoTracking()
                             .Where(x => string.IsNullOrEmpty(x.ModuleName))
                             .ToListAsync();
@@ -237,7 +237,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                                 bool IsLinked = (controllerNames.FirstOrDefault(x => x == ctrl.ControllerName) != null) ? true : false;
                                 ctrl.ModuleName = IsLinked ? getModule.ModuleName : null;
                             }
-                            _db.tPermissionControllers.UpdateRange(NoModulController);
+                            _db.tApiControllers.UpdateRange(NoModulController);
                         }
                     }
                 }
@@ -323,7 +323,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 // Block if any controller is still linked
-                var linkedController = await _db.tPermissionControllers
+                var linkedController = await _db.tApiControllers
                     .FirstOrDefaultAsync(x => x.ModuleName == getModule.ModuleName);
 
                 if (linkedController != null)
@@ -374,7 +374,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             try
             {
                 var CountUsers = await _db.vUsers.CountAsync();
-                var CountPermissions = await _db.tPermissionActions.CountAsync();
+                var CountPermissions = await _db.tApiActions.CountAsync();
                 var CountRoutePermissions = await _db.tAppViews.CountAsync();
                 var CountGroups = await _db.tGroups.CountAsync();
                 List<DBHelper.Models.Views.Users> UserLists = await _db.vUsers
@@ -791,7 +791,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 var existingViews = await _db.tAppViews.ToListAsync();
 
                 var existingPathMap = existingViews
-                    .ToDictionary(x => x.RoutePath, x => x, StringComparer.OrdinalIgnoreCase);
+                    .ToDictionary(x => x.RouteName, x => x, StringComparer.OrdinalIgnoreCase);
 
                 // 2. Separate incoming routes into new and existing
                 var newRoutes = new List<AppViews>();
@@ -799,7 +799,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 foreach (var route in dto.RoutesAvailable)
                 {
-                    if (existingPathMap.TryGetValue(route.path, out var existing))
+                    if (existingPathMap.TryGetValue(route.RouteName, out var existing))
                     {
                         // Update RouteName if it changed
                         if (!string.Equals(existing.RouteName, route.RouteName, StringComparison.OrdinalIgnoreCase))
@@ -973,7 +973,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         {
             try
             {
-                List<ApiControllers> Groups = await _db.tPermissionControllers.ToListAsync();
+                List<ApiControllers> Groups = await _db.tApiControllers.ToListAsync();
                 return Ok(Groups);
             }
             catch (Exception ex)
@@ -996,8 +996,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     .ToList()
                     .OrderBy(x => x.Name);
 
-                // 2. Sync controllers to tPermissionControllers
-                var existingControllers = await _db.tPermissionControllers.ToListAsync();
+                // 2. Sync controllers to tApiControllers
+                var existingControllers = await _db.tApiControllers.ToListAsync();
                 var existingNames = existingControllers
                     .Select(x => x.ControllerName)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1012,7 +1012,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 if (newControllers.Count > 0)
                 {
-                    await _db.tPermissionControllers.AddRangeAsync(newControllers);
+                    await _db.tApiControllers.AddRangeAsync(newControllers);
                     await _db.SaveChangesAsync();
                 }
 
@@ -1025,8 +1025,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 ).ToList()
                 .OrderBy(x => x.ActionName);
 
-                // 4. Sync actions to tPermissionActions
-                var existingActions = await _db.tPermissionActions.ToListAsync();
+                // 4. Sync actions to tApiActions
+                var existingActions = await _db.tApiActions.ToListAsync();
                 var existingActionKeys = existingActions
                     .Select(x => x.ActionName)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1043,17 +1043,17 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 if (newActions.Count > 0)
                 {
-                    await _db.tPermissionActions.AddRangeAsync(newActions);
+                    await _db.tApiActions.AddRangeAsync(newActions);
                 }
 
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                var allControllers = await _db.tPermissionControllers
+                var allControllers = await _db.tApiControllers
                     .OrderBy(x => x.ControllerName)
                     .ToListAsync();
 
-                var allActions = await _db.tPermissionActions
+                var allActions = await _db.tApiActions
                     .OrderBy(x => x.ControllerName)
                     .ThenBy(x => x.ActionName)
                     .ToListAsync();
@@ -1079,7 +1079,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getPermission = await _db.tPermissionControllers.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getPermission = await _db.tApiControllers.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1090,7 +1090,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
                 getPermission.Description = dto.Description;
                 getPermission.ModuleName = dto.ModuleName;
-                _db.tPermissionControllers.Update(getPermission);
+                _db.tApiControllers.Update(getPermission);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
@@ -1112,7 +1112,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getPermission = await _db.tPermissionActions.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getPermission = await _db.tApiActions.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1122,7 +1122,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
                 getPermission.Description = dto.Description;
-                _db.tPermissionActions.Update(getPermission);
+                _db.tApiActions.Update(getPermission);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
@@ -1143,7 +1143,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getPermission = await _db.tPermissionControllers.FirstOrDefaultAsync(x => x.Id == id);
+                var getPermission = await _db.tApiControllers.FirstOrDefaultAsync(x => x.Id == id);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1164,7 +1164,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                var hasActions = await _db.tPermissionActions
+                var hasActions = await _db.tApiActions
                     .AnyAsync(x => x.ControllerName == getPermission.ControllerName);
 
                 if (hasActions)
@@ -1176,7 +1176,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                _db.tPermissionControllers.Remove(getPermission);
+                _db.tApiControllers.Remove(getPermission);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -1198,7 +1198,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getAction = await _db.tPermissionActions.FirstOrDefaultAsync(x => x.Id == id);
+                var getAction = await _db.tApiActions.FirstOrDefaultAsync(x => x.Id == id);
                 if (getAction == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1221,7 +1221,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                _db.tPermissionActions.Remove(getAction);
+                _db.tApiActions.Remove(getAction);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -1249,11 +1249,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     .AsNoTracking()
                     .OrderBy(x => x.ModuleName)
                     .ToListAsync();
-                var PermissionControllers = await _db.tPermissionControllers
+                var PermissionControllers = await _db.tApiControllers
                     .AsNoTracking()
                     .OrderBy(x => x.ControllerName)
                     .ToListAsync();
-                var PermissionActions = await _db.tPermissionActions
+                var PermissionActions = await _db.tApiActions
                     .AsNoTracking()
                     .OrderBy(x => x.ActionName)
                     .ToListAsync();
@@ -1423,14 +1423,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                // 4. Validate ActionIds exist in tPermissionActions
+                // 4. Validate ActionIds exist in tApiActions
                 if (dto.PermissionActionIds.Length > 0)
                 {
-                    var existingActionIds = await _db.tPermissionActions
+                    var existingActionIds = await _db.tApiActions
                         .Where(x => dto.PermissionActionIds.Contains(x.Id))
                         .Select(x => x.Id)
                         .ToListAsync();
-                    var existingActions= await _db.tPermissionActions
+                    var existingActions= await _db.tApiActions
                         .Where(x => x.ControllerName == "ProjectController")
                         .ToListAsync();
 
