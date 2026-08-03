@@ -42,7 +42,7 @@ export const searchProgram = async (programName: string) => {
 
 export const getProjectEnums = async () => {
     try {
-        const response = await httpClient.post<ProjectEnums>(`/Project/InitAddProject`, null, {
+        const response = await httpClient.post<ProjectEnums>(`/Project/ShowProjectDropdowns`, null, {
             preloaderMessage: 'Loading project data...'
         });
         return response;
@@ -51,6 +51,19 @@ export const getProjectEnums = async () => {
         throw ErrorResponse;
     }
 };
+
+export const getComponentsEnums = async () => {
+    try {
+        const response = await httpClient.post<ProjectEnums>(`/Project/ShowProjectComponentDropdowns`, null, {
+            preloaderMessage: 'Loading project data...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching project enums:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
 // #endregion
 
 // #region Project Details
