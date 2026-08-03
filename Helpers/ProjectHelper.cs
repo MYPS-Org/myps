@@ -284,10 +284,10 @@ namespace Helpers
             public int Agency { get; set; }
             public int ImplementationMode { get; set; }
             public int EmergencyMode { get; set; }
-            public int RowAvailable { get; set; }
-            public int Feasibility { get; set; }
+            public int? RowAvailable { get; set; }
+            public int? Feasibility { get; set; }
             public DateTime? FeasibilityDate { get; set; }
-            public int DetailedDesign { get; set; }
+            public int? DetailedDesign { get; set; }
             public DateTime? DetailedDesignDate { get; set; }
         }
         public static async Task<ProjectHelperResponse<string>> ValidateProjectDetailsLookups(this MYPSDbContext _db, ValidateProjectDetailsLookupsParams p, CancellationToken cancellationToken)
