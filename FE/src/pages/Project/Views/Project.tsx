@@ -182,7 +182,7 @@ const Project: React.FC = () => {
                             { header: 'Program Name', render: (project) => project.ProgramName },
                             { header: 'Category', render: (project) => project.Category },
                             { header: 'Updated By', render: (project) => project.UpdateBy },
-                            { header: 'Created Date', render: (project) => project.CreatedDate.StringToDate() },
+                            { header: 'Created Date', render: (project) => project.CreatedDate ? project.CreatedDate.StringToDate() : '' },
                             {
                                 header: 'Actions',
                                 render: (project) => (
@@ -225,7 +225,7 @@ const Project: React.FC = () => {
                                                 <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Category}</TableCell>
                                                 <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Thrust}</TableCell>
                                                 <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedBy}</TableCell>
-                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedDate.StringToDate()}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedDate ? stage.CreatedDate.StringToDate() : ''}</TableCell>
                                                 <TableCell className='text-center'>
                                                     <Button
                                                         color="blue"

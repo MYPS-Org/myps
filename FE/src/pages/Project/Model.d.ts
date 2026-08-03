@@ -53,46 +53,66 @@ export interface OptionRevisionCategory {
 }
 
 export interface ProjectDetails {
-	Id?: number;
-	ProgramId?: string;
-	ProgramName: string;
-	ProjectId?: string;
-	StageName?: string;
-	ReferenceId?: string;
+	Id: number;
+	ProjectPK: string;
+	ProjectId: string;
+	ProjectType: string;
+	// Legacy fields kept from the pre-migration model — not in the new aligned shape.
+	// TODO: clarify with backend whether these are still needed before removing.
+	ProgramId?: string; // drives program-linking in ProjectForm.handleProgramDetailsChange and projectDetailsRules
+	ReferenceId?: string; // drives fetchProjectGeoJSON (map) and ComponentCostDialog's ReferenceId prop
+	ExternalId?: string; // editable "External ID" field in ProjectDetailsForm
+	MYId?: string; // editable "Multi Year ID" field in ProjectDetailsForm
+	UACS?: string; // editable "OA Project Code (UACS)" field in ProjectDetailsForm
+	RevisionId?: number; // relationship to new RevisionCreatedBy/RevisionCreatedDate unclear
+	CreatedBy?: string; // editable "Created By" admin field in ProjectDetailsForm
+	UpdatedBy?: string; // relationship to new LastUpdatedBy unclear — no UI currently reads/writes either
+	UpdatedDate?: string; // relationship to new LastUpdatedDate unclear — no UI currently reads/writes either
+	IsAllowedToProceed?: boolean;
+	ProgramName?: string;
+	StageName: string; 
 	AlternateId?: string;
-	ExternalId?: string;
-	MYId?: string;
-	UACS?: string;
-	MYCAApprovalDate?: string | null;
-	IslandCode?: string;
-	RevisionId?: number;
-	Description?: string;
-	Category?: number;
-	Thrust?: number;
-	Origin?: number;
+	Description: string;
+	Region: string;
 	Province?: string;
 	City?: string;
 	LegislativeDistrict?: string;
-	OperatingUnit?: string;
-	ImplementingOffice?: string;
-	DEO?: string;
-	Region?: string;
-	Agency?: number;
+	DEO: string;
+	OperatingUnit: string;
+	ImplementingOffice: string;
+	IslandCode?: string;
+	Category: number;
+	CategoryName?: string;
+	Thrust?: number;
+	ThrustName?: string;
+	Origin: number;
+	OriginName?: string;
+	Agency: number;
+	AgencyName?: string;
 	ImplementationMode?: number;
+	ImplementationModeName?: string;
 	EmergencyMode?: number;
+	EmergencyModeName?: string;
+	RegionWide: number;
+	RegionWideName?: string;
 	Feasibility?: number;
+	FeasibilityName?: string;
 	FeasibilityDate?: string;
 	DetailedDesign?: number;
+	DetailedDesignName?: string;
 	DetailedDesignDate?: string;
 	RowAvailable?: number;
-	RegionWide?: number;
+	RowAvailableName?: string;
 	Tier: number;
+	TierName?: string;
 	Rank?: number;
-	CreatedBy?: string;
-	CreatedDate?: string;
-	UpdatedBy?: string;
-	UpdatedDate?: string;
-	IsAllowedToProceed?: boolean;
+	MYCAApprovalDate?: string | null;
+	CreatedDate: string;
+	LastUpdatedBy?: string;
+	LastUpdatedDate?: string;
+	RevisionCreatedBy: string;
+	RevisionCreatedDate: string;
+	Source: string;
 }
 export interface ProjectLists {
 	Id: number;

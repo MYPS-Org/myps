@@ -67,7 +67,7 @@ export const addProjectDetails = async (projectDetails: ProjectDetails) => {
 };
 export const getProjectDetails = async ({ProjectId, StageName}: {ProjectId: string, StageName: string}) => {
     try {
-        const response = await httpClient.post<ProjectFormPayload>(`/Project/ProjectDetails/`, {ProjectId, StageName}, {
+        const response = await httpClient.post<ProjectFormPayload>(`/Project/ShowProjectDetails/`, {ProjectId, StageName}, {
             preloaderMessage: 'Loading project details...'
         });
         return response;

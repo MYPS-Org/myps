@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/toaster/ToasterContext';
 import { globalSearch, fetchCategory } from './Service';
 import type { CategoryOption, GlobalSearchResponse } from './Model';
+import { SEARCH_FIELD_CONFIG } from './config';
 
 /**
  * Maps a CategoryName to a function that builds a navigation URL from a result row.
@@ -99,8 +100,13 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
     navigate(url);
   };
 
-  // Derive columns dynamically from the first result row
-  const dynamicColumns = result?.Data?.length ? Object.keys(result.Data[0]) : [];
+  // Result columns come from the matching SEARCH_FIELD_CONFIG entry (matched by CategoryName),
+  // not from the raw row shape — keeps internal PK/FK columns off the table and labels/order
+  // under explicit control per category.
+  const selectedFieldConfig = selectedCategory
+    ? SEARCH_FIELD_CONFIG.find((f) => f.label === selectedCategory.CategoryName)
+    : undefined;
+  const resultColumns = selectedFieldConfig?.resultColumns ?? [];
 
   // Get the nav builder for the currently selected category (null = no navigation)
   const getLink = selectedCategory ? (CATEGORY_NAV[selectedCategory.CategoryName] ?? null) : null;
@@ -218,12 +224,12 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
                   <table className="min-w-full divide-y divide-zinc-200 text-sm">
                     <thead className="bg-zinc-50 sticky top-0 z-10">
                       <tr>
-                        {dynamicColumns.map((col) => (
+                        {resultColumns.map((col) => (
                           <th
-                            key={col}
+                            key={col.field}
                             className="px-4 py-2.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap"
                           >
-                            {col}
+                            {col.label}
                           </th>
                         ))}
                         {getLink && (
@@ -238,13 +244,13 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
                         const link = getLink?.(row) ?? null;
                         return (
                           <tr key={idx} className="hover:bg-zinc-50 transition-colors">
-                            {dynamicColumns.map((col) => (
+                            {resultColumns.map((col) => (
                               <td
-                                key={col}
+                                key={col.field}
                                 className="px-4 py-2.5 text-zinc-700 whitespace-nowrap max-w-[240px] truncate"
-                                title={String(row[col] ?? '')}
+                                title={String(row[col.field] ?? '')}
                               >
-                                {String(row[col] ?? '—')}
+                                {String(row[col.field] ?? '—')}
                               </td>
                             ))}
                             {getLink && (

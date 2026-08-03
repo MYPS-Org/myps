@@ -8,6 +8,8 @@ const TestAllowedFields: React.FC = () => {
     // Mock project details data for testing
     const [mockProjectDetails, setMockProjectDetails] = useState({
         Id: 1,
+        ProjectPK: 'PROJ-001',
+        ProjectType: '',
         ProgramId: 'TEST-001',
         ProgramName: 'Test Program',
         StageName: 'Test Stage',
@@ -17,7 +19,6 @@ const TestAllowedFields: React.FC = () => {
         MYId: '',
         UACS: '',
         IslandCode: '',
-        RevisionNumber: 0,
         Description: 'Test Project Description',
         Category: 1,
         Thrust: 1,
@@ -34,7 +35,12 @@ const TestAllowedFields: React.FC = () => {
         Feasibility: 1,
         DetailedDesign: 0,
         RowAvailable: 0,
+        RegionWide: 0,
         Tier: 1,
+        CreatedDate: '',
+        RevisionCreatedBy: '',
+        RevisionCreatedDate: '',
+        Source: '',
     });
 
     const handleRandomize = () => {

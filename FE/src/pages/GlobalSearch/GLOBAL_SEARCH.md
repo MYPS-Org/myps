@@ -16,13 +16,13 @@ The search is driven by the backend for category options, with the controller en
 | `WebAPI/Controllers/GlobalSearch/GlobalSearchController.cs` | `GetSearchCategory` endpoint returning `CategoryOption[]`; `Search` endpoint; whitelist of allowed tables/columns |
 | `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces — `CategoryOption` (`Id`, `CategoryName`), `GlobalSearchResponse` (`Data`, `Title`) |
 | `FE/src/pages/GlobalSearch/Service.ts` | `fetchCategory()` — loads `CategoryOption[]` from backend; `globalSearch(Category, SearchFor)` — executes search |
-| `FE/src/pages/GlobalSearch/config.ts` | `SEARCH_FIELD_CONFIG` — flat field config array; **not used by the dialog** (kept as reference for whitelisting guide) |
-| `FE/src/pages/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — dropdown from `CategoryOption[]`; result columns dynamic; `CATEGORY_NAV` map resolves View links |
+| `FE/src/pages/GlobalSearch/config.ts` | `SEARCH_FIELD_CONFIG` — flat field config array, **used by the dialog** to render result columns |
+| `FE/src/pages/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — dropdown from `CategoryOption[]`; result columns looked up from `SEARCH_FIELD_CONFIG` by matching `label` to `CategoryName`; `CATEGORY_NAV` map resolves View links |
 
 **Why backend-driven categories?**  
-The "Search By" dropdown is populated by calling `GetSearchCategory` when the dialog opens, returning `{ CategoryList: CategoryOption[] }` from the server. This means categories can be managed server-side without frontend deploys. Result columns are derived dynamically from the API response data. Navigation links are resolved client-side via the `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`.
+The "Search By" dropdown is populated by calling `GetSearchCategory` when the dialog opens, returning `{ CategoryList: CategoryOption[] }` from the server. This means categories can be managed server-side without frontend deploys. Result *columns*, however, are frontend-controlled: the dialog finds the `SEARCH_FIELD_CONFIG` entry whose `label` matches the selected `CategoryName` and renders exactly that entry's `resultColumns` (field + display label), instead of showing every property the backend row happens to have. Navigation links are resolved client-side via the `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`.
 
-> **`config.ts` status:** `SEARCH_FIELD_CONFIG` in `config.ts` is **not imported or used** by `GlobalSearchDialog.tsx`. The dialog is fully backend-driven. The config is retained as a developer reference for which `tableKey` + `columnField` values correspond to each category, and as a guide for adding backend whitelist entries.
+> **`config.ts` status:** `SEARCH_FIELD_CONFIG` **is imported and used** by `GlobalSearchDialog.tsx` — it is the single source of truth for which columns render and how they're labeled/ordered per category. The "Search By" dropdown itself remains backend-driven (`CategoryOption[]`); only the *columns shown for a selected category* are static. Because of this, adding a new backend category now requires a matching `SEARCH_FIELD_CONFIG` entry (see "How to Add a New Searchable Field" below) — it's no longer optional/reference-only.
 
 ---
 
@@ -35,7 +35,7 @@ Click 🔍 in navbar
       → Select a category (e.g. "Project ID", "UACS", "Bridge")
         → Enter search value
           → Click Search
-            → Results table appears with columns derived dynamically from response data
+            → Results table appears with columns from the matching SEARCH_FIELD_CONFIG entry's resultColumns
               → Click View → navigates to the detail page & dialog closes (for navigable categories)
 ```
 
@@ -75,8 +75,8 @@ Click 🔍 in navbar
 |------|---------|
 | `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces — `CategoryOption`, `GlobalSearchResponse`; also contains legacy `SearchableTable` / `SearchableColumn` (unused) |
 | `FE/src/pages/GlobalSearch/Service.ts` | `fetchCategory()` — loads categories; `globalSearch(Category, SearchFor)` — executes search; also contains legacy `getSearchColumns` (unused) |
-| `FE/src/pages/GlobalSearch/config.ts` | `SEARCH_FIELD_CONFIG` — reference only; not imported by the dialog |
-| `FE/src/pages/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — dropdown from `CategoryOption[]`; result columns dynamic; `CATEGORY_NAV` map resolves View links |
+| `FE/src/pages/GlobalSearch/config.ts` | `SEARCH_FIELD_CONFIG` — imported by the dialog; drives result columns |
+| `FE/src/pages/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — dropdown from `CategoryOption[]`; result columns from `SEARCH_FIELD_CONFIG`; `CATEGORY_NAV` map resolves View links |
 
 ### Files Modified
 
@@ -86,7 +86,7 @@ Click 🔍 in navbar
 
 ### `SearchFieldConfig` interface (`config.ts`)
 
-> This interface and its `SEARCH_FIELD_CONFIG` array are **reference-only** — not imported by the dialog. Useful as a backend whitelist guide.
+> This interface and its `SEARCH_FIELD_CONFIG` array are imported by `GlobalSearchDialog.tsx` and drive the results table's columns/labels for the selected category, in addition to serving as the backend whitelist guide.
 
 ```ts
 interface SearchFieldConfig {
@@ -123,7 +123,7 @@ To add navigation for a new category, add an entry to `CATEGORY_NAV` in `GlobalS
 
 ---
 
-## Searchable Fields (current — from `config.ts` reference)
+## Searchable Fields (current — from `config.ts`, live)
 
 | Key | Label | `tableKey` (config) | `columnField` | Navigate to |
 |-----|-------|---------------------|---------------|-------------|
@@ -141,9 +141,9 @@ To add navigation for a new category, add an entry to `CATEGORY_NAV` in `GlobalS
 
 ---
 
-## Result Columns per Category (from `config.ts` reference)
+## Result Columns per Category (from `config.ts`, live)
 
-Since the dialog derives columns dynamically from the API response, these reflect what the backend returns:
+The dialog renders exactly these columns (in this order, with these labels) for each category — not whatever the API row happens to contain:
 
 | Category | Expected columns |
 |----------|-----------------|
@@ -182,7 +182,7 @@ Since the dialog derives columns dynamically from the API response, these reflec
 
 ## How to Add a New Searchable Field
 
-Adding a new searchable field only requires a backend change. The frontend dialog automatically adapts.
+Adding a new searchable field requires a backend whitelist change **and** a matching `config.ts` entry — the dialog no longer infers columns from the API response.
 
 ### Step 1 — Backend (`GlobalSearchController.cs`)
 
@@ -211,9 +211,9 @@ If the new category should navigate to a detail page, add an entry to `CATEGORY_
   row['MyPrimaryKey'] ? `/my-page/${row['MyPrimaryKey']}` : null,
 ```
 
-### Step 3 — Update `config.ts` reference (optional)
+### Step 3 — Add a `config.ts` entry (required)
 
-Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts` as a reference record for the whitelisting documentation:
+Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts`. Its `label` must exactly match the `CategoryName` string returned by the backend for this category — the dialog looks up `resultColumns` by that match, so a mismatch means the results table renders with no columns:
 ```ts
 {
   key: 'myField',
@@ -229,7 +229,7 @@ Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts` as a reference
 },
 ```
 
-> `config.ts` is not read by the dialog — this step is documentation only.
+> If this step is skipped, the category still appears in the dropdown (it comes from the backend) but its results table renders with zero columns, since no `resultColumns` can be found for it.
 
 ---
 
@@ -253,3 +253,5 @@ Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts` as a reference
 | 2026-03-21 | Copilot | Revamped UI — replaced Table + Column dropdowns with single "Search By" dropdown; switched from `SEARCH_TABLE_CONFIG` to flat `SEARCH_FIELD_CONFIG`; removed `getSearchColumns` API call; added fields: Project ID, Alternate ID, Description, UACS, Program Name, Roads, Road Section, Bridge |
 | 2026-03-24 | Copilot | Switched dropdown from hardcoded `SEARCH_FIELD_CONFIG` to backend-driven `CategoryOption[]` via `fetchCategory()`; result columns now derived dynamically from API response (`res.Data.CategoryList`); updated `Service.ts`; `config.ts` retained as reference only |
 | 2026-03-24 | Copilot | Added `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`; project categories navigate to `/projects/project-details/{ProjectId}:{StageName}`; Program Name navigates to `/programs/programdetails/{ProgramId}`; View button shown per row only when link resolves; dialog resets all state on close |
+| 2026-07-31 | Claude | Added `EXCLUDED_RESULT_COLUMNS` / `isExcludedResultColumn()` to `config.ts` (exact-match list + `PK`/`FKId` suffix rule) and wired it into `GlobalSearchDialog.tsx`'s `dynamicColumns` filter, so internal PK/FK columns (e.g. `StageFKId`, `ProgramPK`) returned by backend view models no longer render in the results table |
+| 2026-07-31 | Claude | Replaced dynamic column derivation with `SEARCH_FIELD_CONFIG`-driven columns: `GlobalSearchDialog.tsx` now looks up the entry whose `label` matches the selected `CategoryName` and renders its `resultColumns` directly, instead of deriving/filtering/ordering/labeling columns from the raw API row. Removed the now-unused `EXCLUDED_RESULT_COLUMNS`, `isExcludedResultColumn()`, `getColumnLabel()`, `COLUMN_ORDER_BY_CATEGORY`, `orderResultColumns()` from `config.ts`. `SEARCH_FIELD_CONFIG` is no longer reference-only — adding a category now requires a matching entry (see "How to Add a New Searchable Field") |
