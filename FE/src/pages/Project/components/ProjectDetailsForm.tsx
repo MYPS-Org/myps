@@ -50,7 +50,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             
             if (newCity) {
                 const cityBelongsToProvince = projectEnums?.Cities?.find(
-                    (city) => city.GdbId === newCity && city.ProvinceGdbId === newProvince
+                    (city) => city.GdbId === newCity && city.ProvinceId === newProvince
                 );
                 if (!cityBelongsToProvince) {
                     newCity = undefined;
@@ -429,7 +429,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.Province ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}Province:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
-                                        options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
+                                        options={formatDropdownOptions(projectEnums?.Provinces || [], 'Code', 'Name', 'Id')}
                                         value={projectDetails?.Province}
                                         onChange={(value) => handleInputChange('Province', value === '' ? undefined : value.toString())}
                                         placeholder="Select Province"
@@ -447,7 +447,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}City/Municipality:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
-                                        options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
+                                        options={formatDropdownOptions(filteredCities || [], 'Code', 'Name', 'Id')}
                                         value={projectDetails?.City}
                                         onChange={(value) => handleInputChange('City', value === '' ? undefined : value.toString())}
                                         placeholder="Select City/Municipality"

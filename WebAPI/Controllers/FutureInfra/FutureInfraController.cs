@@ -95,7 +95,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             Title = "Pagination error",
                             Message =
-                                result.ToString() ??
+                                result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
                 }
@@ -427,7 +427,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             Title = "Pagination error",
                             Message =
-                                result.ToString() ??
+                                result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
                 }
@@ -754,7 +754,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             Title = "Pagination error",
                             Message =
-                                result.ToString() ??
+                                result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
                 }
