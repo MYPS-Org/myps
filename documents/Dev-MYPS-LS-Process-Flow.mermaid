@@ -1,0 +1,118 @@
+flowchart TD
+
+    subgraph P1 ["1 - LS Wallet Lifecycle Overview"]
+        P1A([Lumpsum Module]) --> P1B[View LS Wallet List]
+        P1B --> P1C{Select Action}
+        P1C -->|New Wallet| P1D[Create LS Wallet]
+        P1C -->|Open Wallet| P1E[Wallet Detail View]
+        P1D --> P1E
+        P1E --> P1F{Wallet Action}
+        P1F -->|Add Project| P1G[Create Itemized Project]
+        P1F -->|Edit Costs| P1H[Update Wallet Costs]
+        P1F -->|Delete| P1I[Delete Wallet]
+        P1G --> P1J[Itemized Project]
+        P1J --> P1K{Project Action}
+        P1K -->|Update Costs| P1L[Update Costs]
+        P1K -->|Publish| P1M[Publish to PCMA]
+        P1K -->|Delete| P1N[Delete Project]
+        P1M --> P1O[Published to PCMA]
+        P1O --> P1P[Create Revision]
+    end
+
+    subgraph P2 ["2 - Create LS Wallet"]
+        P2A([Open Lumpsum Module]) --> P2B[Click Create Lumpsum]
+        P2B --> P2C[Enter Wallet Details - Pending Q1: Confirm required fields]
+        P2C --> P2D[Enter Component Costs per Fiscal Year with UACS - Pending Q3]
+        P2D --> P2E{Required fields complete?}
+        P2E -->|No| P2C
+        P2E -->|Yes| P2F[Save Wallet]
+        P2F --> P2G([Wallet created - Ready for itemization])
+    end
+
+    subgraph P3A ["3A - Create Itemized Project - Option A - From Project Screen"]
+        P3A1([Open Project Creation Screen]) --> P3A2[Select Project Type: LS]
+        P3A2 --> P3A3[Enter or Search Wallet ID]
+        P3A3 --> P3A4{Wallet ID valid?}
+        P3A4 -->|No| P3A3
+        P3A4 -->|Yes| P3A5[Enter Project Details - Pending Q2: Auto-populate from wallet?]
+        P3A5 --> P3A6[Enter Component Costs - Pending Q3]
+        P3A6 --> P3A7{Required fields complete?}
+        P3A7 -->|No| P3A5
+        P3A7 -->|Yes| P3A8[Save Project]
+        P3A8 --> P3A9([Itemized project created - ProjectType = LS - ParentWalletId set])
+    end
+
+    subgraph P3B ["3B - Create Itemized Project - Option B - From Wallet - Recommended"]
+        P3B1([Open Wallet Detail Page]) --> P3B2[Click Add Itemized Project]
+        P3B2 --> P3B3[Form opens - ParentWalletId pre-set - ProjectType locked to LS]
+        P3B3 --> P3B4[Enter Project Details - Pending Q2: Auto-populate from wallet?]
+        P3B4 --> P3B5[Enter Component Costs - Pending Q3]
+        P3B5 --> P3B6{Required fields complete?}
+        P3B6 -->|No| P3B4
+        P3B6 -->|Yes| P3B7[Save Project]
+        P3B7 --> P3B8([Itemized project created - ProjectType = LS - ParentWalletId set])
+    end
+
+    subgraph P4 ["4 - Update Itemized Project Costs"]
+        P4A([Open Itemized Project]) --> P4B[Modify Component Costs]
+        P4B --> P4C{Updated total exceeds wallet allocation?}
+        P4C -->|No| P4D[Save Changes]
+        P4C -->|Yes| P4E{Block or Warn? - Pending Q6}
+        P4E -->|Block| P4F[BLOCKED - Cost exceeds allocation - Reduce costs to proceed]
+        P4E -->|Warn| P4G[Warning shown - User may proceed]
+        P4G --> P4D
+        P4D --> P4H{Auto-update wallet allocation? - Pending Q5}
+        P4H -->|Yes - auto update| P4I[Wallet TotalAllocation updated automatically]
+        P4H -->|No - wallet fixed| P4J[Wallet available balance recalculated - Allocation unchanged]
+        P4I --> P4K([Changes saved])
+        P4J --> P4K
+    end
+
+    subgraph P5 ["5 - Delete Itemized Project"]
+        P5A([Select Delete on Itemized Project]) --> P5B[Confirmation prompt displayed]
+        P5B --> P5C{User confirms?}
+        P5C -->|No| P5D([Cancelled])
+        P5C -->|Yes| P5E[Soft-delete project - IsDeleted = 1]
+        P5E --> P5F{Return cost to wallet balance? - Pending Q7}
+        P5F -->|Yes| P5G[Wallet available balance increases by deleted project cost]
+        P5F -->|No| P5H[Wallet balance unchanged]
+        P5G --> P5I([Itemized project deleted])
+        P5H --> P5I
+    end
+
+    subgraph P6 ["6 - Delete LS Wallet"]
+        P6A([Select Delete Wallet]) --> P6B{Wallet has active itemized projects?}
+        P6B -->|Yes| P6C[BLOCKED - Remove all itemized projects before deleting wallet]
+        P6C --> P6D([Delete cancelled])
+        P6B -->|No| P6E[Confirmation prompt displayed]
+        P6E --> P6F{User confirms?}
+        P6F -->|No| P6D
+        P6F -->|Yes| P6G[Soft-delete wallet - IsDeleted = 1]
+        P6G --> P6H([Wallet deleted])
+    end
+
+    subgraph P7 ["7 - Publish Itemized Project to PCMA"]
+        P7A([Itemized Project in Scheduled status]) --> P7B[Program publishing process - Prog-5]
+        P7B --> P7C{Project type check}
+        P7C -->|ProjectType = LS with ParentWalletId set| P7D[Included in publish batch as normal AIP project]
+        P7C -->|ProjectType = NP| P7E[Excluded from publish]
+        P7D --> P7G[Published to PCMA]
+        P7G --> P7H([Project status: Published])
+    end
+
+    subgraph P8 ["8 - Revision of Published Itemized Project"]
+        P8A([Published Itemized Project]) --> P8B[User initiates revision]
+        P8B --> P8C[Normal AIP revision process]
+        P8C --> P8D[Enter revised details and updated costs]
+        P8D --> P8E{Revised cost exceeds wallet allocation?}
+        P8E -->|No| P8F[Save revision]
+        P8E -->|Yes| P8G{Block or Warn? - Pending Q6}
+        P8G -->|Block| P8H[BLOCKED - Revised cost exceeds wallet allocation]
+        P8G -->|Warn| P8I[Warning shown - User may proceed]
+        P8I --> P8F
+        P8F --> P8J{Reflect revised cost on wallet? - Pending Q10}
+        P8J -->|Yes - auto update| P8K[Wallet TotalAllocation updated automatically]
+        P8J -->|No - wallet fixed| P8L[Wallet available balance recalculated - Allocation unchanged]
+        P8K --> P8M([Revision saved])
+        P8L --> P8M
+    end

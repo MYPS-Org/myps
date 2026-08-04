@@ -59,7 +59,15 @@ class AuthService {
       const response = await httpClient.post<ApiResponse>(
         '/auth/validate',
         null,
-        { preloaderMessage: "Validating session...", withCredentials: true }
+        {
+          preloaderMessage: "Validating session...",
+          withCredentials: true,
+          // httpClient defaults to no timeout, which is right for slow report
+          // endpoints but wrong here: an unreachable backend (VPN down) leaves
+          // this promise unsettled forever and the preloader spins with no way
+          // out. Fail fast so AuthContext can fall through to /login.
+          timeout: 15000,
+        }
       );
       return response;
     } catch (error) {

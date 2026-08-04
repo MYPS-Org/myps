@@ -232,6 +232,20 @@ namespace DBHelper.Data
 
         #endregion
 
+        #region Lumpsum
+
+        #region Tables
+        public DbSet<Models.Table.Lumpsum.LSWallets> tLSWallets { get; set; }
+        #endregion
+
+        #region Views
+        public DbSet<Models.Views.Lumpsum.LSWalletLatest> vLSWalletLatest { get; set; }
+        public DbSet<Models.Views.Lumpsum.LSWalletProjectSet> vLSWalletProjectSet { get; set; }
+        public DbSet<Models.Views.Lumpsum.LSWalletBalance> vLSWalletBalance { get; set; }
+        #endregion
+
+        #endregion
+
         #region Users and User Access
 
         #region Tables
@@ -267,6 +281,7 @@ namespace DBHelper.Data
             modelBuilder.Entity<UserVisibleProjects>().HasNoKey().ToView("fUserVisibleProjects");
             modelBuilder.Entity<UserVisiblePrograms>().HasNoKey().ToView("fUserVisiblePrograms");
             modelBuilder.Entity<PaginationCount>().HasNoKey().ToView("PaginationCount");
+            modelBuilder.Entity<Models.Views.Lumpsum.LSWalletBalance>().HasNoKey().ToView("vLSWalletBalance");
             // Component Cost → Costs Per Year
             modelBuilder.Entity<Models.Table.Project.ProjectComponentCost>()
                 .HasMany(x => x.CostsPerYear)
