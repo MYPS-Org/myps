@@ -34,7 +34,8 @@ namespace DBHelper.Models.Table.Project
         public int? ProjectGroupFK { get; set; }
         // FK -> dbo.tLSWallets(Id)
         public int? ParentWalletId { get; set; }
-        [Column(TypeName = "decimal(18,5)")]
+        // Draw frozen at publish time. decimal(18,2) to match the actual column.
+        [Column(TypeName = "decimal(18,2)")]
         public decimal? WalletDrawFrozen { get; set; }
         [Required]
         public bool IsPublished { get; set; }
