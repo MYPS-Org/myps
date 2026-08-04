@@ -374,7 +374,7 @@ GIS calls use native `fetch()` against `VITE_API_GIS_URL`.
 |---|---|---|---|
 | `fetchProject(pagination)` | `POST /Project/showprojects` | `ProjectPagination` | `PaginationResponse<ProjectLists>` |
 | `initProgramDetails(programId)` | `POST /Project/Details/${programId}` | — | `ProgramList` |
-| `searchProgram(programName)` | `POST /Project/Search/${programName}` | — | `ProgramList` |
+| `searchProgram(programName)` | `POST /Program/ShowProgram` | `PaginatedRequest<ProgramFilter>` (Name filter, limit 20) | `SearchProgram` (`{ Programs?: ProgramList[] }`) — maps `ProgramLatest[]` from the paginated response into `ProgramList[]` |
 | `getProjectEnums()` | `POST /Project/InitAddProject` | — | `ProjectEnums` |
 | `addProjectDetails(payload)` | `POST /Project/addproject/` | `ProjectDetails` | `{ ProjectId, StageName, Type, Title, Message }` |
 | `getProjectDetails({ ProjectId, StageName })` | `POST /Project/ProjectDetails/` | `{ ProjectId, StageName }` | `ProjectFormPayload` |
@@ -513,7 +513,7 @@ handleUpdateProject()
 
 ### `ProgramDetailsForm`
 
-- **Add mode:** `<select>` of all programs from `projectEnums.Programs` (excludes GAA-R; filters by `initialStageName` if provided).
+- **Add mode:** Type-ahead `Combobox` (Headless UI) — debounced (300ms) calls to `searchProgram(query)` (`POST /Program/ShowProgram`), results excluding GAA-R and filtered by `initialStageName` if provided.
 - **Edit mode:** Read-only display of program Name, Type, Start Year, Stage.
 - Selecting a program calls `onChange(selectedProgram)` + `setProgramDetails()`.
 
