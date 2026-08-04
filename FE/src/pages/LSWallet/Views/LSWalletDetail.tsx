@@ -112,9 +112,33 @@ const LSWalletDetail: React.FC = () => {
   // ---------------------------------------------------------------------------
   const [revisions, setRevisions] = useState<Record<number, ItemizedProjectRevision[]>>({});
 
+  // Tracks the wallet fetch so we don't render "Wallet Not Found" while it's
+  // still in flight — the atom is legitimately empty for one render on a deep
+  // link, and flashing the empty state there looks like a real error.
+  const [walletLoading, setWalletLoading] = useState(true);
+
   useEffect(() => {
-    if (isNaN(walletIdNum)) return;
+    // A non-numeric :walletId (e.g. the app landed here for "/lumpsum/add")
+    // has nothing to fetch — clear the flag so the guard below can render
+    // instead of leaving "Loading wallet…" on screen forever.
+    if (isNaN(walletIdNum)) {
+      setWalletLoading(false);
+      return;
+    }
     let cancelled = false;
+
+    // Landing straight on /lumpsum/:id (deep link, refresh, or a bookmarked
+    // URL) never runs the list query, so nothing else would put this wallet in
+    // the atom. fetchWalletById hydrates it from the API.
+    setWalletLoading(true);
+    Service.fetchWalletById(walletIdNum)
+      .catch(() => {
+        // httpClient's interceptor already surfaced the error toast; the
+        // "Wallet Not Found" panel below is the in-page fallback.
+      })
+      .finally(() => {
+        if (!cancelled) setWalletLoading(false);
+      });
 
     // Fetch projects fresh from Service (bypasses atom to get a clean starting snapshot
     // before we know which ones are published — the atom may not yet be populated on
@@ -214,6 +238,12 @@ const LSWalletDetail: React.FC = () => {
   // ---------------------------------------------------------------------------
   // Not-found / invalid guard — must come after all hooks
   // ---------------------------------------------------------------------------
+  // Still fetching: showing the not-found panel here would misreport a wallet
+  // that simply hasn't arrived yet.
+  if (walletLoading && !wallet) {
+    return <div className="p-6 text-gray-600">Loading wallet…</div>;
+  }
+
   if (isNaN(walletIdNum) || !wallet || !balance) {
     return (
       <div className="p-6 space-y-4">

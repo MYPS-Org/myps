@@ -14,7 +14,18 @@
 //   All data access must go through this service file.
 // =============================================================================
 
+import { httpClient } from '../../services/httpClient';
 import type { ApiResponse } from '../../services/httpClient';
+import type {
+  ApiLSWalletLatest,
+  ApiLSWalletProjectSet,
+  ApiLSWalletBalance,
+} from './utils/apiMappers';
+import {
+  mapApiWalletToLSWallet,
+  mapApiProjectToItemized,
+  mapApiBalance,
+} from './utils/apiMappers';
 import type {
   LSWallet,
   ItemizedProject,
@@ -32,7 +43,7 @@ import type {
 } from './Model.d';
 import * as store from './mockData/walletMockStore';
 import { computeWalletBalance } from './utils/walletBalance';
-import { defaultStore, syncWalletStoreAtom } from './store/walletStore';
+import { defaultStore, syncWalletStoreAtom, walletDataAtom } from './store/walletStore';
 
 // ---------------------------------------------------------------------------
 // Helper: build an ApiResponse<T>-shaped mock response
@@ -45,6 +56,53 @@ const mockResponse = <T>(data: T): ApiResponse<T> => ({
 /** Push the updated store snapshot into Jotai so components re-render. */
 const syncAtom = () => {
   defaultStore.set(syncWalletStoreAtom, store.getStoreSnapshot());
+};
+
+// ---------------------------------------------------------------------------
+// Live-data hydration of walletDataAtom
+//
+// walletDataAtom is seeded from the mock store at import time, and components
+// (LSWalletDetail, useWalletBalance) read the wallet out of it rather than
+// calling the service directly. Now that the read endpoints are live, those
+// components would look up a real wallet Id (10, 11, ...) in a mock-seeded
+// atom and render "Wallet Not Found".
+//
+// So the read functions below push their API results into the atom, exactly as
+// store/walletStore.ts prescribes: "Service.ts will call the HTTP endpoint
+// instead of the mock store, then update the atom from the API response — the
+// atom and component layer stay unchanged."
+//
+// The FIRST live response evicts the mock seed entirely, so fabricated rows can
+// never sit alongside server rows (mock wallets use Id 1-3, which real
+// IDENTITY values can reach).
+// ---------------------------------------------------------------------------
+let atomHydratedFromApi = false;
+
+const patchStore = (patch: {
+  wallets?: LSWallet[];
+  projectsForWallet?: { walletId: number; projects: ItemizedProject[] };
+}) => {
+  const base = atomHydratedFromApi
+    ? defaultStore.get(walletDataAtom)
+    : { wallets: [], itemizedProjects: [] };
+  atomHydratedFromApi = true;
+
+  let { wallets, itemizedProjects } = base;
+
+  if (patch.wallets) {
+    const incoming = new Set(patch.wallets.map((w) => w.Id));
+    wallets = [...wallets.filter((w) => !incoming.has(w.Id)), ...patch.wallets];
+  }
+
+  if (patch.projectsForWallet) {
+    const { walletId, projects } = patch.projectsForWallet;
+    itemizedProjects = [
+      ...itemizedProjects.filter((p) => p.ParentWalletId !== walletId),
+      ...projects,
+    ];
+  }
+
+  defaultStore.set(syncWalletStoreAtom, { wallets, itemizedProjects });
 };
 
 // ---------------------------------------------------------------------------
@@ -66,70 +124,58 @@ export interface PublishComplianceResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch paginated wallet list.
+ * Fetch paginated wallet list. LIVE — reads dbo.vLSWalletLatest.
  *
- * REAL API SWAP:
- *   return httpClient.post<PaginationResponse<LSWallet>>(
- *     '/LSWallet/list',
- *     pagination,
- *     { preloaderMessage: 'Loading wallets...' }
- *   );
+ * Keyset (cursor) pagination: the backend walks pages using the Id of the last
+ * row it returned, so pass NextFilteredId/PreviousFilteredId straight back from
+ * the previous response rather than computing an offset.
  */
 export const fetchWalletList = async (
   pagination: LSWalletPagination
 ): Promise<ApiResponse<PaginationResponse<LSWallet>>> => {
-  try {
-    let wallets = store.getAllWallets().filter(w => !w.IsDeleted);
+  const payload = {
+    Filters: {
+      // LSWalletFilter.ProgramId carries the readable program key (ProgramFK).
+      ProgramFK: pagination.filters?.ProgramId,
+      CurrentStage: pagination.filters?.CurrentStage,
+      OperatingUnit: pagination.filters?.OperatingUnit,
+    },
+    limit: pagination.limit,
+    page: pagination.page,
+    // 0 = Next, 1 = Previous — matches the C# PaginationDirection enum.
+    Direction: 0,
+  };
 
-    // Apply filters if provided
-    if (pagination.filters?.ProgramId) {
-      wallets = wallets.filter(w => w.ProgramId === pagination.filters!.ProgramId);
-    }
-    if (pagination.filters?.CurrentStage) {
-      wallets = wallets.filter(w => w.CurrentStage === pagination.filters!.CurrentStage);
-    }
-    if (pagination.filters?.OperatingUnit) {
-      wallets = wallets.filter(w =>
-        w.OperatingUnit.toLowerCase().includes(pagination.filters!.OperatingUnit!.toLowerCase())
-      );
-    }
+  const response = await httpClient.post<PaginationResponse<ApiLSWalletLatest>>(
+    '/Lumpsum/ShowLumpsum',
+    payload,
+    { preloaderMessage: 'Loading wallets...' }
+  );
 
-    const total = wallets.length;
-    const start = (pagination.page - 1) * pagination.limit;
-    const page = wallets.slice(start, start + pagination.limit);
+  const lists = (response.Data?.lists ?? []).map(mapApiWalletToLSWallet);
 
-    return mockResponse<PaginationResponse<LSWallet>>({
-      lists: page,
-      page: pagination.page,
-      limit: pagination.limit,
-      total,
-      totalPages: Math.ceil(total / pagination.limit),
-    });
-  } catch (err) {
-    console.error('fetchWalletList error:', err);
-    throw err;
-  }
+  // Feed the atom so opening a row's detail page resolves the wallet.
+  patchStore({ wallets: lists });
+
+  return { ...response, Data: { ...response.Data, lists } };
 };
 
 /**
- * Fetch a single wallet by ID.
- *
- * REAL API SWAP:
- *   return httpClient.post<LSWallet>(
- *     '/LSWallet/detail',
- *     { walletId: id },
- *     { preloaderMessage: 'Loading wallet...' }
- *   );
+ * Fetch a single wallet by ID. LIVE — reads dbo.vLSWalletLatest + vLSWalletBalance.
  */
 export const fetchWalletById = async (id: number): Promise<ApiResponse<LSWallet>> => {
-  try {
-    const wallet = store.getWalletById(id);
-    if (!wallet) throw new Error('Wallet not found.');
-    return mockResponse(wallet);
-  } catch (err) {
-    console.error('fetchWalletById error:', err);
-    throw err;
-  }
+  const response = await httpClient.post<{
+    Wallet: ApiLSWalletLatest;
+    Balance: ApiLSWalletBalance;
+  }>('/Lumpsum/LumpsumDetails', { WalletId: id }, { preloaderMessage: 'Loading wallet...' });
+
+  const wallet = mapApiWalletToLSWallet(response.Data.Wallet);
+
+  // Deep-link / refresh straight onto /lumpsum/:id never runs the list query,
+  // so this is what puts the wallet into the atom for LSWalletDetail.
+  patchStore({ wallets: [wallet] });
+
+  return { ...response, Data: wallet };
 };
 
 /**
@@ -257,25 +303,34 @@ export const deleteWallet = async (
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch all itemized projects for a wallet.
+ * Fetch all itemized projects for a wallet. LIVE — reads dbo.vLSWalletProjectSet.
  *
- * REAL API SWAP:
- *   return httpClient.post<ItemizedProject[]>(
- *     '/LSWallet/itemized-projects',
- *     { walletId },
- *     { preloaderMessage: 'Loading projects...' }
- *   );
+ * The view returns only ProjectType = 'LS' rows that still have a live revision,
+ * so cancelled/deleted projects never appear. Cost-breakdown arrays are not
+ * included by this endpoint — see mapApiProjectToItemized.
  */
 export const fetchItemizedProjectsByWalletId = async (
   walletId: number
 ): Promise<ApiResponse<ItemizedProject[]>> => {
-  try {
-    const projects = store.getItemizedProjectsByWalletId(walletId);
-    return mockResponse(projects);
-  } catch (err) {
-    console.error('fetchItemizedProjectsByWalletId error:', err);
-    throw err;
-  }
+  const response = await httpClient.post<PaginationResponse<ApiLSWalletProjectSet>>(
+    '/Lumpsum/ShowItemizedProjects',
+    {
+      Filters: { WalletId: walletId },
+      // The detail page renders the full set; 200 is the backend's hard cap.
+      limit: 200,
+      page: 1,
+      Direction: 0,
+    },
+    { preloaderMessage: 'Loading projects...' }
+  );
+
+  const projects = (response.Data?.lists ?? []).map(mapApiProjectToItemized);
+
+  // Replaces this wallet's projects wholesale, so rows deleted server-side drop
+  // out instead of lingering. Also what useWalletBalance recomputes from.
+  patchStore({ projectsForWallet: { walletId, projects } });
+
+  return { ...response, Data: projects };
 };
 
 /**
@@ -633,29 +688,21 @@ export const advanceProgramStage = async (
 // ---------------------------------------------------------------------------
 
 /**
- * Compute the current balance for a wallet.
- * This is a client-side computation, not an API call.
- * The real balance will come from the vLSWalletBalance view via the API.
+ * Fetch the current balance for a wallet. LIVE — reads dbo.vLSWalletBalance.
  *
- * REAL API SWAP:
- *   return httpClient.post<LSWalletBalance>(
- *     '/LSWallet/balance',
- *     { walletId },
- *     { preloaderMessage: 'Computing balance...' }
- *   );
+ * Total/Used/Available are computed server-side on every read; there is no
+ * stored counter, so the figures cannot drift out of sync with the projects.
+ * computeWalletBalance() in utils/walletBalance.ts remains the client-side
+ * mirror of this formula and is still used for optimistic UI updates.
  */
 export const fetchWalletBalance = async (
   walletId: number
 ): Promise<ApiResponse<LSWalletBalance>> => {
-  try {
-    const wallet = store.getWalletById(walletId);
-    if (!wallet) throw new Error('Wallet not found.');
+  const response = await httpClient.post<ApiLSWalletBalance>(
+    '/Lumpsum/WalletBalance',
+    { WalletId: walletId },
+    { preloaderMessage: 'Computing balance...' }
+  );
 
-    const allProjects = store.getAllItemizedProjects();
-    const balance = computeWalletBalance(wallet, allProjects);
-    return mockResponse(balance);
-  } catch (err) {
-    console.error('fetchWalletBalance error:', err);
-    throw err;
-  }
+  return { ...response, Data: mapApiBalance(response.Data) };
 };
