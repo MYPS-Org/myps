@@ -18,7 +18,8 @@ export interface ProjectFormPayload {
   ProjectNotes: ProjectNote[];
   Docs: Docs[];
   FundingProfile: FundingProfile[];
-  Dropdowns: Dropdowns;
+  /** @deprecated Not returned by ShowProjectDetails. Use getComponentsEnums()/ShowProjectComponentDropdowns instead. Kept optional for the Modification/Revision module. */
+  Dropdowns?: Dropdowns;
   Activities: Activity[];
   TransactionLogs: TransactionLog[];
 }
@@ -362,15 +363,20 @@ export interface FundingProfile {
 }
 
 // #region Additional interfaces for dropdowns and enums
+// Shape of the /Project/ShowProjectComponentDropdowns response — dropdown data
+// for everything on ProjectForm.tsx that ShowProjectDropdowns does not cover.
 export interface Dropdowns {
+	// Program Details
+	Programs: ProgramList[];
+	// Component Cost
 	ComponentTypes: ComponentTypeEnum[];
 	// Funding Profile
 	Agreements: AgreementEnum[];
 	Sources: SourceEnum[];
-	// Major Item of Works
+	// Major Item of Works / Work Location
 	ScopeOfWorks: ScopeOfWorkEnum[];
 	InfraTypes: InfraTypeEnum[];
-	// Supporting Documents
+	// Notes / Supporting Documents
 	SupportingDocs: DropdownSupportingDocs[];
 	// Revisions
 	Revisions?: RevisionDropdown;
@@ -470,7 +476,8 @@ export interface SourceEnum {
 
 // #region add Project details Enums
 export interface ProjectEnums {
-  Programs: ProgramList[];
+  /** @deprecated Not returned by ShowProjectDropdowns. Use Dropdowns.Programs (ShowProjectComponentDropdowns) instead. Kept optional for the Modification/Revision module. */
+  Programs?: ProgramList[];
   Categories: CategoryEnum[];
   Thrusts: ThrustEnum[];
   Origins: TableEnum[];

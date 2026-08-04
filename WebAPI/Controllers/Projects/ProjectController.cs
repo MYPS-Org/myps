@@ -24,7 +24,7 @@ namespace WebAPI.Controllers.Projects
 
         #region Others
         [HttpPost]
-        public async Task<IActionResult> ShowProjectDropdowns([FromBody] ProjectDetailsDTO dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> ShowProjectDropdowns(CancellationToken cancellationToken)
         {
             try
             {
@@ -101,7 +101,7 @@ namespace WebAPI.Controllers.Projects
             }
         }
         [HttpPost]
-        public async Task<IActionResult> ShowProjectComponentDropdowns([FromBody] ProjectDetailsDTO dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> ShowProjectComponentDropdowns(CancellationToken cancellationToken)
         {
             try
             {
@@ -282,6 +282,7 @@ namespace WebAPI.Controllers.Projects
         #endregion
 
         #region Add Project
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] AddProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -364,6 +365,8 @@ namespace WebAPI.Controllers.Projects
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjects.AddAsync(SubmitProject);
+                await _db.SaveChangesAsync();
+
                 var ProjectRevision = new ProjectRevisions()
                 {
                     ProjectFK = ProjectPK,
@@ -432,9 +435,35 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
+
+        [HttpPost]
+        public async Task<IActionResult> SearchProgram([FromBody] SearchProgramDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if(dto.Filter.Length < 3)
+                {
+                    return new BadRequestObjectResult(new { Message = "Filter must be at least 3 characters long", Title = "Invalid Filter" });
+                }
+                var SearchedProgram = await _db.vProgramLatest.AsNoTracking().Where(x => 
+                    x.Status != EnumProgramStatus.Approved.ToString()
+                    && x.StageName != EnumProgramStage.GAAR.ToString()
+                    && (x.Name.Contains(dto.Filter) || x.ProgramId.Contains(dto.Filter) || x.Type.Contains(dto.Filter)))
+                .ToListAsync(cancellationToken);
+                return Ok(new
+                {
+                    Programs = SearchedProgram
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         #endregion
 
         #region Project Details and Update Project
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectDetails([FromBody] ProjectDetailsDTO dto, CancellationToken cancellationToken)
         {

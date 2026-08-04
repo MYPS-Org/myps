@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import type { FundingProfile, ProjectFormPayload } from "../Model";
+import type { FundingProfile, SourceEnum, AgreementEnum } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
@@ -7,21 +7,23 @@ import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurre
 import SearchableDropdown from "../../../components/ui/SearchableDropdown";
 
 interface FundingProfileFormProps {
-  initialData?: ProjectFormPayload;
   fundingProfiles: FundingProfile[];
   onAdd: () => void;
   onEdit: (index: number, updatedProfile: FundingProfile) => void;
   onDelete: (index: number) => void;
+  sources?: SourceEnum[];
+  agreements?: AgreementEnum[];
   onTotalAmountChange?: (totalAmount: number) => void; // Optional callback for total amount change
   disabled?: boolean;
 }
 
-const FundingProfileForm: React.FC<FundingProfileFormProps> = ({ 
+const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   fundingProfiles,
-  onAdd, 
-  onEdit, 
+  onAdd,
+  onEdit,
   onDelete,
-  initialData,
+  sources,
+  agreements,
   onTotalAmountChange = () => {}, // Default to no-op if not provided
   disabled = false
 }) => {
@@ -206,7 +208,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             <TableRow key={profile.Id === 0 ? `new-${index}` : profile.Id}>
                 <TableCell className="w-1/3">
                   <SearchableDropdown
-                    options={formatDropdownOptions(initialData?.Dropdowns?.Sources || [], 'Organization', 'Name', 'Id')}
+                    options={formatDropdownOptions(sources || [], 'Organization', 'Name', 'Id')}
                     value={profile.Source || ''}
                     onChange={(value) => onEdit(index, { ...profile, Source: String(value), Agreement: '' })}
                     placeholder="Select Source"
@@ -218,7 +220,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell className="w-1/3">
                   <SearchableDropdown
                     options={formatDropdownOptions(
-                      initialData?.Dropdowns?.Agreements?.filter((a) => a.SourceOrg === profile.Source) || [],
+                      agreements?.filter((a) => a.SourceOrg === profile.Source) || [],
                       'Code',
                       'Name',
                       'Id'

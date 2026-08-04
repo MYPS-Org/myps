@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import type { ProjectEnums } from "../Model";
 import type { ProgramList } from "../../Program/Model";
 
 interface ProgramDetailsFormProps {
@@ -8,7 +7,7 @@ interface ProgramDetailsFormProps {
   setProgramDetails: React.Dispatch<React.SetStateAction<ProgramList>>;
   onChange?: (updatedDetails: ProgramList) => void;
   mode?: 'add' | 'edit';
-  projectEnums?: ProjectEnums;
+  programs?: ProgramList[];
   initialStageName?: string;
 }
 
@@ -18,7 +17,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
   setProgramDetails,
   onChange,
   mode = 'add',
-  projectEnums,
+  programs,
   initialStageName
 }) => {
   const [searchFormData, setSearchFormData] = useState('');
@@ -33,10 +32,10 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
 
   const setProgram = (value: string) => {
     console.log('Selected program value:', value);
-      const selectedProgram = projectEnums?.Programs?.find(
+      const selectedProgram = programs?.find(
         program => program.ProgramId === value
       );
-      console.log(projectEnums?.Programs);
+      console.log(programs);
       if(!selectedProgram) {
         // Clear the program details if no program is selected
         const emptyProgramDetails: ProgramList = {
@@ -81,7 +80,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                   >
                     <option value="">Select Program</option>
-                    {projectEnums?.Programs?.filter((program) => {
+                    {programs?.filter((program) => {
                       // Filter out GAA-R programs
                       if (program.StageName === 'GAA-R') return false;
                       // If initialStageName is provided, only show programs with matching stageName

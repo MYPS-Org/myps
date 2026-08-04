@@ -14,8 +14,10 @@
 //      The two types are structurally compatible except for ProjectId vs WalletId —
 //      DeleteComponentDialog only reads ComponentId, ComponentType, Total, Description,
 //      so the cast is safe.
-//   7. componentTypes are passed as a prop (from MOCK_WALLET_COMPONENT_TYPES constant),
-//      not sourced from initialData?.Dropdowns?.ComponentTypes.
+//   7. componentTypes are passed as a prop, sourced from
+//      ShowProjectComponentDropdowns (Dropdowns.ComponentTypes) — includes the
+//      'LS' (Lump Sum) type, unlike the regular Project ComponentCostDialog
+//      which excludes it via WALLET_EXCLUSIVE_COMPONENT_TYPES.
 // =============================================================================
 
 import React, { useState } from 'react';
@@ -41,7 +43,7 @@ interface WalletComponentCostFormProps {
   onAdd: (cost: WalletComponentCost, costPerYear: WalletComponentCostPerYear[]) => void;
   onEdit: (index: number, updatedCost: WalletComponentCost, costPerYear: WalletComponentCostPerYear[]) => void;
   onDelete: (index: number) => void;
-  /** Component types list (use MOCK_WALLET_COMPONENT_TYPES from constants). */
+  /** Component types list — from ShowProjectComponentDropdowns (Dropdowns.ComponentTypes). */
   componentTypes: ComponentTypeEnum[];
   /** wallet.Amount — the total funded budget cap. */
   maxAmountCost?: number;

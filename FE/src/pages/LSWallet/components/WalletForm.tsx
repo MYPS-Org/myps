@@ -5,7 +5,7 @@ import { useToast } from '../../../components/toaster/ToasterContext';
 import { formValidation } from '../../../utils/FormValidation';
 import { walletFormRules } from '../rules/walletFormRules';
 import { createWallet, updateWallet } from '../Service';
-import { getProjectEnums } from '../../Project/Service';
+import { getProjectEnums, getComponentsEnums } from '../../Project/Service';
 import { Button } from '../../../components/tailwindui/button';
 import { useWalletBalance } from '../hooks/useWalletBalance';
 
@@ -25,8 +25,7 @@ import type {
   WalletComponentCost,
   WalletComponentCostPerYear,
 } from '../Model.d';
-import type { ProjectEnums } from '../../Project/Model.d';
-import { MOCK_WALLET_COMPONENT_TYPES } from '../utils/constants';
+import type { ProjectEnums, Dropdowns } from '../../Project/Model.d';
 
 interface WalletFormProps {
   initialData?: LSWallet;
@@ -59,6 +58,7 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
   const [errors, setErrors] = useState<Partial<Record<keyof LSWallet, string>>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
+  const [componentDropdowns, setComponentDropdowns] = useState<Dropdowns | null>(null);
 
   // ── Array state — funding profiles and component costs ───────────────────
   const [fundingProfiles, setFundingProfiles] = useState<WalletFundingProfile[]>(
@@ -108,7 +108,7 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
     setWallet((prev) => ({ ...prev, Amount: derivedAmount }));
   }, [fundingProfiles]);
 
-  // ── Load project enums on mount ───────────────────────────────────────────
+  // ── Load project-details dropdowns (ShowProjectDropdowns) on mount ───────
   useEffect(() => {
     const loadEnums = async () => {
       try {
@@ -120,6 +120,21 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
       }
     };
     loadEnums();
+  }, []);
+
+  // ── Load component dropdowns (ShowProjectComponentDropdowns) on mount —
+  // Programs (for Program Details), Sources/Agreements (Funding Profile),
+  // ComponentTypes (Component Cost) ───────────────────────────────────────
+  useEffect(() => {
+    const loadComponentDropdowns = async () => {
+      try {
+        const response = await getComponentsEnums();
+        setComponentDropdowns(response.Data);
+      } catch {
+        console.error('Failed to load component dropdowns.');
+      }
+    };
+    loadComponentDropdowns();
   }, []);
 
   // ── Generic flat-field setter ─────────────────────────────────────────────
@@ -222,7 +237,7 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
     }
 
     // Resolve program name for the confirm dialog
-    const selectedProgram = projectEnums?.Programs.find(
+    const selectedProgram = componentDropdowns?.Programs?.find(
       (p) => p.ProgramId === wallet.ProgramId
     );
     if (!selectedProgram) {
@@ -390,7 +405,7 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
           onChange={handleChange}
           errors={errors}
           disabled={isDisabled}
-          projectEnums={projectEnums}
+          programs={componentDropdowns?.Programs}
           mode={mode}
         />
       </CollapsibleSection>
@@ -424,6 +439,8 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
               onAdd={handleAddFundingProfile}
               onEdit={handleEditFundingProfile}
               onDelete={handleDeleteFundingProfile}
+              sources={componentDropdowns?.Sources}
+              agreements={componentDropdowns?.Agreements}
               disabled={isDisabled}
             />
           </CollapsibleSection>
@@ -439,7 +456,7 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
               onAdd={handleAddComponentCost}
               onEdit={handleEditComponentCost}
               onDelete={handleDeleteComponentCost}
-              componentTypes={MOCK_WALLET_COMPONENT_TYPES}
+              componentTypes={componentDropdowns?.ComponentTypes || []}
               maxAmountCost={wallet.Amount}
               walletId={wallet.Id}
               disabled={isDisabled}
