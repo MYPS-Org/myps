@@ -1,6 +1,16 @@
 /* =============================================================================
    LS Wallet (Lumpsum) — schema extensions
    -----------------------------------------------------------------------------
+   *** SUPERSEDED — DO NOT RUN. ***
+   Section 2 (the flat tLSWallets columns) is replaced by
+   LSWallet.Revisions.Schema.sql, which normalizes dbo.tLSWallets into a
+   header + tLSWalletRevisions + tLSWalletFundingProfile +
+   tLSWalletComponentCost(PerYear) shape instead. Section 1 (the
+   CK_tProjects_ProjectType 'NP' addition) is independent of that and has
+   been carried forward into LSWallet.Revisions.Schema.sql's own section 0a,
+   so it still takes effect — this whole file is kept here for history only.
+   See documents/plans/lswallet-backend-schema-normalization.md.
+
    Apply BEFORE LSWallet.sql (the views read the columns added here).
 
    1. Adds 'NP' (Non Project) to CK_tProjects_ProjectType. Flow doc §7 requires

@@ -11,6 +11,14 @@ namespace DBHelper.Models.Views.Lumpsum
     ///
     /// Program display fields and the Total/Used/Available balance are joined in
     /// by the view, so they can never go stale against tLSWallets.
+    ///
+    /// The old flat Amount/FundingSource/FundingAgreement/FundingPercentage/
+    /// ComponentYear/ComponentUACS/ComponentStartDate/ComponentEndDate/
+    /// ComponentType properties are gone — funding is now multi-line
+    /// (dbo.tLSWalletFundingProfile) and component cost is multi-row
+    /// (dbo.tLSWalletComponentCost/PerYear); <see cref="Total"/> already
+    /// carries what Amount used to represent. See
+    /// documents/plans/lswallet-backend-schema-normalization.md.
     /// </summary>
     public class LSWalletLatest
     {
@@ -35,18 +43,8 @@ namespace DBHelper.Models.Views.Lumpsum
         public string? OperatingUnit { get; set; }
 
         // ── Wallet ──────────────────────────────────────────────────────────
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal Amount { get; set; }
+        /// <summary>The wallet's own lifecycle stage (BP/NEP/HGAB/GAA/GAA-R).</summary>
         public string? CurrentStage { get; set; }
-        public string? FundingSource { get; set; }
-        public string? FundingAgreement { get; set; }
-        public double? FundingPercentage { get; set; }
-        public int? ComponentYear { get; set; }
-        public string? ComponentUACS { get; set; }
-        public DateTime? ComponentStartDate { get; set; }
-        public DateTime? ComponentEndDate { get; set; }
-        /// <summary>Always 'LS' — locked at creation.</summary>
-        public string ComponentType { get; set; } = "LS";
         /// <summary>False only for a wallet untouched since creation (WF-7 delete tier).</summary>
         public bool HasStageData { get; set; }
 
