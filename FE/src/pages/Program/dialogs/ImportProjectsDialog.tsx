@@ -10,8 +10,8 @@ import {
 import { Button } from '../../../components/tailwindui/button';
 import { useCallback, useState, useRef } from 'react';
 import type { ImportedProject, ImportParseResult } from '../../Project/Model.d';
-import { parseImportFile } from '../utils/parseImportFile';
-import { transformImportedProjects } from '../utils/transformImportedProjects';
+import { parseImportFile } from '../../Project/utils/parseImportFile';
+import { transformImportedProjects } from '../../Project/utils/transformImportedProjects';
 
 interface ImportProjectsDialogProps {
   isOpen: boolean;

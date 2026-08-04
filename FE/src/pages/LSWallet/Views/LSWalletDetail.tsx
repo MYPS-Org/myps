@@ -1,0 +1,744 @@
+// =============================================================================
+// LSWalletDetail.tsx — LS Wallet detail page (orchestrator)
+//
+// Architecture note on Jotai vs. explicit refetches:
+//   Service.ts's syncAtom() pushes a FULL snapshot of { wallets, itemizedProjects }
+//   into walletDataAtom after EVERY mutation (replenish, create/delete project,
+//   publish, advance stage, etc.). This means wallet-level fields (CurrentStage,
+//   Amount, HasStageData) and project-level fields (PublishStatus, CurrentDrawAmount)
+//   are ALL reactive through the atom — no explicit refetches needed after mutations.
+//
+//   Revisions are the single exception: they're not in the atom snapshot (the atom
+//   only carries wallets + itemizedProjects). Revision state is managed locally
+//   and updated via onSuccess callbacks from the revision dialogs.
+// =============================================================================
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useAtomValue } from 'jotai';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { useToast } from '../../../components/toaster/ToasterContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import type { ImportedProject } from '../../Project/Model.d';
+
+import { walletDataAtom } from '../store/walletStore';
+import { useWalletBalance } from '../hooks/useWalletBalance';
+import * as Service from '../Service';
+import type { ItemizedProject, ItemizedProjectRevision, DtoImportItemizedProjects } from '../Model.d';
+import type { LSWallet } from '../Model.d';
+import { getWalletActions, getItemizedProjectActions } from '../utils/walletActions';
+
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHeader,
+} from '../../../components/tailwindui/table';
+
+import WalletBalanceWidget from '../components/WalletBalanceWidget';
+import WalletStatusBadge from '../utils/walletStatusBadge';
+import WalletActionButtons from '../components/WalletActionButtons';
+import CollapsibleSection from '../components/CollapsibleSection';
+import WalletForm from '../components/WalletForm';
+
+import ReplenishWalletDialog from '../dialogs/ReplenishWalletDialog';
+import ImportItemizedProjectsDialog from '../dialogs/ImportItemizedProjectsDialog';
+import DeleteWalletDialog from '../dialogs/DeleteWalletDialog';
+import AdvanceProgramStageDialog from '../dialogs/AdvanceProgramStageDialog';
+import EditDrawAmountDialog from '../dialogs/EditDrawAmountDialog';
+import PublishItemizedProjectDialog from '../dialogs/PublishItemizedProjectDialog';
+import ItemizedProjectRevisionDialog from '../dialogs/ItemizedProjectRevisionDialog';
+import DeleteItemizedProjectDialog from '../dialogs/DeleteItemizedProjectDialog';
+import ApproveRevisionDialog from '../dialogs/ApproveRevisionDialog';
+import RejectRevisionDialog from '../dialogs/RejectRevisionDialog';
+import ReturnRevisionForReviewDialog from '../dialogs/ReturnRevisionForReviewDialog';
+
+// ---------------------------------------------------------------------------
+// Status code → human label (mirrors ItemizedProjectRevision status codes)
+// 0=Pending, 1=Approved, 2=Disapproved, 3=ForReview
+// ---------------------------------------------------------------------------
+const revisionStatusLabel = (status: 0 | 1 | 2 | 3): string => {
+  switch (status) {
+    case 0: return 'Pending';
+    case 1: return 'Approved';
+    case 2: return 'Disapproved';
+    case 3: return 'For Review';
+  }
+};
+
+const revisionStatusClass = (status: 0 | 1 | 2 | 3): string => {
+  switch (status) {
+    case 1: return 'bg-green-100 text-green-700';
+    case 2: return 'bg-red-100 text-red-700';
+    case 3: return 'bg-amber-100 text-amber-700';
+    default: return 'bg-gray-100 text-gray-600';
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+const LSWalletDetail: React.FC = () => {
+  const { walletId: walletIdStr } = useParams<{ walletId: string }>();
+  const navigate = useNavigate();
+  const walletIdNum = Number(walletIdStr);
+  const { user } = useAuth();
+  const { showToast } = useToast();
+
+  // ---------------------------------------------------------------------------
+  // Reactive wallet + project data from Jotai atom.
+  // Every mutation that calls syncAtom() pushes a fresh snapshot here,
+  // so the UI stays consistent without explicit refetches after mutations.
+  // ---------------------------------------------------------------------------
+  const { wallets, itemizedProjects: allProjects } = useAtomValue(walletDataAtom);
+
+  const wallet: LSWallet | null =
+    wallets.find((w) => w.Id === walletIdNum && !w.IsDeleted) ?? null;
+
+  // Only show active (non-deleted, non-cancelled) projects belonging to this wallet
+  const projects = allProjects.filter(
+    (p) =>
+      p.ParentWalletId === walletIdNum && !p.IsDeleted && !p.IsCancelled
+  );
+
+  // Balance is derived reactively from the same atom (re-computes after every syncAtom())
+  const balance = useWalletBalance(walletIdNum);
+
+  // ---------------------------------------------------------------------------
+  // Revisions — not in Jotai atom; fetched once on mount, then patched locally
+  // ---------------------------------------------------------------------------
+  const [revisions, setRevisions] = useState<Record<number, ItemizedProjectRevision[]>>({});
+
+  // Tracks the wallet fetch so we don't render "Wallet Not Found" while it's
+  // still in flight — the atom is legitimately empty for one render on a deep
+  // link, and flashing the empty state there looks like a real error.
+  const [walletLoading, setWalletLoading] = useState(true);
+
+  useEffect(() => {
+    // A non-numeric :walletId (e.g. the app landed here for "/lumpsum/add")
+    // has nothing to fetch — clear the flag so the guard below can render
+    // instead of leaving "Loading wallet…" on screen forever.
+    if (isNaN(walletIdNum)) {
+      setWalletLoading(false);
+      return;
+    }
+    let cancelled = false;
+
+    // Landing straight on /lumpsum/:id (deep link, refresh, or a bookmarked
+    // URL) never runs the list query, so nothing else would put this wallet in
+    // the atom. fetchWalletById hydrates it from the API.
+    setWalletLoading(true);
+    Service.fetchWalletById(walletIdNum)
+      .catch(() => {
+        // httpClient's interceptor already surfaced the error toast; the
+        // "Wallet Not Found" panel below is the in-page fallback.
+      })
+      .finally(() => {
+        if (!cancelled) setWalletLoading(false);
+      });
+
+    // Fetch projects fresh from Service (bypasses atom to get a clean starting snapshot
+    // before we know which ones are published — the atom may not yet be populated on
+    // first render in SSR-style hydration scenarios, though in practice it's synchronous)
+    Service.fetchItemizedProjectsByWalletId(walletIdNum).then((res) => {
+      if (cancelled) return;
+      const published = res.Data.filter(
+        (p) => !p.IsDeleted && !p.IsCancelled && p.PublishStatus === 'Published'
+      );
+      if (published.length === 0) return;
+
+      Promise.all(
+        published.map((p) =>
+          Service.fetchWalletRevisions(p.Id).then((r) => ({ id: p.Id, data: r.Data }))
+        )
+      ).then((results) => {
+        if (!cancelled) {
+          setRevisions(Object.fromEntries(results.map((r) => [r.id, r.data])));
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [walletIdNum]);
+
+  // ---------------------------------------------------------------------------
+  // Collapsible section state — all default to true (expanded)
+  // Follows the same pattern as ProjectForm.tsx (isProgramOpen, isProjectOpen, etc.)
+  // Wallet Details / Funding Profile / Component Details are no longer owned
+  // here — they're rendered via <WalletForm mode="edit" .../> below, the same
+  // component the Add Wallet page uses, mirroring how AddProject.tsx/EditProject.tsx
+  // both delegate to ProjectForm.tsx instead of each hand-rolling the same sections.
+  // ---------------------------------------------------------------------------
+  const [isProjectsOpen, setIsProjectsOpen] = useState(true);
+  const [isRevHistoryOpen, setIsRevHistoryOpen] = useState(true);
+
+  // Per-project revision expansion — keyed by project.Id (numeric PK, not ProjectId string)
+  // Default {} means all collapsed, matching the old <details> default-closed behaviour
+  const [expandedRevisions, setExpandedRevisions] = useState<Record<number, boolean>>({});
+
+  const toggleProjectRevision = (id: number) =>
+    setExpandedRevisions((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // ---------------------------------------------------------------------------
+  // Dialog state — wallet-level (always mounted, toggled via boolean)
+  // ---------------------------------------------------------------------------
+  const [replenishOpen, setReplenishOpen] = useState(false);
+  const [importProjectsOpen, setImportProjectsOpen] = useState(false);
+  const [deleteWalletOpen, setDeleteWalletOpen] = useState(false);
+  const [advanceStageOpen, setAdvanceStageOpen] = useState(false);
+
+  // Dialog state — project-level (conditionally mounted; null = closed)
+  const [editDrawTarget, setEditDrawTarget] = useState<ItemizedProject | null>(null);
+  const [publishTarget, setPublishTarget] = useState<ItemizedProject | null>(null);
+  const [revisionTarget, setRevisionTarget] = useState<ItemizedProject | null>(null);
+  const [deleteProjectTarget, setDeleteProjectTarget] = useState<ItemizedProject | null>(null);
+
+  // Dialog state — revision-level (conditionally mounted)
+  const [approveTarget, setApproveTarget] = useState<{
+    revision: ItemizedProjectRevision;
+    stage: 'Region' | 'CO';
+  } | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<{
+    revision: ItemizedProjectRevision;
+    stage: 'Region' | 'CO';
+  } | null>(null);
+  const [returnTarget, setReturnTarget] = useState<{
+    revision: ItemizedProjectRevision;
+    stage: 'Region' | 'CO';
+  } | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Revision state helpers
+  // ---------------------------------------------------------------------------
+
+  const addRevision = (revision: ItemizedProjectRevision) => {
+    setRevisions((prev) => ({
+      ...prev,
+      [revision.ItemizedProjectId]: [
+        ...(prev[revision.ItemizedProjectId] ?? []),
+        revision,
+      ],
+    }));
+  };
+
+  const updateRevision = (updated: ItemizedProjectRevision) => {
+    setRevisions((prev) => ({
+      ...prev,
+      [updated.ItemizedProjectId]: (prev[updated.ItemizedProjectId] ?? []).map(
+        (r) => (r.Id === updated.Id ? updated : r)
+      ),
+    }));
+  };
+
+  // ---------------------------------------------------------------------------
+  // Not-found / invalid guard — must come after all hooks
+  // ---------------------------------------------------------------------------
+  // Still fetching: showing the not-found panel here would misreport a wallet
+  // that simply hasn't arrived yet.
+  if (walletLoading && !wallet) {
+    return <div className="p-6 text-gray-600">Loading wallet…</div>;
+  }
+
+  if (isNaN(walletIdNum) || !wallet || !balance) {
+    return (
+      <div className="p-6 space-y-4">
+        <h1 className="text-2xl font-bold text-gray-800">Wallet Not Found</h1>
+        <p className="text-gray-600">
+          Wallet{walletIdStr ? ` "${walletIdStr}"` : ''} does not exist or has been deleted.
+        </p>
+        <Link to="/lumpsum" className="text-blue-600 hover:underline text-sm">
+          Back to LS Wallets list
+        </Link>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Import Itemized Projects handler
+  // ---------------------------------------------------------------------------
+  const handleImportItemizedProjects = async (importedProjects: ImportedProject[]) => {
+    if (!wallet) return;
+
+    const payload: DtoImportItemizedProjects = {
+      parentWalletId: wallet.Id,
+      programId: wallet.ProgramId,
+      projects: importedProjects,
+      createdBy: user?.UserId || '',
+    };
+
+    try {
+      const result = await Service.importItemizedProjects(payload);
+      setImportProjectsOpen(false);
+      showToast({
+        type: 'success',
+        message: `Successfully imported ${result.Data.length} project${result.Data.length !== 1 ? 's' : ''}.`,
+      });
+    } catch {
+      // httpClient interceptor already showed the error toast
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Add (new) Itemized Project handler — mirrors ProgramDetail.tsx's
+  // handleAddProject navigation, plus AlternateId so AddProject can trace the
+  // new itemized project back to this LS Wallet.
+  // ---------------------------------------------------------------------------
+  const handleAddItemizedProject = () => {
+    if (!wallet) return;
+    navigate(
+      `/projects/addproject?programId=${wallet.ProgramId}&stageName=${wallet.CurrentStage}&AlternateId=${wallet.Id}`
+    );
+  };
+
+  // ---------------------------------------------------------------------------
+  // Wallet-level action config
+  // ---------------------------------------------------------------------------
+  const walletActions = getWalletActions({
+    wallet,
+    balance,
+    itemizedProjects: projects,
+    actions: {
+      onReplenish: () => setReplenishOpen(true),
+      onAddItemizedProject: () => setImportProjectsOpen(true),
+      onAddNewItemizedProject: handleAddItemizedProject,
+      onDelete: () => setDeleteWalletOpen(true),
+      onAdvanceStage: () => setAdvanceStageOpen(true),
+    },
+  });
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+  const formatCurrency = (amount: number) =>
+    `₱${amount.toLocaleString('en-PH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+  return (
+    <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
+      {/* Breadcrumb */}
+      <nav className="text-sm text-gray-500 flex items-center gap-1">
+        <Link to="/lumpsum" className="hover:text-gray-700 hover:underline">
+          LS Wallets
+        </Link>
+        <span>/</span>
+        <span className="text-gray-800 font-medium">{wallet.ProgramName}</span>
+      </nav>
+
+      {/* Page header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900">{wallet.ProgramName}</h1>
+          <WalletStatusBadge stage={wallet.CurrentStage} />
+        </div>
+        <span className="text-sm text-gray-500 pt-1">Wallet ID: {wallet.Id}</span>
+      </div>
+
+      {/* Balance widget */}
+      <WalletBalanceWidget
+        total={balance.Total}
+        used={balance.Used}
+        available={balance.Available}
+      />
+
+      {/* Wallet action buttons */}
+      <div className="flex justify-end">
+        <WalletActionButtons actions={walletActions} />
+      </div>
+
+      {/* Wallet Details / Funding Profile / Component Details — same WalletForm
+          component the Add Wallet page uses (mode="edit" renders it read-only),
+          mirroring how EditProject.tsx reuses ProjectForm.tsx instead of
+          duplicating its sections. */}
+      <WalletForm mode="edit" initialData={wallet} />
+
+      <CollapsibleSection
+        title="Itemized Projects"
+        isOpen={isProjectsOpen}
+        onToggle={() => setIsProjectsOpen(!isProjectsOpen)}
+      >
+            {projects.length === 0 ? (
+              <p className="text-sm text-gray-500">No itemized projects for this wallet.</p>
+            ) : (
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableHeader justify="center">Project ID</TableHeader>
+                    <TableHeader justify="center">Draw Amount</TableHeader>
+                    <TableHeader justify="center">Publish Status</TableHeader>
+                    <TableHeader justify="center">Project Status</TableHeader>
+                    <TableHeader justify="center">Actions</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {projects.map((project) => {
+                    // PublishedDrawAmount is the frozen snapshot used for the Used balance.
+                    // Before publish, show CurrentDrawAmount (live, editable).
+                    const displayAmount =
+                      project.PublishedDrawAmount ?? project.CurrentDrawAmount;
+                    const amountLabel =
+                      project.PublishedDrawAmount != null ? '(published)' : '(current)';
+
+                    const projectActions = getItemizedProjectActions({
+                      project,
+                      wallet,
+                      actions: {
+                        onEditDraw: () => setEditDrawTarget(project),
+                        onPublish: () => setPublishTarget(project),
+                        onRequestRevision: () => setRevisionTarget(project),
+                        onDelete: () => setDeleteProjectTarget(project),
+                      },
+                    });
+
+                    return (
+                      <TableRow key={project.ProjectId}>
+                        <TableCell className="font-mono text-xs text-gray-700">
+                          {project.ProjectId}
+                        </TableCell>
+                        <TableCell>
+                          {formatCurrency(displayAmount)}
+                          <span className="ml-1 text-xs text-gray-400">{amountLabel}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              project.PublishStatus === 'Published'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {project.PublishStatus}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-gray-600 text-xs">
+                          {project.ProjectStatus}
+                        </TableCell>
+                        <TableCell>
+                          <WalletActionButtons actions={projectActions} size="xs" />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+      </CollapsibleSection>
+
+      {projects.some((p) => p.PublishStatus === 'Published') && (
+        <CollapsibleSection
+          title="Transaction Logs"
+          isOpen={isRevHistoryOpen}
+          onToggle={() => setIsRevHistoryOpen(!isRevHistoryOpen)}
+        >
+              <div className="space-y-3">
+                {projects
+                  .filter((p) => p.PublishStatus === 'Published')
+                  .map((project) => {
+                    const projectRevisions = revisions[project.Id] ?? [];
+                    // Keyed by project.Id (numeric PK) — NOT project.ProjectId (string AIP code)
+                    const isExpanded = !!expandedRevisions[project.Id];
+
+                    return (
+                      <div
+                        key={project.Id}
+                        className="border border-gray-200 rounded-lg"
+                      >
+                        {/* Per-project toggle header */}
+                        <div
+                          className="flex justify-between items-center px-4 py-3 cursor-pointer select-none hover:bg-gray-50 rounded-lg"
+                          onClick={() => toggleProjectRevision(project.Id)}
+                        >
+                          <span className="text-sm font-medium text-gray-700">
+                            {project.ProjectId}
+                            <span className="ml-2 text-xs text-gray-400 font-normal">
+                              {projectRevisions.length} revision
+                              {projectRevisions.length !== 1 ? 's' : ''}
+                            </span>
+                          </span>
+                          {isExpanded ? (
+                            <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                          ) : (
+                            <ChevronRightIcon className="h-4 w-4 text-gray-500" />
+                          )}
+                        </div>
+
+                        {isExpanded && (
+                          <div className="px-4 pb-4 pt-1">
+                            {projectRevisions.length === 0 ? (
+                              <p className="text-sm text-gray-500 py-2">
+                                No revisions submitted.
+                              </p>
+                            ) : (
+                              <Table>
+                                <TableHead>
+                                  <TableRow>
+                                    <TableHeader justify="center">Transaction ID</TableHeader>
+                                    <TableHeader justify="center">Reason</TableHeader>
+                                    <TableHeader justify="center">Requested Cost</TableHeader>
+                                    <TableHeader justify="center">Region</TableHeader>
+                                    <TableHeader justify="center">CO</TableHeader>
+                                    <TableHeader justify="center">Actions</TableHeader>
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {projectRevisions.map((revision) => {
+                                    // Region is actionable when it's pending reviewer action.
+                                    // CO is actionable only after Region approves.
+                                    const regionActionable = revision.RegionStatus === 0;
+                                    const coActionable =
+                                      revision.RegionStatus === 1 && revision.COStatus === 0;
+
+                                    return (
+                                      <TableRow key={revision.Id}>
+                                        <TableCell className="font-mono text-xs text-gray-700">
+                                          {revision.TransactionId}
+                                        </TableCell>
+                                        <TableCell className="max-w-xs">
+                                          <span
+                                            className="block truncate text-gray-600"
+                                            title={revision.Reason}
+                                          >
+                                            {revision.Reason}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell className="text-gray-700">
+                                          {formatCurrency(revision.RequestedCost)}
+                                        </TableCell>
+                                        <TableCell>
+                                          {/* rounded-full for pill consistency with publish-status badge */}
+                                          <span
+                                            className={`inline-flex px-1.5 py-0.5 rounded-full text-xs font-medium ${revisionStatusClass(revision.RegionStatus)}`}
+                                          >
+                                            {revisionStatusLabel(revision.RegionStatus)}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell>
+                                          <span
+                                            className={`inline-flex px-1.5 py-0.5 rounded-full text-xs font-medium ${revisionStatusClass(revision.COStatus)}`}
+                                          >
+                                            {revisionStatusLabel(revision.COStatus)}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell>
+                                          {regionActionable && (
+                                            <div className="flex gap-1 flex-wrap">
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setApproveTarget({ revision, stage: 'Region' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                              >
+                                                Approve (R)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setRejectTarget({ revision, stage: 'Region' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                              >
+                                                Reject (R)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setReturnTarget({ revision, stage: 'Region' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
+                                              >
+                                                Return (R)
+                                              </button>
+                                            </div>
+                                          )}
+                                          {coActionable && (
+                                            <div className="flex gap-1 flex-wrap">
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setApproveTarget({ revision, stage: 'CO' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                              >
+                                                Approve (CO)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setRejectTarget({ revision, stage: 'CO' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                              >
+                                                Reject (CO)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setReturnTarget({ revision, stage: 'CO' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
+                                              >
+                                                Return (CO)
+                                              </button>
+                                            </div>
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                              </Table>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+        </CollapsibleSection>
+      )}
+
+      {/* ================================================================== */}
+      {/* Dialogs                                                             */}
+      {/* ================================================================== */}
+
+      {/* Wallet-level dialogs — always mounted, open prop controls visibility */}
+
+      <ReplenishWalletDialog
+        open={replenishOpen}
+        onClose={() => setReplenishOpen(false)}
+        onSuccess={() => setReplenishOpen(false)}
+        wallet={wallet}
+        currentBalance={balance}
+      />
+
+      <ImportItemizedProjectsDialog
+        isOpen={importProjectsOpen}
+        onClose={() => setImportProjectsOpen(false)}
+        onSubmit={handleImportItemizedProjects}
+        wallet={wallet}
+        balance={balance}
+      />
+
+      {/* On wallet delete, navigate away — wallet is removed from active view */}
+      <DeleteWalletDialog
+        open={deleteWalletOpen}
+        onClose={() => setDeleteWalletOpen(false)}
+        onSuccess={() => navigate('/lumpsum')}
+        wallet={wallet}
+      />
+
+      <AdvanceProgramStageDialog
+        open={advanceStageOpen}
+        onClose={() => setAdvanceStageOpen(false)}
+        onSuccess={() => setAdvanceStageOpen(false)}
+        programId={wallet.ProgramId}
+        programName={wallet.ProgramName}
+        currentStage={wallet.CurrentStage}
+      />
+
+      {/* Project-level dialogs — conditionally mounted via target state */}
+
+      {editDrawTarget && (
+        <EditDrawAmountDialog
+          open
+          onClose={() => setEditDrawTarget(null)}
+          onSuccess={() => setEditDrawTarget(null)}
+          project={editDrawTarget}
+          wallet={wallet}
+          balance={balance}
+        />
+      )}
+
+      {/* PublishDialog fires onSuccess internally before the user closes it (the compliance
+          check runs on open and auto-publishes if all rules pass). We only patch revision
+          state in onSuccess; the dialog stays visible showing the result banner until the
+          user clicks Close (which fires onClose). */}
+      {publishTarget && (
+        <PublishItemizedProjectDialog
+          open
+          onClose={() => setPublishTarget(null)}
+          onSuccess={(project) => {
+            setRevisions((prev) => ({ ...prev, [project.Id]: [] }));
+          }}
+          project={publishTarget}
+          wallet={wallet}
+        />
+      )}
+
+      {revisionTarget && (
+        <ItemizedProjectRevisionDialog
+          open
+          onClose={() => setRevisionTarget(null)}
+          onSuccess={(revision) => {
+            addRevision(revision);
+            setRevisionTarget(null);
+          }}
+          project={revisionTarget}
+          wallet={wallet}
+        />
+      )}
+
+      {deleteProjectTarget && (
+        <DeleteItemizedProjectDialog
+          open
+          onClose={() => setDeleteProjectTarget(null)}
+          onSuccess={() => setDeleteProjectTarget(null)}
+          project={deleteProjectTarget}
+        />
+      )}
+
+      {/* Revision-level dialogs */}
+
+      {approveTarget && (
+        <ApproveRevisionDialog
+          open
+          onClose={() => setApproveTarget(null)}
+          onSuccess={(updated) => {
+            updateRevision(updated);
+            setApproveTarget(null);
+          }}
+          revision={approveTarget.revision}
+          stage={approveTarget.stage}
+        />
+      )}
+
+      {rejectTarget && (
+        <RejectRevisionDialog
+          open
+          onClose={() => setRejectTarget(null)}
+          onSuccess={(updated) => {
+            updateRevision(updated);
+            setRejectTarget(null);
+          }}
+          revision={rejectTarget.revision}
+          stage={rejectTarget.stage}
+        />
+      )}
+
+      {returnTarget && (
+        <ReturnRevisionForReviewDialog
+          open
+          onClose={() => setReturnTarget(null)}
+          onSuccess={(updated) => {
+            updateRevision(updated);
+            setReturnTarget(null);
+          }}
+          revision={returnTarget.revision}
+          stage={returnTarget.stage}
+        />
+      )}
+    </div>
+  );
+};
+
+export default LSWalletDetail;
