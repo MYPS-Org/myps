@@ -28,8 +28,5 @@ namespace DBHelper.Models.Table.Lookups.Project
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
     }
 }

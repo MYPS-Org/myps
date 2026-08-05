@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 
 namespace DBHelper.Models.Enums
 {
@@ -6,12 +7,17 @@ namespace DBHelper.Models.Enums
     {
         [Required]
         public required T Filters { get; set; }
+        // DefaultValue is documentation only — it mirrors the C# initializer so
+        // Swagger's generated request body is runnable as-is instead of sending
+        // limit/page of 0.
         [Required]
+        [DefaultValue(10)]
         public int limit { get; set; } = 10;
 
         // The page currently displayed by the client.
         // The server increments/decrements it according to Direction.
         [Required]
+        [DefaultValue(1)]
         public int page { get; set; } = 1;
         [Required]
         public PaginationDirection Direction { get; set; } = PaginationDirection.Next;

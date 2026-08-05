@@ -981,8 +981,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
                             CheckUpdate.IsActive = data.IsActive;
                         }
-                        CheckUpdate.UpdatedBy = data.UpdatedBy;
-                        CheckUpdate.UpdatedDate = CurrentDate;
                         _db.tOptionFundingAgreement.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -1075,8 +1073,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
                             CheckUpdate.IsActive = data.IsActive;
                         }
-                        CheckUpdate.UpdatedBy = data.UpdatedBy;
-                        CheckUpdate.UpdatedDate = CurrentDate;
                         _db.tOptionFundingSource.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
