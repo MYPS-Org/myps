@@ -50,7 +50,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             
             if (newCity) {
                 const cityBelongsToProvince = projectEnums?.Cities?.find(
-                    (city) => city.GdbId === newCity && city.ProvinceGdbId === newProvince
+                    (city) => city.Code === newCity && city.ProvinceCode === newProvince
                 );
                 if (!cityBelongsToProvince) {
                     newCity = undefined;
@@ -59,7 +59,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
             if (newLD) {
                 const ldBelongsToProvince = projectEnums?.LDs?.find(
-                    (ld) => ld.GdbId === newLD && ld.ProvinceGdbId === newProvince
+                    (ld) => ld.Code === newLD && ld.ProvinceCode === newProvince
                 );
                 if (!ldBelongsToProvince) {
                     newLD = undefined;
@@ -68,7 +68,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
             if (newDEO) {
                 const deoBelongsToProvince = projectEnums?.DEOs?.find(
-                    (deo) => deo.ParticipantId === newDEO && deo.ProvinceGdbId === newProvince
+                    (deo) => deo.ParticipantId === newDEO && deo.RegionCode === newProvince
                 );
                 if (!deoBelongsToProvince) {
                     newDEO = undefined;
@@ -81,21 +81,21 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             if (newDEO !== projectDetails?.DEO) onChange('DEO', newDEO);
         }
         else if (field === 'City') {
-            const selectedCity = projectEnums?.Cities?.find((city) => city.GdbId === value);
+            const selectedCity = projectEnums?.Cities?.find((city) => city.Code === value);
             if (selectedCity) {
-                const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedCity.ProvinceGdbId);
-                console.log('City auto-set to ' + selectedCity.Name + ' (Province ID: ' + selectedCity.ProvinceGdbId + ')');
-                if (selectedProvince && selectedProvince.GdbId !== projectDetails?.Province) {
-                    onChange('Province', selectedProvince.GdbId);
-                    console.log('Province auto-set to ' + selectedProvince.Name + ' (ID: ' + selectedProvince.Id + ')');
+                const selectedProvince = projectEnums?.Provinces.find(p => p.Code === selectedCity.ProvinceCode);
+                console.log('City auto-set to ' + selectedCity.Name + ' (Province ID: ' + selectedCity.ProvinceCode + ')');
+                if (selectedProvince && selectedProvince.Code !== projectDetails?.Province) {
+                    onChange('Province', selectedProvince.Code);
+                    console.log('Province auto-set to ' + selectedProvince.Name + ' (ID: ' + selectedProvince.Code + ')');
                 }
                 
                 // Clear LD if it doesn't belong to the same province
                 if (projectDetails?.LegislativeDistrict) {
                     const currentLD = projectEnums?.LDs?.find(
-                        (ld) => ld.GdbId === projectDetails.LegislativeDistrict
+                        (ld) => ld.Code === projectDetails.LegislativeDistrict
                     );
-                    if (currentLD && currentLD.ProvinceGdbId !== selectedCity.ProvinceGdbId) {
+                    if (currentLD && currentLD.ProvinceCode !== selectedCity.ProvinceCode) {
                         onChange('LegislativeDistrict', undefined);
                     }
                 }
@@ -103,21 +103,21 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             onChange(field, value);
         }
         else if (field === 'LegislativeDistrict') {
-            const selectedLD = projectEnums?.LDs?.find((ld) => ld.GdbId === value);
+            const selectedLD = projectEnums?.LDs?.find((ld) => ld.Code === value);
             if (selectedLD) {
                 // Auto-set province if not set or different
                 const currentProvinceGdbId = projectDetails?.Province;
-                const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedLD.ProvinceGdbId);
+                const selectedProvince = projectEnums?.Provinces.find(p => p.Code === selectedLD.ProvinceCode);
                 
-                if (currentProvinceGdbId !== selectedLD.ProvinceGdbId && selectedProvince) {
-                    onChange('Province', selectedProvince.GdbId);
+                if (currentProvinceGdbId !== selectedLD.ProvinceCode && selectedProvince) {
+                    onChange('Province', selectedProvince.Code);
                     console.log('Province auto-set from LD to:', selectedProvince.Name);
                 }
                 
                 // Clear city if it doesn't belong to the same province
                 if (projectDetails?.City) {
-                    const currentCity = projectEnums?.Cities?.find((city) => city.GdbId === projectDetails.City);
-                    if (currentCity && currentCity.ProvinceGdbId !== selectedLD.ProvinceGdbId) {
+                    const currentCity = projectEnums?.Cities?.find((city) => city.Code === projectDetails.City);
+                    if (currentCity && currentCity.ProvinceCode !== selectedLD.ProvinceCode) {
                         onChange('City', undefined);
                     }
                 }
@@ -129,19 +129,19 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             if (selectedDEO) {
                 // Auto-set province if not set or different
                 const currentProvinceGdbId = projectDetails?.Province;
-                const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedDEO.ProvinceGdbId);
+                const selectedProvince = projectEnums?.Provinces.find(p => p.Code === selectedDEO.ProvinceCode);
 
-                if (currentProvinceGdbId !== selectedDEO.ProvinceGdbId && selectedProvince) {
-                    onChange('Province', selectedProvince.GdbId);
+                if (currentProvinceGdbId !== selectedDEO.ProvinceCode && selectedProvince) {
+                    onChange('Province', selectedProvince.Code);
                     console.log('Province auto-set from DEO to:', selectedProvince.Name);
                 }
                 
                 // Clear city if it doesn't belong to the same province
                 if (projectDetails?.City) {
                     const currentCity = projectEnums?.Cities?.find(
-                        (city) => city.GdbId === projectDetails.City
+                        (city) => city.Code === projectDetails.City
                     );
-                    if (currentCity && currentCity.ProvinceGdbId !== selectedDEO.ProvinceGdbId) {
+                    if (currentCity && currentCity.ProvinceCode !== selectedDEO.ProvinceCode) {
                         onChange('City', undefined);
                     }
                 }
@@ -429,7 +429,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.Province ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}Province:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
-                                        options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
+                                        options={formatDropdownOptions(projectEnums?.Provinces || [], 'Code', 'Name', 'Id')}
                                         value={projectDetails?.Province}
                                         onChange={(value) => handleInputChange('Province', value === '' ? undefined : value.toString())}
                                         placeholder="Select Province"
@@ -447,7 +447,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}City/Municipality:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
-                                        options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
+                                        options={formatDropdownOptions(filteredCities || [], 'Code', 'Name', 'Id')}
                                         value={projectDetails?.City}
                                         onChange={(value) => handleInputChange('City', value === '' ? undefined : value.toString())}
                                         placeholder="Select City/Municipality"

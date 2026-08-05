@@ -78,8 +78,8 @@ export interface ProjectDetails {
 	Province?: string;
 	City?: string;
 	LegislativeDistrict?: string;
-	DEO: string;
-	OperatingUnit: string;
+	DEO: string | undefined;
+	OperatingUnit: string | undefined;
 	ImplementingOffice: string;
 	IslandCode?: string;
 	Category: number;
@@ -434,13 +434,15 @@ export interface TableEnum {
 }
 export interface RODEOEnum {
 	Id: number;
-	GdbId?: string;
-	Name: string;
 	ParticipantId: string;
-	ProvinceGdbId?: string;
-	ProvinceName?: string;
-	RegionParticipantId: string;
-	RegionName: string;
+	Name: string;
+	ProvinceCode: string;
+	OfficeType: string;
+	RegionParticipantId?: string;
+	RegionCode?: string;
+	RegionName?: string;
+	ParentParticipantId?: string;
+	ParentName?: string;
 }
 export interface AgencyEnum {
 	Id: number;
@@ -504,53 +506,54 @@ export interface ProjectEnums {
 
 export interface ProjectCityEnum {
 	Id: number;
-	GdbId: string;
 	Name: string;
 	Code: string;
-	ProvinceGdbId: string;
-	ProvinceName: string;
+	Hierarchy?: string;
+	ProvinceCode: string;
+	NetworkStatusId?: number;
+	Deprecated: boolean;
+	CreatedDate: string;
+	UpdatedDate?: string;
 }
 
 export interface ProjectProvinceEnum {
 	Id: number;
-	GdbId: string;
 	Name: string;
 	Code: string;
-	RegionId: string;
-	RegionName: string;
+	Hierarchy?: string;
+	NetworkStatusId?: number;
+	Deprecated: boolean;
+	CreatedDate: string;
+	UpdatedDate?: string;
+	RegionParticipantId: string;
 }
 
 export interface ProjectLegislativeDistrictEnum {
 	Id: number;
-	GdbId: string;
 	Name: string;
 	Code: string;
-	ProvinceGdbId: string;
-	ProvinceName: string;
+	Hierarchy?: string;
+	NetworkStatusId?: number;
+	Deprecated: boolean;
+	CreatedDate: string;
+	UpdatedDate?: string;
+	ProvinceCode: string;
 }
 
 export interface ProjectOperatingUnitEnum {
-	Id: number;
+	Name: string;
 	ParticipantId: string;
-	Name?: string;
-	OrgType?: string;
-	ProvinceName?: string;
+	OrgType: string;
+	RegionParticipantId?: string;
 	RegionName?: string;
-	CongressionalDistrictName?: string;
-	IslandCode?: string;
-	RegionParticipantId: string;
 }
 
 export interface ProjectImplementingOfficeEnum {
-	Id: number;
+	Name: string;
 	ParticipantId: string;
-	Name?: string;
-	OrgType?: string;
-	ProvinceName?: string;
+	OrgType: string;
+	RegionParticipantId?: string;
 	RegionName?: string;
-	CongressionalDistrictName?: string;
-	IslandCode?: string;
-	RegionParticipantId: string;
 }
 
 // #region Project Revisions
