@@ -236,16 +236,14 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
       return;
     }
 
-    // Resolve program name for the confirm dialog
-    const selectedProgram = componentDropdowns?.Programs?.find(
-      (p) => p.ProgramId === wallet.ProgramId
-    );
-    if (!selectedProgram) {
+    // Program name is already denormalized onto the wallet by
+    // WalletProgramDetailsSection's onChange when a program is selected.
+    if (!wallet.ProgramName) {
       showToast({ type: 'error', message: 'Selected program not found.' });
       return;
     }
 
-    setSelectedProgramName(selectedProgram.Name);
+    setSelectedProgramName(wallet.ProgramName);
     setIsCreateConfirmDialogOpen(true);
   };
 
@@ -405,7 +403,6 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
           onChange={handleChange}
           errors={errors}
           disabled={isDisabled}
-          programs={componentDropdowns?.Programs}
           mode={mode}
         />
       </CollapsibleSection>

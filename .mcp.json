@@ -4,6 +4,11 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-memory"],
       "description": "Persistent knowledge graph memory across sessions. Stores entities, relations, and observations that survive conversation restarts."
+    },
+    "graphify": {
+      "command": "python",
+      "args": ["-m", "graphify.serve", "graphify-out/graph.json"],
+      "description": "Code knowledge graph for this repo (backend, frontend, SQL schema). Query with query_graph/get_node/get_neighbors/shortest_path instead of reading whole files, to keep context usage low."
     }
   }
 }

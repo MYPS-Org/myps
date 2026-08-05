@@ -4,19 +4,29 @@
    This repo is database-first: there is no EF migration pipeline, so schema
    objects are hand-authored here and applied to SQL Server directly.
 
-   Pre-existing objects this script DEPENDS ON (created in an earlier schema
-   session, do not re-create here):
-       dbo.tLSWallets                      -- wallet header
-       dbo.vLSWalletBalance                -- WalletId / Total / Used / Available
+   Apply AFTER LSWallet.Revisions.Schema.sql, which creates dbo.tLSWallets
+   (header), dbo.tLSWalletRevisions, dbo.tLSWalletFundingProfile,
+   dbo.tLSWalletComponentCost(PerYear) — this file reads all of those.
+
+   Pre-existing objects this script DEPENDS ON (created elsewhere, do not
+   re-create here):
        dbo.tProjects.ParentWalletId        -- FK_tProjects_ParentWallet
        dbo.tProjects.WalletDrawFrozen      -- draw frozen at publish time
        dbo.tProjectFundingProfile.IsWalletDraw
 
    Objects created by this script:
        dbo.vLSWalletProjectSet   -- one row per ACTIVE itemized project
+       dbo.vLSWalletBalance      -- WalletId / Total / Used / Available (live)
        dbo.vLSWalletLatest       -- wallet list grid source (keyed on Id)
 
-   Run order matters: vLSWalletLatest reads vLSWalletProjectSet.
+   vLSWalletBalance was previously an undocumented live DB object with no
+   source file in the repo. It's checked in here for the first time as part
+   of documents/plans/lswallet-backend-schema-normalization.md, since its
+   Total calculation now sums dbo.tLSWalletFundingProfile instead of reading
+   a scalar dbo.tLSWallets.Amount column (which no longer exists).
+
+   Run order matters: vLSWalletLatest reads vLSWalletProjectSet and
+   vLSWalletBalance.
    Idempotent — safe to re-run.
    ============================================================================= */
 
@@ -27,6 +37,8 @@ GO
 
 /* ── Drop in reverse dependency order ─────────────────────────────────────── */
 IF OBJECT_ID('dbo.vLSWalletLatest', 'V')     IS NOT NULL DROP VIEW dbo.vLSWalletLatest;
+GO
+IF OBJECT_ID('dbo.vLSWalletBalance', 'V')    IS NOT NULL DROP VIEW dbo.vLSWalletBalance;
 GO
 IF OBJECT_ID('dbo.vLSWalletProjectSet', 'V') IS NOT NULL DROP VIEW dbo.vLSWalletProjectSet;
 GO
@@ -164,15 +176,84 @@ GO
 
 
 /* =============================================================================
-   2. dbo.vLSWalletLatest
+   2. dbo.vLSWalletBalance
+   -----------------------------------------------------------------------------
+   Live Total/Used/Available (decision: no stored counter). Total is now
+   SUM(tLSWalletFundingProfile.Amount) over the wallet's active (latest
+   non-deleted) revision, instead of the old scalar tLSWallets.Amount column.
+   Used = SUM over ACTIVE itemized projects (active = has a non-deleted
+   revision, since tProjects has no IsDeleted column). Published ->
+   WalletDrawFrozen (frozen at publish); unpublished -> the live
+   wallet-flagged funding amount of the latest non-deleted revision.
+   Output shape (WalletId, Total, Used, Available) is unchanged from the
+   previous (undocumented) live definition — DBHelper/Models/Views/Lumpsum/
+   LSWalletBalance.cs and LumpsumController.cs need no changes.
+   ============================================================================= */
+CREATE VIEW dbo.vLSWalletBalance AS
+WITH LatestWalletRevision AS (
+    SELECT   wr.Id, wr.WalletFK,
+             ROW_NUMBER() OVER (PARTITION BY wr.WalletFK ORDER BY wr.Id DESC) AS rn
+    FROM     dbo.tLSWalletRevisions wr
+    WHERE    wr.IsDeleted = 0
+)
+SELECT
+    w.Id                  AS WalletId,
+    ISNULL(fund.Total, 0) AS Total,
+    ISNULL(SUM(CASE WHEN p.IsPublished = 1 THEN p.WalletDrawFrozen ELSE draw.Amount END), 0) AS Used,
+    ISNULL(fund.Total, 0) - ISNULL(SUM(CASE WHEN p.IsPublished = 1 THEN p.WalletDrawFrozen ELSE draw.Amount END), 0) AS Available
+FROM dbo.tLSWallets w
+
+/* The wallet's own funding total — SUM of the active revision's funding lines. */
+OUTER APPLY (
+    SELECT SUM(fp.Amount) AS Total
+    FROM   LatestWalletRevision lr
+    JOIN   dbo.tLSWalletFundingProfile fp
+      ON   fp.WalletRevisionFK = lr.Id AND fp.IsDeleted = 0
+    WHERE  lr.WalletFK = w.Id AND lr.rn = 1
+) fund
+
+LEFT JOIN dbo.tProjects p
+       ON p.ParentWalletId = w.Id
+      AND p.ProjectType = N'LS'
+      AND EXISTS (SELECT 1 FROM dbo.tProjectRevisions pr
+                  WHERE pr.ProjectFK = p.ProjectPK AND pr.IsDeleted = 0)   -- active = has a live revision
+OUTER APPLY (
+    SELECT TOP 1 fp.Amount
+    FROM dbo.tProjectRevisions pr
+    JOIN dbo.tProjectFundingProfile fp
+      ON fp.ProjectRevisionFK = pr.Id AND fp.IsDeleted = 0 AND fp.IsWalletDraw = 1
+    WHERE pr.ProjectFK = p.ProjectPK AND pr.IsDeleted = 0
+    ORDER BY pr.Id DESC
+) draw
+WHERE w.IsDeleted = 0
+GROUP BY w.Id, fund.Total;
+GO
+
+
+/* =============================================================================
+   3. dbo.vLSWalletLatest
    -----------------------------------------------------------------------------
    Source for the wallet list grid. Exposes Id so Helpers/CursorPagination.cs
    (FilterDataCursor) can keyset-paginate on it, mirroring dbo.vProgramLatest.
 
    Program display fields are denormalized here rather than stored on
    tLSWallets, so they never go stale when the program is renamed or advanced.
+
+   Detail fields (CategoryId, General Information, Location, Organizational
+   Responsibilities, Project Source, Implementation Readiness) come from the
+   wallet's active (latest non-deleted) revision in tLSWalletRevisions, via
+   the same LatestRevision-CTE pattern vLSWalletProjectSet already uses for
+   Projects — NOT from tLSWallets directly, which now only holds header
+   fields. Output column names are unchanged from the previous flat-column
+   version, so LumpsumController.cs and LSWalletLatest.cs need no changes.
    ============================================================================= */
 CREATE VIEW dbo.vLSWalletLatest AS
+WITH LatestWalletRevision AS (
+    SELECT   wr.*,
+             ROW_NUMBER() OVER (PARTITION BY wr.WalletFK ORDER BY wr.Id DESC) AS rn
+    FROM     dbo.tLSWalletRevisions wr
+    WHERE    wr.IsDeleted = 0
+)
 SELECT
     w.Id                        AS Id,              -- cursor key
     w.ProgramFK                 AS ProgramFK,
@@ -181,53 +262,44 @@ SELECT
     pt.Name                     AS TypeName,
     pg.StartYear                AS YearStart,
     pgs.StageName               AS ProgramStageName, -- program's CURRENT stage (informational)
-    w.CategoryId                AS CategoryId,
+    lr.CategoryId                AS CategoryId,
     cat.CategoryName            AS CategoryName,
-    w.SubCategoryFK             AS SubCategoryFK,
+    lr.SubCategoryFK             AS SubCategoryFK,
     thr.ThrustDescription       AS SubCategoryName,
-    w.OperatingUnit             AS OperatingUnit,
-    w.Amount                    AS Amount,
+    lr.OperatingUnit             AS OperatingUnit,
     w.CurrentStage              AS CurrentStage,     -- wallet's OWN lifecycle stage
-    w.FundingSource             AS FundingSource,
-    w.FundingAgreement          AS FundingAgreement,
-    w.FundingPercentage         AS FundingPercentage,
-    w.ComponentYear             AS ComponentYear,
-    w.ComponentUACS             AS ComponentUACS,
-    w.ComponentStartDate        AS ComponentStartDate,
-    w.ComponentEndDate          AS ComponentEndDate,
-    w.ComponentType             AS ComponentType,
     w.HasStageData              AS HasStageData,
 
-    /* ── Wallet detail (added by LSWallet.Schema.sql) ────────────────────── */
+    /* ── Wallet detail (from the active revision, tLSWalletRevisions) ─────── */
     w.MYId                      AS MYId,
-    w.AlternateId               AS AlternateId,
+    lr.AlternateId               AS AlternateId,
     w.ExternalId                AS ExternalId,
-    w.UACS                      AS UACS,
-    w.Tier                      AS Tier,
-    w.[Rank]                    AS [Rank],
-    w.MYCAApprovalDate          AS MYCAApprovalDate,
-    w.[Description]             AS [Description],
-    w.Province                  AS Province,
-    w.City                      AS City,
-    w.LegislativeDistrict       AS LegislativeDistrict,
-    w.DEO                       AS DEO,
-    w.Region                    AS Region,
-    w.ImplementingOffice        AS ImplementingOffice,
-    w.RegionWide                AS RegionWide,
-    w.Origin                    AS Origin,
-    w.Agency                    AS Agency,
-    w.ImplementationMode        AS ImplementationMode,
-    w.EmergencyMode             AS EmergencyMode,
-    w.Feasibility               AS Feasibility,
-    w.FeasibilityDate           AS FeasibilityDate,
-    w.DetailedDesign            AS DetailedDesign,
-    w.DetailedDesignDate        AS DetailedDesignDate,
-    w.RowAvailable              AS RowAvailable,
+    lr.UACS                      AS UACS,
+    lr.Tier                      AS Tier,
+    lr.[Rank]                    AS [Rank],
+    lr.MYCAApprovalDate          AS MYCAApprovalDate,
+    lr.[Description]             AS [Description],
+    lr.Province                  AS Province,
+    lr.City                      AS City,
+    lr.LegislativeDistrict       AS LegislativeDistrict,
+    lr.DEO                       AS DEO,
+    lr.Region                    AS Region,
+    lr.ImplementingOffice        AS ImplementingOffice,
+    lr.RegionWide                AS RegionWide,
+    lr.Origin                    AS Origin,
+    lr.Agency                    AS Agency,
+    lr.ImplementationMode        AS ImplementationMode,
+    lr.EmergencyMode             AS EmergencyMode,
+    lr.Feasibility               AS Feasibility,
+    lr.FeasibilityDate           AS FeasibilityDate,
+    lr.DetailedDesign            AS DetailedDesign,
+    lr.DetailedDesignDate        AS DetailedDesignDate,
+    lr.RowAvailable              AS RowAvailable,
 
     /* Balance. ISNULL fallbacks cover a wallet with no matching balance row. */
-    ISNULL(bal.Total,     w.Amount) AS Total,
-    ISNULL(bal.Used,      0)        AS Used,
-    ISNULL(bal.Available, w.Amount) AS Available,
+    ISNULL(bal.Total,     0) AS Total,
+    ISNULL(bal.Used,      0) AS Used,
+    ISNULL(bal.Available, 0) AS Available,
 
     /* Drives the WF-7 / flow-doc §6 guard: a wallet cannot be deleted while it
        still has active itemized projects. */
@@ -242,6 +314,11 @@ FROM dbo.tLSWallets w
 
 JOIN dbo.tPrograms pg
   ON pg.ProgramPK = w.ProgramFK
+
+/* Wallet must have exactly one active revision, same invariant as a Project. */
+JOIN LatestWalletRevision lr
+  ON lr.WalletFK = w.Id
+ AND lr.rn = 1
 
 /* Newest program revision carries the display name (same shape as vProgramLatest). */
 OUTER APPLY (
@@ -265,8 +342,8 @@ OUTER APPLY (
 ) ps
 
 LEFT JOIN dbo.tOptionProgramType pt        ON pt.NameId     = pg.Type
-LEFT JOIN dbo.tOptionProjectCategory cat   ON cat.CategoryId = w.CategoryId
-LEFT JOIN dbo.tOptionProjectThrustList thr ON thr.PAPKey     = w.SubCategoryFK
+LEFT JOIN dbo.tOptionProjectCategory cat   ON cat.CategoryId = lr.CategoryId
+LEFT JOIN dbo.tOptionProjectThrustList thr ON thr.PAPKey     = lr.SubCategoryFK
 LEFT JOIN dbo.vLSWalletBalance bal         ON bal.WalletId   = w.Id
 
 WHERE w.IsDeleted = 0;
