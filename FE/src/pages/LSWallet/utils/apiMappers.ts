@@ -77,7 +77,7 @@ export interface ApiLSWalletLatest {
   Available: number;
   ProjectCount: number;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy: string | null;
   UpdatedDate: string | null;
 }
@@ -126,7 +126,7 @@ export interface ApiLSWalletProjectSet {
   CurrentDrawAmount: number;
   EffectiveDraw: number;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy: string | null;
   UpdatedDate: string | null;
 }
