@@ -49,7 +49,8 @@ if (!builder.Environment.IsProduction())
             //.WithOrigins("http://localhost:8080", "http://192.168.50.201:8080", "http://myps.eptisa-dev.com")
             .WithOrigins(
                 "http://dpwh.eptisa-dev.com",
-                "http://myps.eptisa-dev.com"
+                "http://myps.eptisa-dev.com",
+                "http://localhost:8080"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()

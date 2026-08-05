@@ -331,16 +331,16 @@ namespace Helpers
                 response.Message = $"Selected Province '{p.Province}' is not valid."; response.Title = "Invalid Province";
                 return response;
             }
-            int ProvinceId = ValidateProvince!.Id;
+            string ProvinceCode = ValidateProvince!.Code;
 
-            var ValidateCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.ProvinceId == ProvinceId && x.Name == p.City && !x.Deprecated, cancellationToken);
+            var ValidateCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.ProvinceCode == ProvinceCode && x.Name == p.City && !x.Deprecated, cancellationToken);
             if (ValidateCity == null)
             {
                 response.Message = $"Selected City/Municipality '{p.City}' is not valid."; response.Title = "Invalid City/Municipality";
                 return response;
             }
 
-            var ValidateLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => ProvinceId == x.ProvinceId && x.Name == p.LegislativeDistrict && !x.Deprecated, cancellationToken);
+            var ValidateLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => ProvinceCode == x.ProvinceCode && x.Name == p.LegislativeDistrict && !x.Deprecated, cancellationToken);
             if (ValidateLD == null)
             {
                 response.Message = $"Selected Legislative District '{p.LegislativeDistrict}' is not valid."; response.Title = "Invalid Legislative District";

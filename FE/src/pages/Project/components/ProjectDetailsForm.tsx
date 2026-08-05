@@ -47,7 +47,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             let newCity = projectDetails?.City;
             let newLD = projectDetails?.LegislativeDistrict;
             let newDEO = projectDetails?.DEO;
-            
             if (newCity) {
                 const cityBelongsToProvince = projectEnums?.Cities?.find(
                     (city) => city.Code === newCity && city.ProvinceCode === newProvince
@@ -76,7 +75,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             }
 
             onChange('Province', newProvince);
-            if (newCity !== projectDetails?.City) onChange('City', newCity);
+            if (newCity !== projectDetails?.City) console.log('pumasok'); onChange('City', newCity);
             if (newLD !== projectDetails?.LegislativeDistrict) onChange('LegislativeDistrict', newLD);
             if (newDEO !== projectDetails?.DEO) onChange('DEO', newDEO);
         }

@@ -3,7 +3,9 @@
 Module 11: **LS Wallet** is a budget-container concept owned by a Program. Itemized AIP projects draw funding from it, and the module tracks a live balance (Total / Used / Available) as projects are created, published, and deleted.
 
 > **Why mock-only?**
-> The backend schema for this module is on hold pending an ADR-021 / ADR-025 schema session. The full frontend was built against typed mock data so that swapping to a real API later requires editing only `Service.ts` function bodies — no component changes. See the "Mock/API-Swap Seam" section for how the boundary works.
+> The full frontend was built against typed mock data ahead of the backend schema, so that swapping to a real API later requires editing only `Service.ts` function bodies — no component changes. See the "Mock/API-Swap Seam" section for how the boundary works.
+>
+> **Backend schema status (updated 2026-08-04):** the read-side backend schema now exists and matches this module's array-based model — see `documents/plans/lswallet-backend-schema-normalization.md`. `dbo.tLSWallets` is a header table (`Id`, `ProgramFK`, `MYId`, `ExternalId`, `CurrentStage`, `HasStageData` + audit); a wallet's `ProjectDetails`-parity fields (category, location, org responsibilities, source, readiness) live on `dbo.tLSWalletRevisions` (revision-ready, one active row per wallet today — no revision workflow yet); funding is `dbo.tLSWalletFundingProfile` (multi-line, matches `WalletFundingProfiles[]`); component cost is `dbo.tLSWalletComponentCost`/`tLSWalletComponentCostPerYear` (multi-row, matches `WalletComponentCosts[]`/`WalletComponentCostPerYear[]`). `WebAPI/Controllers/Lumpsum/LumpsumController.cs` reads through `dbo.vLSWalletLatest`/`vLSWalletProjectSet`/`vLSWalletBalance` and is still Phase-1 **read-only** — no `CreateWallet`/`ReplenishWallet` write path exists yet, so this module still runs against mock data for anything that writes.
 
 ---
 

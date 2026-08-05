@@ -9,6 +9,9 @@
 //     TypeName / YearStart / ProgramStageName as denormalized flat fields.
 //   - Program Name control uses SearchableDropdown instead of a plain <select>
 //     to stay consistent with the rest of the wallet module's form controls.
+//   - Self-fetches its own program list via searchProgram('') on mount (add
+//     mode only), mirroring ProgramDetailsForm.tsx, instead of relying on a
+//     `programs` prop sourced from ShowProjectComponentDropdowns.
 //   - GAA-R programs are excluded from the selectable list, matching
 //     ProgramDetailsForm's filter. Wallets can reach GAA-R via WF-2 cascade
 //     after creation, but should not be created against an already-archived program.
@@ -22,19 +25,18 @@
 //     grid grid-cols-3 gap-4 text-sm.
 // =============================================================================
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { LSWallet, WalletStage } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { formatDropdownOptions } from '../../../utils/GlobalFunctions';
+import { searchProgram } from '../../Project/Service';
 
 interface WalletProgramDetailsSectionProps {
   wallet: Partial<LSWallet>;
   onChange: (field: keyof LSWallet, value: LSWallet[keyof LSWallet]) => void;
   errors?: Partial<Record<keyof LSWallet, string>>;
   disabled?: boolean;
-  /** Program list — sourced from ShowProjectComponentDropdowns (Dropdowns.Programs). */
-  programs?: ProgramList[];
   mode?: 'add' | 'edit';
 }
 
@@ -43,11 +45,38 @@ const WalletProgramDetailsSection: React.FC<WalletProgramDetailsSectionProps> = 
   onChange,
   errors = {},
   disabled = false,
-  programs,
   mode = 'add',
 }) => {
+  const [programs, setPrograms] = useState<ProgramList[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load selectable programs from the search endpoint as soon as the form
+  // mounts in add mode — mirrors ProgramDetailsForm.tsx's mount-time fetch.
+  useEffect(() => {
+    if (mode !== 'add') return;
+    let cancelled = false;
+    setIsLoading(true);
+    searchProgram('')
+      .then((response) => {
+        if (cancelled) return;
+        // Exclude GAA-R programs — new wallets should not be created against
+        // archived/final-stage programs. Wallets already at GAA-R get there
+        // via WF-2 stage cascade after creation.
+        setPrograms((response.Data.Programs || []).filter((p) => p.StageName !== 'GAA-R'));
+      })
+      .catch((error) => {
+        console.error('Error loading programs:', error);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+
   const handleProgramChange = (value: string) => {
-    const selected = programs?.find(p => p.ProgramId === value);
+    const selected = programs.find(p => p.ProgramId === value);
     if (selected) {
       onChange('ProgramId', selected.ProgramId);
       onChange('ProgramName', selected.Name);
@@ -78,7 +107,7 @@ const WalletProgramDetailsSection: React.FC<WalletProgramDetailsSectionProps> = 
   const displayStageName =
     wallet.ProgramStageName ??
     (mode === 'add'
-      ? (programs?.find(p => p.ProgramId === wallet.ProgramId)?.StageName ?? '')
+      ? (programs.find(p => p.ProgramId === wallet.ProgramId)?.StageName ?? '')
       : '');
 
   return (
@@ -93,20 +122,13 @@ const WalletProgramDetailsSection: React.FC<WalletProgramDetailsSectionProps> = 
             </label>
             <div className="w-2/3 min-w-0">
               <SearchableDropdown
-                options={formatDropdownOptions(
-                  // Exclude GAA-R programs — new wallets should not be created against
-                  // archived/final-stage programs. Wallets already at GAA-R get there
-                  // via WF-2 stage cascade after creation.
-                  programs?.filter(p => p.StageName !== 'GAA-R') ?? [],
-                  'ProgramId',
-                  'Name'
-                )}
+                options={formatDropdownOptions(programs, 'ProgramId', 'Name')}
                 value={wallet.ProgramId ?? ''}
                 onChange={(value) =>
                   handleProgramChange(value === '' ? '' : value.toString())
                 }
-                placeholder="Select Program"
-                disabled={disabled}
+                placeholder={isLoading ? 'Loading programs...' : 'Select Program'}
+                disabled={disabled || isLoading}
                 error={!!errors.ProgramId}
                 allowClear={true}
                 searchPlaceholder="Search programs..."
