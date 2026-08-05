@@ -147,6 +147,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             }
             onChange(field, value);
         }
+        else if (field === 'Region') {
+            // Auto-populate IslandCode from the selected region's real geographic island code
+            const selectedRegion = projectEnums?.Regions?.find((region) => region.ParticipantId === value);
+            onChange('IslandCode', selectedRegion?.IslandCode);
+            onChange(field, value);
+        }
         else if (field === 'ImplementingOffice') {
             // When IO changes, clear OU if it doesn't belong to the new IO
             let newOU = projectDetails?.OperatingUnit;
@@ -184,6 +190,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         
         const newValue = projectDetails?.IslandCode === boxValue ? null : boxValue;
         handleInputChange('IslandCode', newValue);
+        // Clicking Lump Sum/Non Project overrides IslandCode regardless of the Region-derived value,
+        // and drives ProjectType the same way.
+        onChange('ProjectType', newValue);
 
         // When switching to Lump Sum, clear geographic fields that are no longer required
         if (newValue === 'LS') {
