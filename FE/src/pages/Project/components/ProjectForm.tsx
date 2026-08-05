@@ -110,7 +110,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     YearStart: 0,
     YearEnd: 0,
     CreatedBy: '',
-    CreatedDate: '',
+    CreatedDate: null,
     IsPublishable: false,
     // IsPublished: false,
   });
@@ -150,7 +150,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       RowAvailable: 0,
       RegionWide: 0,
       Tier: 1,
-      CreatedDate: '',
+      CreatedDate: null,
       RevisionCreatedBy: '',
       RevisionCreatedDate: '',
       Source: '',
