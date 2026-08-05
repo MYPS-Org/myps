@@ -78,8 +78,8 @@ export interface ProjectDetails {
 	Province?: string;
 	City?: string;
 	LegislativeDistrict?: string;
-	DEO: string;
-	OperatingUnit: string;
+	DEO: string | undefined;
+	OperatingUnit: string | undefined;
 	ImplementingOffice: string;
 	IslandCode?: string;
 	Category: number;
@@ -436,6 +436,7 @@ export interface RODEOEnum {
 	Id: number;
 	ParticipantId: string;
 	Name: string;
+	ProvinceCode: string;
 	OfficeType: string;
 	RegionParticipantId?: string;
 	RegionCode?: string;
@@ -506,9 +507,9 @@ export interface ProjectEnums {
 export interface ProjectCityEnum {
 	Id: number;
 	Name: string;
-	Code?: string;
+	Code: string;
 	Hierarchy?: string;
-	ProvinceId: number;
+	ProvinceCode: string;
 	NetworkStatusId?: number;
 	Deprecated: boolean;
 	CreatedDate: string;
@@ -532,11 +533,11 @@ export interface ProjectLegislativeDistrictEnum {
 	Name: string;
 	Code: string;
 	Hierarchy?: string;
-	ProvinceId: number;
 	NetworkStatusId?: number;
 	Deprecated: boolean;
 	CreatedDate: string;
 	UpdatedDate?: string;
+	ProvinceCode: string;
 }
 
 export interface ProjectOperatingUnitEnum {

@@ -15,6 +15,7 @@ namespace DBHelper.Models.Views.AdminAreas
         public int Id { get; set; }
         public string ParticipantId { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
+        public string? ProvinceCode { get; set; }
         public string OfficeType { get; set; } = string.Empty;
         public string? RegionParticipantId { get; set; }
         public string? RegionCode { get; set; }
