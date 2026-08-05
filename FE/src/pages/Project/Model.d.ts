@@ -491,17 +491,18 @@ export interface ProjectEnums {
   Origins: TableEnum[];
   Cities: ProjectCityEnum[];
   Provinces: ProjectProvinceEnum[];
-  LDs: ProjectLegislativeDistrictEnum[];
+  LegislativeDistricts: ProjectLegislativeDistrictEnum[];
   OperatingUnits: ProjectOperatingUnitEnum[];
-  IOs: ProjectImplementingOfficeEnum[];
+  ImplementingOffices: ProjectImplementingOfficeEnum[];
   DEOs: RODEOEnum[];
+  Regions: ProjectRegionEnum[];
   Agencies: AgencyEnum[];
   ImplementationModes: TableEnum[];
   EmergencyModes: TableEnum[];
-  RowsAvailable: TableEnum[];
-  Feasibility: TableEnum[];
-  DetailedDesign: TableEnum[];
-  RegionWide: TableEnum[];
+  RowAvailables: TableEnum[];
+  Feasibilities: TableEnum[];
+  DetailedDesigns: TableEnum[];
+  RegionWides: TableEnum[];
 }
 
 export interface ProjectCityEnum {
@@ -538,6 +539,14 @@ export interface ProjectLegislativeDistrictEnum {
 	CreatedDate: string;
 	UpdatedDate?: string;
 	ProvinceCode: string;
+}
+
+export interface ProjectRegionEnum {
+	Id: number;
+	ParticipantId: string;
+	Code: string;
+	Name: string;
+	IslandCode: string;
 }
 
 export interface ProjectOperatingUnitEnum {

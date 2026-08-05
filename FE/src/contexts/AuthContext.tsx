@@ -75,6 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
         } catch (error) {
             console.error('❌ Session validation failed:', error);
+
             setAuthState({
                 isAuthenticated: false,
                 isLoading: false,

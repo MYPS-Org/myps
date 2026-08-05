@@ -57,7 +57,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             }
 
             if (newLD) {
-                const ldBelongsToProvince = projectEnums?.LDs?.find(
+                const ldBelongsToProvince = projectEnums?.LegislativeDistricts?.find(
                     (ld) => ld.Code === newLD && ld.ProvinceCode === newProvince
                 );
                 if (!ldBelongsToProvince) {
@@ -91,7 +91,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 
                 // Clear LD if it doesn't belong to the same province
                 if (projectDetails?.LegislativeDistrict) {
-                    const currentLD = projectEnums?.LDs?.find(
+                    const currentLD = projectEnums?.LegislativeDistricts?.find(
                         (ld) => ld.Code === projectDetails.LegislativeDistrict
                     );
                     if (currentLD && currentLD.ProvinceCode !== selectedCity.ProvinceCode) {
@@ -102,7 +102,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             onChange(field, value);
         }
         else if (field === 'LegislativeDistrict') {
-            const selectedLD = projectEnums?.LDs?.find((ld) => ld.Code === value);
+            const selectedLD = projectEnums?.LegislativeDistricts?.find((ld) => ld.Code === value);
             if (selectedLD) {
                 // Auto-set province if not set or different
                 const currentProvinceGdbId = projectDetails?.Province;
@@ -152,7 +152,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             let newOU = projectDetails?.OperatingUnit;
             
             if (newOU && value) {
-                const selectedIO = projectEnums?.IOs?.find((io) => io.ParticipantId === value.toString());
+                const selectedIO = projectEnums?.ImplementingOffices?.find((io) => io.ParticipantId === value.toString());
                 if (selectedIO) {
                     // Check if current OU belongs to the new IO
                     const ouBelongsToIO = projectEnums?.OperatingUnits?.find(
@@ -717,7 +717,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select ROW Availability</option>
-                                    {projectEnums?.RowsAvailable?.map((row) => (
+                                    {projectEnums?.RowAvailables?.map((row) => (
                                         <option key={row.Id} value={row.NameId}>
                                             {row.Name}
                                         </option>
@@ -743,7 +743,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select Feasibility Study</option>
-                                    {projectEnums?.Feasibility?.map((feasibility) => (
+                                    {projectEnums?.Feasibilities?.map((feasibility) => (
                                         <option key={feasibility.Id} value={feasibility.NameId}>
                                             {feasibility.Name}
                                         </option>
@@ -776,7 +776,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select Detailed Design</option>
-                                    {projectEnums?.DetailedDesign?.map((design) => (
+                                    {projectEnums?.DetailedDesigns?.map((design) => (
                                         <option key={design.Id} value={design.NameId}>
                                             {design.Name}
                                         </option>
