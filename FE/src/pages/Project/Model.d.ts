@@ -108,7 +108,7 @@ export interface ProjectDetails {
 	TierName?: string;
 	Rank?: number;
 	MYCAApprovalDate?: string | null;
-	CreatedDate: string;
+	CreatedDate: string | null;
 	LastUpdatedBy?: string;
 	LastUpdatedDate?: string;
 	RevisionCreatedBy: string;
