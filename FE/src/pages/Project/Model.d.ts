@@ -162,7 +162,7 @@ export interface TransactionLog {
   OldValue: string;
   NewValue: string;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
 }
 
 export interface ScopeOfWorkEnum {

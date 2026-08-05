@@ -183,7 +183,7 @@ interface vUserGroups {
   NumberOfUsers: number;
   Description?: string;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   ModulePermissions: ModulePermission[];
   PermissionActionIds?: number[];  // Optional — only kept for locally-constructed fallback objects
   PermissionViewIds?: number[];    // Optional — only kept for locally-constructed fallback objects

@@ -9,7 +9,8 @@ interface ActivitySectionProps {
 const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transactionLogs = [] }) => {
   const [activeTab, setActiveTab] = useState<'activities' | 'logs'>('logs');
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleString();
   };
 

@@ -151,7 +151,7 @@ interface ComponentCost {
   StageName?: string;
   RevisedNumber?: number;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy?: string;
   UpdatedDate?: string;
   IsDeleted: boolean;
@@ -170,7 +170,7 @@ interface ComponentCostPerYear {
   StartDate?: string | null;
   EndDate?: string | null;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy?: string;
   UpdatedDate?: string;
   IsDeleted: boolean;
@@ -252,7 +252,7 @@ interface ProjectNote {
   FilePath: string;
   Description: string;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
 }
 
 interface ProjectSupportingDocs {
