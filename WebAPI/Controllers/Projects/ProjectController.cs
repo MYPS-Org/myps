@@ -35,11 +35,11 @@ namespace WebAPI.Controllers.Projects
                 HashSet<string> RegionParticipantIds = regions.Select(x => x.ParticipantId).ToHashSet();
 
                 var provinces = await _db.tOptionAdminAreaProvince.AsNoTracking().Where(x => RegionParticipantIds.Contains(x.RegionParticipantId) && !x.Deprecated).ToListAsync(cancellationToken);
-                HashSet<int> ProvinceIds = provinces.Select(x => x.Id).ToHashSet();
+                HashSet<string> ProvinceCodes = provinces.Select(x => x.Code).ToHashSet();
 
-                var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().Where(x => ProvinceIds.Contains(x.ProvinceId) && !x.Deprecated).ToListAsync(cancellationToken);
+                var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().Where(x => ProvinceCodes.Contains(x.ProvinceCode) && !x.Deprecated).ToListAsync(cancellationToken);
 
-                var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().Where(x => ProvinceIds.Contains(x.ProvinceId) && !x.Deprecated).ToListAsync(cancellationToken);
+                var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().Where(x => ProvinceCodes.Contains(x.ProvinceCode) && !x.Deprecated).ToListAsync(cancellationToken);
 
                 var deos = await _db.vAdminDEO.AsNoTracking().Where(x => RegionParticipantIds.Contains(x.RegionParticipantId!) || string.IsNullOrEmpty(x.RegionParticipantId)).ToListAsync(cancellationToken);
 
@@ -354,7 +354,7 @@ namespace WebAPI.Controllers.Projects
                 string ProjectPK = await _db.GenerateProjectId(p, cancellationToken);
                 #endregion
                 string ProgramFK = ProgramParent.ProgramPK;
-                string ProgramId = ProgramParent.ProgramId;
+                string ProgramId = ProgramRevision.ProgramId;
                 var SubmitProject = new DBHelper.Models.Table.Project.Projects()
                 {
                     ProgramFK = ProgramFK,

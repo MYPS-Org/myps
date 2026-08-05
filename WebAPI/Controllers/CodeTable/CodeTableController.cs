@@ -2120,12 +2120,12 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Hierarchy!;
                             existing.Hierarchy = data.Hierarchy;
                         }
-                        if (existing.ProvinceId != data.ProvinceId)
+                        if (existing.ProvinceCode != data.ProvinceCode)
                         {
-                            transactionLog.AffectedColumn = "ProvinceId";
-                            transactionLog.NewValue = data.ProvinceId.ToString();
-                            transactionLog.OldValue = existing.ProvinceId.ToString();
-                            existing.ProvinceId = data.ProvinceId;
+                            transactionLog.AffectedColumn = "ProvinceCode";
+                            transactionLog.NewValue = data.ProvinceCode.ToString();
+                            transactionLog.OldValue = existing.ProvinceCode.ToString();
+                            existing.ProvinceCode = data.ProvinceCode;
                         }
                         if (existing.Deprecated != data.Deprecated)
                         {
@@ -2179,12 +2179,12 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Hierarchy!;
                             existing.Hierarchy = data.Hierarchy;
                         }
-                        if (existing.ProvinceId != data.ProvinceId)
+                        if (existing.ProvinceCode != data.ProvinceCode)
                         {
-                            transactionLog.AffectedColumn = "ProvinceId";
-                            transactionLog.NewValue = data.ProvinceId.ToString();
-                            transactionLog.OldValue = existing.ProvinceId.ToString();
-                            existing.ProvinceId = data.ProvinceId;
+                            transactionLog.AffectedColumn = "ProvinceCode";
+                            transactionLog.NewValue = data.ProvinceCode.ToString();
+                            transactionLog.OldValue = existing.ProvinceCode.ToString();
+                            existing.ProvinceCode = data.ProvinceCode;
                         }
                         if (existing.Deprecated != data.Deprecated)
                         {

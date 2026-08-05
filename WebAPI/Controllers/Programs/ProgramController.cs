@@ -253,7 +253,6 @@ namespace WebAPI.Controllers.Programs
                 var newProgram = new DBHelper.Models.Table.Program.Programs()
                 {
                     ProgramPK = NewProgramUniqueId,
-                    ProgramId = NewProgramUniqueId,
                     DataSecurityGroup = dto.DataSecurityGroup,
                     UserGroup = dto.UserGroup,
                     Type = dto.Type,
