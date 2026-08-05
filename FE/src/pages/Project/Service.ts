@@ -43,7 +43,7 @@ const mapToProgramList = (program: ProgramLatest): ProgramList => ({
     YearStart: program.StartYear,
     YearEnd: program.StartYear,
     CreatedBy: '',
-    CreatedDate: '',
+    CreatedDate: null,
     IsPublishable: true,
 });
 

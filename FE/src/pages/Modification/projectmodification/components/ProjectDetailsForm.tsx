@@ -73,30 +73,30 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             // Use Id for filtering since you're storing Id values
             const ProvinceGdbId = projectDetails.Province;
             availableCities = projectEnums.Cities?.filter(
-                (city) => city.ProvinceGdbId === ProvinceGdbId
+                (city) => city.ProvinceCode === ProvinceGdbId
             ) || [];
             availableLDs = projectEnums.LegislativeDistricts?.filter(
-                (ld) => ld.ProvinceGdbId === ProvinceGdbId
+                (ld) => ld.ProvinceCode === ProvinceGdbId
             ) || [];
             availableDEOs = projectEnums.DEOs?.filter(
-                (deo) => deo.ProvinceGdbId === ProvinceGdbId
+                (deo) => deo.ProvinceCode === ProvinceGdbId
             ) || [];
         }
         // If city is selected but no province, filter LDs by city's province
         else if (projectDetails?.City) {
-            const selectedCity = projectEnums.Cities?.find((city) => city.GdbId === projectDetails.City);
+            const selectedCity = projectEnums.Cities?.find((city) => city.Code === projectDetails.City);
             if (selectedCity) {
                 availableLDs = projectEnums.LegislativeDistricts?.filter(
-                    (ld) => ld.ProvinceGdbId === selectedCity.ProvinceGdbId
+                    (ld) => ld.ProvinceCode === selectedCity.ProvinceCode
                 ) || [];
             }
         }
         // If LD is selected but no province/city, filter cities by LD's province
         else if (projectDetails?.LegislativeDistrict) {
-            const selectedLD = projectEnums.LegislativeDistricts?.find((ld) => ld.GdbId === projectDetails.LegislativeDistrict);
+            const selectedLD = projectEnums.LegislativeDistricts?.find((ld) => ld.Code === projectDetails.LegislativeDistrict);
             if (selectedLD) {
                 availableCities = projectEnums.Cities?.filter(
-                    (city) => city.ProvinceGdbId === selectedLD.ProvinceGdbId
+                    (city) => city.ProvinceCode === selectedLD.ProvinceCode
                 ) || [];
             }
         }
@@ -104,7 +104,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
             if (selectedDEO) {
                 availableCities = projectEnums.Cities?.filter(
-                    (city) => city.ProvinceGdbId === selectedDEO.ProvinceGdbId
+                    (city) => city.ProvinceCode === selectedDEO.ProvinceCode
                 ) || [];
             }
         }
@@ -161,7 +161,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 
                 if (newCity) {
                     const cityBelongsToProvince = projectEnums?.Cities?.find(
-                        (city) => city.GdbId === newCity && city.ProvinceGdbId === newProvince
+                        (city) => city.Code === newCity && city.ProvinceCode === newProvince
                     );
                     if (!cityBelongsToProvince) {
                         newCity = undefined;
@@ -170,7 +170,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     
                 if (newLD) {
                     const ldBelongsToProvince = projectEnums?.LegislativeDistricts?.find(
-                        (ld) => ld.GdbId === newLD && ld.ProvinceGdbId === newProvince
+                        (ld) => ld.Code === newLD && ld.ProvinceCode === newProvince
                     );
                     if (!ldBelongsToProvince) {
                         newLD = undefined;
@@ -179,7 +179,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     
                 if (newDEO) {
                     const deoBelongsToProvince = projectEnums?.DEOs?.find(
-                        (deo) => deo.ParticipantId === newDEO && deo.ProvinceGdbId === newProvince
+                        (deo) => deo.ParticipantId === newDEO && deo.ProvinceCode === newProvince
                     );
                     if (!deoBelongsToProvince) {
                         newDEO = undefined;
@@ -192,19 +192,19 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 if (newDEO !== projectDetails?.DEO) onChange('DEO', newDEO);
             }
             else if (field === 'City') {
-                const selectedCity = projectEnums?.Cities?.find((city) => city.GdbId === value);
+                const selectedCity = projectEnums?.Cities?.find((city) => city.Code === value);
                 if (selectedCity) {
-                    const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedCity.ProvinceGdbId);
-                    if (selectedProvince && selectedProvince.GdbId !== projectDetails?.Province) {
-                        onChange('Province', selectedProvince.GdbId);
+                    const selectedProvince = projectEnums?.Provinces.find(p => p.Code === selectedCity.ProvinceCode);
+                    if (selectedProvince && selectedProvince.Code !== projectDetails?.Province) {
+                        onChange('Province', selectedProvince.Code);
                     }
                     
                     // Clear LD if it doesn't belong to the same province
                     if (projectDetails?.LegislativeDistrict) {
                         const currentLD = projectEnums?.LegislativeDistricts?.find(
-                            (ld) => ld.GdbId === projectDetails.LegislativeDistrict
+                            (ld) => ld.Code === projectDetails.LegislativeDistrict
                         );
-                        if (currentLD && currentLD.ProvinceGdbId !== selectedCity.ProvinceGdbId) {
+                        if (currentLD && currentLD.ProvinceCode !== selectedCity.ProvinceCode) {
                             onChange('LegislativeDistrict', undefined);
                         }
                     }
@@ -212,20 +212,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 onChange(field, value);
             }
             else if (field === 'LegislativeDistrict') {
-                const selectedLD = projectEnums?.LegislativeDistricts?.find((ld) => ld.GdbId === value);
+                const selectedLD = projectEnums?.LegislativeDistricts?.find((ld) => ld.Code === value);
                 if (selectedLD) {
                     // Auto-set province if not set or different
                     const currentProvinceGdbId = projectDetails?.Province;
-                    const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedLD.ProvinceGdbId);
+                    const selectedProvince = projectEnums?.Provinces.find(p => p.Code === selectedLD.ProvinceCode);
                     
-                    if (currentProvinceGdbId !== selectedLD.ProvinceGdbId && selectedProvince) {
-                        onChange('Province', selectedProvince.GdbId);
+                    if (currentProvinceGdbId !== selectedLD.ProvinceCode && selectedProvince) {
+                        onChange('Province', selectedProvince.Code);
                     }
                     
                     // Clear city if it doesn't belong to the same province
                     if (projectDetails?.City) {
-                        const currentCity = projectEnums?.Cities?.find((city) => city.GdbId === projectDetails.City);
-                        if (currentCity && currentCity.ProvinceGdbId !== selectedLD.ProvinceGdbId) {
+                        const currentCity = projectEnums?.Cities?.find((city) => city.Code === projectDetails.City);
+                        if (currentCity && currentCity.ProvinceCode !== selectedLD.ProvinceCode) {
                             onChange('City', undefined);
                         }
                     }
@@ -237,18 +237,18 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 if (selectedDEO) {
                     // Auto-set province if not set or different
                     const currentProvinceGdbId = projectDetails?.Province;
-                    const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedDEO.ProvinceGdbId);
+                    const selectedProvince = projectEnums?.Provinces.find(p => p.Code === selectedDEO.ProvinceCode);
     
-                    if (currentProvinceGdbId !== selectedDEO.ProvinceGdbId && selectedProvince) {
-                        onChange('Province', selectedProvince.GdbId);
+                    if (currentProvinceGdbId !== selectedDEO.ProvinceCode && selectedProvince) {
+                        onChange('Province', selectedProvince.Code);
                     }
                     
                     // Clear city if it doesn't belong to the same province
                     if (projectDetails?.City) {
                         const currentCity = projectEnums?.Cities?.find(
-                            (city) => city.GdbId === projectDetails.City
+                            (city) => city.Code === projectDetails.City
                         );
-                        if (currentCity && currentCity.ProvinceGdbId !== selectedDEO.ProvinceGdbId) {
+                        if (currentCity && currentCity.ProvinceCode !== selectedDEO.ProvinceCode) {
                             onChange('City', undefined);
                         }
                     }

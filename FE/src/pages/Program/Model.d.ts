@@ -141,7 +141,7 @@ export interface ProgramList {
 	YearStart: number;
 	YearEnd: number;
 	CreatedBy: string;
-	CreatedDate: string;
+	CreatedDate: string | null;
 	// IsPublished: boolean;
 	IsPublishable: boolean;
 }

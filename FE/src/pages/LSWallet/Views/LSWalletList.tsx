@@ -146,7 +146,8 @@ const LSWalletList: React.FC = () => {
   };
 
   // Format date
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('en-PH', {
       year: 'numeric',
       month: 'short',
