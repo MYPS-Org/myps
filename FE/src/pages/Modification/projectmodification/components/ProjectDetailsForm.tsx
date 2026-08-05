@@ -31,9 +31,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     fieldRules,
 }) => {
     const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
-    const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = useState<ProjectEnums['LDs']>([]);
+    const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = useState<ProjectEnums['LegislativeDistricts']>([]);
     const [ filteredDEOs, setFilteredDEOs ] = useState<ProjectEnums['DEOs']>([]);
-    const [ filteredIOs, setFilteredIOs ] = useState<ProjectEnums['IOs']>([]);
+    const [ filteredIOs, setFilteredIOs ] = useState<ProjectEnums['ImplementingOffices']>([]);
     const [ filteredOUs, setFilteredOUs ] = useState<ProjectEnums['OperatingUnits']>([]);
 
     // Helper function to check if a field is editable based on fieldRules from API
@@ -63,9 +63,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         if (!projectEnums) return;
 
         let availableCities = projectEnums.Cities || [];
-        let availableLDs = projectEnums.LDs || [];
+        let availableLDs = projectEnums.LegislativeDistricts || [];
         let availableDEOs = projectEnums.DEOs || [];
-        let availableIOs = projectEnums.IOs || [];
+        let availableIOs = projectEnums.ImplementingOffices || [];
         let availableOUs = projectEnums.OperatingUnits || [];
 
         // If province is selected, filter cities and LDs by province
@@ -75,7 +75,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             availableCities = projectEnums.Cities?.filter(
                 (city) => city.ProvinceGdbId === ProvinceGdbId
             ) || [];
-            availableLDs = projectEnums.LDs?.filter(
+            availableLDs = projectEnums.LegislativeDistricts?.filter(
                 (ld) => ld.ProvinceGdbId === ProvinceGdbId
             ) || [];
             availableDEOs = projectEnums.DEOs?.filter(
@@ -86,14 +86,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         else if (projectDetails?.City) {
             const selectedCity = projectEnums.Cities?.find((city) => city.GdbId === projectDetails.City);
             if (selectedCity) {
-                availableLDs = projectEnums.LDs?.filter(
+                availableLDs = projectEnums.LegislativeDistricts?.filter(
                     (ld) => ld.ProvinceGdbId === selectedCity.ProvinceGdbId
                 ) || [];
             }
         }
         // If LD is selected but no province/city, filter cities by LD's province
         else if (projectDetails?.LegislativeDistrict) {
-            const selectedLD = projectEnums.LDs?.find((ld) => ld.GdbId === projectDetails.LegislativeDistrict);
+            const selectedLD = projectEnums.LegislativeDistricts?.find((ld) => ld.GdbId === projectDetails.LegislativeDistrict);
             if (selectedLD) {
                 availableCities = projectEnums.Cities?.filter(
                     (city) => city.ProvinceGdbId === selectedLD.ProvinceGdbId
@@ -117,20 +117,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         if (projectDetails?.DEO) {
             const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
             if (selectedDEO) {
-                availableIOs = projectEnums.IOs?.filter(
+                availableIOs = projectEnums.ImplementingOffices?.filter(
                     (io) => (io.RegionParticipantId === selectedDEO.RegionParticipantId && io.OrgType === 'R') || io.OrgType === 'UPMO' ||  io.ParticipantId === selectedDEO.ParticipantId
                 ) || [];
             }
         } else {
             // If no DEO selected, show only UPMO offices
-            availableIOs = projectEnums.IOs?.filter((io) => io.OrgType === 'UPMO') || [];
+            availableIOs = projectEnums.ImplementingOffices?.filter((io) => io.OrgType === 'UPMO') || [];
         }
 
         setFilteredIOs(availableIOs);
 
         // Filter OU based on selected IO
         if(projectDetails?.ImplementingOffice) {
-            const selectedIO = projectEnums.IOs?.find((io) => io.ParticipantId === projectDetails.ImplementingOffice);
+            const selectedIO = projectEnums.ImplementingOffices?.find((io) => io.ParticipantId === projectDetails.ImplementingOffice);
             if (selectedIO) {
                 // Show OUs that belong to the selected IO or are Central Office (CO)
                 availableOUs = projectEnums.OperatingUnits?.filter(
@@ -169,7 +169,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 }
     
                 if (newLD) {
-                    const ldBelongsToProvince = projectEnums?.LDs?.find(
+                    const ldBelongsToProvince = projectEnums?.LegislativeDistricts?.find(
                         (ld) => ld.GdbId === newLD && ld.ProvinceGdbId === newProvince
                     );
                     if (!ldBelongsToProvince) {
@@ -201,7 +201,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     
                     // Clear LD if it doesn't belong to the same province
                     if (projectDetails?.LegislativeDistrict) {
-                        const currentLD = projectEnums?.LDs?.find(
+                        const currentLD = projectEnums?.LegislativeDistricts?.find(
                             (ld) => ld.GdbId === projectDetails.LegislativeDistrict
                         );
                         if (currentLD && currentLD.ProvinceGdbId !== selectedCity.ProvinceGdbId) {
@@ -212,7 +212,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 onChange(field, value);
             }
             else if (field === 'LegislativeDistrict') {
-                const selectedLD = projectEnums?.LDs?.find((ld) => ld.GdbId === value);
+                const selectedLD = projectEnums?.LegislativeDistricts?.find((ld) => ld.GdbId === value);
                 if (selectedLD) {
                     // Auto-set province if not set or different
                     const currentProvinceGdbId = projectDetails?.Province;
@@ -830,7 +830,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={!editable}
                                     >
                                         <option value="">Select ROW Available</option>
-                                        {projectEnums?.RowsAvailable?.map((row) => (
+                                        {projectEnums?.RowAvailables?.map((row) => (
                                             <option key={row.Id} value={row.NameId}>
                                                 {row.Name}
                                             </option>
@@ -860,7 +860,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={!editable}
                                     >
                                         <option value="">Select Feasibility Study</option>
-                                        {projectEnums?.Feasibility?.map((feasibility) => (
+                                        {projectEnums?.Feasibilities?.map((feasibility) => (
                                             <option key={feasibility.Id} value={feasibility.NameId}>
                                                 {feasibility.Name}
                                             </option>
@@ -901,7 +901,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={!editable}
                                     >
                                         <option value="">Select Detailed Design</option>
-                                        {projectEnums?.DetailedDesign?.map((design) => (
+                                        {projectEnums?.DetailedDesigns?.map((design) => (
                                             <option key={design.Id} value={design.NameId}>
                                                 {design.Name}
                                             </option>

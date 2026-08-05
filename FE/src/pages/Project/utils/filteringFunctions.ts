@@ -8,7 +8,7 @@ export const findCity = (enums: any, code: any) =>
     enums?.Cities?.find((c: any) => c.Code == code);
 
 export const findLD = (enums: any, code: any) =>
-    enums?.LDs?.find((l: any) => l.Code == code);
+    enums?.LegislativeDistricts?.find((l: any) => l.Code == code);
 
 export const findDEO = (enums: any, code: any) =>
     enums?.DEOs?.find((d: any) => d.ProvinceCode == code);
