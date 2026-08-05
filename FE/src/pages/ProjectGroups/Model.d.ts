@@ -87,7 +87,7 @@ export interface UserGroups {
     NumberOfUsers: number;
     Description?: string;
     CreatedBy?: string;
-    CreatedDate: string;
+    CreatedDate: string | null;
     PermissionIds: string; // API returns comma-separated string of numeric IDs
     PermissionNames: string; // API returns comma-separated string of permission names
 }

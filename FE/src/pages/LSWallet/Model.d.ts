@@ -317,7 +317,7 @@ export interface ItemizedProjectRevision {
   Notes?: string;
   RequestedCost: number;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
 }
 
 // ---------------------------------------------------------------------------

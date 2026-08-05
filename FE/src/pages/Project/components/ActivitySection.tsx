@@ -19,7 +19,8 @@ function tryParseJSON(value: string): Record<string, unknown> | null {
   }
 }
 
-function relativeTime(dateString: string): string {
+function relativeTime(dateString: string | null): string {
+  if (!dateString) return '-';
   const diff = Date.now() - new Date(dateString).getTime();
   const mins = Math.floor(diff / 60_000);
   if (mins < 1) return 'just now';
@@ -33,7 +34,8 @@ function relativeTime(dateString: string): string {
   return `${Math.floor(months / 12)}y ago`;
 }
 
-function fullDate(dateString: string): string {
+function fullDate(dateString: string | null): string {
+  if (!dateString) return '-';
   return new Date(dateString).toLocaleString(undefined, {
     year: 'numeric', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -308,7 +310,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
       })
       // newest first
       .slice()
-      .sort((a, b) => new Date(b.CreatedDate).getTime() - new Date(a.CreatedDate).getTime());
+      .sort((a, b) => (b.CreatedDate ? new Date(b.CreatedDate).getTime() : 0) - (a.CreatedDate ? new Date(a.CreatedDate).getTime() : 0));
   }, [transactionLogs, filter, search]);
 
   const FILTER_TABS: { key: FilterType; label: string; countKey: FilterType; color: string }[] = [

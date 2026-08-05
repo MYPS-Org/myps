@@ -149,7 +149,7 @@ interface UserGroups {
   NumberOfUsers: number;
   Description?: string;
   CreatedBy?: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   PermissionIds: string;       // Comma-separated numeric IDs (not used in this module)
   PermissionNames: string;     // Comma-separated names (not used in this module)
 }
