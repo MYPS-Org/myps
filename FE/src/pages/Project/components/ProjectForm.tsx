@@ -151,8 +151,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       RegionWide: 0,
       Tier: 1,
       CreatedDate: null,
-      RevisionCreatedBy: '',
-      RevisionCreatedDate: '',
+      RevisionCreatedBy: null,
+      RevisionCreatedDate: null,
       Source: '',
     }
   );
@@ -326,14 +326,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const handleProgramDetailsChange = (updatedProgramDetails: ProgramList) => {
     console.log('Program details changed in ProjectForm:', updatedProgramDetails);
     setProgramDetails(updatedProgramDetails);
-    
+
     // Update project details with program information
     setProjectDetails(prev => ({
       ...prev,
       ProgramId: updatedProgramDetails.ProgramId,
-      // You can add other program-related fields here if needed
+      ProgramName: updatedProgramDetails.Name,
+      StageName: updatedProgramDetails.StageName,
     }));
-    console.log('Project details updated with ProgramId:', updatedProgramDetails.ProgramId);
+    console.log('Project details updated with ProgramId/StageName:', updatedProgramDetails.ProgramId, updatedProgramDetails.StageName);
   };
 
   // #region Component Costs

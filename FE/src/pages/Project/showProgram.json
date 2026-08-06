@@ -1,0 +1,408 @@
+{
+    "lists": [
+        {
+            "Id": 723,
+            "RevisionId": 69,
+            "StageFKId": 57,
+            "ProgramPK": "10.8.0.14_08062026_093026",
+            "ProgramId": "10.8.0.14_08062026_093026",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "BP 2026 TEST080626_01",
+            "Status": "Working",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI10"
+            ],
+            "UserGroup": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 721,
+            "RevisionId": 67,
+            "StageFKId": 55,
+            "ProgramPK": "10.8.0.10_08052026_124535",
+            "ProgramId": "10.8.0.10_08052026_124535",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "BP 2026 TEST080526_03",
+            "Status": "Working",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI10"
+            ],
+            "UserGroup": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 720,
+            "RevisionId": 66,
+            "StageFKId": 54,
+            "ProgramPK": "10.8.0.10_08052026_124037",
+            "ProgramId": "10.8.0.10_08052026_124037",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "BP 2026 TEST080526_02",
+            "Status": "Working",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI10"
+            ],
+            "UserGroup": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 719,
+            "RevisionId": 65,
+            "StageFKId": 53,
+            "ProgramPK": "LPRG-2026-0001",
+            "ProgramId": "0F0D47D3-16C5-47E4-A37E-DB33036C9286",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "LPRG BP FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                1
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 717,
+            "RevisionId": 63,
+            "StageFKId": 51,
+            "ProgramPK": "GP-2026-0001",
+            "ProgramId": "3F0A5254-14F2-4E34-BA82-C9465579EF25",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "Group Drill Program FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                1
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 707,
+            "RevisionId": 53,
+            "StageFKId": 44,
+            "ProgramPK": "MP-2026-0001",
+            "ProgramId": "2CE76142-13A1-481E-9E02-10CE264D7E3D",
+            "StageId": 7,
+            "StageName": "GAA-R",
+            "Name": "GAA-R FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                1
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 686,
+            "RevisionId": 27,
+            "StageFKId": 27,
+            "ProgramPK": "PRG-2026-K001",
+            "ProgramId": "85B1F6A2-ED1B-4B2D-87B2-DBC9D747F8E4",
+            "StageId": 7,
+            "StageName": "GAA-R",
+            "Name": "Overlay Coverage Program FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                1
+            ],
+            "NumberOfProjects": 3,
+            "StartYear": 2026
+        },
+        {
+            "Id": 685,
+            "RevisionId": 26,
+            "StageFKId": 26,
+            "ProgramPK": "PRG-2026-J001",
+            "ProgramId": "4B42BDCC-1C61-4C85-9988-B04875FFC49C",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "Regional Pipeline Program FY2026 (BP)",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                1
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 684,
+            "RevisionId": 22,
+            "StageFKId": 22,
+            "ProgramPK": "PRG-2026-I001",
+            "ProgramId": "02F9B870-3CA2-4977-84B3-005319B9B247",
+            "StageId": 7,
+            "StageName": "GAA-R",
+            "Name": "Automatic Appropriation Program FY2026 (Released)",
+            "Status": "Approved",
+            "Type": "Automatic Appropriation",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                7
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 683,
+            "RevisionId": 20,
+            "StageFKId": 20,
+            "ProgramPK": "PRG-2026-H001",
+            "ProgramId": "F226359F-F902-4814-9E57-C48C201CB0CE",
+            "StageId": 7,
+            "StageName": "GAA-R",
+            "Name": "External Infrastructure Program FY2026 (Released)",
+            "Status": "Approved",
+            "Type": "External Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                3
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 682,
+            "RevisionId": 18,
+            "StageFKId": 18,
+            "ProgramPK": "PRG-2026-G001",
+            "ProgramId": "8D5853C2-9A73-42DB-AFA1-6A84899435DD",
+            "StageId": 13,
+            "StageName": "TF-R",
+            "Name": "Trust Fund Program FY2026 (Revised)",
+            "Status": "Approved",
+            "Type": "Trust Fund",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                5
+            ],
+            "NumberOfProjects": 0,
+            "StartYear": 2026
+        },
+        {
+            "Id": 681,
+            "RevisionId": 16,
+            "StageFKId": 16,
+            "ProgramPK": "PRG-2026-F001",
+            "ProgramId": "5EB0F44B-90A8-498C-8A8A-C2A0A6254875",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "Baseline Edge Cases FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                5,
+                1
+            ],
+            "NumberOfProjects": 2,
+            "StartYear": 2026
+        },
+        {
+            "Id": 680,
+            "RevisionId": 15,
+            "StageFKId": 15,
+            "ProgramPK": "PRG-2026-E001",
+            "ProgramId": "74C9AD80-BC4E-4409-8A92-F006F5A5A194",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "Multi-Year/Publish Edge Cases FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                5,
+                7
+            ],
+            "NumberOfProjects": 3,
+            "StartYear": 2026
+        },
+        {
+            "Id": 679,
+            "RevisionId": 14,
+            "StageFKId": 14,
+            "ProgramPK": "PRG-2026-D001",
+            "ProgramId": "A9784F8F-4419-443D-AB53-ACA2088B54EA",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "DEO-Scoped Program FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                1,
+                5
+            ],
+            "NumberOfProjects": 2,
+            "StartYear": 2026
+        },
+        {
+            "Id": 678,
+            "RevisionId": 13,
+            "StageFKId": 13,
+            "ProgramPK": "PRG-2026-C001",
+            "ProgramId": "AF960F89-45ED-4E56-B99E-E25FCD0126B9",
+            "StageId": 1,
+            "StageName": "BP",
+            "Name": "Central-Managed Program FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                3,
+                7
+            ],
+            "NumberOfProjects": 3,
+            "StartYear": 2026
+        },
+        {
+            "Id": 677,
+            "RevisionId": 12,
+            "StageFKId": 12,
+            "ProgramPK": "PRG-2026-B001",
+            "ProgramId": "CA6650EC-8CDD-4B71-9018-1D05B656DE9F",
+            "StageId": 7,
+            "StageName": "GAA-R",
+            "Name": "Skip-Hop Program FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                5,
+                3
+            ],
+            "NumberOfProjects": 2,
+            "StartYear": 2026
+        },
+        {
+            "Id": 676,
+            "RevisionId": 7,
+            "StageFKId": 7,
+            "ProgramPK": "PRG-2026-A001",
+            "ProgramId": "7E3B884F-C2F2-46DF-927D-FFE6880389D0",
+            "StageId": 7,
+            "StageName": "GAA-R",
+            "Name": "Full Lineage Program FY2026",
+            "Status": "Approved",
+            "Type": "Regular Infrastructure",
+            "DataSecurityGroup": [
+                "OI234",
+                "OI241",
+                "OI244"
+            ],
+            "UserGroup": [
+                3,
+                5
+            ],
+            "NumberOfProjects": 2,
+            "StartYear": 2026
+        }
+    ],
+    "page": 1,
+    "limit": 100,
+    "total": 17,
+    "totalPages": 1,
+    "PreviousFilteredId": null,
+    "NextFilteredId": null,
+    "HasPrevious": false,
+    "HasNext": false,
+    "PageCursorId": 723
+}

@@ -111,8 +111,8 @@ export interface ProjectDetails {
 	CreatedDate: string | null;
 	LastUpdatedBy?: string;
 	LastUpdatedDate?: string;
-	RevisionCreatedBy: string;
-	RevisionCreatedDate: string;
+	RevisionCreatedBy: string | null;
+	RevisionCreatedDate: string | null;
 	Source: string;
 }
 export interface ProjectLists {
