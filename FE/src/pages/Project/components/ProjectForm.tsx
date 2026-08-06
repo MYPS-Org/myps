@@ -151,8 +151,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       RegionWide: 0,
       Tier: 1,
       CreatedDate: null,
-      RevisionCreatedBy: '',
-      RevisionCreatedDate: '',
+      RevisionCreatedBy: null,
+      RevisionCreatedDate: null,
       Source: '',
     }
   );
