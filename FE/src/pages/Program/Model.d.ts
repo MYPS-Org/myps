@@ -43,6 +43,10 @@ export interface ProgramLatest {
 	UserGroup: string;
 	NumberOfProjects?: number;
 	StartYear: number;
+	/** Not returned by the backend today (vProgramLatest has no end-year column); populated client-side where available (e.g. mapToProgramLatest), otherwise undefined. */
+	YearEnd?: number;
+	/** Not returned by the backend today; kept for Modification/Revision's excess-component cost fallback, which has no live backend wiring yet. */
+	Cost?: number;
 }
 
 export interface ProgramDetails {

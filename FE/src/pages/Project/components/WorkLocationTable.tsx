@@ -6,7 +6,7 @@ import AddInfraDialog from '../dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../dialogs/deleteDialogs/DeleteWorkLocationDialog';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType } from '../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../Model.d';
-import type { ProgramList } from '../../Program/Model';
+import type { ProgramLatest } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
 import { unitTypeMap } from '../utils/unitTypes';
 import { defaultCoordinates } from '../utils/coordinates';
@@ -14,7 +14,7 @@ import { defaultCoordinates } from '../utils/coordinates';
 interface WorkLocationTableProps {
   majorItemOfWorks: MajorItemOfWork;
   workLocations: MajorItemLocations[];
-  programDetails?: ProgramList;
+  programDetails?: ProgramLatest;
   onAdd: (workLocation: MajorItemLocations) => void;
   onEdit: (index: number, workLocation: MajorItemLocations) => void;
   onDelete: (index: number) => void;

@@ -37,7 +37,7 @@ import { ChevronDownIcon, ChevronRightIcon, ArrowUpTrayIcon } from '@heroicons/r
 import ImportLumpsumDialog from '../dialogs/ImportLumpsumDialog';
 import type { ImportedProject } from '../Model.d';
 import { transformImportedProjects } from '../../Program/utils/transformImportedProjects';
-import type { ProgramList } from '../../Program/Model';
+import type { ProgramLatest } from '../../Program/Model';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 
@@ -74,7 +74,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
   const isDisabled = Boolean(
     (initialData?.IsActive === false) ||
-    (Number(initialData?.ProgramDetails?.StageId) === 10 && initialData?.ProgramDetails?.Status === 1)
+    (Number(initialData?.ProgramDetails?.StageId) === 10 && Number(initialData?.ProgramDetails?.Status) === 1)
   );
 
   // toggle state for Program Details section
@@ -95,24 +95,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
 
   // Initialize state with empty data or provided initial data
-  const [programDetails, setProgramDetails] = useState<ProgramList>(
+  const [programDetails, setProgramDetails] = useState<ProgramLatest>(
     initialData?.ProgramDetails || {
     Id: 0,
     RevisionId: 0,
+    StageFKId: 0,
+    ProgramPK: '',
     ProgramId: '',
+    StageId: 0,
     StageName: '',
     Name: '',
-    GroupName: '',
-    RegionCode: '',
-    Status: 0,
+    Status: undefined,
     Type: '',
-    Cost: 0,
-    YearStart: 0,
+    DataSecurityGroup: '',
+    UserGroup: '',
+    StartYear: 0,
     YearEnd: 0,
-    CreatedBy: '',
-    CreatedDate: null,
-    IsPublishable: false,
-    // IsPublished: false,
   });
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
@@ -323,7 +321,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   };
 
-  const handleProgramDetailsChange = (updatedProgramDetails: ProgramList) => {
+  const handleProgramDetailsChange = (updatedProgramDetails: ProgramLatest) => {
     console.log('Program details changed in ProjectForm:', updatedProgramDetails);
     setProgramDetails(updatedProgramDetails);
 
@@ -1013,14 +1011,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   Itemized Lump Sum
                 </Button>
               )}
-              {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.Status !== 1 && (
+              {mode === 'edit' && initialData?.IsActive === true && Number(initialData?.ProgramDetails?.Status) !== 1 && (
                 <>
                   <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
                     {updateAllProject ? 'Updating...' : 'Update Project'}
                   </Button> 
                 </>
               )}
-              {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && initialData?.ProgramDetails?.Status === 1 && (
+              {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && Number(initialData?.ProgramDetails?.Status) === 1 && (
                 <Menu as="div" className="relative inline-block text-left">
                   <MenuButton
                     as={Button}

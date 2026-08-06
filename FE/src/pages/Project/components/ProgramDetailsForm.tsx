@@ -1,34 +1,33 @@
 import { useState, useEffect } from "react";
 import SearchableDropdown from "../../../components/ui/SearchableDropdown";
 import { formatDropdownOptions } from "../../../utils/GlobalFunctions";
-import type { ProgramList } from "../../Program/Model";
+import type { ProgramLatest } from "../../Program/Model";
 import { searchProgram } from "../Service";
 
 interface ProgramDetailsFormProps {
   initialData?: any;
-  programDetails: ProgramList;
-  setProgramDetails: React.Dispatch<React.SetStateAction<ProgramList>>;
-  onChange?: (updatedDetails: ProgramList) => void;
+  programDetails: ProgramLatest;
+  setProgramDetails: React.Dispatch<React.SetStateAction<ProgramLatest>>;
+  onChange?: (updatedDetails: ProgramLatest) => void;
   mode?: 'add' | 'edit';
   initialStageName?: string;
 }
 
-const emptyProgramDetails: ProgramList = {
+const emptyProgramDetails: ProgramLatest = {
   Id: 0,
   RevisionId: 0,
+  StageFKId: 0,
+  ProgramPK: '',
   ProgramId: '',
+  StageId: 0,
   StageName: '',
   Name: '',
-  GroupName: '',
-  RegionCode: '',
   Status: undefined,
   Type: '',
-  Cost: 0,
-  YearStart: 0,
+  DataSecurityGroup: '',
+  UserGroup: '',
+  StartYear: 0,
   YearEnd: 0,
-  CreatedBy: '',
-  CreatedDate: '',
-  IsPublishable: false,
 };
 
 const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
@@ -38,7 +37,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
   mode = 'add',
   initialStageName
 }) => {
-  const [programs, setPrograms] = useState<ProgramList[]>([]);
+  const [programs, setPrograms] = useState<ProgramLatest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Load programs from /Program/ShowProgram as soon as the form mounts in add mode
@@ -115,7 +114,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">Program Type:</label>
               <input
                   type="text"
-                  value={programDetails.TypeName || ''}
+                  value={programDetails.Type || ''}
                   disabled={mode === 'edit'}
                   readOnly
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
@@ -126,7 +125,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">Start Year:</label>
               <input
                   type="number"
-                  value={programDetails.YearStart || ''}
+                  value={programDetails.StartYear || ''}
                   disabled={mode === 'edit'}
                   readOnly
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'

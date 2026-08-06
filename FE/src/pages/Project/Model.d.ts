@@ -1,4 +1,4 @@
-import type { ProgramList } from "../Program/Model";
+import type { ProgramList, ProgramLatest } from "../Program/Model";
 
 export interface ProjectFilter {
   ProgramId?: string;
@@ -9,7 +9,7 @@ export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
   IsUnlock?: boolean;
-  ProgramDetails: ProgramList;
+  ProgramDetails: ProgramLatest;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
   ComponentCostPerYear: ComponentCostPerYear[];
@@ -367,7 +367,7 @@ export interface FundingProfile {
 // for everything on ProjectForm.tsx that ShowProjectDropdowns does not cover.
 export interface Dropdowns {
 	// Program Details
-	Programs: ProgramList[];
+	Programs: ProgramLatest[];
 	// Component Cost
 	ComponentTypes: ComponentTypeEnum[];
 	// Funding Profile
@@ -385,7 +385,7 @@ export interface Dropdowns {
 // Shape of the /Program/ShowProgram response, adapted for the Program Details
 // type-ahead search in ProgramDetailsForm.tsx.
 export interface SearchProgram {
-	Programs?: ProgramList[];
+	Programs?: ProgramLatest[];
 }
 export interface DropdownSupportingDocs {
 	Id: number;

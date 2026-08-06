@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import type { ProjectEnums } from "../../../Project/Model.d";
-import type { ProgramList } from "../../../Program/Model.d";
+import type { ProgramLatest } from "../../../Program/Model.d";
 
 interface ProgramDetailsFormProps {
   initialData?: any;
-  programDetails: ProgramList;
-  setProgramDetails: React.Dispatch<React.SetStateAction<ProgramList>>;
-  onChange?: (updatedDetails: ProgramList) => void;
+  programDetails: ProgramLatest;
+  setProgramDetails: React.Dispatch<React.SetStateAction<ProgramLatest>>;
+  onChange?: (updatedDetails: ProgramLatest) => void;
   mode?: 'add' | 'edit' | 'view';
   projectEnums?: ProjectEnums;
 }
@@ -35,30 +35,31 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
       );
       if(!selectedProgram) {
         // Clear the program details if no program is selected
-        const emptyProgramDetails: ProgramList = {
+        const emptyProgramDetails: ProgramLatest = {
         Id: 0,
         RevisionId: 0,
+        StageFKId: 0,
+        ProgramPK: '',
         ProgramId: '',
+        StageId: 0,
         StageName: '',
         Name: '',
-        GroupName: '',
-        RegionCode: '',
-        Status: 0,
+        Status: undefined,
         Type: '',
-        Cost: 0,
-        YearStart: 0,
+        DataSecurityGroup: '',
+        UserGroup: '',
+        StartYear: 0,
         YearEnd: 0,
-        CreatedBy: '',
-        CreatedDate: '',
-        IsPublishable: false,
         };
         setProgramDetails(emptyProgramDetails);
         setSearchFormData('');
         return;
       }
-      onChange?.(selectedProgram as ProgramList);
+      // projectEnums.Programs is still ProgramList-shaped (see @deprecated note on ProjectEnums.Programs) — this
+      // dropdown path is not currently populated by the backend, so the cast can't be structurally verified.
+      onChange?.(selectedProgram as unknown as ProgramLatest);
       setSearchFormData(selectedProgram!.ProgramId);
-      setProgramDetails(selectedProgram as ProgramList);
+      setProgramDetails(selectedProgram as unknown as ProgramLatest);
   }
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -101,7 +102,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">Program Type:</label>
               <input
                   type="text"
-                  value={programDetails.TypeName || ''}
+                  value={programDetails.Type || ''}
                   disabled={mode === 'edit'}
                   readOnly
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
@@ -112,7 +113,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">Start Year:</label>
               <input
                   type="number"
-                  value={programDetails.YearStart || ''}
+                  value={programDetails.StartYear || ''}
                   disabled={mode === 'edit'}
                   readOnly
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
