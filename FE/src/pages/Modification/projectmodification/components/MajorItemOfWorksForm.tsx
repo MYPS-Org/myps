@@ -14,7 +14,7 @@ import type {
   InfraTypeEnum,
   MajorItemLocations,
 } from '../../../Project/Model.d';
-import type { ProgramList } from '../../../Program/Model.d';
+import type { ProgramLatest } from '../../../Program/Model.d';
 import type { FieldRules } from '../../Model';
 import { getDisabledClass } from '../../../../utils/GlobalFunctions';
 import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
@@ -25,7 +25,7 @@ interface MajorItemOfWorksFormProps {
   projectId: string;
   componentCosts: ComponentCost[];
   infraData?: InfraData;
-  programDetails?: ProgramList;
+  programDetails?: ProgramLatest;
   onAdd?: (newItem: MajorItemOfWorksWithDropdown) => void;
   onEdit?: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete?: (index: number) => void;

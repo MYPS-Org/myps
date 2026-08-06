@@ -27,7 +27,7 @@
 
 import React, { useEffect, useState } from 'react';
 import type { LSWallet, WalletStage } from '../Model.d';
-import type { ProgramList } from '../../Program/Model';
+import type { ProgramLatest } from '../../Program/Model';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { formatDropdownOptions } from '../../../utils/GlobalFunctions';
 import { searchProgram } from '../../Project/Service';
@@ -47,7 +47,7 @@ const WalletProgramDetailsSection: React.FC<WalletProgramDetailsSectionProps> = 
   disabled = false,
   mode = 'add',
 }) => {
-  const [programs, setPrograms] = useState<ProgramList[]>([]);
+  const [programs, setPrograms] = useState<ProgramLatest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Load selectable programs from the search endpoint as soon as the form
@@ -81,8 +81,8 @@ const WalletProgramDetailsSection: React.FC<WalletProgramDetailsSectionProps> = 
       onChange('ProgramId', selected.ProgramId);
       onChange('ProgramName', selected.Name);
       // Denormalized display fields — stored on the wallet for the Detail page.
-      onChange('TypeName', selected.TypeName);
-      onChange('YearStart', selected.YearStart);
+      onChange('TypeName', selected.Type);
+      onChange('YearStart', selected.StartYear);
       // ProgramStageName: informational snapshot of the program's stage at selection
       // time. Stored separately from CurrentStage and never changes after creation.
       onChange('ProgramStageName', selected.StageName);
