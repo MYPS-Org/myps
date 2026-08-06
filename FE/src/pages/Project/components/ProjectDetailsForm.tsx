@@ -148,9 +148,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             onChange(field, value);
         }
         else if (field === 'Region') {
-            // Auto-populate IslandCode from the selected region's real geographic island code
+            // Auto-populate IslandCode/ProjectType from the selected region's real geographic island code.
+            // Mirrors handleBoxClick, which drives both fields together for the LS/NP override.
             const selectedRegion = projectEnums?.Regions?.find((region) => region.ParticipantId === value);
             onChange('IslandCode', selectedRegion?.IslandCode);
+            onChange('ProjectType', selectedRegion?.IslandCode);
             onChange(field, value);
         }
         else if (field === 'ImplementingOffice') {
