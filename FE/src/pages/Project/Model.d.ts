@@ -56,8 +56,12 @@ export interface OptionRevisionCategory {
 export interface ProjectDetails {
 	Id: number;
 	ProjectPK: string;
+	// ProjectRevisions' actual key field (see DBHelper/Models/Table/Project/ProjectRevisions.cs) — ProjectPK above is not populated by ShowProjectDetails.
+	ProjectFK?: string;
 	ProjectId: string;
 	ProjectType: string;
+	// FK -> tPrograms(ProgramPK); real field on ProjectRevisions, distinct from ProgramId below.
+	ProgramFK?: string;
 	// Legacy fields kept from the pre-migration model — not in the new aligned shape.
 	// TODO: clarify with backend whether these are still needed before removing.
 	ProgramId?: string; // drives program-linking in ProjectForm.handleProgramDetailsChange and projectDetailsRules
