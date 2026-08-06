@@ -64,6 +64,7 @@ export interface ProjectDetails {
 	// Legacy fields kept from the pre-migration model — not in the new aligned shape.
 	// TODO: clarify with backend whether these are still needed before removing.
 	ProgramId?: string; // drives program-linking in ProjectForm.handleProgramDetailsChange and projectDetailsRules
+	StageName?: string;
 	ReferenceId?: string; // drives fetchProjectGeoJSON (map) and ComponentCostDialog's ReferenceId prop
 	ExternalId?: string; // editable "External ID" field in ProjectDetailsForm
 	MYId?: string; // editable "Multi Year ID" field in ProjectDetailsForm
