@@ -55,9 +55,8 @@ export interface OptionRevisionCategory {
 
 export interface ProjectDetails {
 	Id: number;
-	ProjectPK: string;
-	// ProjectRevisions' actual key field (see DBHelper/Models/Table/Project/ProjectRevisions.cs) — ProjectPK above is not populated by ShowProjectDetails.
-	ProjectFK?: string;
+	// ProjectRevisions' actual key field (see DBHelper/Models/Table/Project/ProjectRevisions.cs).
+	ProjectFK: string;
 	ProjectId: string;
 	ProjectType: string;
 	// FK -> tPrograms(ProgramPK); real field on ProjectRevisions, distinct from ProgramId below.
