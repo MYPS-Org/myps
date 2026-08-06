@@ -506,6 +506,7 @@ export interface ProjectEnums {
   Feasibilities: TableEnum[];
   DetailedDesigns: TableEnum[];
   RegionWides: TableEnum[];
+  Tiers: TableEnum[];
 }
 
 export interface ProjectCityEnum {
