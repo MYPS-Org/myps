@@ -13,7 +13,7 @@ import type {
   InfraTypeEnum,
   MajorItemLocations,
 } from '../Model.d';
-import type { ProgramList } from '../../Program/Model';
+import type { ProgramLatest } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
 
 interface MajorItemOfWorksFormProps {
@@ -21,7 +21,7 @@ interface MajorItemOfWorksFormProps {
   projectId: string;
   componentCosts: ComponentCost[];
   infraData?: InfraData;
-  programDetails?: ProgramList;
+  programDetails?: ProgramLatest;
   onAdd: () => void;
   onEdit: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete: (index: number) => void;

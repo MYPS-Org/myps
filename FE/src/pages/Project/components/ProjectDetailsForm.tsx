@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
-import type { ProgramList } from "../../Program/Model.d";
+import type { ProgramLatest } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
 import { getDisabledClass, formatDropdownOptions } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
@@ -12,7 +12,7 @@ interface ProjectDetailsFormProps {
     onChange: (field: keyof ProjectDetails, value: any) => void;
     mode?: string; // 'add' or 'edit'
     projectEnums?: ProjectEnums;
-    programDetails?: ProgramList;
+    programDetails?: ProgramLatest;
     errors?: FormValidationError<ProjectDetails>;
     disabled?: boolean;
 }

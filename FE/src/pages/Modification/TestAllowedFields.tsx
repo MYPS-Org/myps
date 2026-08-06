@@ -8,7 +8,7 @@ const TestAllowedFields: React.FC = () => {
     // Mock project details data for testing
     const [mockProjectDetails, setMockProjectDetails] = useState({
         Id: 1,
-        ProjectPK: 'PROJ-001',
+        ProjectFK: 'PROJ-001',
         ProjectType: '',
         ProgramId: 'TEST-001',
         ProgramName: 'Test Program',

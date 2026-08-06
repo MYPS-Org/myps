@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { ComponentCost, ScopeOfWorkEnum, InfraTypeEnum } from '../Model.d';
-import type { ProgramList } from '../../Program/Model';
+import type { ProgramLatest } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
 
 interface AddMajorItemDialogProps {
@@ -17,7 +17,7 @@ interface AddMajorItemDialogProps {
     IsDeleted: boolean;
   }) => void;
   componentCosts: ComponentCost[];
-  programDetails?: ProgramList;
+  programDetails?: ProgramLatest;
   dropDowns?: ScopeOfWorkEnum[];
   infraTypeEnums?: InfraTypeEnum[];
   mode: 'add' | 'edit';
@@ -45,7 +45,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 }) => {
   const [formData, setFormData] = useState({
     ComponentId: '',
-    YearOfWork: programDetails?.YearStart || new Date().getFullYear(),
+    YearOfWork: programDetails?.StartYear || new Date().getFullYear(),
     WorkTypeId: 0,
     InfraType: '',
     IsDeleted: false
@@ -60,7 +60,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     } else {
       setFormData({
         ComponentId: '',
-        YearOfWork: programDetails ? programDetails.YearStart : new Date().getFullYear(),
+        YearOfWork: programDetails ? programDetails.StartYear : new Date().getFullYear(),
         WorkTypeId: 0,
         InfraType: '',
         IsDeleted: false
@@ -231,7 +231,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 value={formData.YearOfWork}
                 onChange={(e) => handleInputChange('YearOfWork', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
-                min={programDetails?.YearStart}
+                min={programDetails?.StartYear}
                 max="2100"
                 required
               />

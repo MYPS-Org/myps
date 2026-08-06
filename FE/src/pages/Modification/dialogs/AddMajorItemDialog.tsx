@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { ComponentCost, ScopeOfWorkEnum, InfraTypeEnum } from '../../Project/Model.d';
-import type { ProgramList } from '../../Program/Model';
+import type { ProgramLatest } from '../../Program/Model';
 import { useFieldPermissionState } from '../hooks/useFieldPermissions';
 
 interface AddMajorItemDialogProps {
@@ -16,7 +16,7 @@ interface AddMajorItemDialogProps {
     InfraType: string;
   }) => void;
   componentCosts: ComponentCost[];
-  programDetails?: ProgramList;
+  programDetails?: ProgramLatest;
   dropDowns?: ScopeOfWorkEnum[];
   infraTypeEnums?: InfraTypeEnum[];
   mode: 'add' | 'edit';
@@ -42,7 +42,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   existingMajorItems = [],
 }) => {
   // Stabilize defaultFormData using a primitive to avoid new object refs on every render
-  const yearStart = programDetails?.YearStart || new Date().getFullYear();
+  const yearStart = programDetails?.StartYear || new Date().getFullYear();
   const defaultFormData = useMemo(() => ({
     ComponentId: '',
     YearOfWork: yearStart,
@@ -254,7 +254,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                   !isFieldEditable('YearOfWork') ? 'bg-gray-100 cursor-not-allowed' : ''
                 }`}
                 disabled={!isFieldEditable('YearOfWork')}
-                min={programDetails?.YearStart}
+                min={programDetails?.StartYear}
                 max="2100"
                 required
               />

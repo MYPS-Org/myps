@@ -29,22 +29,11 @@ export const initProgramDetails = async (programId: number) => {
     }
 }
 
-const mapToProgramList = (program: ProgramLatest): ProgramList => ({
-    Id: program.Id,
-    RevisionId: program.RevisionId,
-    ProgramId: program.ProgramId,
-    NumberOfProjects: program.NumberOfProjects,
-    TypeName: program.Type,
-    StageName: program.StageName,
-    StageId: program.StageId,
-    Name: program.Name,
-    RegionCode: '',
-    Type: program.Type,
-    YearStart: program.StartYear,
+// vProgramLatest has no end-year column, so YearEnd isn't returned by /Program/ShowProgram.
+// Fall back to StartYear here to preserve the year-range behavior consumers (e.g. ComponentCostDialog) expect.
+const mapToProgramLatest = (program: ProgramLatest): ProgramLatest => ({
+    ...program,
     YearEnd: program.StartYear,
-    CreatedBy: '',
-    CreatedDate: null,
-    IsPublishable: true,
 });
 
 export const searchProgram = async (programName: string, limit: number = 100): Promise<ApiResponse<SearchProgram>> => {
@@ -57,7 +46,7 @@ export const searchProgram = async (programName: string, limit: number = 100): P
         });
         return {
             ...response,
-            Data: { Programs: (response.Data.lists || []).map(mapToProgramList) }
+            Data: { Programs: (response.Data.lists || []).map(mapToProgramLatest) }
         };
     } catch (ErrorResponse) {
         console.error('Error searching program:', ErrorResponse);

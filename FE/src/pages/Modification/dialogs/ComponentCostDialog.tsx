@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { DateInput } from '../../../components/tailwindui/date-input';
 import type { ComponentCost, ComponentCostPerYear, ComponentTypeEnum } from '../../Project/Model';
-import type { ProgramList } from '../../Program/Model';
+import type { ProgramLatest } from '../../Program/Model';
 import { XMarkIcon, PlusIcon, TrashIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { useFieldPermissionState } from '../hooks/useFieldPermissions';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -30,7 +30,7 @@ interface ComponentCostDialogProps {
   reasonDesc?: string; // Keep for display purposes
   reasonId?: number; // Keep for reference
   isChangeOfCreditor?: boolean;
-  programDetails?: ProgramList;
+  programDetails?: ProgramLatest;
   // Removed: currentCase, pcmaStatus, packageStatus - now from Jotai
 }
 
@@ -231,7 +231,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   // Per-year cost management functions
   const handleAddPerYearCost = () => {
     const nonDeletedCosts = componentCostPerYear.filter(cost => !cost.IsDeleted);
-    const baseYear = programDetails?.YearStart || new Date().getFullYear();
+    const baseYear = programDetails?.StartYear || new Date().getFullYear();
     const newPerYearCost: ComponentCostPerYear = {
       Id: 0,
       ComponentCostId: formData.CostId,
@@ -650,8 +650,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 value={cost.Year || ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'Year', parseInt(e.target.value) || 0)}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                                placeholder={String(programDetails?.YearStart || new Date().getFullYear())}
-                                                min={programDetails?.YearStart?.toString() || '2000'}
+                                                placeholder={String(programDetails?.StartYear || new Date().getFullYear())}
+                                                min={programDetails?.StartYear?.toString() || '2000'}
                                                 max={programDetails?.YearEnd?.toString() || '2100'}
                                             />
                                         </div>

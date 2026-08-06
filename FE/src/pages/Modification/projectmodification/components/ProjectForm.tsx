@@ -30,7 +30,7 @@ import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
 import { addProjectDetails, getProjectEnums, fetchProjectGeoJSON } from '../../../Project/Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import type { ProgramList } from '../../../Program/Model';
+import type { ProgramLatest } from '../../../Program/Model';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
 import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
@@ -136,29 +136,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
 
   // Initialize state with empty data or provided initial data
-  const [programDetails, setProgramDetails] = useState<ProgramList>(
+  const [programDetails, setProgramDetails] = useState<ProgramLatest>(
     initialData?.ProgramDetails || {
     Id: 0,
     RevisionId: 0,
+    StageFKId: 0,
+    ProgramPK: '',
     ProgramId: '',
+    StageId: 0,
     StageName: '',
     Name: '',
-    GroupName: '',
-    RegionCode: '',
-    Status: 0,
+    Status: undefined,
     Type: '',
-    Cost: 0,
-    YearStart: 0,
+    DataSecurityGroup: '',
+    UserGroup: '',
+    StartYear: 0,
     YearEnd: 0,
-    CreatedBy: '',
-    CreatedDate: '',
-    IsPublishable: false,
   });
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
     initialData?.ProjectDetails || {
       Id: 0,
-      ProjectPK: '',
+      ProjectFK: '',
       ProjectType: '',
       ProgramId: '',
       ProgramName: '',
@@ -257,7 +256,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         program => program.ProgramId === initialProgramId
       );
       if (selectedProgram) {
-        setProgramDetails(selectedProgram);
+        // projectEnums.Programs is still ProgramList-shaped (see @deprecated note on ProjectEnums.Programs) — this
+        // path is not currently populated by the backend, so the cast can't be structurally verified.
+        setProgramDetails(selectedProgram as unknown as ProgramLatest);
         // Also update project details with the program ID
         setProjectDetails(prev => ({
           ...prev,
@@ -400,7 +401,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   };
 
-  const handleProgramDetailsChange = (updatedProgramDetails: ProgramList) => {
+  const handleProgramDetailsChange = (updatedProgramDetails: ProgramLatest) => {
     setProgramDetails(updatedProgramDetails);
     
     // Update project details with program information
