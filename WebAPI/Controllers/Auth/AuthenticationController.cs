@@ -46,7 +46,7 @@ namespace WebAPI.Controllers.Auth
                 }
                 catch
                 {
-                    hostName = clientIp;
+                    hostName = dto.UserName;//clientIp;
                 }
                 LoginLog = new LoginHistory()
                 {
