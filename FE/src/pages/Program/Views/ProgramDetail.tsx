@@ -548,7 +548,7 @@ const ProgramDetail: React.FC = () => {
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Created Date:</label>
                 <input
                   // value={programEnums?.Details.User}
-                  value={programEnums?.Details.CreatedDate.StringToDate()}
+                  value={programEnums?.Details.CreatedDate ? programEnums.Details.CreatedDate.StringToDate() : ''}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
                 />
