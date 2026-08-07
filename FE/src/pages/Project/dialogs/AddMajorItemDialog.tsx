@@ -12,8 +12,8 @@ interface AddMajorItemDialogProps {
   onAdd: (majorItem: {
     ComponentId: string;
     YearOfWork: number;
-    WorkTypeId: number;
-    InfraType: string;
+    WorkTypeFK: number;
+    InfraTypeFK: string;
     IsDeleted: boolean;
   }) => void;
   componentCosts: ComponentCost[];
@@ -24,8 +24,8 @@ interface AddMajorItemDialogProps {
   initialData?: {
     ComponentId: string;
     YearOfWork: number;
-    WorkTypeId: number;
-    InfraType: string;
+    WorkTypeFK: number;
+    InfraTypeFK: string;
     IsDeleted: boolean; 
   };
   existingMajorItems?: Array<{ ComponentId: string }>;
@@ -46,8 +46,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   const [formData, setFormData] = useState({
     ComponentId: '',
     YearOfWork: programDetails?.StartYear || new Date().getFullYear(),
-    WorkTypeId: 0,
-    InfraType: '',
+    WorkTypeFK: 0,
+    InfraTypeFK: '',
     IsDeleted: false
   });
 
@@ -61,8 +61,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
       setFormData({
         ComponentId: '',
         YearOfWork: programDetails ? programDetails.StartYear : new Date().getFullYear(),
-        WorkTypeId: 0,
-        InfraType: '',
+        WorkTypeFK: 0,
+        InfraTypeFK: '',
         IsDeleted: false
       });
     }
@@ -70,21 +70,21 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 
   // Filter available work types based on selected InfraType (InfraCode)
   const availableWorkTypes = useMemo<ScopeOfWorkEnum[]>(() => {
-    if (!formData.InfraType || !dropDowns) return [];
+    if (!formData.InfraTypeFK || !dropDowns) return [];
 
     return dropDowns.filter(
       scope =>
-        scope.InfraType.includes(formData.InfraType) &&
+        scope.InfraType.includes(formData.InfraTypeFK) &&
         (formData.ComponentId !== "ROW" ||
           scope.Description === "ROW Acquisition")
     );
-  }, [formData.InfraType, formData.ComponentId, dropDowns]);
+  }, [formData.InfraTypeFK, formData.ComponentId, dropDowns]);
 
 
   const handleInputChange = (field: string, value: any) => {
     // If changing InfraType, reset WorkTypeId
-    if (field === 'InfraType' && value !== formData.InfraType) {
-      setFormData(prev => ({ ...prev, [field]: value, WorkTypeId: 0 }));
+    if (field === 'InfraTypeFK' && value !== formData.InfraTypeFK) {
+      setFormData(prev => ({ ...prev, [field]: value, WorkTypeFK: 0 }));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));
     }
@@ -94,8 +94,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     setFormData({
       ComponentId: '',
       YearOfWork: new Date().getFullYear(),
-      WorkTypeId: 0,
-      InfraType: '',
+      WorkTypeFK: 0,
+      InfraTypeFK: '',
       IsDeleted: false
     });
     onClose();
@@ -116,12 +116,12 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
       return;
     }
     
-    if (!formData.InfraType) {
+    if (!formData.InfraTypeFK) {
       alert('Please select an infrastructure type');
       return;
     }
     
-    if (formData.WorkTypeId === 0) {
+    if (formData.WorkTypeFK === 0) {
       alert('Please select a type of work');
       return;
     }
@@ -243,8 +243,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 Infrastructure Type <span className="text-red-500">*</span>
               </label>
               <select
-                value={formData.InfraType}
-                onChange={(e) => handleInputChange('InfraType', e.target.value)}
+                value={formData.InfraTypeFK}
+                onChange={(e) => handleInputChange('InfraTypeFK', e.target.value)}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
                 required
                 disabled={mode === 'edit'} // Disable infrastructure type selection in edit mode
@@ -264,14 +264,14 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 Type of Work <span className="text-red-500">*</span>
               </label>
               <select
-                value={formData.WorkTypeId}
-                onChange={(e) => handleInputChange('WorkTypeId', parseInt(e.target.value) || 0)}
+                value={formData.WorkTypeFK}
+                onChange={(e) => handleInputChange('WorkTypeFK', parseInt(e.target.value) || 0)}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
-                disabled={!formData.InfraType || mode === 'edit'}
+                disabled={!formData.InfraTypeFK || mode === 'edit'}
                 required
               >
                 <option value={0}>
-                  {!formData.InfraType ? 'Select Infrastructure Type first' : 'Select Type of Work'}
+                  {!formData.InfraTypeFK ? 'Select Infrastructure Type first' : 'Select Type of Work'}
                 </option>
                 {availableWorkTypes.map((workType) => (
                   <option key={workType.Enum} value={workType.Enum}>

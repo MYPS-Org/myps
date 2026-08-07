@@ -117,41 +117,54 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     initialData?.ProjectDetails || {
       Id: 0,
       ProjectFK: '',
+      ProjectId: '',
       ProjectType: '',
+      ProgramFK: '',
       ProgramId: '',
       ProgramName: '',
       StageName: '',
-      ProjectId: '',
       AlternateId: '',
-      ExternalId: '',
       MYId: '',
-      UACS: '',
-      MYCAApprovalDate: null,
-      IslandCode: '',
-      RevisionId: 0,
       Description: '',
-      Category: 0,
-      Thrust: 0,
-      Origin: 0,
-      City: '',
+      Region: '',
       Province: '',
+      City: '',
       LegislativeDistrict: '',
+      DEO: '',
       OperatingUnit: '',
       ImplementingOffice: '',
-      DEO: '',
-      Region: '',
+      IslandCode: '',
+      Category: 0,
+      CategoryName: '',
+      Thrust: undefined,
+      ThrustName: '',
+      Origin: 0,
+      OriginName: '',
       Agency: 0,
-      ImplementationMode: 0,
-      EmergencyMode: 0,
-      Feasibility: 0,
-      DetailedDesign: 0,
-      RowAvailable: 0,
+      AgencyName: '',
+      ImplementationMode: undefined,
+      ImplementationModeName: '',
+      EmergencyMode: undefined,
+      EmergencyModeName: '',
       RegionWide: 0,
+      RegionWideName: '',
+      Feasibility: undefined,
+      FeasibilityName: '',
+      FeasibilityDate: undefined,
+      DetailedDesign: undefined,
+      DetailedDesignName: '',
+      DetailedDesignDate: undefined,
+      RowAvailable: undefined,
+      RowAvailableName: '',
       Tier: 1,
-      CreatedDate: null,
-      RevisionCreatedBy: null,
-      RevisionCreatedDate: null,
-      Source: '',
+      TierName: 'Tier 1',
+      Rank: undefined,
+      MYCAApprovalDate: undefined,
+      CreatedBy: '',
+      CreatedDate: undefined,
+      LastUpdatedBy: '',
+      LastUpdatedDate: undefined,
+      Source: ''
     }
   );
 
@@ -199,7 +212,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       try {
         // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
         const response = await fetchProjectGeoJSON(
-          initialData.ProjectDetails.ReferenceId || '',
+          initialData.ProjectDetails.ProjectFK || '',
           initialData.ProgramDetails.ProgramId,
           user?.UserId || '',
           initialData.ProgramDetails.StageName
@@ -257,7 +270,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     return initialData.MajorItemOfWorks.map(item => {
       // Find MajorItemLocations that belong to this MajorItem via ParentId matching ComponentId
       const itemWorkLocations = (initialData.MajorItemLocations || []).filter(
-        location => location.ParentId === item.ReferenceId
+        location => location.ComponentId === item.ComponentId
       );
       
       return {
@@ -374,7 +387,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // Update per-year costs for this component
     setComponentCostPerYear(prev => {
       // Remove existing per-year costs for this component
-      const filteredCosts = prev.filter(cost => cost.ComponentCostId !== updatedCost.CostId);
+      const filteredCosts = prev.filter(cost => cost.ComponentId !== updatedCost.ComponentId);
       // Add updated per-year costs
       const updated = [...filteredCosts, ...updatedCostPerYear];
       console.log('Updated componentCostPerYear after edit:', updated);
@@ -384,8 +397,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     console.log('Updated component cost in staging:', updatedCost);
   };
 
-  const handleDeleteComponentCost = (index: number) => {
-    const costToDelete = componentCosts[index];
+  const handleDeleteComponentCost = (ComponentId: string) => {
+    const costToDelete = componentCosts.find(cost => cost.ComponentId === ComponentId);
     if (costToDelete) {
       // CASCADE DELETE: Find all related major items and their work locations
       const relatedMajorItems = majorItems.filter(
@@ -399,21 +412,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         }
       }
 
-      // Step 1: Delete ComponentCost itself based on its own Id
       if (costToDelete.Id === 0) {
-        setComponentCosts(prev => prev.filter((_, i) => i !== index));
+        // Newly added record: remove it completely.
+        setComponentCosts(prev =>
+          prev.filter(cost => cost.ComponentId !== ComponentId)
+        );
       } else {
-        setComponentCosts(prev => prev.map((cost, i) =>
-          i === index ? { ...cost, IsDeleted: true } : cost
-        ));
+        // Existing database record: mark it as deleted.
+        setComponentCosts(prev =>
+          prev.map(cost =>
+            cost.ComponentId === ComponentId
+              ? { ...cost, IsDeleted: true }
+              : cost
+          )
+        );
       }
 
       // Step 2: Cascade to ComponentCostPerYear — each child's Id decides hard vs soft
       setComponentCostPerYear(prev =>
         prev
-          .filter(cost => !(cost.ComponentCostId === costToDelete.CostId && cost.Id === 0))
+          .filter(cost => !(cost.ComponentId === costToDelete.ComponentId && cost.Id === 0))
           .map(cost =>
-            cost.ComponentCostId === costToDelete.CostId
+            cost.ComponentId === costToDelete.ComponentId
               ? { ...cost, IsDeleted: true }
               : cost
           )
@@ -450,18 +470,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // #endregion
 
   // #region Major Items of Work
-  const handleAddMajorItem = () => {
+  const handleAddMajorItem = (ComponentId: string) => {
     // Generate a unique temporary ReferenceId for linking WorkLocations
-    const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     const newItem: MajorItemOfWorksWithDropdown = {
       Id: 0, // Temporary ID
+      Source: projectDetails.Source || 'Base',
+      ProjectFK: projectDetails.ProjectFK,
       ProjectId: '',
-      ReferenceId: tempReferenceId, // Use generated temp ID for linking work locations
-      ComponentId: '',
+      StageName: projectDetails.StageName,
+      ComponentId: ComponentId, // Use the provided ComponentId
       YearOfWork: 0,
-      WorkTypeId: 0,
-      InfraType: '',
+      WorkTypeFK: 0,
+      InfraTypeFK: '',
       TargetUnitId: 0,
       TargetUnit: '',
       CreatedBy: '',
@@ -540,13 +561,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
+      ProjectFK: projectDetails.ProjectFK || '',
       ProjectId: projectDetails.ProjectId || '',
       StageName: initialData?.ProgramDetails?.StageName || '',
-      Source: '',
-      Agreement: '',
+      Source: projectDetails.Source || 'Base',
+      SourceOrg: '',
+      AgreementCode: '',
       Percentage: 0,
       Amount: 0,
-      CreatedBy: '',
+      CreatedBy: user?.UserId || '',
       CreatedDate: new Date().toISOString().split('T')[0],
       IsDeleted: false
     };
@@ -815,13 +838,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         // Create MajorItemOfWork without WorkLocations and DropdownData (UI-only)
         const majorItemPayload: MajorItemOfWork = {
           Id: item.Id,
+          Source: initialData?.ProjectDetails.Source || '',
+          ProjectFK: initialData?.ProjectDetails.ProjectFK || '',
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
-          ReferenceId: item.ReferenceId,
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
-          WorkTypeId: item.WorkTypeId,
-          InfraType: item.InfraType,
+          WorkTypeFK: item.WorkTypeFK,
+          InfraTypeFK: item.InfraTypeFK,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
           CreatedBy: item.CreatedBy,
@@ -834,7 +858,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           item.MajorItemLocations.forEach(location => {
             const workLocationPayload: MajorItemLocations = {
               ...location,
-              ParentId: item.ReferenceId // Link to MajorItem via ComponentId
+              ComponentId: item.ComponentId // Link to MajorItem via ComponentId
             };
             workLocationsForPayload.push(workLocationPayload);
           });
@@ -850,8 +874,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         },
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
+          Source: projectDetails.Source || 'Base',
+          ProjectFK: projectDetails.ProjectFK,
           ProjectId: cost.ProjectId,
-          CostId: cost.CostId,
           StageName: initialData?.ProgramDetails?.StageName,
           ComponentType: cost.ComponentType,
           ComponentId: cost.ComponentId,
@@ -865,9 +890,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         })),
         ComponentCostPerYear: componentCostPerYear.map(costPerYear => ({
           Id: costPerYear.Id,
-          ComponentCostId: costPerYear.ComponentCostId,
+          Source: projectDetails.Source || 'Base',
+          ProjectFK: projectDetails.ProjectFK,
+          ProjectId: projectDetails.ProjectId,
+          StageName: projectDetails.StageName,
+          ComponentId: costPerYear.ComponentId,
           Amount: costPerYear.Amount,
           Year: costPerYear.Year,
+          UACS: costPerYear.UACS,
           StartDate: costPerYear.StartDate,
           EndDate: costPerYear.EndDate,
           CreatedBy: costPerYear.CreatedBy,
@@ -881,8 +911,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles.map(profile => ({
           ...profile,
-          StageName: initialData?.ProgramDetails?.StageName,
+          StageName: projectDetails.StageName,
           Amount: profile.Amount,
+          CreatedBy: user?.UserId || '',
         })),
         IsAllowedToProceed: allowProceed
       };
@@ -1212,7 +1243,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             projectId={initialData?.ProjectDetails.ProjectId || ''}
             componentCosts={componentCosts}
             infraData={infraData}
-            onAdd={handleAddMajorItem}
+            onAdd={(componentId: string) => handleAddMajorItem(componentId)}
             onEdit={handleEditMajorItem}
             onDelete={handleDeleteMajorItem}
             dropDowns={componentDropdowns?.ScopeOfWorks}

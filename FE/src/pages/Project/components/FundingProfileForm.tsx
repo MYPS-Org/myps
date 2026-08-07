@@ -209,8 +209,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell className="w-1/3">
                   <SearchableDropdown
                     options={formatDropdownOptions(sources || [], 'Organization', 'Name', 'Id')}
-                    value={profile.Source || ''}
-                    onChange={(value) => onEdit(index, { ...profile, Source: String(value), Agreement: '' })}
+                    value={profile.SourceOrg || ''}
+                    onChange={(value) => onEdit(index, { ...profile, SourceOrg: String(value), AgreementCode: '' })}
                     placeholder="Select Source"
                     disabled={disabled}
                     allowClear={true}
@@ -220,13 +220,13 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell className="w-1/3">
                   <SearchableDropdown
                     options={formatDropdownOptions(
-                      agreements?.filter((a) => a.SourceOrg === profile.Source) || [],
+                      agreements?.filter((a) => a.SourceOrg === profile.SourceOrg) || [],
                       'Code',
                       'Name',
                       'Id'
                     )}
-                    value={profile.Agreement || ''}
-                    onChange={(value) => onEdit(index, { ...profile, Agreement: String(value) })}
+                    value={profile.AgreementCode || ''}
+                    onChange={(value) => onEdit(index, { ...profile, AgreementCode: String(value) })}
                     placeholder="Select Agreement"
                     disabled={!profile.Source || disabled}
                     allowClear={true}
