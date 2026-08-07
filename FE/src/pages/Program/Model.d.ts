@@ -80,7 +80,7 @@ export interface ProgramDetailsWithStages {
 	Id: number;
 	ProgramId: string;
 	RevisionNumber: number;
-	NumberOfProjects?: number;
+	ProjectCount?: number;
 	Name: string;
 	StageId: number;
 	StageName: string;
@@ -90,10 +90,9 @@ export interface ProgramDetailsWithStages {
 	UserGroup: number;
 	RegionCode: string;
 	Status: number;
-	Type: number;
-	TypeName: string;
+	ProgramType: string;
 	Cost?: number;
-	YearStart: number;
+	StartYear: number;
 	YearEnd: number;
 	CreatedBy: string;
 	CreatedDate: string;
