@@ -151,7 +151,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> ShowProgramStages([FromBody] ProgramDetailsDTO dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> ShowProgramStages([FromBody] ShowProgramStagesDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -159,7 +159,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     var isVisible = await _db.fUserVisiblePrograms
                         .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisiblePrograms({_Session.UserId})")
-                        .AnyAsync(x => x.ProgramPK == dto.ProgramId);
+                        .AnyAsync(x => x.ProgramPK == dto.ProgramPK);
 
                     if (!isVisible)
                     {
@@ -168,7 +168,7 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var Stages = await _db.fProgramStages
-                    .FromSqlInterpolated($"SELECT * FROM dbo.fProgramStages({dto.ProgramId})")
+                    .FromSqlInterpolated($"SELECT * FROM dbo.fProgramStages({dto.ProgramPK})")
                     .AsNoTracking()
                     .ToListAsync();
 

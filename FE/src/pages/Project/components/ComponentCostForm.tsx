@@ -13,7 +13,7 @@ interface ComponentCostFormProps {
   majorItems?: MajorItemOfWorksWithDropdown[]; // Add majorItems to calculate related items
   onAdd: (cost: ComponentCost, costPerYear: ComponentCostPerYear[]) => void;
   onEdit: (index: number, updatedCost: ComponentCost, costPerYear: ComponentCostPerYear[]) => void;
-  onDelete: (index: number) => void;
+  onDelete: (ComponentId: string) => void;
   initialData?: any; // Optional initial data (project/program context) for the dialog
   componentTypes?: ComponentTypeEnum[];
   maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
@@ -85,7 +85,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
 
   const handleConfirmDelete = async (index?: number) => {
     if (index !== null && index !== undefined) {
-      onDelete(index);
+      onDelete(componentCosts[index].ComponentId);
     }
     handleCloseDeleteDialog();
   };
@@ -271,7 +271,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
               componentCosts.map((cost, index) => {
                 if (cost.IsDeleted) return null;
                 return (
-                <TableRow key={cost.CostId || `cost-${index}`}>
+                <TableRow key={cost.ComponentId || `cost-${index}`}>
                   <TableCell className="font-medium">{cost.ComponentId}</TableCell>
                   <TableCell>{cost.ComponentType}</TableCell>
                   <TableCell>
@@ -317,7 +317,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           onSave={handleSaveCost}
           editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
           editingCostPerYear={editingIndex !== null && componentCosts[editingIndex] ? 
-            componentCostPerYear.filter(cost => cost.ComponentCostId === componentCosts[editingIndex].CostId && !cost.IsDeleted) : 
+            componentCostPerYear.filter(cost => cost.ComponentId === componentCosts[editingIndex].ComponentId && !cost.IsDeleted) : 
             []}
           mode={modalMode}
           componentTypes={componentTypes}

@@ -168,12 +168,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         (ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' && ou.OrgType === 'CO'))
                     );
                     if (!ouBelongsToIO) {
-                        newOU = undefined;
+                        newOU = '';
                     }
                 }
             } else if (!value) {
                 // If IO is cleared, also clear OU
-                newOU = undefined;
+                newOU = '';
             }
             
             onChange(field, value);
@@ -271,7 +271,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className='grid grid-cols-3 gap-5'>
 
-                        <div className='w-full flex flex-col text-left gap-2'>
+                        {/* <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>External ID:</label>
                                 <input 
@@ -282,8 +282,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 />
                             </div>
-                        </div>
-                        <div className='w-full flex flex-col text-left gap-2'>
+                        </div> */}
+                        {/* <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.UACS ? 'text-red-500' : 'text-gray-600'}`}>OA Project Code (UACS):</label>
                                 <input 
@@ -294,7 +294,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 />
                             </div>
-                        </div>
+                        </div> */}
 
                         <div className="w-full flex flex-row gap-5 items-center">
                             <label

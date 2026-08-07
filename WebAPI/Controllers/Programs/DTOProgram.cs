@@ -37,11 +37,15 @@ namespace WebAPI.Controllers.Programs
         [MaxLength(250)]
         public string? SkipReason { get; set; }
     }
+    public class ShowProgramStagesDTO
+    {
+        [Required]
+        public string ProgramPK { get; set; } = string.Empty;
+    }
     public class ProgramDetailsDTO
     {
         [Required]
         public string ProgramId { get; set; } = string.Empty;
-        public string StageName { get; set; } = string.Empty;
     }
     public class DeleteProgramDTO
     {

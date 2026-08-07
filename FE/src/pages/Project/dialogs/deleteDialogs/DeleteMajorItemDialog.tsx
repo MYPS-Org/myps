@@ -10,9 +10,10 @@ interface DeleteMajorItemDialogProps {
   onConfirmDelete: (index: number) => void;
   majorItem: {
     ComponentId: string;
-    WorkTypeId: number;
+    WorkTypeFK: number;
     YearOfWork: string | number;
-    InfraType: string;
+    InfraTypeFK: string;
+    TargetUnitId: number;
     TargetUnit: string;
     MajorItemLocations?: any[];
   } | null;
@@ -67,7 +68,7 @@ const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
     return null;
   }
 
-  const workTypeDesc = majorItem.WorkTypeId.toString();
+  const workTypeDesc = majorItem.WorkTypeFK.toString();
   const componentDesc = majorItem.ComponentId;
   const workLocationCount = majorItem.MajorItemLocations?.length || 0;
 
@@ -124,7 +125,7 @@ const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Infrastructure Type:</span>
-                    <span className="font-medium">{majorItem.InfraType}</span>
+                    <span className="font-medium">{majorItem.InfraTypeFK}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Target Unit:</span>

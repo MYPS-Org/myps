@@ -355,12 +355,17 @@ namespace WebAPI.Controllers.Projects
                 #endregion
                 string ProgramFK = ProgramParent.ProgramPK;
                 string ProgramId = ProgramRevision.ProgramId;
+
+                //string[] HasIslandCode = new string[] { "LZ", "VS", "MN" };
+                //dto.ProjectType = !HasIslandCode.Contains(dto.IslandCode) ? dto.IslandCode! : "AIP";
+                //var SelectedRegion = await _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.Region, cancellationToken);
+                //dto.IslandCode = SelectedRegion?.IslandCode ?? dto.IslandCode;
                 var SubmitProject = new DBHelper.Models.Table.Project.Projects()
                 {
                     ProgramFK = ProgramFK,
                     ProjectPK = ProjectPK,
                     ProgramId = ProgramId,
-                    ProjectType = dto.ProjectType,
+                    ProjectType = dto.ProjectType!,
                     CreatedBy = UserId,
                     CreatedDate = CurrentDate
                 };

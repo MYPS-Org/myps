@@ -106,11 +106,10 @@ const Program: React.FC = () => {
         }
     };
 
-    const handleViewDetails = async (programId: string, stageName: string) => {
+    const handleViewDetails = async (programId: string) => {
         try {
-            if (programId && stageName) {
-                const programWithStage = programId + ':' + stageName;
-                navigate(`/programs/programdetails/${programWithStage}`);
+            if (programId) {
+                navigate(`/programs/programdetails/${programId}`);
             }
         } catch (error) {
             console.error('Error navigating to program details:', error);
@@ -249,7 +248,7 @@ const Program: React.FC = () => {
                                 <div className="flex items-center space-x-1">
                                     <Button
                                         color="orange"
-                                        onClick={() => handleViewDetails(program.ProgramPK, program.StageName)}
+                                        onClick={() => handleViewDetails(program.ProgramId)}
                                         className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                     >
                                         View
@@ -293,7 +292,7 @@ const Program: React.FC = () => {
                                                 <Button
                                                     color="blue"
                                                     className="text-xs px-3 py-1.5 text-center"
-                                                    onClick={() => handleViewDetails(stage.ProgramId, stage.Description ?? stage.StageName)}
+                                                    onClick={() => handleViewDetails(stage.ProgramId)}
                                                 >
                                                     View Details
                                                 </Button>
