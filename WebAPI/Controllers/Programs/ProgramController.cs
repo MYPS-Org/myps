@@ -159,7 +159,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     var isVisible = await _db.fUserVisiblePrograms
                         .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisiblePrograms({_Session.UserId})")
-                        .AnyAsync(x => x.ProgramPK == dto.ProgramPK);
+                        .AnyAsync(x => x.ProgramPK == dto.ProgramId);
 
                     if (!isVisible)
                     {
@@ -168,7 +168,7 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var Stages = await _db.fProgramStages
-                    .FromSqlInterpolated($"SELECT * FROM dbo.fProgramStages({dto.ProgramPK})")
+                    .FromSqlInterpolated($"SELECT * FROM dbo.fProgramStages({dto.ProgramId})")
                     .AsNoTracking()
                     .ToListAsync();
 
