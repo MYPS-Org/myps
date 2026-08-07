@@ -328,7 +328,7 @@ namespace WebAPI.Controllers.Programs
                 var ProgramRevision = ValidateProgram.Data.ProgramRevision;
                 var ProgramStage = ValidateProgram.Data.ProgramStage;
 
-                var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramRevision.ProgramFK);
+                var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramRevision.ProgramPK, cancellationToken);
                 if(CurrentProgramVersion == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the System.", Title = "Program not found" });
@@ -405,7 +405,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
-                var ProgramRevisions = ValidateProgramId.Data.ProgramRevision;
+                var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
                 if (StagesToCheck.Contains(ProgramStage.StageId))
                 {
@@ -424,7 +424,7 @@ namespace WebAPI.Controllers.Programs
                     {
                         return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it is not in a deletable stage.", Title = "Delete Not Allowed" });
                     }
-                    if (ProgramRevisions.Cost > 0)
+                    if (ProgramDetails.Cost > 0)
                     {
                         return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has projects associated with it.", Title = "Delete Not Allowed" });
                     }
@@ -441,6 +441,8 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = CurrentDate
                 };
                 await _db.tTransactionLog.AddRangeAsync(TransactionLog);
+
+                var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
 
                 var ProjectsInProgram = await _db.tProjects.Where(x => x.ProgramId == ProgramRevisions.ProgramId).AsNoTracking().ToListAsync();
                 HashSet<string> ReferenceIds = ProjectsInProgram.Select(x => x.ProjectPK).ToHashSet();
@@ -508,7 +510,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
-                var ProgramRevisions = ValidateProgramId.Data.ProgramRevision;
+                var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty.", Title = "Update Failed" }); }
@@ -522,6 +524,7 @@ namespace WebAPI.Controllers.Programs
                 //    CreatedBy = _Session.UserId,
                 //    CreatedDate = CurrentDate
                 //};
+                var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
                 if (dto.Name != ProgramRevisions.Name && !string.IsNullOrEmpty(ProgramRevisions.Name))
                 {
                     hasUpdated = true;
@@ -689,8 +692,9 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = ValidateProgramId.Message, Title = ValidateProgramId.Title });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
-                var ProgramRevision = ValidateProgramId.Data.ProgramRevision;
+                var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
+                var ProgramRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
 
                 var checkProjects = await _db.vProjectLatest
                 .Where(x => x.ProgramFK == ProgramParent.ProgramPK)
