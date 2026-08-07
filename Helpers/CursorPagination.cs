@@ -4,11 +4,16 @@ using DBHelper.Data;
 using DBHelper.Models.Enums;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Helpers
 {
@@ -17,6 +22,18 @@ namespace Helpers
         private const int DefaultLimit = 10;
         private const int MaxLimit = 200;
 
+        /*
+         * IMPORTANT:
+         * Do NOT allow:
+         * '
+         * "
+         * (
+         * )
+         * ,
+         *
+         * Function parameters are handled separately through
+         * sourceParameters.
+         */
         private static readonly Regex IdentifierRegex = new(
             @"^[A-Za-z_][A-Za-z0-9_]*$",
             RegexOptions.Compiled);
@@ -37,14 +54,18 @@ namespace Helpers
                 string keyColumn = "Id",
                 bool descending = true,
                 bool includeTotal = true,
+                List<(
+                    string ParamName,
+                    object? Value)>? sourceParameters = null,
+                bool isTableValuedFunction = false,
                 CancellationToken ct = default)
             where T : class
         {
             try
             {
-                // ---------------------------------------------------------
-                // Validation
-                // ---------------------------------------------------------
+                // =========================================================
+                // VALIDATION
+                // =========================================================
 
                 if (db is null)
                 {
@@ -73,35 +94,94 @@ namespace Helpers
                         $"{dto.Navigation}.");
                 }
 
-                string safeTable =
+                // =========================================================
+                // TABLE / VIEW / TVF SOURCE
+                // =========================================================
+
+                /*
+                 * Example table:
+                 *
+                 * dbo.tPrograms
+                 *
+                 * becomes:
+                 *
+                 * [dbo].[tPrograms]
+                 *
+                 *
+                 * Example TVF:
+                 *
+                 * dbo.fProgramProjects
+                 *
+                 * with:
+                 *
+                 * @ProgramId
+                 * @StageId
+                 *
+                 * becomes:
+                 *
+                 * [dbo].[fProgramProjects](@ProgramId, @StageId)
+                 */
+
+                string safeSourceName =
                     SafeIdentifier(tableName);
 
+                string safeSource =
+                    BuildSource(
+                        safeSourceName,
+                        sourceParameters,
+                        isTableValuedFunction);
+
                 string safeKeyColumn =
-                    SafeSingleIdentifier(keyColumn);
+                    SafeSingleIdentifier(
+                        keyColumn);
 
                 string keyExpression =
                     $"v.{safeKeyColumn}";
 
-                int limit = dto.limit < 1
-                    ? DefaultLimit
-                    : Math.Min(dto.limit, MaxLimit);
+                // =========================================================
+                // PAGINATION VALUES
+                // =========================================================
+
+                int limit =
+                    dto.limit < 1
+                        ? DefaultLimit
+                        : Math.Min(
+                            dto.limit,
+                            MaxLimit);
 
                 int requestedPage =
-                    Math.Max(dto.page, 1);
+                    Math.Max(
+                        dto.page,
+                        1);
+
+                // =========================================================
+                // FILTERS
+                // =========================================================
 
                 List<(
                     string Clause,
                     string ParamName,
                     object? Value)> normalizedFilters =
                     filter
-                        .Where(item =>
+                        .Where(x =>
                             !string.IsNullOrWhiteSpace(
-                                item.Clause))
+                                x.Clause))
                         .ToList();
 
+                /*
+                 * Validate filter parameters AND TVF parameters together.
+                 *
+                 * This prevents:
+                 *
+                 * filter: @ProgramId
+                 * TVF:    @ProgramId
+                 *
+                 * from creating duplicate SqlParameter objects.
+                 */
                 FilterDataResult<T>? parameterValidation =
-                    ValidateFilterParameters<T>(
-                        normalizedFilters);
+                    ValidateParameters<T>(
+                        normalizedFilters,
+                        sourceParameters);
 
                 if (parameterValidation is not null)
                 {
@@ -110,13 +190,17 @@ namespace Helpers
 
                 List<string> basePredicates =
                     normalizedFilters
-                        .Select(item =>
-                            $"({item.Clause})")
+                        .Select(x =>
+                            $"({x.Clause})")
                         .ToList();
 
+                // =========================================================
+                // TOTAL COUNT
+                // =========================================================
+
                 /*
-                 * Last-page navigation requires the total count to
-                 * calculate how many records belong to the final page.
+                 * Last requires total count even when includeTotal=false,
+                 * because we need to determine the final page size.
                  */
                 bool countRequired =
                     includeTotal ||
@@ -128,20 +212,38 @@ namespace Helpers
 
                 if (countRequired)
                 {
+                    /*
+                     * IMPORTANT:
+                     *
+                     * sourceParameters MUST also be sent here.
+                     *
+                     * Otherwise:
+                     *
+                     * FROM
+                     * [dbo].[fProgramProjects](
+                     *     @ProgramId,
+                     *     @StageId
+                     * )
+                     *
+                     * will fail with:
+                     *
+                     * Must declare scalar variable "@ProgramId"
+                     */
                     (total, totalPages) =
                         await GetTotalAsync(
                             db,
-                            safeTable,
+                            safeSource,
                             basePredicates,
                             normalizedFilters,
+                            sourceParameters,
                             limit,
                             ct);
                 }
 
-                /*
-                 * For Last navigation, the server determines the
-                 * actual target page.
-                 */
+                // =========================================================
+                // LAST PAGE
+                // =========================================================
+
                 if (dto.Navigation ==
                     PaginationNavigation.Last)
                 {
@@ -151,9 +253,10 @@ namespace Helpers
                             : 1;
                 }
 
-                /*
-                 * Validate a typed page when total count is available.
-                 */
+                // =========================================================
+                // PAGE VALIDATION
+                // =========================================================
+
                 if (dto.Navigation ==
                         PaginationNavigation.Page &&
                     includeTotal)
@@ -175,49 +278,69 @@ namespace Helpers
                     }
                 }
 
-                /*
-                 * Return an empty first/last page immediately when
-                 * the filtered result has no records.
-                 */
+                // =========================================================
+                // EMPTY RESULT
+                // =========================================================
+
                 if (countRequired &&
                     total == 0)
                 {
                     return new FilterDataResult<T>
                     {
                         HasError = false,
+
                         ErrorMessage = null,
+
                         Data = new FilteredResult<T>
                         {
-                            lists = new List<T>(),
+                            lists =
+                                new List<T>(),
+
                             page = 1,
+
                             limit = limit,
+
                             total = 0,
+
                             totalPages = 0,
+
                             HasPrevious = false,
+
                             HasNext = false,
+
                             PreviousFilteredId = null,
+
                             NextFilteredId = null,
+
                             PageCursorId = null
                         }
                     };
                 }
 
-                // ---------------------------------------------------------
-                // Resolve navigation behavior
-                // ---------------------------------------------------------
+                // =========================================================
+                // NAVIGATION
+                // =========================================================
 
                 long? cursorId = null;
 
                 bool reverseRows = false;
+
                 bool useProbeRow = true;
 
-                int take = limit + 1;
+                int take =
+                    limit + 1;
 
                 string fetchDirection;
-                string? cursorPredicate = null;
+
+                string? cursorPredicate =
+                    null;
 
                 switch (dto.Navigation)
                 {
+                    // =====================================================
+                    // FIRST
+                    // =====================================================
+
                     case PaginationNavigation.First:
                         {
                             requestedPage = 1;
@@ -229,6 +352,10 @@ namespace Helpers
 
                             break;
                         }
+
+                    // =====================================================
+                    // NEXT
+                    // =====================================================
 
                     case PaginationNavigation.Next:
                         {
@@ -243,11 +370,14 @@ namespace Helpers
                                 dto.NextFilteredId.Value;
 
                             string comparisonOperator =
-                                descending ? "<" : ">";
+                                descending
+                                    ? "<"
+                                    : ">";
 
                             cursorPredicate =
                                 $"{keyExpression} " +
-                                $"{comparisonOperator} @__cursor";
+                                $"{comparisonOperator} " +
+                                "@__cursor";
 
                             fetchDirection =
                                 descending
@@ -256,6 +386,10 @@ namespace Helpers
 
                             break;
                         }
+
+                    // =====================================================
+                    // PREVIOUS
+                    // =====================================================
 
                     case PaginationNavigation.Previous:
                         {
@@ -270,15 +404,29 @@ namespace Helpers
                                 dto.PreviousFilteredId.Value;
 
                             string comparisonOperator =
-                                descending ? ">" : "<";
+                                descending
+                                    ? ">"
+                                    : "<";
 
                             cursorPredicate =
                                 $"{keyExpression} " +
-                                $"{comparisonOperator} @__cursor";
+                                $"{comparisonOperator} " +
+                                "@__cursor";
 
                             /*
-                             * Previous pagination queries in the opposite
-                             * order, then reverses the rows afterward.
+                             * Query opposite direction.
+                             *
+                             * Example normal display:
+                             *
+                             * 100
+                             * 99
+                             * 98
+                             *
+                             * Previous query:
+                             *
+                             * ORDER BY Id ASC
+                             *
+                             * then reverse rows afterward.
                              */
                             fetchDirection =
                                 descending
@@ -290,10 +438,14 @@ namespace Helpers
                             break;
                         }
 
+                    // =====================================================
+                    // SPECIFIC PREVIOUSLY VISITED PAGE
+                    // =====================================================
+
                     case PaginationNavigation.Page:
                         {
                             /*
-                             * Page 1 does not require a stored page cursor.
+                             * Page 1 does not need a PageCursorId.
                              */
                             if (requestedPage == 1 &&
                                 !dto.PageCursorId.HasValue)
@@ -309,26 +461,29 @@ namespace Helpers
                             if (!dto.PageCursorId.HasValue)
                             {
                                 return Error<T>(
-                                    $"{nameof(dto.PageCursorId)} is " +
-                                    $"required to open page " +
-                                    $"{requestedPage}. The page must " +
-                                    "have been visited previously.");
+                                    $"{nameof(dto.PageCursorId)} " +
+                                    $"is required to open page " +
+                                    $"{requestedPage}. " +
+                                    "The page must have been visited " +
+                                    "previously.");
                             }
 
                             cursorId =
                                 dto.PageCursorId.Value;
 
                             /*
-                             * PageCursorId represents the first record ID
-                             * of the target page, so the comparison must
-                             * include that record.
+                             * PageCursorId is the FIRST record of the
+                             * page, therefore include the cursor itself.
                              */
                             string comparisonOperator =
-                                descending ? "<=" : ">=";
+                                descending
+                                    ? "<="
+                                    : ">=";
 
                             cursorPredicate =
                                 $"{keyExpression} " +
-                                $"{comparisonOperator} @__cursor";
+                                $"{comparisonOperator} " +
+                                "@__cursor";
 
                             fetchDirection =
                                 descending
@@ -338,24 +493,33 @@ namespace Helpers
                             break;
                         }
 
+                    // =====================================================
+                    // LAST
+                    // =====================================================
+
                     case PaginationNavigation.Last:
                         {
-                            /*
-                             * The last page may contain fewer records than
-                             * the normal limit.
-                             */
                             int lastPageSize =
                                 GetLastPageSize(
                                     total,
                                     limit);
 
-                            take = lastPageSize;
+                            /*
+                             * No probe required because total count tells
+                             * us exactly how many rows belong to last page.
+                             */
+                            take =
+                                lastPageSize;
 
-                            useProbeRow = false;
-                            reverseRows = true;
+                            useProbeRow =
+                                false;
+
+                            reverseRows =
+                                true;
 
                             /*
-                             * Query from the opposite end of the table.
+                             * If normal order = DESC,
+                             * retrieve from smallest Id upwards.
                              */
                             fetchDirection =
                                 descending
@@ -372,9 +536,9 @@ namespace Helpers
                         }
                 }
 
-                // ---------------------------------------------------------
-                // Build fetch query
-                // ---------------------------------------------------------
+                // =========================================================
+                // BUILD FETCH WHERE
+                // =========================================================
 
                 List<string> fetchPredicates =
                     new(basePredicates);
@@ -390,18 +554,38 @@ namespace Helpers
                     BuildWhereClause(
                         fetchPredicates);
 
+                // =========================================================
+                // FETCH SQL
+                // =========================================================
+
                 string fetchSql =
                     $"""
                     SELECT TOP (@__take)
                         v.*
-                    FROM {safeTable} AS v
+                    FROM {safeSource} AS v
                     {fetchWhereSql}
                     ORDER BY {keyExpression} {fetchDirection}
                     """;
 
+                // =========================================================
+                // FETCH PARAMETERS
+                // =========================================================
+
                 List<SqlParameter> fetchParameters =
                     CreateFilterParameters(
                         normalizedFilters);
+
+                /*
+                 * Add:
+                 *
+                 * @ProgramId
+                 * @StageId
+                 *
+                 * etc.
+                 */
+                AddSourceParameters(
+                    fetchParameters,
+                    sourceParameters);
 
                 fetchParameters.Add(
                     new SqlParameter(
@@ -416,6 +600,10 @@ namespace Helpers
                             cursorId.Value));
                 }
 
+                // =========================================================
+                // EXECUTE FETCH
+                // =========================================================
+
                 List<T> rows =
                     await db.Set<T>()
                         .FromSqlRaw(
@@ -424,11 +612,12 @@ namespace Helpers
                         .AsNoTracking()
                         .ToListAsync(ct);
 
-                // ---------------------------------------------------------
-                // Probe-row handling
-                // ---------------------------------------------------------
+                // =========================================================
+                // PROBE ROW
+                // =========================================================
 
-                bool hasDirectionalPage = false;
+                bool hasDirectionalPage =
+                    false;
 
                 if (useProbeRow)
                 {
@@ -442,24 +631,30 @@ namespace Helpers
                     }
                 }
 
+                // =========================================================
+                // PREVIOUS / LAST REVERSE
+                // =========================================================
+
                 if (reverseRows)
                 {
                     rows.Reverse();
                 }
 
-                /*
-                 * Empty cursor results usually mean the records,
-                 * filters, or permissions changed after the cursor
-                 * was generated.
-                 */
+                // =========================================================
+                // STALE CURSOR CHECK
+                // =========================================================
+
                 bool cursorNavigation =
                     dto.Navigation ==
                         PaginationNavigation.Next ||
+
                     dto.Navigation ==
                         PaginationNavigation.Previous ||
+
                     (
                         dto.Navigation ==
                             PaginationNavigation.Page &&
+
                         requestedPage > 1
                     );
 
@@ -472,9 +667,9 @@ namespace Helpers
                         "records may have changed.");
                 }
 
-                // ---------------------------------------------------------
-                // Navigation state
-                // ---------------------------------------------------------
+                // =========================================================
+                // HAS PREVIOUS / HAS NEXT
+                // =========================================================
 
                 bool hasPrevious;
                 bool hasNext;
@@ -483,22 +678,34 @@ namespace Helpers
                 {
                     case PaginationNavigation.First:
                         {
-                            hasPrevious = false;
-                            hasNext = hasDirectionalPage;
+                            hasPrevious =
+                                false;
+
+                            hasNext =
+                                hasDirectionalPage;
+
                             break;
                         }
 
                     case PaginationNavigation.Next:
                         {
-                            hasPrevious = rows.Count > 0;
-                            hasNext = hasDirectionalPage;
+                            hasPrevious =
+                                rows.Count > 0;
+
+                            hasNext =
+                                hasDirectionalPage;
+
                             break;
                         }
 
                     case PaginationNavigation.Previous:
                         {
-                            hasPrevious = hasDirectionalPage;
-                            hasNext = rows.Count > 0;
+                            hasPrevious =
+                                hasDirectionalPage;
+
+                            hasNext =
+                                rows.Count > 0;
+
                             break;
                         }
 
@@ -519,22 +726,27 @@ namespace Helpers
                             hasPrevious =
                                 total > rows.Count;
 
-                            hasNext = false;
+                            hasNext =
+                                false;
 
                             break;
                         }
 
                     default:
                         {
-                            hasPrevious = false;
-                            hasNext = false;
+                            hasPrevious =
+                                false;
+
+                            hasNext =
+                                false;
+
                             break;
                         }
                 }
 
-                // ---------------------------------------------------------
-                // Extract returned cursors
-                // ---------------------------------------------------------
+                // =========================================================
+                // CURSOR IDS
+                // =========================================================
 
                 long? firstKey =
                     rows.Count == 0
@@ -550,60 +762,67 @@ namespace Helpers
                             rows[^1],
                             keyColumn);
 
-                var result =
-                    new FilterDataResult<T>
-                    {
-                        HasError = false,
-                        ErrorMessage = null,
-                        Data = new FilteredResult<T>
-                        {
-                            lists = rows,
-                            page = requestedPage,
-                            limit = limit,
+                // =========================================================
+                // RESPONSE
+                // =========================================================
 
-                            total = includeTotal
+                return new FilterDataResult<T>
+                {
+                    HasError = false,
+
+                    ErrorMessage = null,
+
+                    Data = new FilteredResult<T>
+                    {
+                        lists =
+                            rows,
+
+                        page =
+                            requestedPage,
+
+                        limit =
+                            limit,
+
+                        total =
+                            includeTotal
                                 ? total
                                 : null,
 
-                            totalPages = includeTotal
+                        totalPages =
+                            includeTotal
                                 ? totalPages
                                 : 0,
 
-                            HasPrevious =
-                                hasPrevious,
+                        HasPrevious =
+                            hasPrevious,
 
-                            HasNext =
-                                hasNext,
+                        HasNext =
+                            hasNext,
 
-                            /*
-                             * First ID of the current page.
-                             * Used for Previous navigation.
-                             */
-                            PreviousFilteredId =
-                                hasPrevious
-                                    ? firstKey
-                                    : null,
+                        /*
+                         * First row ID.
+                         */
+                        PreviousFilteredId =
+                            hasPrevious
+                                ? firstKey
+                                : null,
 
-                            /*
-                             * Last ID of the current page.
-                             * Used for Next navigation.
-                             */
-                            NextFilteredId =
-                                hasNext
-                                    ? lastKey
-                                    : null,
+                        /*
+                         * Last row ID.
+                         */
+                        NextFilteredId =
+                            hasNext
+                                ? lastKey
+                                : null,
 
-                            /*
-                             * Always return the first ID so the
-                             * frontend can store it for typed-page
-                             * navigation.
-                             */
-                            PageCursorId =
-                                firstKey
-                        }
-                    };
-
-                return result;
+                        /*
+                         * Always return first row ID so frontend
+                         * can remember this page.
+                         */
+                        PageCursorId =
+                            firstKey
+                    }
+                };
             }
             catch (OperationCanceledException)
                 when (ct.IsCancellationRequested)
@@ -617,20 +836,24 @@ namespace Helpers
             }
         }
 
-        // -------------------------------------------------------------
-        // Total count
-        // -------------------------------------------------------------
+        // =============================================================
+        // TOTAL COUNT
+        // =============================================================
 
         private static async Task<(
             long Total,
-            int TotalPages)> GetTotalAsync(
+            int TotalPages)>
+            GetTotalAsync(
                 MYPSDbContext db,
-                string safeTable,
+                string safeSource,
                 IReadOnlyCollection<string> basePredicates,
                 IEnumerable<(
                     string Clause,
                     string ParamName,
-                    object? Value)> filter,
+                    object? Value)> filters,
+                IEnumerable<(
+                    string ParamName,
+                    object? Value)>? sourceParameters,
                 int limit,
                 CancellationToken ct)
         {
@@ -641,16 +864,33 @@ namespace Helpers
             string countSql =
                 $"""
                 SELECT COUNT_BIG(*) AS TotalCount
-                FROM {safeTable} AS v
+                FROM {safeSource} AS v
                 {countWhereSql}
                 """;
 
             List<SqlParameter> countParameters =
                 CreateFilterParameters(
-                    filter);
+                    filters);
+
+            /*
+             * THIS WAS MISSING IN YOUR CURRENT CODE.
+             *
+             * If safeSource is:
+             *
+             * [dbo].[fProgramProjects](
+             *     @ProgramId,
+             *     @StageId
+             * )
+             *
+             * these parameters MUST be supplied here too.
+             */
+            AddSourceParameters(
+                countParameters,
+                sourceParameters);
 
             PaginationCount? countRow =
-                await db.Set<PaginationCount>()
+                await db
+                    .Set<PaginationCount>()
                     .FromSqlRaw(
                         countSql,
                         countParameters.ToArray())
@@ -663,11 +903,15 @@ namespace Helpers
             long calculatedPages =
                 total == 0
                     ? 0
-                    : (total + limit - 1L) /
-                      limit;
+                    : (
+                        total +
+                        limit -
+                        1L
+                    ) / limit;
 
             int totalPages =
-                calculatedPages > int.MaxValue
+                calculatedPages >
+                int.MaxValue
                     ? int.MaxValue
                     : (int)calculatedPages;
 
@@ -675,6 +919,10 @@ namespace Helpers
                 total,
                 totalPages);
         }
+
+        // =============================================================
+        // LAST PAGE SIZE
+        // =============================================================
 
         private static int GetLastPageSize(
             long total,
@@ -693,27 +941,34 @@ namespace Helpers
                 : (int)remainder;
         }
 
-        // -------------------------------------------------------------
-        // SQL helpers
-        // -------------------------------------------------------------
+        // =============================================================
+        // BUILD WHERE
+        // =============================================================
 
         private static string BuildWhereClause(
             IEnumerable<string> predicates)
         {
             List<string> validPredicates =
                 predicates
-                    .Where(predicate =>
-                        !string.IsNullOrWhiteSpace(
-                            predicate))
+                    .Where(x =>
+                        !string.IsNullOrWhiteSpace(x))
                     .ToList();
 
-            return validPredicates.Count == 0
-                ? string.Empty
-                : "WHERE " +
-                  string.Join(
-                      " AND ",
-                      validPredicates);
+            if (validPredicates.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return
+                "WHERE " +
+                string.Join(
+                    " AND ",
+                    validPredicates);
         }
+
+        // =============================================================
+        // NORMAL FILTER PARAMETERS
+        // =============================================================
 
         private static List<SqlParameter>
             CreateFilterParameters(
@@ -723,14 +978,70 @@ namespace Helpers
                     object? Value)> filters)
         {
             return filters
-                .Select(item =>
+                .Select(x =>
                     new SqlParameter(
                         NormalizeParameterName(
-                            item.ParamName),
-                        item.Value ??
+                            x.ParamName),
+
+                        x.Value ??
                         DBNull.Value))
                 .ToList();
         }
+
+        // =============================================================
+        // TVF PARAMETERS
+        // =============================================================
+
+        private static void AddSourceParameters(
+            List<SqlParameter> sqlParameters,
+            IEnumerable<(
+                string ParamName,
+                object? Value)>? sourceParameters)
+        {
+            if (sourceParameters is null)
+            {
+                return;
+            }
+
+            foreach (
+                (
+                    string ParamName,
+                    object? Value
+                ) sourceParameter
+                in sourceParameters)
+            {
+                string parameterName =
+                    NormalizeParameterName(
+                        sourceParameter.ParamName);
+
+                /*
+                 * Prevent duplicate SqlParameter.
+                 */
+                bool alreadyExists =
+                    sqlParameters.Any(x =>
+                        string.Equals(
+                            x.ParameterName,
+                            parameterName,
+                            StringComparison.OrdinalIgnoreCase));
+
+                if (alreadyExists)
+                {
+                    throw new InvalidOperationException(
+                        $"Duplicate SQL parameter: " +
+                        $"'{parameterName}'.");
+                }
+
+                sqlParameters.Add(
+                    new SqlParameter(
+                        parameterName,
+                        sourceParameter.Value ??
+                        DBNull.Value));
+            }
+        }
+
+        // =============================================================
+        // PARAMETER NAME NORMALIZATION
+        // =============================================================
 
         private static string NormalizeParameterName(
             string parameterName)
@@ -742,24 +1053,101 @@ namespace Helpers
                     "SQL parameter name cannot be empty.");
             }
 
-            return parameterName.StartsWith("@")
-                ? parameterName
-                : $"@{parameterName}";
+            string normalized =
+                parameterName.StartsWith("@")
+                    ? parameterName
+                    : $"@{parameterName}";
+
+            /*
+             * Validate actual parameter name.
+             *
+             * Remove @ before matching because IdentifierRegex
+             * intentionally doesn't allow @.
+             */
+            string identifier =
+                normalized[1..];
+
+            if (!IdentifierRegex.IsMatch(
+                    identifier))
+            {
+                throw new ArgumentException(
+                    $"Unsafe SQL parameter name: " +
+                    $"'{parameterName}'.");
+            }
+
+            return normalized;
         }
 
+        // =============================================================
+        // PARAMETER VALIDATION
+        // =============================================================
+
         private static FilterDataResult<T>?
-            ValidateFilterParameters<T>(
+            ValidateParameters<T>(
                 IEnumerable<(
                     string Clause,
                     string ParamName,
-                    object? Value)> filters)
+                    object? Value)> filters,
+                IEnumerable<(
+                    string ParamName,
+                    object? Value)>? sourceParameters)
         {
             List<string> parameterNames =
-                filters
-                    .Select(item =>
+                new();
+
+            // ---------------------------------------------------------
+            // Filter parameters
+            // ---------------------------------------------------------
+
+            foreach (var filter in filters)
+            {
+                parameterNames.Add(
+                    NormalizeParameterName(
+                        filter.ParamName));
+            }
+
+            // ---------------------------------------------------------
+            // TVF source parameters
+            // ---------------------------------------------------------
+
+            if (sourceParameters is not null)
+            {
+                foreach (
+                    var parameter
+                    in sourceParameters)
+                {
+                    parameterNames.Add(
                         NormalizeParameterName(
-                            item.ParamName))
-                    .ToList();
+                            parameter.ParamName));
+                }
+            }
+
+            // ---------------------------------------------------------
+            // Reserved internal parameters
+            // ---------------------------------------------------------
+
+            string? reservedParameter =
+                parameterNames.FirstOrDefault(
+                    name =>
+                        name.Equals(
+                            "@__take",
+                            StringComparison.OrdinalIgnoreCase) ||
+
+                        name.Equals(
+                            "@__cursor",
+                            StringComparison.OrdinalIgnoreCase));
+
+            if (reservedParameter is not null)
+            {
+                return Error<T>(
+                    $"SQL parameter " +
+                    $"'{reservedParameter}' is reserved " +
+                    "for pagination.");
+            }
+
+            // ---------------------------------------------------------
+            // Duplicate parameters
+            // ---------------------------------------------------------
 
             string? duplicateParameter =
                 parameterNames
@@ -776,30 +1164,85 @@ namespace Helpers
             {
                 return Error<T>(
                     $"Duplicate SQL parameter name: " +
-                    $"{duplicateParameter}.");
+                    $"'{duplicateParameter}'.");
             }
 
             return null;
         }
 
-        // -------------------------------------------------------------
-        // Identifier validation
-        // -------------------------------------------------------------
+        // =============================================================
+        // TABLE / VIEW / TVF SOURCE BUILDER
+        // =============================================================
+
+        private static string BuildSource(
+            string safeSourceName,
+            IReadOnlyCollection<(
+                string ParamName,
+                object? Value)>? sourceParameters,
+            bool isTableValuedFunction)
+        {
+            /*
+             * Normal table/view:
+             *
+             * [dbo].[vProgramLatest]
+             */
+            if (!isTableValuedFunction)
+            {
+                return safeSourceName;
+            }
+
+            /*
+             * Parameterless TVF:
+             *
+             * [dbo].[fSomething]()
+             */
+            if (sourceParameters is null ||
+                sourceParameters.Count == 0)
+            {
+                return
+                    $"{safeSourceName}()";
+            }
+
+            /*
+             * Parameterized TVF:
+             *
+             * [dbo].[fProgramProjects](
+             *     @ProgramId,
+             *     @StageId
+             * )
+             */
+            string parameters =
+                string.Join(
+                    ", ",
+                    sourceParameters
+                        .Select(x =>
+                            NormalizeParameterName(
+                                x.ParamName)));
+
+            return
+                $"{safeSourceName}({parameters})";
+        }
+
+        // =============================================================
+        // IDENTIFIER VALIDATION
+        // =============================================================
 
         private static string SafeIdentifier(
             string raw)
         {
-            if (string.IsNullOrWhiteSpace(raw))
+            if (string.IsNullOrWhiteSpace(
+                    raw))
             {
                 throw new ArgumentException(
-                    "Table or view name is required.");
+                    "Table, view or function name is required.");
             }
 
             string[] parts =
                 raw.Split('.');
 
             if (parts.Length == 0 ||
-                parts.Any(string.IsNullOrWhiteSpace))
+                parts.Any(
+                    string.IsNullOrWhiteSpace))
             {
                 throw new ArgumentException(
                     $"Invalid SQL identifier: '{raw}'.");
@@ -807,7 +1250,8 @@ namespace Helpers
 
             foreach (string part in parts)
             {
-                if (!IdentifierRegex.IsMatch(part))
+                if (!IdentifierRegex.IsMatch(
+                        part))
                 {
                     throw new ArgumentException(
                         $"Unsafe SQL identifier: '{raw}'.");
@@ -823,7 +1267,8 @@ namespace Helpers
         private static string SafeSingleIdentifier(
             string raw)
         {
-            if (string.IsNullOrWhiteSpace(raw) ||
+            if (string.IsNullOrWhiteSpace(
+                    raw) ||
                 !IdentifierRegex.IsMatch(raw))
             {
                 throw new ArgumentException(
@@ -833,9 +1278,9 @@ namespace Helpers
             return $"[{raw}]";
         }
 
-        // -------------------------------------------------------------
-        // Cursor key extraction
-        // -------------------------------------------------------------
+        // =============================================================
+        // CURSOR KEY
+        // =============================================================
 
         private static long GetKeyValue<T>(
             T item,
@@ -843,15 +1288,20 @@ namespace Helpers
         {
             Func<object, object?> getter =
                 KeyGetters.GetOrAdd(
-                    (typeof(T), keyColumn),
+                    (
+                        typeof(T),
+                        keyColumn
+                    ),
                     key =>
                     {
                         PropertyInfo property =
                             key.Type.GetProperty(
                                 key.Column,
+
                                 BindingFlags.Public |
                                 BindingFlags.Instance |
                                 BindingFlags.IgnoreCase)
+
                             ?? throw new
                                 InvalidOperationException(
                                     $"Type '{key.Type.Name}' " +
@@ -879,9 +1329,10 @@ namespace Helpers
                                 typeof(object));
 
                         return Expression
-                            .Lambda<Func<object, object?>>(
-                                boxedValue,
-                                objectParameter)
+                            .Lambda<
+                                Func<object, object?>>(
+                                    boxedValue,
+                                    objectParameter)
                             .Compile();
                     });
 
@@ -900,9 +1351,9 @@ namespace Helpers
                 CultureInfo.InvariantCulture);
         }
 
-        // -------------------------------------------------------------
-        // Error response
-        // -------------------------------------------------------------
+        // =============================================================
+        // ERROR
+        // =============================================================
 
         private static FilterDataResult<T>
             Error<T>(
@@ -911,8 +1362,12 @@ namespace Helpers
             return new FilterDataResult<T>
             {
                 HasError = true,
-                ErrorMessage = message,
-                Data = new FilteredResult<T>()
+
+                ErrorMessage =
+                    message,
+
+                Data =
+                    new FilteredResult<T>()
             };
         }
     }

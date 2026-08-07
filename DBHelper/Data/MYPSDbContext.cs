@@ -61,6 +61,7 @@ namespace DBHelper.Data
         public DbSet<Models.Functions.Program.ProgramStages> fProgramStages { get; set; }
         public DbSet<Models.Functions.Program.UserVisiblePrograms> fUserVisiblePrograms { get; set; }
         public DbSet<ProgramDetails> fProgramDetails { get; set; }
+        public DbSet<ProgramProjects> fProgramProjects { get; set; }
         public DbSet<ProgramDetailsInProject> fProgramDetailsInProject { get; set; }
         #endregion
 

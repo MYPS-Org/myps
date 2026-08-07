@@ -1,5 +1,6 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
+using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Table;
 using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views.Program;
@@ -49,7 +50,6 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto, CancellationToken cancellationToken)
         {
@@ -302,8 +302,76 @@ namespace WebAPI.Controllers.Programs
         }
         #endregion
         #region Program Details
-
         [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> ShowProjectsInProgram([FromBody] ShowProjectsInProgramDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+                if (!string.IsNullOrEmpty(dto.Filters.ProjectId))
+                    filters.Add(("v.ProjectId = @projectId", "@projectId", dto.Filters.ProjectId));
+                if (_Session.ApplyFilter)
+                {
+                    filters.Add((
+                        "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
+                        "@regCode", _Session.RegCode));
+                }
+                if (!Enum.TryParse<EnumProgramStage>(
+                    dto.StageName,
+                    ignoreCase: true,
+                    out var stage))
+                {
+                    return new BadRequestObjectResult(new ErrorResult
+                    {
+                        Title = "Invalid stage",
+                        Message = $"Invalid StageName: '{dto.StageName}'."
+                    });
+                }
+                var sourceParameters =
+                new List<(string ParamName, object? Value)>
+                {
+                    ("@ProgramId", dto.ProgramId),
+                    ("@StageId", (int)stage)
+                };
+                FilterDataResult<ProgramProjects> result =
+                    await _db.FilterDataCursor<
+                        ProgramProjects,
+                        ShowProjectsInProgramFilterDTO>(
+                            tableName: $"fProgramProjects",
+                            sourceParameters: sourceParameters,
+                            isTableValuedFunction: true,
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
+                {
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ErrorMessage ??
+                                "Unable to retrieve the records."
+                        });
+                }
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+
         [HttpPost]
         public async Task<IActionResult> ProgramDetails([FromBody] ProgramDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -367,8 +435,6 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto, CancellationToken cancellationToken)
         {

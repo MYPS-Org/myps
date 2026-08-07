@@ -65,7 +65,6 @@ builder.Services.AddSignalR(opt =>
 
 var app = builder.Build();
 
-app.UseRouting();
 if (!app.Environment.IsProduction())
 {
     app.UseCors("AllowReactApp");
@@ -76,6 +75,7 @@ if (!app.Environment.IsProduction())
         app.UseHangfireDashboard("/hangfire"); // optional: remove in production
     }
 }
+app.UseRouting();
 app.UseStaticFiles(); // For wwwroot
 app.UseStaticFiles(new StaticFileOptions
 {
