@@ -287,11 +287,11 @@ export interface ComponentCostPerYear {
 	ProjectId: string;
 	StageName?: string;
 	ComponentId: string;
-	Amount?: string;
-	Year?: string;
+	Amount?: number;
+	Year?: number;
 	UACS?: string;
-	StartDate?: string;
-	EndDate?: string;
+	StartDate?: string | null;
+	EndDate?: string | null;
 	DateOfApproval?: string;
 	CreatedBy?: string;
 	CreatedDate?: string;
