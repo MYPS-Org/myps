@@ -60,7 +60,7 @@ namespace Helpers
                 response.Title = "Invalid Program ID";
                 return response;
             }
-            if (!Enum.TryParse<EnumProgramStage>(dto.StageName, out var SelectedStage))
+            if (!Enum.TryParse<EnumProgramStage>(dto.StageName.Replace("-",""), out var SelectedStage))
             {
                 response.Title = "Invalid Stage";
                 response.Message = $"'{dto.StageName}' is not a valid program stage.";

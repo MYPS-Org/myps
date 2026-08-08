@@ -5,9 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Lookups.Project
 {
-    public class DropdownSupportingDocs
+    public class OptionSupportingDocs
     {
         [Key]
         public int Id { get; set; }
@@ -24,5 +24,7 @@ namespace DBHelper.Models.Table
         public DateTime CreatedDate { get; set; }
         [Required]
         public int ValidUntil { get; set; }
+        [Required]
+        public bool IsActive { get; set; }
     }
 }

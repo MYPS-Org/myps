@@ -20,13 +20,11 @@ namespace DBHelper.Models.Functions.Project
         [MaxLength(200)]
         public string? StageName { get; set; }
         [Required]
-        [MaxLength(10)]
+        [MaxLength(20)]
         public string ComponentType { get; set; } = string.Empty;
         public string? ComponentName { get; set; }
-        [Required]
-        [Column(TypeName = "decimal(18,5)")]
-        public decimal ComponentId { get; set; }
-        public byte? Description { get; set; }
+        public string ComponentId { get; set; } = string.Empty;
+        public string? Description { get; set; }
         [Column(TypeName = "decimal(18,5)")]
         public decimal? Total { get; set; }
         public byte? ConstructionStatusCode { get; set; }

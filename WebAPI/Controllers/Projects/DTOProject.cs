@@ -173,7 +173,7 @@ namespace WebAPI.Controllers.Projects
         // FK -> dbo.tProjectRevisions(Id)
         public int ProjectRevisionFK { get; set; }
         [Required]
-        [MaxLength(10)]
+        [MaxLength(20)]
         // FK -> dbo.tOptionProjectComponentType(ComponentId)
         public string ComponentType { get; set; } = string.Empty;
         [Required]
@@ -193,8 +193,8 @@ namespace WebAPI.Controllers.Projects
         public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
-        public ICollection<ProjectComponentCostPerYearDTO> CostsPerYear { get; set; } = new List<ProjectComponentCostPerYearDTO>();
-        public ICollection<ProjectMajorWorkItemDTO> WorkItems { get; set; } = new List<ProjectMajorWorkItemDTO>();
+        //public ICollection<ProjectComponentCostPerYearDTO> CostsPerYear { get; set; } = new List<ProjectComponentCostPerYearDTO>();
+        //public ICollection<ProjectMajorWorkItemDTO> WorkItems { get; set; } = new List<ProjectMajorWorkItemDTO>();
     }
     public class ProjectComponentCostPerYearDTO
     {
@@ -203,6 +203,9 @@ namespace WebAPI.Controllers.Projects
         public int Id { get; set; }
         // FK -> dbo.tProjectComponentCost(Id)
         public int ComponentCostFK { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
         [Required]
         [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
@@ -222,7 +225,7 @@ namespace WebAPI.Controllers.Projects
         public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
-        public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
+        //public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
     }
     public class ProjectMajorWorkItemDTO
     {
@@ -238,6 +241,9 @@ namespace WebAPI.Controllers.Projects
         // FK -> dbo.tProjectComponentCost(Id)
         public int ComponentCostFK { get; set; }
         [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
         public int YearOfWork { get; set; }
         [Required]
         // FK -> dbo.tOptionScopeOfWork(Enum)
@@ -247,17 +253,9 @@ namespace WebAPI.Controllers.Projects
         // FK -> dbo.tOptionInfraType(InfraCode)
         public string InfraTypeFK { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        [Required]
-        public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
-        [Required]
         public bool IsDeleted { get; set; }
-        public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
-        public ICollection<ProjectMajorWorkLocationsDTO> WorkLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
+        //public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
+        //public ICollection<ProjectMajorWorkLocationsDTO> WorkLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
     }
     public class ProjectMajorWorkLocationsDTO
     {
@@ -266,6 +264,9 @@ namespace WebAPI.Controllers.Projects
         public int Id { get; set; }
         // FK -> dbo.tProjectMajorWorkItem(Id)
         public int WorkItemFK { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
@@ -289,16 +290,8 @@ namespace WebAPI.Controllers.Projects
         public double? EndChainage { get; set; }
         public double? Length { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        [Required]
-        public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
-        [Required]
         public bool IsDeleted { get; set; }
-        public ProjectMajorWorkItemDTO WorkItem { get; set; } = null!;
+        //public ProjectMajorWorkItemDTO WorkItem { get; set; } = null!;
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {

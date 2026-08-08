@@ -18,6 +18,9 @@ namespace DBHelper.Models.Table.Project
         // FK -> dbo.tProjectComponentCost(Id)
         public int ComponentCostFK { get; set; }
         [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
         public int YearOfWork { get; set; }
         [Required]
         // FK -> dbo.tOptionScopeOfWork(Enum)

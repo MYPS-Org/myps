@@ -46,7 +46,7 @@ namespace Helpers
                 response.Title = "Invalid Project ID";
                 return response;
             }
-            if (!Enum.TryParse<EnumProgramStage>(p.StageName, out var SelectedStage))
+            if (!Enum.TryParse<EnumProgramStage>(p.StageName.Replace("-", ""), out var SelectedStage))
             {
                 response.Title = "Invalid Stage";
                 response.Message = $"'{p.StageName}' is not a valid program stage.";
