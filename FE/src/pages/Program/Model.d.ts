@@ -162,9 +162,9 @@ export interface ProgramProjects {
 	CategoryName?: string;
 	Description: string;
 	Region: string;
-	Thrust: string;
-	OperatingUnit: string;
-	ImplementingOffice: string;
+	ThrustName: string;
+	OperatingUnitName: string;
+	ImplementingOfficeName: string;
 	CreatedDate: string;
 	LastUpdatedBy?: string;
 	LastUpdatedDate?: string;

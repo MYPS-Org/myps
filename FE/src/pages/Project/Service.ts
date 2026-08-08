@@ -228,10 +228,10 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
 export const fetchProjectGeoJSON = async (referenceId: string, programId: string, username: string, stageName: string) => {
     try {
         const response = await gisClient.get(
-            `/api_v1.0/project/features_v4`,
+            `/projects_and_programs/get_proj_geom`,
             {
                 project_id: referenceId,
-                program_id: programId,
+                program_pk: programId,
                 username,
                 program_stage_name: stageName,
             },
@@ -247,7 +247,7 @@ export const fetchProjectGeoJSON = async (referenceId: string, programId: string
 export const chainageToLrpConverter = async (sectionId: string, chainage: number) => {
     try {
         const response = await gisClient.get(
-            `/api_v1.0/infra/chainage_to_lrp`,
+            `/infra_inventory/lrp/chainage_to_lrp`,
             {
                 road_section_id: sectionId,
                 chainage: chainage.toString(),

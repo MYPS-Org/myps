@@ -673,16 +673,16 @@ const ProgramDetail: React.FC = () => {
                     {project.Description}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.Category}
+                    {project.CategoryName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.Thrust}
+                    {project.ThrustName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.ImplementingOffice}
+                    {project.ImplementingOfficeName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.OperatingUnit}
+                    {project.OperatingUnitName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.IsPublishable ? 'Yes' : 'No'}
