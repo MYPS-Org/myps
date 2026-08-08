@@ -10,6 +10,7 @@ namespace DBHelper.Models.Functions.Program
         public int Id { get; set; }
         [Required]
         public int RevisionId { get; set; }
+        public int? OldSourceId { get; set; }
         [Required]
         public int StageFK { get; set; }
         [Required]
@@ -33,14 +34,28 @@ namespace DBHelper.Models.Functions.Program
         public int Category { get; set; }
         [MaxLength(200)]
         public string? CategoryName { get; set; }
+        [MaxLength(400)]
+        public string? ThrustName { get; set; }
         [Required]
         public string Description { get; set; } = string.Empty;
         [Required]
         [MaxLength(20)]
         public string Region { get; set; } = string.Empty;
         [Required]
+        [MaxLength(255)]
+        public string OperatingUnitName { get; set; } = string.Empty;
+        [Required]
         [MaxLength(20)]
-        public string ImplementingOffice { get; set; } = string.Empty;
+        public string OperatingUnitParticipantId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(255)]
+        public string ImplementingOfficeName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(20)]
+        public string ImplementingOfficeParticipantId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(8)]
+        public string Source { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(200)]
@@ -51,9 +66,5 @@ namespace DBHelper.Models.Functions.Program
         public string RevisionCreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime RevisionCreatedDate { get; set; }
-        [Required]
-        [MaxLength(8)]
-        public string Source { get; set; } = string.Empty;
-        public int? OldSourceId { get; set; }
     }
 }

@@ -1,4 +1,3 @@
-
 using Hangfire;
 using Hangfire.Hubs;
 using Helpers;
@@ -9,91 +8,174 @@ using OfficeOpenXml;
 using WebAPI.MicroService;
 
 var builder = WebApplication.CreateBuilder(args);
+
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
 Appsetting.Environment = builder.Environment.EnvironmentName;
-string file = $"appsettings{(Appsetting.Environment == "Production" ? "." : $".{Appsetting.Environment}.")}json";
-builder.Configuration.AddJsonFile(file, optional: true, reloadOnChange: true);
+
+string file =
+    $"appsettings{(Appsetting.Environment == "Production"
+        ? "."
+        : $".{Appsetting.Environment}.")}json";
+
+builder.Configuration.AddJsonFile(
+    file,
+    optional: true,
+    reloadOnChange: true);
+
 Appsetting.WebRootPath = builder.Environment.WebRootPath;
 Appsetting.RootPath = builder.Environment.ContentRootPath;
 
 Appsetting.PrepareAppsettings(builder.Configuration);
-//Custom function in Services
+
+
+// ==========================================================
+// SERVICES
+// ==========================================================
+
 builder.Services.PrepareDatabaseConnection();
 
-//Custom function in Services
 builder.Services.AddCookieAuthentication();
 
-builder.Services.AddControllers().AddJsonOptions(options =>
-{
-    options.JsonSerializerOptions.PropertyNamingPolicy = null;
-});
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+    });
 
-//Custom function in Services
 builder.Services.AddSocketMicroService();
 
 builder.Services.AddDinkToPdf();
 
-
-//await builder.Services.AuthRolesBasedOnDbAsync();
-
 builder.Services.AddEndpointsApiExplorer();
 
-if (!builder.Environment.IsProduction())
+
+// ==========================================================
+// CORS
+// DO NOT put this inside !IsProduction() for now.
+// ==========================================================
+
+builder.Services.AddCors(options =>
 {
-    builder.Services.AddCors(options =>
+    options.AddPolicy("AllowReactApp", policy =>
     {
-        options.AddPolicy("AllowReactApp", builder =>
-        {
-            builder
+        policy
             .WithOrigins(
+                "http://localhost:8080",
+                "https://localhost:8080",
+
                 "http://dpwh.eptisa-dev.com",
+                "https://dpwh.eptisa-dev.com",
+
                 "http://myps.eptisa-dev.com",
-                "http://localhost:8080"
+                "https://myps.eptisa-dev.com"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
-        });
     });
-    if(builder.Environment.IsDevelopment()) builder.Services.AddDevSwagger();
-}
-builder.Services.AddSignalR(opt =>
-{
-    opt.EnableDetailedErrors = true;
 });
+
+
+// ==========================================================
+// SIGNALR
+// ==========================================================
+
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+});
+
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDevSwagger();
+}
+
 
 var app = builder.Build();
 
-if (!app.Environment.IsProduction())
+
+// ==========================================================
+// DEVELOPMENT
+// ==========================================================
+
+if (app.Environment.IsDevelopment())
 {
-    app.UseCors("AllowReactApp");
-    if (builder.Environment.IsDevelopment())
-    {
-        app.UseDeveloperExceptionPage();
-        app.AddDevSwaggerUI();
-        app.UseHangfireDashboard("/hangfire"); // optional: remove in production
-    }
+    app.UseDeveloperExceptionPage();
+
+    app.AddDevSwaggerUI();
+
+    app.UseHangfireDashboard("/hangfire");
 }
-app.UseRouting();
-app.UseStaticFiles(); // For wwwroot
+
+
+// ==========================================================
+// STATIC FILES
+// ==========================================================
+
+app.UseStaticFiles();
+
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(Path.Combine(Appsetting.RootPath, "Resources")),
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(Appsetting.RootPath, "Resources")),
+
     RequestPath = new PathString("/Resources"),
+
     ContentTypeProvider = new FileExtensionContentTypeProvider()
 });
-app.UseHttpsRedirection();
+
+
+// ==========================================================
+// ROUTING
+// ==========================================================
+
+app.UseRouting();
+
+
+// ==========================================================
+// CORS
+//
+// IMPORTANT:
+// Routing -> CORS -> Authentication -> Authorization
+// ==========================================================
+
+app.UseCors("AllowReactApp");
+
+
+// ==========================================================
+// HTTPS
+// ==========================================================
+
+//app.UseHttpsRedirection();
+
+
+// ==========================================================
+// AUTHENTICATION
+// ==========================================================
+
 app.UseAuthentication();
+
 app.UseAuthorization();
+
+
+// ==========================================================
+// ENDPOINTS
+// ==========================================================
+
 app.MapControllers();
-var registrationHub = app.MapHub<SignalRHub>("/notificationHub");
-var importHub = app.MapHub<ImportHub>("/hubs/import");
-if (!app.Environment.IsProduction())
-{
-    registrationHub.RequireCors("AllowReactApp");
-    importHub.RequireCors("AllowReactApp");
-}
-//SPA fallback
+
+app.MapHub<SignalRHub>("/notificationHub");
+
+app.MapHub<ImportHub>("/hubs/import");
+
+
+// ==========================================================
+// SPA
+// ==========================================================
+
 app.MapFallbackToFile("index.html");
+
 app.Run();

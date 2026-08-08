@@ -167,7 +167,7 @@ namespace DBHelper.Data
 
         public DbSet<OptionScopeOfWork> tOptionScopeOfWork { get; set; }
 
-        public DbSet<Models.Table.DropdownSupportingDocs> tDropdownSupportingDocs { get; set; }
+        public DbSet<Models.Table.Lookups.Project.OptionSupportingDocs> tOptionSupportingDocs { get; set; }
         #endregion
 
         #endregion

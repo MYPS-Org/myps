@@ -17,6 +17,9 @@ namespace DBHelper.Models.Table.Project
         // FK -> dbo.tProjectMajorWorkItem(Id)
         public int WorkItemFK { get; set; }
         [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
         public string? DetailedScope { get; set; }

@@ -1,10 +1,10 @@
 "use-client";
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
+import type { ProgramDetailsEnums, ProgramProjectFilter, ProgramProjects } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects, ShowProjectsInProgram } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
@@ -15,6 +15,8 @@ import BatchActionsDropdown from '../components/programDetail/BatchActionsDropdo
 import AddExistingProjectDialog from '../dialogs/AddExistingProjectDialog';
 import BatchRestoreDialog from '../dialogs/BatchRestoreDialog';
 import CheckboxList from '../../../components/ui/CheckboxList';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationBar } from '@/components/tailwindui/PaginationBar';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -49,7 +51,6 @@ const ProgramDetail: React.FC = () => {
         CreatedDate: '',
     },
     IsActive: false,
-    Projects: [],
     Dropdowns: {
       Statuses: [],
       Stages: [],
@@ -58,6 +59,35 @@ const ProgramDetail: React.FC = () => {
       DataSecurity: []
     }
   });
+
+  // ShowProjectsInProgram needs ProgramId/StageName (from the route) plus its own
+  // Navigation/PageCursorId cursor fields — neither of which the generic usePagination
+  // hook knows about — so adapt its PaginatedRequest calls into that shape here.
+  const pageCursorRef = useRef(0);
+  const fetchProgramProjects = useCallback(
+    async (params: PaginatedRequest<ProgramProjectFilter>) => {
+      const response = await ShowProjectsInProgram({
+        Filters: params.Filters,
+        limit: params.limit,
+        page: params.page,
+        Navigation: params.Direction ?? 0,
+        PreviousFilteredId: params.PreviousFilteredId ?? 0,
+        NextFilteredId: params.NextFilteredId ?? 0,
+        PageCursorId: pageCursorRef.current,
+        ProgramId: id?.[0] ?? '',
+        StageName: id?.[1] ?? '',
+      });
+      pageCursorRef.current = response.Data.PageCursorId ?? 0;
+      return response;
+    },
+    [id]
+  );
+
+  const pagination = usePagination<ProgramProjectFilter, ProgramProjects>(fetchProgramProjects, {
+      initialFilters: { ProjectId: '' },
+      limit: 10,
+  });
+
   const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
         StageFKId: 0,
@@ -80,7 +110,6 @@ const ProgramDetail: React.FC = () => {
         CreatedDate: '',
     },
     IsActive: false,
-    Projects: [],
     Dropdowns: {
       Statuses: [],
       Stages: [],
@@ -96,18 +125,6 @@ const ProgramDetail: React.FC = () => {
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isAddExistingProjectDialogOpen, setIsAddExistingProjectDialogOpen] = useState(false);
   const [isBatchRestoreDialogOpen, setIsBatchRestoreDialogOpen] = useState(false);
-  
-  // Group data security by OrgType
-  // const groupedDataSecurity = useMemo(() => {
-  //   return (programEnums?.Dropdowns.DataSecurity || []).reduce((acc, item) => {
-  //     const orgType = item.OrgType || 'Other';
-  //     if (!acc[orgType]) {
-  //       acc[orgType] = [];
-  //     }
-  //     acc[orgType].push(item);
-  //     return acc;
-  //   }, {} as {[key: string]: typeof programEnums.Dropdowns.DataSecurity});
-  // }, [programEnums?.Dropdowns.DataSecurity]);
 
   useEffect(() => {
     const loadProgramDetail = async () => {
@@ -159,7 +176,14 @@ const ProgramDetail: React.FC = () => {
     };
 
   const handleAddProject = () => {
-    navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramPK}&stageName=${programEnums?.Details.StageName}`);
+    // Source ProgramId/StageName from the route (id[0]/id[1]) rather than programEnums.Details:
+    // the /Program/ProgramDetails response's Details object doesn't currently carry ProgramPK/StageName,
+    // so those were coming through as "undefined" in the query string and AddProject's dropdown-match
+    // (componentDropdowns.Programs.find by ProgramId+StageName) never found the program.
+    const [programId, stageName] = id ?? [];
+    if (programId && stageName) {
+      navigate(`/projects/addproject?programId=${programId}&stageName=${stageName}`);
+    }
   };
 
   const handleAddExistingProject = () => {
@@ -240,62 +264,6 @@ const ProgramDetail: React.FC = () => {
       }
     }));
   };
-
-  // Helper function to check if all items in a group are selected
-  // const isGroupSelected = (orgType: string): boolean => {
-  //   const groupItems = groupedDataSecurity[orgType] || [];
-  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
-  //   return groupItems.length > 0 && groupItems.every(item => 
-  //     currentDataSecurityGroup.includes(item.ParticipantId ?? '')
-  //   );
-  // };
-
-  // Helper function to check if some items in a group are selected
-  // const isGroupPartiallySelected = (orgType: string): boolean => {
-  //   const groupItems = groupedDataSecurity[orgType] || [];
-  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
-  //   return groupItems.some(item => 
-  //     currentDataSecurityGroup.includes(item.ParticipantId ?? '')
-  //   ) && !isGroupSelected(orgType);
-  // };
-
-  // Helper function to toggle all items in a group
-  // const handleGroupToggle = (orgType: string) => {
-  //   const groupItems = groupedDataSecurity[orgType] || [];
-  //   const groupItemIds = groupItems.map(item => item.ParticipantId ?? '');
-  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
-    
-  //   if (isGroupSelected(orgType)) {
-  //     // Remove all group items
-  //     setProgramEnums(prev => ({
-  //       ...prev,
-  //       Details: {
-  //         ...prev.Details,
-  //         DataSecurityGroup: currentDataSecurityGroup.filter(id => !groupItemIds.includes(id))
-  //       }
-  //     }));
-  //   } else {
-  //     // Add all group items
-  //     setProgramEnums(prev => ({
-  //       ...prev,
-  //       Details: {
-  //         ...prev.Details,
-  //         DataSecurityGroup: [...new Set([...currentDataSecurityGroup, ...groupItemIds])]
-  //       }
-  //     }));
-  //   }
-  // };
-
-  // Get program location for map display
-  // const getProgramLocation = () => {
-  //   // You can map region codes or program data to coordinates later
-  //   // For now, return a sample location in Metro Manila
-  //   return {
-  //     lat: 14.6091,
-  //     lng: 121.0223,
-  //     name: programEnums?.Details.Name || "Program Location"
-  //   };
-  // };
 
   const handleUpdate = async () => {
     setIsLoading(true);
@@ -694,7 +662,7 @@ const ProgramDetail: React.FC = () => {
             </TableHead>
             
             <TableBody className="bg-white divide-y divide-gray-200">
-              {programEnums?.Projects ? programEnums.Projects.map((project) => (
+              {pagination.data.lists ? pagination.data.lists.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
                     <button onClick={() => handleViewProject(project.ProjectId, project.StageName)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
@@ -705,16 +673,16 @@ const ProgramDetail: React.FC = () => {
                     {project.Description}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.Category}
+                    {project.CategoryName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.Thrust}
+                    {project.ThrustName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.ImplementingOffice}
+                    {project.ImplementingOfficeName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.OperatingUnit}
+                    {project.OperatingUnitName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.IsPublishable ? 'Yes' : 'No'}
@@ -740,6 +708,15 @@ const ProgramDetail: React.FC = () => {
             )}
             </TableBody>
           </Table>
+          <PaginationBar
+              currentPage={pagination.data.page}
+              totalPages={pagination.data.totalPages}
+              hasPrevious={pagination.hasPrevious}
+              hasNext={pagination.hasNext}
+              onGoToPage={pagination.goToPage}
+              onNext={pagination.goNext}
+              onPrevious={pagination.goPrevious}
+          />
         </div>
       </div>
 

@@ -19,9 +19,7 @@ namespace DBHelper.Models.Functions.Project
         public string ProjectId { get; set; } = string.Empty;
         [MaxLength(200)]
         public string? StageName { get; set; }
-        [Required]
-        [Column(TypeName = "decimal(18,5)")]
-        public decimal ComponentId { get; set; }
+        public string ComponentId { get; set; } = string.Empty;
         public DateTime? Amount { get; set; }
         public DateTime? Year { get; set; }
         [MaxLength(100)]

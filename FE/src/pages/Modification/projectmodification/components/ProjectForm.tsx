@@ -208,11 +208,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // #region GEOJSON DATA FOR MAP
   // Fetch GeoJSON data for map rendering
   const loadMapData = useCallback(async () => {
-    if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+    if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramPK) {
       try {
         const response = await fetchProjectGeoJSON(
-          initialData.ProjectDetails.ReferenceId || '',
-          initialData.ProgramDetails.ProgramId,
+          initialData.ProjectDetails.ProjectFK || '',
+          initialData.ProgramDetails.ProgramPK,
           user?.UserId || '',
           initialData.ProgramDetails.StageName
         );
