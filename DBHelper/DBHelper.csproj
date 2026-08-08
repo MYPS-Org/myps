@@ -7,9 +7,6 @@
     <Configurations>Debug;Release;Staging</Configurations>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="Models\Table\ImportJobResult.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.66" />

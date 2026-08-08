@@ -2,6 +2,8 @@
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
+using DBHelper.Models.Functions.Program;
+using DBHelper.Models.Functions.Revision;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Helpers;
@@ -16,6 +18,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Xml;
+using WebAPI.Controllers.Programs;
 using WebAPI.MicroService;
 namespace WebAPI.Controllers.Revision
 {
@@ -30,94 +33,90 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
-                if (dto.Filters == null)
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+
+                if (!string.IsNullOrWhiteSpace(dto.Filters.TransactionId))
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+                    filters.Add((
+                        "v.TransactionId = @TransactionId",
+                        "@TransactionId",
+                        dto.Filters.TransactionId));
                 }
-                if (!string.IsNullOrEmpty(dto.SortField))
+                if (!string.IsNullOrWhiteSpace(dto.Filters.ProjectId))
                 {
-                    bool isValid = typeof(DBHelper.Models.Views.Project.Projects)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-                    }
+                    filters.Add((
+                        "v.TransactionId = @TransactionId",
+                        "@TransactionId",
+                        dto.Filters.TransactionId));
                 }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
-
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
+                if (!string.IsNullOrWhiteSpace(dto.Filters.RevisionType))
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
+                    filters.Add((
+                        "v.RevisionType = @RevisionType",
+                        "@RevisionStatus",
+                        dto.Filters.RevisionType));
                 }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var AllowedStatusForCO = await _db.tOptionRevisionStatus
-                    .AsNoTracking()
-                    .Where(x => x.Enum == EnumRevisionStatus.Approved)
-                    .Select(x => (EnumRevisionStatus?)x.Enum)
-                    .ToListAsync();
-                bool isCentralOffice = _Session.UserGroupNames.Contains("AUC");
-                var baseQuery = _db.vRevisionLists.AsNoTracking();
-                if (isCentralOffice)
+                if (!string.IsNullOrWhiteSpace(dto.Filters.RevisionStatus))
                 {
-                    baseQuery = baseQuery.Where(x => AllowedStatusForCO.Contains(x.RegionStatus) || x.CreatedBy == _Session.UserId);
+                    filters.Add((
+                        "v.RevisionStatus = @RevisionStatus",
+                        "@RevisionStatus",
+                        dto.Filters.RevisionStatus));
+                }
+                if (!string.IsNullOrWhiteSpace(dto.Filters.CurrentStage))
+                {
+                    filters.Add((
+                        "v.CurrentStage = @CurrentStage",
+                        "@CurrentStage",
+                        dto.Filters.CurrentStage));
                 }
 
-
-                // Apply filters to base query
-                if (!string.IsNullOrEmpty(dto.Filters?.TransactionId))
-                    baseQuery = baseQuery.Where(e => e.TransactionId!.Contains(dto.Filters.TransactionId));
-
-                if (dto.Filters?.RevisionGroupId != null)
-                    baseQuery = baseQuery.Where(e => e.RevisionGroupId == dto.Filters.RevisionGroupId);
-
-                if (dto.Filters?.CategoryId != null)
-                    baseQuery = baseQuery.Where(e => e.CategoryId == dto.Filters.CategoryId);
-
-                if (dto.Filters?.ReasonId != null)
-                    baseQuery = baseQuery.Where(e => e.ReasonId == dto.Filters.ReasonId);
-
-                if (dto.Filters?.RegionStatus != null)
-                    baseQuery = baseQuery.Where(e => e.RegionStatus == dto.Filters.RegionStatus);
-
-                if (dto.Filters?.COStatus != null)
-                    baseQuery = baseQuery.Where(e => e.COStatus == dto.Filters.COStatus);
-
-
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
-
-                // Apply sorting and pagination
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-
-                // Apply pagination and execute query
-                List<DBHelper.Models.Views.RevisionLists> permissionLists = await sortedQuery
-                   .Skip((dto.page - 1) * dto.limit)
-                   .Take(dto.limit)
-                   .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                var RevisionStatus = await _db.tOptionRevisionStatus.ToListAsync();
-                var response = new
+                string @Level = "IO";
+                string[] UserGroup = _Session.UserGroupNames.ToArray();
+                if (UserGroup.Contains("RPC"))
                 {
-                    lists = permissionLists,
-                    dto.page,
-                    dto.limit,
-                    total = totalRecords,
-                    totalPages,
-                    Status = RevisionStatus
+                    @Level = "RO";
+                }
+                if (UserGroup.Contains("DPDAdmin"))
+                {
+                    @Level = "CO";
+                }
+                var sourceParameters =
+                new List<(string ParamName, object? Value)>
+                {
+                    ("@Level", @Level)
                 };
+                FilterDataResult<RevisionQueue> result =
+                    await _db.FilterDataCursor<
+                        RevisionQueue,
+                        RevisionRequestsFilter>(
+                            tableName: $"fRevisionQueue",
+                            sourceParameters: sourceParameters,
+                            isTableValuedFunction: true,
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
 
-                return Ok(response); // Remove the extra wrapper
+                if (result.HasError)
+                {
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ErrorMessage ??
+                                "Unable to retrieve the records."
+                        });
+                }
+
+                return Ok(result.Data);
             }
             catch (Exception ex)
             {
@@ -133,7 +132,7 @@ namespace WebAPI.Controllers.Revision
                 var RevisionTransation = dto.TransactionId.Split('-');
                 string ProjectId = RevisionTransation[0];
                 var prog = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == ProjectId);
-                var Project = await _db.fPendingProjectRevisions
+                var Project = await _db.fRevisionProjectDetails
                 .FromSqlInterpolated($"SELECT * FROM fPendingProjectRevisions({dto.TransactionId})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
