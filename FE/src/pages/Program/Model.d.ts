@@ -37,6 +37,7 @@ export interface ProgramLatest {
 	Name: string;
 	Status?: string;
 	Type?: string;
+	ProgramType?: string;
 	DataSecurityGroup: string;
 	UserGroup: string;
 	NumberOfProjects?: number;

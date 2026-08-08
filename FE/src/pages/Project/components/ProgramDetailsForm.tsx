@@ -130,7 +130,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">Program Type:</label>
               <input
                   type="text"
-                  value={programDetails.Type || ''}
+                  value={programDetails.ProgramType || ''}
                   disabled={mode === 'edit'}
                   readOnly
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
