@@ -1,6 +1,7 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Functions.Project;
+using DBHelper.Models.Functions.Revision;
 using DBHelper.Models.Table.Infra;
 using DBHelper.Models.Table.Lookups;
 using DBHelper.Models.Table.Lookups.Project;
@@ -59,8 +60,9 @@ namespace DBHelper.Data
 
         #region Functions
         public DbSet<Models.Functions.Program.ProgramStages> fProgramStages { get; set; }
-        public DbSet<Models.Functions.Program.UserVisiblePrograms> fUserVisiblePrograms { get; set; }
+        public DbSet<Models.Functions.Program.RevisionQueue> fUserVisiblePrograms { get; set; }
         public DbSet<ProgramDetails> fProgramDetails { get; set; }
+        public DbSet<ProgramProjects> fProgramProjects { get; set; }
         public DbSet<ProgramDetailsInProject> fProgramDetailsInProject { get; set; }
         #endregion
 
@@ -184,6 +186,12 @@ namespace DBHelper.Data
 
         #endregion
 
+        #region Revision
+        #region Functions
+        public DbSet<RevisionQueue> fRevisionQueue { get; set; }
+        #endregion
+        #endregion
+
         #region PCMA
         public DbSet<Models.Table.PCMARevisions> tPCMARevisions { get; set; }
         public DbSet<Models.Table.PCMARevisionDetails> tPCMARevisionDetails { get; set; }
@@ -283,7 +291,7 @@ namespace DBHelper.Data
             modelBuilder.Entity<Models.Views.AdminAreas.AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<Models.Views.AdminAreas.AdminOfficeRegion>().HasNoKey().ToView("vAdminOfficeRegion");
             modelBuilder.Entity<UserVisibleProjects>().HasNoKey().ToView("fUserVisibleProjects");
-            modelBuilder.Entity<UserVisiblePrograms>().HasNoKey().ToView("fUserVisiblePrograms");
+            modelBuilder.Entity<RevisionQueue>().HasNoKey().ToView("fUserVisiblePrograms");
             modelBuilder.Entity<PaginationCount>().HasNoKey().ToView("PaginationCount");
             modelBuilder.Entity<Models.Views.Lumpsum.LSWalletBalance>().HasNoKey().ToView("vLSWalletBalance");
             // Wallet Component Cost → Costs Per Year

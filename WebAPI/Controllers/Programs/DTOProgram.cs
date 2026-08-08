@@ -49,6 +49,17 @@ namespace WebAPI.Controllers.Programs
         [Required]
         public string StageName { get; set; } = string.Empty;
     }
+    public class ShowProjectsInProgramDTO : EnumPagination<ShowProjectsInProgramFilterDTO>
+    {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
+        [Required]
+        public string StageName { get; set; } = string.Empty;
+    }
+    public class ShowProjectsInProgramFilterDTO
+    {
+        public string ProjectId { get; set; } = string.Empty;
+    }
     public class DeleteProgramDTO
     {
         public int Id { get; set; }

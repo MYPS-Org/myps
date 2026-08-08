@@ -39,7 +39,7 @@ namespace Helpers
     public class ProgramHelperDataResult
     {
         public DBHelper.Models.Table.Program.Programs Program { get; set; } = new DBHelper.Models.Table.Program.Programs();
-        public DBHelper.Models.Table.Program.ProgramRevisions ProgramRevision { get; set; } = new DBHelper.Models.Table.Program.ProgramRevisions();
+        public DBHelper.Models.Functions.Program.ProgramDetails ProgramRevision { get; set; } = new DBHelper.Models.Functions.Program.ProgramDetails();
         public DBHelper.Models.Table.Program.ProgramStages ProgramStage { get; set; } = new DBHelper.Models.Table.Program.ProgramStages();
     }
     public class ProgramHelperParams
@@ -111,7 +111,7 @@ namespace Helpers
             }
             response.IsValid = true;
             response.Data.Program = ProgramParent;
-            var GetProgramRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CheckProgramStage.RevisionId, cancellationToken);
+            var GetProgramRevision = await _db.fProgramDetails.FromSqlInterpolated($"SELECT * FROM fProgramDetails({ProgramParent.ProgramPK}, {CheckProgramStage.StageId})").AsNoTracking().FirstOrDefaultAsync(cancellationToken);
             if(GetProgramRevision == null)
             {
                 response.Title = "Program Revision Not Found";

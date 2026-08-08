@@ -46,7 +46,6 @@ if (!builder.Environment.IsProduction())
         options.AddPolicy("AllowReactApp", builder =>
         {
             builder
-            //.WithOrigins("http://localhost:8080", "http://192.168.50.201:8080", "http://myps.eptisa-dev.com")
             .WithOrigins(
                 "http://dpwh.eptisa-dev.com",
                 "http://myps.eptisa-dev.com",
@@ -66,7 +65,6 @@ builder.Services.AddSignalR(opt =>
 
 var app = builder.Build();
 
-app.UseRouting();
 if (!app.Environment.IsProduction())
 {
     app.UseCors("AllowReactApp");
@@ -77,6 +75,7 @@ if (!app.Environment.IsProduction())
         app.UseHangfireDashboard("/hangfire"); // optional: remove in production
     }
 }
+app.UseRouting();
 app.UseStaticFiles(); // For wwwroot
 app.UseStaticFiles(new StaticFileOptions
 {
