@@ -1,5 +1,3 @@
-import type { ProjectLists } from "../Project/Model";
-
 export interface ProgramModel {
 	Id: number;
 	Stage: number;
@@ -102,7 +100,6 @@ export interface ProgramDetailsWithStages {
 
 export interface ProgramDetailsEnums{
   Details: ProgramDetails;
-  Projects: ProjectLists[];
   IsActive: boolean;
   Dropdowns: {
     Stages: TableEnums[];
@@ -125,6 +122,57 @@ export interface ProgramFilter {
   StartYear?: number | null;
   StageName?: string;
   Type?: string;
+}
+
+export interface ProgramProjectFilter {
+	ProjectId?: string;
+}
+
+/** Request contract for /Program/ShowProjectsInProgram — a program-scoped pagination endpoint,
+ * so it carries ProgramId/StageName alongside its own cursor fields (Navigation/PageCursorId)
+ * rather than the generic PaginatedRequest<T>/Direction shape used elsewhere. */
+export interface ShowProjectsInProgramRequest {
+	Filters?: ProgramProjectFilter;
+	limit: number;
+	page: number;
+	Navigation: number;
+	PreviousFilteredId: number;
+	NextFilteredId: number;
+	PageCursorId: number;
+	ProgramId: string;
+	StageName: string;
+}
+
+export interface ProgramProjectsPaginationResponse extends PaginationResponse<ProgramProjects> {
+	PageCursorId?: number | null;
+}
+
+export interface ProgramProjects {
+	Id: number;
+	RevisionId: number;
+	StageFK: number;
+	ProjectPK: string;
+	ProgramFK: string;
+	ProgramId: string;
+	ProjectId: string;
+	ProgramName?: string;
+	StageName: string;
+	Category: number;
+	CategoryName?: string;
+	Description: string;
+	Region: string;
+	Thrust: string;
+	OperatingUnit: string;
+	ImplementingOffice: string;
+	CreatedDate: string;
+	LastUpdatedBy?: string;
+	LastUpdatedDate?: string;
+	RevisionCreatedBy: string;
+	RevisionCreatedDate: string;
+	Source: string;
+	OldSourceId?: number;
+	IsPublishable?: boolean;
+	IsPublished?: boolean;
 }
 
 export interface ProgramList {
