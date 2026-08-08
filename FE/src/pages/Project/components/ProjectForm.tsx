@@ -208,12 +208,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // Fetch GeoJSON data for map rendering
   const loadMapData = useCallback(async () => {
-    if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+    if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramPK) {
       try {
         // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
         const response = await fetchProjectGeoJSON(
           initialData.ProjectDetails.ProjectFK || '',
-          initialData.ProgramDetails.ProgramId,
+          initialData.ProgramDetails.ProgramPK || '',
           user?.UserId || '',
           initialData.ProgramDetails.StageName
         );
@@ -231,24 +231,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     loadMapData();
   }, [loadMapData]);
 
-  // Separate useEffect to handle initialProgramId
-  useEffect(() => {
-    if (initialProgramId && componentDropdowns?.Programs) {
-      const selectedProgram = componentDropdowns.Programs.find(
-        program => program.ProgramId === initialProgramId && program.StageName === initialStageName
-      );
-      if (selectedProgram) {
-        setProgramDetails(selectedProgram);
-        // Also update project details with the program ID
-        setProjectDetails(prev => ({
-          ...prev,
-          ProgramId: selectedProgram.ProgramId,
-          ProgramName: selectedProgram.Name,
-          StageName: initialStageName || '',
-        }));
-      }
-    }
-  }, [initialProgramId, initialStageName, componentDropdowns?.Programs]);
+  // Pre-selecting the program for initialProgramId/initialStageName happens inside
+  // ProgramDetailsForm (via its searchProgram() call + onChange), since
+  // /Project/ShowProjectComponentDropdowns never returns a Programs list for us to match against here.
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
     initialData?.ComponentCosts || []
   );
@@ -1141,6 +1126,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 mode={mode}
                 initialData={initialData}
                 initialStageName={initialStageName}
+                initialProgramId={initialProgramId}
               />
             </div>
           )}

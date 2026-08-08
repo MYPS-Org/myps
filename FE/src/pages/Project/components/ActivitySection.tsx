@@ -42,7 +42,8 @@ function fullDate(dateString: string | null): string {
   });
 }
 
-function normaliseType(type: string): 'create' | 'update' | 'delete' | 'other' {
+function normaliseType(type: string | null | undefined): 'create' | 'update' | 'delete' | 'other' {
+  if (!type) return 'other';
   const t = type.toLowerCase();
   if (t === 'create' || t === 'insert') return 'create';
   if (t === 'update' || t === 'modify') return 'update';
