@@ -120,7 +120,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return ExceptionHandler(ex, dto);
 //            }
 //        }
 
@@ -352,7 +352,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return ExceptionHandler(ex, dto);
 //            }
 //        }
 
@@ -607,7 +607,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return ExceptionHandler(ex, dto);
 //            }
 //        }
 
@@ -1658,7 +1658,7 @@
 //            catch (Exception ex)
 //            {
 //                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                return ExceptionHandler(ex, dto);
 //            }
 //        }
 
@@ -1859,7 +1859,7 @@
 //            catch (Exception ex)
 //            {
 //                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                return ExceptionHandler(ex, dto);
 //            }
 //        }
 
@@ -3116,7 +3116,7 @@
 //            catch (DbUpdateException ex)
 //            {
 //                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                return ExceptionHandler(ex, dto);
 //            }
 //        }
 //    }

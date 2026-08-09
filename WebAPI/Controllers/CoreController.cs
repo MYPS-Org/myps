@@ -29,11 +29,13 @@ namespace WebAPI.Controllers
         public PCMADbContext _pcma;
         public DBHelper.Models.Views.Users _Session = new DBHelper.Models.Views.Users();
         public IHubContext<SignalRHub> _hubContext;
-        public CoreController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma)
+        protected readonly IMYPSExceptionHandler _exceptionHandler;
+        public CoreController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler)
         {
             _db = db;
             _hubContext = hub;
             _pcma = pcma;
+            _exceptionHandler = exceptionHandler;
         }
         public override void OnActionExecuting(ActionExecutingContext context)
         {
@@ -91,58 +93,6 @@ namespace WebAPI.Controllers
             catch (Exception ex)
             {
                 throw new Exception(ex.Message);
-            }
-        }
-        [NonAction]
-        public ObjectResult ExceptionHandler(Exception ex)
-        {
-            Guid errorReferenceId = Guid.NewGuid();
-            try
-            {
-                if(ex is OperationCanceledException)
-                {
-                    return Ok(
-                    new
-                    {
-                        Message = "Operation has been cancelled",
-                        Title = "Operation cancelled"
-                    });
-                }
-                string Header = "\n\n/========================= MYPS ERROR EVENT STARTS HERE =========================/\n\n";
-                string Body = $"[{errorReferenceId}]\n\nException: [[EXCEPTION]]\n\n";
-                string Footer = "/========================= MYPS ERROR EVENT ENDS HERE =========================/\n\n";
-                if (ex is DbUpdateException dbEx)
-                {
-                    Body = Body.Replace("[[EXCEPTION]]", dbEx.ToString());
-                }
-                else
-                {
-                    Body = Body.Replace("[[EXCEPTION]]", ex.ToString());
-                }
-                
-                string Message = Header + Body + Footer;
-
-                EventLog.WriteEntry("Application", Message, EventLogEntryType.Error);
-                string ErrorId = errorReferenceId.ToString();
-                return new BadRequestObjectResult(
-                    new
-                    {
-                        ErrorId = ErrorId,
-                        Message = ex.Message,
-                        Title = "Application Error"
-                    }
-                );
-            }
-            catch (Exception)
-            {
-                return new BadRequestObjectResult(
-                    new
-                    {
-                        ErrorId = "No ErrorId",
-                        Message = ex.Message,
-                        Title = "Application Error"
-                    }
-                );
             }
         }
         [NonAction]

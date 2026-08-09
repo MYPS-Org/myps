@@ -321,7 +321,7 @@ namespace Helpers
             if (ValidateRegion == null)
             {
                 response.Message = $"Selected Region '{p.Region}' is not valid."; response.Title = "Invalid Region";
-                //return response;
+                return response;
             }
             string RegionParticipantId = p.Region;//ValidateRegion.ParticipantId;
 

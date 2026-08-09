@@ -435,7 +435,7 @@
 //            catch (Exception ex)
 //            {
 //                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //    }

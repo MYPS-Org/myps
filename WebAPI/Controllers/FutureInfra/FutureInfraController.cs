@@ -7,6 +7,7 @@ using Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebAPI.MicroService;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WebAPI.Controllers.Programs
 {
@@ -14,7 +15,7 @@ namespace WebAPI.Controllers.Programs
     [Route("api/[controller]/[action]")]
     public class FutureInfraController : CoreController
     {
-        public FutureInfraController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+        public FutureInfraController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
         [HttpPost]
         public async Task<IActionResult> GetInfraInfo()
@@ -35,7 +36,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
         #region Future Roads
@@ -55,10 +56,10 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowFutureRoads([FromBody] ShowFutureRoadsDTO dto, CancellationToken cancellationToken)
         {
@@ -104,7 +105,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -240,7 +241,7 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -295,7 +296,7 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -360,7 +361,7 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion
@@ -381,7 +382,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
 
@@ -436,7 +437,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -482,7 +483,7 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -625,7 +626,7 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -688,7 +689,7 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion
@@ -709,7 +710,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
         [HttpPost]
@@ -763,7 +764,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -817,7 +818,7 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -975,7 +976,7 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -1027,7 +1028,7 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion

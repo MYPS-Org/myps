@@ -5,6 +5,7 @@ using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,13 @@ namespace WebAPI.Controllers.GlobalSearch
     [Route("api/[controller]/[action]")]
     public class GlobalSearchController : CoreController
     {
-        public GlobalSearchController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+        public GlobalSearchController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler)
+        : base(
+            db,
+            hub,
+            pcma,
+            exceptionHandler)
+        { }
 
         [HttpPost]
         public async Task<IActionResult> GetSearchCategory()
@@ -42,7 +49,7 @@ namespace WebAPI.Controllers.GlobalSearch
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
         [AllowAnonymous]
@@ -474,7 +481,7 @@ namespace WebAPI.Controllers.GlobalSearch
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
     }

@@ -21,7 +21,7 @@ namespace WebAPI.Controllers.Projects
     [Route("api/[controller]/[action]")]
     public class ProjectController : CoreController
     {
-        public ProjectController(MYPSDbContext db, IHubContext<MicroService.SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+        public ProjectController(MYPSDbContext db, IHubContext<MicroService.SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
         #region Others
         [HttpPost]
@@ -98,7 +98,7 @@ namespace WebAPI.Controllers.Projects
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
         [HttpPost]
@@ -185,7 +185,7 @@ namespace WebAPI.Controllers.Projects
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
         #endregion
@@ -244,7 +244,7 @@ namespace WebAPI.Controllers.Projects
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         
@@ -277,7 +277,7 @@ namespace WebAPI.Controllers.Projects
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion
@@ -438,7 +438,7 @@ namespace WebAPI.Controllers.Projects
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -463,7 +463,7 @@ namespace WebAPI.Controllers.Projects
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion
@@ -546,7 +546,7 @@ namespace WebAPI.Controllers.Projects
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [AllowAnonymous]
@@ -2808,7 +2808,7 @@ namespace WebAPI.Controllers.Projects
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
@@ -2876,7 +2876,7 @@ namespace WebAPI.Controllers.Projects
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         
@@ -2939,7 +2939,7 @@ namespace WebAPI.Controllers.Projects
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion

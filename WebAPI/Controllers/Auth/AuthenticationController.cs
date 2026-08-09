@@ -24,7 +24,7 @@ namespace WebAPI.Controllers.Auth
     [Route("api/[controller]/[action]")]
     public class AuthController : CoreController
     {
-        public AuthController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base (db, hub, pcma) { }
+        public AuthController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base (db, hub, pcma, exceptionHandler) { }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto dto, CancellationToken cancellationToken)
@@ -141,7 +141,7 @@ namespace WebAPI.Controllers.Auth
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
@@ -161,7 +161,7 @@ namespace WebAPI.Controllers.Auth
                 return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = _Session, ViewAccess = ViewAccess } });
             }
             catch (Exception ex) { 
-                return ExceptionHandler(ex); 
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString()); 
             }
         }
         [HttpPost]
@@ -173,7 +173,7 @@ namespace WebAPI.Controllers.Auth
                 return Ok(new { LoginLogs = Logs });
             }
             catch (Exception ex) { 
-                return ExceptionHandler(ex); 
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString()); 
             }
         }
         [AllowAnonymous]
@@ -193,7 +193,7 @@ namespace WebAPI.Controllers.Auth
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
     }
