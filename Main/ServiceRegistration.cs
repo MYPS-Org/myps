@@ -14,8 +14,18 @@ namespace Main
         #region Builder
         public static IServiceCollection PrepareDatabaseConnection(this IServiceCollection Services)
         {
-            Services.AddDbContext<MYPSDbContext>(options => {
-                options.UseSqlServer(Appsetting.DbConnections.MYPSDb);
+            // Pooled registration also provides IDbContextFactory<MYPSDbContext> for
+            // short-lived, read-only contexts used to run independent lookup queries
+            // concurrently (a single DbContext instance cannot be used by more than one
+            // operation at a time, so Task.WhenAll needs one context each). Registering
+            // AddDbContext and AddPooledDbContextFactory separately for the same context
+            // type conflicts (scoped DbContextOptions vs singleton pool), so this single
+            // AddDbContextPool call covers both the scoped injection and the factory.
+            Services.AddDbContextPool<MYPSDbContext>(options => {
+                options.UseSqlServer(
+                    Appsetting.DbConnections.MYPSDb,
+                    sqlServerOptions => sqlServerOptions.CommandTimeout(90)
+                );
                 options.EnableSensitiveDataLogging();
                 options.EnableDetailedErrors();
                 options.LogTo(Console.WriteLine, LogLevel.Information);

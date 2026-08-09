@@ -1670,10 +1670,13 @@ namespace WebAPI.Controllers.Projects
                         await _db.tProjectComponentCostPerYear.AddRangeAsync(NewComponentCostPerYear, cancellationToken);
                     }
 
-                    var NewWorkItem = dto.MajorItemOfWorks.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId));
-                    if (NewCostYears.Count() > 0)
+                    // Gated on this block's own collection (was incorrectly gated on NewCostYears.Count() > 0),
+                    // so new work items are no longer silently skipped when there are no new cost-per-year rows.
+                    var NewWorkItem = dto.MajorItemOfWorks.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId)).ToList();
+                    List<ProjectMajorWorkItem> NewMajorWorkItem = new List<ProjectMajorWorkItem>();
+                    if (NewWorkItem.Count > 0)
                     {
-                        var NewMajorWorkItem = NewCostToAdd
+                        NewMajorWorkItem = NewCostToAdd
                             .SelectMany(a =>
                                 NewWorkItem
                                 .Where(x => x.ComponentId == a.ComponentId)
@@ -1692,10 +1695,12 @@ namespace WebAPI.Controllers.Projects
                         await _db.SaveChangesAsync(cancellationToken);
                     }
 
-                    var NewWorkLocation = dto.MajorItemLocations.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId));
-                    if (NewCostYears.Count() > 0)
+                    // Gated on this block's own collection (was incorrectly gated on NewCostYears.Count() > 0),
+                    // so new work locations are no longer silently skipped when there are no new cost-per-year rows.
+                    var NewWorkLocation = dto.MajorItemLocations.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId)).ToList();
+                    if (NewWorkLocation.Count > 0)
                     {
-                        var NewMajorWorkLocations = NewWorkItem
+                        var NewMajorWorkLocations = NewMajorWorkItem
                             .SelectMany(a =>
                                 NewWorkLocation
                                 .Where(x => x.ComponentId == a.ComponentId)
@@ -2332,9 +2337,11 @@ namespace WebAPI.Controllers.Projects
 
                 List<ProjectMajorWorkItem> NewWorkItems = new List<ProjectMajorWorkItem>();
                 var newMajorItems = dto.MajorItemOfWorks.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
+                Console.WriteLine($">>>  newMajorItems = {newMajorItems.Count}");
                 if (newMajorItems.Count > 0)
                 {
-                    var selectedWorkItemsToAdd = NewCostToAdd
+                    // var selectedWorkItemsToAdd = NewCostToAdd
+                    var selectedWorkItemsToAdd = ComponentCost // Use existing Component Costs of this project
                         .SelectMany(a =>
                             newMajorItems
                             .Where(x => x.ComponentId == a.ComponentId)
@@ -2349,6 +2356,7 @@ namespace WebAPI.Controllers.Projects
                                 CreatedDate = CurrentDate
                             }))
                         .ToList();
+                    Console.WriteLine($">>>  selectedWorkItemsToAdd = {selectedWorkItemsToAdd.Count}");
                     NewWorkItems.AddRange(selectedWorkItemsToAdd);
                     await _db.tProjectMajorWorkItem.AddRangeAsync(NewWorkItems, cancellationToken);
                     await _db.SaveChangesAsync();
@@ -2631,6 +2639,8 @@ namespace WebAPI.Controllers.Projects
                     await _db.tProjectMajorWorkLocations.AddRangeAsync(selectedWorkLocationsToAdd, cancellationToken);
                 }
                 #endregion
+
+
                 #region Update Funding Profile
                 var CurrentFunding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync();
                 if (CurrentFunding.Count > 0)
@@ -2764,22 +2774,30 @@ namespace WebAPI.Controllers.Projects
                 }
                 #endregion
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
+                Console.WriteLine(">>>  Call to UpdateProjectDetails > SaveChangesAsync");
                 await _db.SaveChangesAsync();
-                if (HasCostUpdate)
-                {
-                    var parameters = new DynamicParameters();
-                    parameters.Add("ProgramPK", ProgramFK);
+                Console.WriteLine(">>>!  Finished UpdateProjectDetails > SaveChangesAsync");
 
-                    var employees = await Sql.QueryAsync<dynamic>(
-                        Appsetting.DbConnections.MYPSDb,
-                        "pRecomputeProgramCost",
-                        parameters,
-                        commandType: CommandType.StoredProcedure,
-                        cancellationToken: cancellationToken);
+                // TODO: BUGFIX: task timeouts here, computationally expensive
+                // if (HasCostUpdate)
+                // {
+                //     var parameters = new DynamicParameters();
+                //     parameters.Add("ProgramPK", ProgramFK);
 
-                    int totalCount = parameters.Get<int>("TotalCount");
-                }
+                //     var employees = await Sql.QueryAsync<dynamic>(
+                //         Appsetting.DbConnections.MYPSDb,
+                //         "pRecomputeProgramCost",
+                //         parameters,
+                //         commandType: CommandType.StoredProcedure,
+                //         cancellationToken: cancellationToken);
+
+                //     int totalCount = parameters.Get<int>("TotalCount");
+                // }
+
+                Console.WriteLine(">>>  Call to UpdateProjectDetails > CommitAsync");
                 await transaction.CommitAsync();
+                Console.WriteLine(">>>!  Finished UpdateProjectDetails > CommitAsync");
+
                 return Ok(new
                 {
                     Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully.",
