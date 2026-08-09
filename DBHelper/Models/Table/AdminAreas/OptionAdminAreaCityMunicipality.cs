@@ -16,13 +16,15 @@ namespace DBHelper.Models.Table.AdminAreas
         [Required]
         [MaxLength(255)]
         public string Name { get; set; } = string.Empty;
+        [Required]
         [MaxLength(20)]
-        public string? Code { get; set; }
+        public string Code { get; set; } = string.Empty;
         [MaxLength(20)]
         public string? Hierarchy { get; set; }
         [Required]
-        // FK -> dbo.tOptionAdminAreaProvince(Id)
-        public int ProvinceId { get; set; }
+        [MaxLength(40)]
+        // FK -> dbo.tOptionAdminAreaProvince(Code)
+        public string ProvinceCode { get; set; } = string.Empty;
         public int? NetworkStatusId { get; set; }
         [Required]
         public bool Deprecated { get; set; }

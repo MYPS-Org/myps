@@ -4,6 +4,7 @@ import ProtectedRoute from './protectedroutes';
 import AppLayout from '../layouts/AppLayout';
 import LoginForm from '../pages/login/Page';
 import Layout from '../pages/Layouts/Layout';
+import GisPlaygroundPage from '../pages/GisPlayground/GisPlaygroundPage';
 import { usePermittedRoutes } from '../hooks/usePermittedRoutes';
 
 export default function AppRoutes() {
@@ -32,6 +33,15 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <Layout />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/gis-playground"
+        element={
+          <ProtectedRoute>
+            <GisPlaygroundPage />
           </ProtectedRoute>
         }
       />

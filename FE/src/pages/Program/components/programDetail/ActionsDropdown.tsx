@@ -4,7 +4,7 @@ import { useToast } from '../../../../components/toaster/ToasterContext';
 import { downloadAIPReport, exportProjects, importProjects } from '../../Service';
 import type { AIPReportParams, TableEnum } from '../../Model';
 import type { ImportedProject } from '../../../Project/Model.d';
-import { transformImportedProjects } from '../../utils/transformImportedProjects';
+import { transformImportedProjects } from '../../../Project/utils/transformImportedProjects';
 import AIPReportDialog from '../../dialogs/AIPReportDialog';
 import ExportConfirmDialog from '../../dialogs/ExportConfirmDialog';
 import ImportProjectsDialog from '../../dialogs/ImportProjectsDialog';

@@ -15,7 +15,12 @@ export default defineConfig(({ mode }) => {
         'react-draggable',       // add only if installed
       ],
       esbuildOptions: {
-        target: "es2020",
+        // es2022+ has native class fields, so esbuild doesn't need to downlevel
+        // them to __publicField() helper calls. At es2020, that downleveling can
+        // split a dep's helper-defining chunk from its helper-calling chunk during
+        // optimizeDeps pre-bundling, producing "__publicField is not defined" at
+        // runtime (hit with maplibre-gl, which is class-field-heavy).
+        target: "es2022",
       },
     },
     build: {

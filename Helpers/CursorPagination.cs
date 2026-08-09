@@ -85,12 +85,14 @@ namespace Helpers
 
                 if (cursorId.HasValue)
                 {
+                    // The cursor comparison must follow the SAME sort order the rows
+                    // are fetched in. Negating it here made every page after the
+                    // first walk backwards: for descending + Next this emitted
+                    // "Id > @cursor ORDER BY Id DESC", which re-returned the rows
+                    // already shown instead of the ones after them.
                     string comparisonOperator = GetComparisonOperator(
                         dto.Direction,
-                        !descending);
-                    //string comparisonOperator = GetComparisonOperator(
-                    //    dto.Direction,
-                    //    descending);
+                        descending);
 
                     fetchPredicates.Add(
                         $"{key} {comparisonOperator} @__cursor");
