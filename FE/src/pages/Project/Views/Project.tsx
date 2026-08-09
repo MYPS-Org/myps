@@ -180,9 +180,9 @@ const Project: React.FC = () => {
                                 )
                             },
                             { header: 'Program Name', render: (project) => project.ProgramName },
-                            { header: 'Category', render: (project) => project.Category },
-                            { header: 'Updated By', render: (project) => project.UpdateBy },
-                            { header: 'Created Date', render: (project) => project.CreatedDate ? project.CreatedDate.StringToDate() : '' },
+                            { header: 'Category', render: (project) => project.CategoryName },
+                            { header: 'Updated By', render: (project) => project.LastUpdatedBy ? project.LastUpdatedBy : project.RevisionCreatedBy },
+                            { header: 'Created Date', render: (project) => project.RevisionCreatedDate ? project.RevisionCreatedDate.StringToDate() : '' },
                             {
                                 header: 'Actions',
                                 render: (project) => (
@@ -222,10 +222,10 @@ const Project: React.FC = () => {
                                                 <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.ProjectId}</TableCell>
                                                 <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.StageName}</TableCell>
                                                 <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Description}</TableCell>
-                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Category}</TableCell>
-                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Thrust}</TableCell>
-                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedBy}</TableCell>
-                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedDate ? stage.CreatedDate.StringToDate() : ''}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CategoryName}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.ThrustName}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.RevisionCreatedBy}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.RevisionCreatedDate ? stage.RevisionCreatedDate.StringToDate() : ''}</TableCell>
                                                 <TableCell className='text-center'>
                                                     <Button
                                                         color="blue"

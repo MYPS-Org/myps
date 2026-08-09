@@ -113,6 +113,7 @@ export interface ProjectLists {
 	RevisionNumber: number;
 	Description: string;
 	Category?: string;
+	CategoryName?: string;
 	Thrust?: string;
 	Origin?: string;
 	City?: string;
@@ -130,7 +131,10 @@ export interface ProjectLists {
 	StageName: string;
 	CreatedBy: string;
 	CreatedDate: string;
-	UpdateBy?: string;
+	RevisionCreatedBy?: string;
+	RevisionCreatedDate?: string;
+	LastUpdatedDate?: string;
+	LastUpdatedBy?: string;
 	UpdatedDate?: string;
 	IsPublished?: boolean;
 	IsPublishable: boolean;
@@ -587,7 +591,9 @@ export interface ProjectStages {
 	StageName: string;
 	Description: string;
 	Category: string;
+	CategoryName: string;
 	Thrust: string;
+	ThrustName: string;
 	Origin: string;
 	City: string;
 	LegislativeDistrict: string;
@@ -596,8 +602,8 @@ export interface ProjectStages {
 	DEO: string;
 	Region: string;
 	Agency: string;
-	CreatedBy: string;
-	CreatedDate: string;
+	RevisionCreatedBy: string;
+	RevisionCreatedDate: string;
 	UpdatedBy?: string;
 }
 
