@@ -35,6 +35,13 @@ namespace WebAPI.Controllers
             _hubContext = hub;
             _pcma = pcma;
         }
+
+        protected CoreController(MYPSDbContext db, PCMADbContext pcma)
+        {
+            _db = db;
+            _pcma = pcma;
+        }
+
         public override void OnActionExecuting(ActionExecutingContext context)
         {
             try

@@ -63,6 +63,13 @@ builder.Services.AddSignalR(opt =>
     opt.EnableDetailedErrors = true;
 });
 
+// Named HttpClient for the CrystalReportService microservice
+builder.Services.AddHttpClient("ReportService", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ReportService:BaseUrl"]!);
+    client.Timeout = TimeSpan.FromSeconds(100); // report rendering can be slow
+});
+
 var app = builder.Build();
 
 app.UseRouting();
