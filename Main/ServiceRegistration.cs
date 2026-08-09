@@ -22,7 +22,10 @@ namespace Main
             // type conflicts (scoped DbContextOptions vs singleton pool), so this single
             // AddDbContextPool call covers both the scoped injection and the factory.
             Services.AddDbContextPool<MYPSDbContext>(options => {
-                options.UseSqlServer(Appsetting.DbConnections.MYPSDb);
+                options.UseSqlServer(
+                    Appsetting.DbConnections.MYPSDb,
+                    sqlServerOptions => sqlServerOptions.CommandTimeout(90)
+                );
                 options.EnableSensitiveDataLogging();
                 options.EnableDetailedErrors();
                 options.LogTo(Console.WriteLine, LogLevel.Information);
