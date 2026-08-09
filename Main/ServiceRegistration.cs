@@ -20,6 +20,12 @@ namespace Main
                 options.EnableDetailedErrors();
                 options.LogTo(Console.WriteLine, LogLevel.Information);
             });
+            // Factory for short-lived, read-only contexts used to run independent
+            // lookup queries concurrently (a single DbContext instance cannot be used
+            // by more than one operation at a time, so Task.WhenAll needs one context each).
+            Services.AddPooledDbContextFactory<MYPSDbContext>(options => {
+                options.UseSqlServer(Appsetting.DbConnections.MYPSDb);
+            });
             Services.AddDbContext<PCMADbContext>(options => {
                 options.UseSqlServer(Appsetting.DbConnections.PCMADb);
                 options.EnableSensitiveDataLogging();
