@@ -302,7 +302,6 @@ namespace WebAPI.Controllers.Programs
         }
         #endregion
         #region Program Details
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectsInProgram([FromBody] ShowProjectsInProgramDTO dto, CancellationToken cancellationToken)
         {
@@ -322,7 +321,7 @@ namespace WebAPI.Controllers.Programs
                         "@regCode", _Session.RegCode));
                 }
                 if (!Enum.TryParse<EnumProgramStage>(
-                    dto.StageName,
+                    dto.StageName.Replace("-", ""),
                     ignoreCase: true,
                     out var stage))
                 {

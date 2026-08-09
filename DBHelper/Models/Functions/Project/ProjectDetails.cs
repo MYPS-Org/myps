@@ -68,10 +68,10 @@ namespace DBHelper.Models.Functions.Project
         public int Agency { get; set; }
         [MaxLength(200)]
         public string? AgencyName { get; set; }
-        public int ImplementationMode { get; set; }
+        public int? ImplementationMode { get; set; }
         [MaxLength(50)]
         public string? ImplementationModeName { get; set; }
-        public int EmergencyMode { get; set; }
+        public int? EmergencyMode { get; set; }
         [MaxLength(50)]
         public string? EmergencyModeName { get; set; }
         [Required]

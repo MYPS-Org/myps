@@ -189,6 +189,7 @@ namespace DBHelper.Data
         #region Revision
         #region Functions
         public DbSet<RevisionQueue> fRevisionQueue { get; set; }
+        public DbSet<RevisionProjectDetails> fRevisionProjectDetails { get; set; }
         #endregion
         #endregion
 

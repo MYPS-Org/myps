@@ -17,7 +17,7 @@ namespace DBHelper.Models.Table.Project
         // FK -> dbo.tProjectRevisions(Id)
         public int ProjectRevisionFK { get; set; }
         [Required]
-        [MaxLength(20)]
+        [MaxLength(100)]
         // FK -> dbo.tOptionProjectComponentType(ComponentId)
         public string ComponentType { get; set; } = string.Empty;
         [Required]

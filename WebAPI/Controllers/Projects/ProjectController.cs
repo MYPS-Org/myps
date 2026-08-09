@@ -469,6 +469,7 @@ namespace WebAPI.Controllers.Projects
         #endregion
 
         #region Project Details and Update Project
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectDetails([FromBody] ProjectDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -1678,7 +1679,7 @@ namespace WebAPI.Controllers.Projects
                                 .Where(x => x.ComponentId == a.ComponentId)
                                 .Select(item => new ProjectMajorWorkItem
                                 {
-                                    ComponentCostFK = item.ComponentCostFK,
+                                    ComponentCostFK = a.Id,
                                     ComponentId = item.ComponentId,
                                     YearOfWork = item.YearOfWork,
                                     WorkTypeFK = item.WorkTypeFK,
@@ -1700,7 +1701,7 @@ namespace WebAPI.Controllers.Projects
                                 .Where(x => x.ComponentId == a.ComponentId)
                                 .Select(loc => new ProjectMajorWorkLocations
                                 {
-                                    WorkItemFK = loc.WorkItemFK,
+                                    WorkItemFK = a.Id,
                                     ComponentId = loc.ComponentId,
                                     InfraId = loc.InfraId,
                                     DetailedScope = loc.DetailedScope,
@@ -2596,6 +2597,7 @@ namespace WebAPI.Controllers.Projects
                     }
                 }
                 #endregion
+
                 #region New Major Work Locations
                 var NewWorkLocations = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
                 if (NewWorkLocations.Count > 0)
@@ -2606,7 +2608,7 @@ namespace WebAPI.Controllers.Projects
                         .Where(x => x.ComponentId == a.ComponentId)
                         .Select(item => new ProjectMajorWorkLocations
                         {
-                            WorkItemFK = item.WorkItemFK,
+                            WorkItemFK = a.Id,
                             ComponentId = item.ComponentId,
                             InfraId = item.InfraId,
                             DetailedScope = item.DetailedScope,

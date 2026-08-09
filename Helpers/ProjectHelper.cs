@@ -96,9 +96,8 @@ namespace Helpers
                 response.Message = $"The Project with ID '{p.ProjectId}' does not exist in the system.";
                 return response;
             }
-            response.IsValid = true;
             response.Data = new ValidateProjectIdDataResult();
-            var GetProjectRevision = await _db.fProjectDetails.FromSqlInterpolated($"SELECT * FROM fProjectDetails({CheckProjectStage.ProjectId}, {CheckProjectStage.StageId})").AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+            var GetProjectRevision = await _db.fProjectDetails.FromSqlInterpolated($"SELECT * FROM fProjectDetails({CheckProjectStage.ProjectPK}, {CheckProjectStage.StageId})").AsNoTracking().FirstOrDefaultAsync(cancellationToken);
             if(GetProjectRevision == null)
             {
                 response.Title = "Project Revision Not Found";
@@ -112,6 +111,7 @@ namespace Helpers
                 response.Message = $"The Project stage for Project ID '{p.ProjectId}' does not exist in the system.";
                 return response;
             }
+            response.IsValid = true;
             response.Data.Project = ProjectParent;
             response.Data.ProjectRevision = GetProjectRevision;
             response.Data.ProjectStage = GetProjectStage;
@@ -282,8 +282,8 @@ namespace Helpers
             public string OperatingUnit { get; set; } = string.Empty;
             public int Origin { get; set; }
             public int Agency { get; set; }
-            public int ImplementationMode { get; set; }
-            public int EmergencyMode { get; set; }
+            public int? ImplementationMode { get; set; }
+            public int? EmergencyMode { get; set; }
             public int? RowAvailable { get; set; }
             public int? Feasibility { get; set; }
             public DateTime? FeasibilityDate { get; set; }
@@ -321,9 +321,9 @@ namespace Helpers
             if (ValidateRegion == null)
             {
                 response.Message = $"Selected Region '{p.Region}' is not valid."; response.Title = "Invalid Region";
-                return response;
+                //return response;
             }
-            string RegionParticipantId = ValidateRegion.ParticipantId;
+            string RegionParticipantId = p.Region;//ValidateRegion.ParticipantId;
 
             var ValidateProvince = await _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.RegionParticipantId == RegionParticipantId && x.Code == p.Province && !x.Deprecated, cancellationToken);
             if (ValidateProvince == null)
@@ -432,7 +432,7 @@ namespace Helpers
                 return response;
             }
             response.IsValid = true;
-            response.Data = ValidateRegion.IslandCode;
+            response.Data = p.Region;//ValidateRegion.IslandCode;
             return response;
         }
         #endregion

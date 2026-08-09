@@ -27,10 +27,10 @@ namespace DBHelper.Models.Functions.Project
         public string? Description { get; set; }
         [Column(TypeName = "decimal(18,5)")]
         public decimal? Total { get; set; }
-        public byte? ConstructionStatusCode { get; set; }
+        public string? ConstructionStatusCode { get; set; }
         [MaxLength(300)]
         public string? ConstructionStatusName { get; set; }
-        public DateTime? IsPackaged { get; set; }
+        public bool? IsPackaged { get; set; }
         [MaxLength(100)]
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }

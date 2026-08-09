@@ -1,0 +1,120 @@
+﻿using DBHelper.Models.Enums;
+using System.ComponentModel.DataAnnotations;
+
+namespace DBHelper.Models.Functions.Revision
+{
+    public class RevisionProjectDetails
+    {
+        [Key]
+        public int Id { get; set; }
+        [Required]
+        public int RevisionDetailFK { get; set; }
+        [Required]
+        [MaxLength(200)]
+        public string TransactionId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string ProjectFK { get; set; } = string.Empty;
+        [Required]
+        public int ProjectRevisionFK { get; set; }
+        [Required]
+        [MaxLength(200)]
+        public string ProjectId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string ProgramFK { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(255)]
+        public string ProgramId { get; set; } = string.Empty;
+        [MaxLength(400)]
+        public string? AlternateId { get; set; }
+        [MaxLength(200)]
+        public string? MYId { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string ProjectType { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? ProgramName { get; set; }
+        [Required]
+        public string Description { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(20)]
+        public string Region { get; set; } = string.Empty;
+        [MaxLength(20)]
+        public string? Province { get; set; }
+        [MaxLength(20)]
+        public string? City { get; set; }
+        [MaxLength(20)]
+        public string? LegislativeDistrict { get; set; }
+        [Required]
+        [MaxLength(20)]
+        public string DEO { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(20)]
+        public string OperatingUnit { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(20)]
+        public string ImplementingOffice { get; set; } = string.Empty;
+        [MaxLength(2)]
+        public string? IslandCode { get; set; }
+        [Required]
+        public int Category { get; set; }
+        [MaxLength(200)]
+        public string? CategoryName { get; set; }
+        public int? Thrust { get; set; }
+        [MaxLength(400)]
+        public string? ThrustName { get; set; }
+        [Required]
+        public int Origin { get; set; }
+        [MaxLength(50)]
+        public string? OriginName { get; set; }
+        [Required]
+        public int Agency { get; set; }
+        [MaxLength(200)]
+        public string? AgencyName { get; set; }
+        public int? ImplementationMode { get; set; }
+        [MaxLength(50)]
+        public string? ImplementationModeName { get; set; }
+        public int? EmergencyMode { get; set; }
+        [MaxLength(50)]
+        public string? EmergencyModeName { get; set; }
+        [Required]
+        public int RegionWide { get; set; }
+        [MaxLength(200)]
+        public string? RegionWideName { get; set; }
+        public int? Feasibility { get; set; }
+        [MaxLength(50)]
+        public string? FeasibilityName { get; set; }
+        public DateTime? FeasibilityDate { get; set; }
+        public int? DetailedDesign { get; set; }
+        [MaxLength(50)]
+        public string? DetailedDesignName { get; set; }
+        public DateTime? DetailedDesignDate { get; set; }
+        public int? RowAvailable { get; set; }
+        [MaxLength(50)]
+        public string? RowAvailableName { get; set; }
+        [Required]
+        public int Tier { get; set; }
+        [MaxLength(50)]
+        public string? TierName { get; set; }
+        public Double? Rank { get; set; }
+        public DateTime? MYCAApprovalDate { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
+        [Required]
+        public int RevisionGroupId { get; set; }
+        public int? RevisionCategoryId { get; set; }
+        [Required]
+        public int ReasonId { get; set; }
+        public DateTime? IODocApprovalDate { get; set; }
+        [MaxLength(500)]
+        public string? IODocPath { get; set; }
+        [Required]
+        public bool IsCertified { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string RevisionCreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime RevisionDate { get; set; }
+    }
+}
