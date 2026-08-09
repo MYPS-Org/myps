@@ -2610,7 +2610,8 @@ namespace WebAPI.Controllers.Projects
                     }
                 }
                 #endregion
-                #region New Major Work Locations
+                
+                #region New Major Work Locations On New Major Work Items
                 var NewWorkLocations = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
                 if (NewWorkLocations.Count > 0)
                 {
@@ -2644,6 +2645,43 @@ namespace WebAPI.Controllers.Projects
                     await _db.tProjectMajorWorkLocations.AddRangeAsync(selectedWorkLocationsToAdd, cancellationToken);
                 }
                 #endregion
+
+                #region New Major Work Locations On Existing Major Work Items
+                // var NewWorkLocations = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
+                if (NewWorkLocations.Count > 0)
+                {
+                    var selectedWorkLocationsToAdd = MajorItemOfWorks
+                    .SelectMany(a =>
+                        NewWorkLocations
+                        .Where(x => x.ComponentId == a.ComponentId)
+                        .Select(item => new ProjectMajorWorkLocations
+                        {
+                            // WorkItemFK = item.WorkItemFK,
+                            WorkItemFK = a.Id,
+                            ComponentId = item.ComponentId,
+                            InfraId = item.InfraId,
+                            DetailedScope = item.DetailedScope,
+                            TargetUnitId = item.TargetUnitId,
+                            TargetUnit = item.TargetUnit,
+                            StartX = item.StartX,
+                            StartY = item.StartY,
+                            EndX = item.EndX,
+                            EndY = item.EndY,
+                            PhysicalTarget = item.PhysicalTarget,
+                            StartStationLimit = item.StartStationLimit,
+                            EndStationLimit = item.EndStationLimit,
+                            StartChainage = item.StartChainage,
+                            EndChainage = item.EndChainage,
+                            Length = item.Length,
+                            CreatedBy = UserId,
+                            CreatedDate = CurrentDate
+                        }))
+                    .ToList();
+                    await _db.tProjectMajorWorkLocations.AddRangeAsync(selectedWorkLocationsToAdd, cancellationToken);
+                }
+                #endregion
+
+
                 #region Update Funding Profile
                 var CurrentFunding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync();
                 if (CurrentFunding.Count > 0)
