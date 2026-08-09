@@ -1669,16 +1669,22 @@ namespace WebAPI.Controllers.Projects
                         await _db.tProjectComponentCostPerYear.AddRangeAsync(NewComponentCostPerYear, cancellationToken);
                     }
 
-                    var NewWorkItem = dto.MajorItemOfWorks.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId));
-                    if (NewCostYears.Count() > 0)
+                    // Gated on this block's own collection (was incorrectly gated on NewCostYears.Count() > 0),
+                    // so new work items are no longer silently skipped when there are no new cost-per-year rows.
+                    var NewWorkItem = dto.MajorItemOfWorks.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId)).ToList();
+                    List<ProjectMajorWorkItem> NewMajorWorkItem = new List<ProjectMajorWorkItem>();
+                    if (NewWorkItem.Count > 0)
                     {
-                        var NewMajorWorkItem = NewCostToAdd
+                        NewMajorWorkItem = NewCostToAdd
                             .SelectMany(a =>
                                 NewWorkItem
                                 .Where(x => x.ComponentId == a.ComponentId)
                                 .Select(item => new ProjectMajorWorkItem
                                 {
-                                    ComponentCostFK = item.ComponentCostFK,
+                                    // Was `item.ComponentCostFK` (the client DTO value, unset/0 for a brand-new
+                                    // row) — must be the just-generated parent's real Id, or the FK constraint on
+                                    // tProjectMajorWorkItem.ComponentCostFK rejects the insert on SaveChangesAsync.
+                                    ComponentCostFK = a.Id,
                                     ComponentId = item.ComponentId,
                                     YearOfWork = item.YearOfWork,
                                     WorkTypeFK = item.WorkTypeFK,
@@ -1691,16 +1697,21 @@ namespace WebAPI.Controllers.Projects
                         await _db.SaveChangesAsync(cancellationToken);
                     }
 
-                    var NewWorkLocation = dto.MajorItemLocations.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId));
-                    if (NewCostYears.Count() > 0)
+                    // Gated on this block's own collection (was incorrectly gated on NewCostYears.Count() > 0),
+                    // so new work locations are no longer silently skipped when there are no new cost-per-year rows.
+                    var NewWorkLocation = dto.MajorItemLocations.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId)).ToList();
+                    if (NewWorkLocation.Count > 0)
                     {
-                        var NewMajorWorkLocations = NewWorkItem
+                        var NewMajorWorkLocations = NewMajorWorkItem
                             .SelectMany(a =>
                                 NewWorkLocation
                                 .Where(x => x.ComponentId == a.ComponentId)
                                 .Select(loc => new ProjectMajorWorkLocations
                                 {
-                                    WorkItemFK = loc.WorkItemFK,
+                                    // Was `loc.WorkItemFK` (the client DTO value, unset/0 for a brand-new row) —
+                                    // must be the just-generated parent work item's real Id, or the FK constraint
+                                    // on tProjectMajorWorkLocations.WorkItemFK rejects the insert.
+                                    WorkItemFK = a.Id,
                                     ComponentId = loc.ComponentId,
                                     InfraId = loc.InfraId,
                                     DetailedScope = loc.DetailedScope,
