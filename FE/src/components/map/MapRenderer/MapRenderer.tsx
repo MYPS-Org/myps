@@ -3,7 +3,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useMapLibreMap } from './useMapLibreMap';
 import { useProjectMapLayers } from './useProjectMapLayers';
 import { DEFAULT_MAP_LAYERS } from './layerConfig';
-import LayerControlWidget from './LayerControlWidget';
+// Layers widget commented out for now
+// import LayerControlWidget from './LayerControlWidget';
 import BasemapSwitcherWidget from './BasemapSwitcherWidget';
 import { MapEmptyState, MapErrorBanner, MapLoadingOverlay } from './MapStatusOverlays';
 import type { MapLayerDefinition } from './types';
@@ -18,7 +19,7 @@ interface MapRendererProps {
 
 const MapRenderer: React.FC<MapRendererProps> = ({ geoJsonData, height = '400px', layers = DEFAULT_MAP_LAYERS }) => {
   const { containerRef, mapRef, isMapReady, basemap, setBasemap, styleGeneration } = useMapLibreMap();
-  const { visibility, toggleLayer, isLoading, error } = useProjectMapLayers(
+  const { isLoading, error } = useProjectMapLayers(
     mapRef,
     isMapReady,
     styleGeneration,
@@ -35,7 +36,8 @@ const MapRenderer: React.FC<MapRendererProps> = ({ geoJsonData, height = '400px'
       {!geoJsonData && !isLoading && <MapEmptyState />}
 
       <BasemapSwitcherWidget current={basemap} onChange={setBasemap} />
-      <LayerControlWidget layers={layers} visibility={visibility} onToggle={toggleLayer} />
+      {/* Layers widget commented out for now */}
+      {/* <LayerControlWidget layers={layers} visibility={visibility} onToggle={toggleLayer} /> */}
     </div>
   );
 };
