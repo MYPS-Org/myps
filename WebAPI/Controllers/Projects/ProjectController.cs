@@ -2342,9 +2342,11 @@ namespace WebAPI.Controllers.Projects
 
                 List<ProjectMajorWorkItem> NewWorkItems = new List<ProjectMajorWorkItem>();
                 var newMajorItems = dto.MajorItemOfWorks.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
+                Console.WriteLine($">>>  newMajorItems = {newMajorItems.Count}");
                 if (newMajorItems.Count > 0)
                 {
-                    var selectedWorkItemsToAdd = NewCostToAdd
+                    // var selectedWorkItemsToAdd = NewCostToAdd
+                    var selectedWorkItemsToAdd = ComponentCost // Use existing Component Costs of this project
                         .SelectMany(a =>
                             newMajorItems
                             .Where(x => x.ComponentId == a.ComponentId)
@@ -2359,6 +2361,7 @@ namespace WebAPI.Controllers.Projects
                                 CreatedDate = CurrentDate
                             }))
                         .ToList();
+                    Console.WriteLine($">>>  selectedWorkItemsToAdd = {selectedWorkItemsToAdd.Count}");
                     NewWorkItems.AddRange(selectedWorkItemsToAdd);
                     await _db.tProjectMajorWorkItem.AddRangeAsync(NewWorkItems, cancellationToken);
                     await _db.SaveChangesAsync();
@@ -2617,7 +2620,8 @@ namespace WebAPI.Controllers.Projects
                         .Where(x => x.ComponentId == a.ComponentId)
                         .Select(item => new ProjectMajorWorkLocations
                         {
-                            WorkItemFK = item.WorkItemFK,
+                            // WorkItemFK = item.WorkItemFK,
+                            WorkItemFK = a.Id,
                             ComponentId = item.ComponentId,
                             InfraId = item.InfraId,
                             DetailedScope = item.DetailedScope,
