@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Web.Http;
 using CrystalReportService.Services;
 
@@ -46,9 +48,12 @@ namespace CrystalReportService.Controllers
             }
             catch (Exception ex)
             {
-                // Log ex here (this is exactly where a bad/missing SP parameter,
-                // a locked .rpt file, or a DB connectivity issue will surface).
-                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
+                // ex.Message alone is useless for TypeInitializationException (the
+                // ReportDocument static ctor failure that fires when the CR runtime
+                // isn't installed/registered) - it's always the generic "type
+                // initializer threw" wrapper. The real cause lives in InnerException.
+                Trace.TraceError("Report render failed for '{0}': {1}", reportName, ex);
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, BuildErrorMessage(ex));
             }
 
             var response = Request.CreateResponse(HttpStatusCode.OK);
@@ -59,6 +64,22 @@ namespace CrystalReportService.Controllers
                 FileName = $"{reportName}.pdf"
             };
             return response;
+        }
+
+        /// <summary>
+        /// Flattens ex + its InnerException chain into one message. Needed because
+        /// wrapper exceptions (TypeInitializationException, TargetInvocationException)
+        /// put the actual failure reason in InnerException, not Message.
+        /// </summary>
+        private static string BuildErrorMessage(Exception ex)
+        {
+            var sb = new StringBuilder();
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (sb.Length > 0) sb.Append(" ---> ");
+                sb.Append(current.Message);
+            }
+            return sb.ToString();
         }
     }
 }
