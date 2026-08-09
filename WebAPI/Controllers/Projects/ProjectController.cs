@@ -2779,20 +2779,20 @@ namespace WebAPI.Controllers.Projects
                 Console.WriteLine(">>>!  Finished UpdateProjectDetails > SaveChangesAsync");
 
                 // TODO: BUGFIX: task timeouts here, computationally expensive
-                // if (HasCostUpdate)
-                // {
-                //     var parameters = new DynamicParameters();
-                //     parameters.Add("ProgramPK", ProgramFK);
+                 if (HasCostUpdate)
+                {
+                    var parameters = new DynamicParameters();
+                    parameters.Add("ProgramPK", ProgramFK);
 
-                //     var employees = await Sql.QueryAsync<dynamic>(
-                //         Appsetting.DbConnections.MYPSDb,
-                //         "pRecomputeProgramCost",
-                //         parameters,
-                //         commandType: CommandType.StoredProcedure,
-                //         cancellationToken: cancellationToken);
+                    var employees = await Sql.QueryAsync<dynamic>(
+                        Appsetting.DbConnections.MYPSDb,
+                        "pRecomputeProgramCost",
+                        parameters,
+                        commandType: CommandType.StoredProcedure,
+                        cancellationToken: cancellationToken);
 
-                //     int totalCount = parameters.Get<int>("TotalCount");
-                // }
+                    int totalCount = parameters.Get<int>("TotalCount");
+                }
 
                 Console.WriteLine(">>>  Call to UpdateProjectDetails > CommitAsync");
                 await transaction.CommitAsync();

@@ -49,7 +49,7 @@ namespace Main
         public static IServiceCollection AddCookieAuthentication(this IServiceCollection Services)
         {
             Services.AddHttpContextAccessor();
-            Services.AddScoped<ExceptionHandler>();
+            Services.AddScoped<IMYPSExceptionHandler, ExceptionHandler>();
             Services.AddDistributedMemoryCache();
             Services.AddAuthentication(options =>
             {
