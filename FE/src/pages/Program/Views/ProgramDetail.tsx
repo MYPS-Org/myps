@@ -146,8 +146,15 @@ const ProgramDetail: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await fetchProgramById(programId, stageName);
-      setProgramEnums(response.Data);
-      setDefaultProgramEnums(response.Data); // Store the original data for comparison
+      const normalizedData = {
+        ...response.Data,
+        Details: {
+          ...response.Data.Details,
+          UserGroup: (response.Data.Details.UserGroup || []).map(String),
+        },
+      };
+      setProgramEnums(normalizedData);
+      setDefaultProgramEnums(normalizedData); // Store the original data for comparison
 
       const nextStageId = response.Data.Details.StageId + 1;
       const nextStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
@@ -491,9 +498,9 @@ const ProgramDetail: React.FC = () => {
               items={(programEnums?.Dropdowns.DataSecurity || []).map(item => ({
                 id: item.ParticipantId ?? '',
                 name: item.Name ?? '',
-                groupType: item.OrgType === 'C' ? 'Central Office' :
-                           item.OrgType === 'R' ? (item.RegionName ?? 'Regional Offices') :
-                           item.OrgType === 'B' ? 'Bureaus' :
+                groupType: item.OrgType === 'CO' ? 'CO' :
+                           item.OrgType === 'B' ? 'CO' :
+                           item.OrgType === 'R' ? 'Regional Offices' :
                            item.OrgType === 'PMO' ? 'Project Management Offices' :
                            item.OrgType || 'Other'
               }))}
