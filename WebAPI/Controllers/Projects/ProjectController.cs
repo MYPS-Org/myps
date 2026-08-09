@@ -2773,22 +2773,30 @@ namespace WebAPI.Controllers.Projects
                 }
                 #endregion
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
+                Console.WriteLine(">>>  Call to UpdateProjectDetails > SaveChangesAsync");
                 await _db.SaveChangesAsync();
-                if (HasCostUpdate)
-                {
-                    var parameters = new DynamicParameters();
-                    parameters.Add("ProgramPK", ProgramFK);
+                Console.WriteLine(">>>!  Finished UpdateProjectDetails > SaveChangesAsync");
 
-                    var employees = await Sql.QueryAsync<dynamic>(
-                        Appsetting.DbConnections.MYPSDb,
-                        "pRecomputeProgramCost",
-                        parameters,
-                        commandType: CommandType.StoredProcedure,
-                        cancellationToken: cancellationToken);
+                // TODO: BUGFIX: task timeouts here, computationally expensive
+                // if (HasCostUpdate)
+                // {
+                //     var parameters = new DynamicParameters();
+                //     parameters.Add("ProgramPK", ProgramFK);
 
-                    int totalCount = parameters.Get<int>("TotalCount");
-                }
+                //     var employees = await Sql.QueryAsync<dynamic>(
+                //         Appsetting.DbConnections.MYPSDb,
+                //         "pRecomputeProgramCost",
+                //         parameters,
+                //         commandType: CommandType.StoredProcedure,
+                //         cancellationToken: cancellationToken);
+
+                //     int totalCount = parameters.Get<int>("TotalCount");
+                // }
+
+                Console.WriteLine(">>>  Call to UpdateProjectDetails > CommitAsync");
                 await transaction.CommitAsync();
+                Console.WriteLine(">>>!  Finished UpdateProjectDetails > CommitAsync");
+
                 return Ok(new
                 {
                     Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully.",
