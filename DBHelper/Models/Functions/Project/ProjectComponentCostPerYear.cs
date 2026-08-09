@@ -20,14 +20,14 @@ namespace DBHelper.Models.Functions.Project
         [MaxLength(200)]
         public string? StageName { get; set; }
         public string ComponentId { get; set; } = string.Empty;
-        public DateTime? Amount { get; set; }
-        public DateTime? Year { get; set; }
+        public decimal Amount { get; set; }
+        public int? Year { get; set; }
         [MaxLength(100)]
         public string? UACS { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public DateTime? DateOfApproval { get; set; }
-        public DateTime? CreatedBy { get; set; }
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
         [MaxLength(200)]
         public string? UpdatedBy { get; set; }
