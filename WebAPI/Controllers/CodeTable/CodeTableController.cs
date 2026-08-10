@@ -2120,13 +2120,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Hierarchy!;
                             existing.Hierarchy = data.Hierarchy;
                         }
-                        if (existing.ProvinceId != data.ProvinceId)
-                        {
-                            transactionLog.AffectedColumn = "ProvinceId";
-                            transactionLog.NewValue = data.ProvinceId.ToString();
-                            transactionLog.OldValue = existing.ProvinceId.ToString();
-                            existing.ProvinceId = data.ProvinceId;
-                        }
+                        //if (existing.ProvinceId != data.ProvinceId)
+                        //{
+                        //    transactionLog.AffectedColumn = "ProvinceId";
+                        //    transactionLog.NewValue = data.ProvinceId.ToString();
+                        //    transactionLog.OldValue = existing.ProvinceId.ToString();
+                        //    existing.ProvinceId = data.ProvinceId;
+                        //}
                         if (existing.Deprecated != data.Deprecated)
                         {
                             transactionLog.AffectedColumn = "Deprecated";
@@ -2179,13 +2179,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Hierarchy!;
                             existing.Hierarchy = data.Hierarchy;
                         }
-                        if (existing.ProvinceId != data.ProvinceId)
-                        {
-                            transactionLog.AffectedColumn = "ProvinceId";
-                            transactionLog.NewValue = data.ProvinceId.ToString();
-                            transactionLog.OldValue = existing.ProvinceId.ToString();
-                            existing.ProvinceId = data.ProvinceId;
-                        }
+                        //if (existing.ProvinceId != data.ProvinceId)
+                        //{
+                        //    transactionLog.AffectedColumn = "ProvinceId";
+                        //    transactionLog.NewValue = data.ProvinceId.ToString();
+                        //    transactionLog.OldValue = existing.ProvinceId.ToString();
+                        //    existing.ProvinceId = data.ProvinceId;
+                        //}
                         if (existing.Deprecated != data.Deprecated)
                         {
                             transactionLog.AffectedColumn = "Deprecated";

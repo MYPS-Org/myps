@@ -29,18 +29,47 @@ namespace WebAPI.Controllers.CrystalReport
 
             var queryString = string.Join("&",
                 query.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
-            var requestUri = $"api/reports/{reportName}" + (queryString.Length > 0 ? $"?{queryString}" : string.Empty);
 
-            using var response = await client.GetAsync(requestUri, HttpCompletionOption.ResponseHeadersRead);
+            var requestUri = $"api/reports/{reportName}"
+                           + (queryString.Length > 0 ? $"?{queryString}" : string.Empty);
+
+            // ── Don't use 'using' here — let the response stay alive until
+            //    we've fully read the bytes out of it ──────────────────────
+            var response = await client.GetAsync(requestUri, HttpCompletionOption.ResponseHeadersRead);
 
             if (!response.IsSuccessStatusCode)
             {
                 var problemDetail = await response.Content.ReadAsStringAsync();
+
+                // Dispose manually since we're not using 'using'
+                response.Dispose();
+
                 return StatusCode((int)response.StatusCode, problemDetail);
             }
 
-            var pdfStream = await response.Content.ReadAsStreamAsync();
-            return File(pdfStream, "application/pdf", $"{reportName}.pdf");
+            // ── Read ALL bytes into memory before the response can be disposed ──
+            var pdfBytes = await response.Content.ReadAsByteArrayAsync();
+            response.Dispose();
+
+            // ── Return as a downloadable / inline PDF ──────────────────────────
+            return File(pdfBytes, "application/pdf", $"{reportName}.pdf");
+
+            //var client = _httpClientFactory.CreateClient("ReportService");
+
+            //var queryString = string.Join("&",
+            //    query.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+            //var requestUri = $"api/reports/{reportName}" + (queryString.Length > 0 ? $"?{queryString}" : string.Empty);
+
+            //using var response = await client.GetAsync(requestUri, HttpCompletionOption.ResponseHeadersRead);
+
+            //if (!response.IsSuccessStatusCode)
+            //{
+            //    var problemDetail = await response.Content.ReadAsStringAsync();
+            //    return StatusCode((int)response.StatusCode, problemDetail);
+            //}
+
+            //var pdfStream = await response.Content.ReadAsStreamAsync();
+            //return File(pdfStream, "application/pdf", $"{reportName}.pdf");
         }
     }
 }

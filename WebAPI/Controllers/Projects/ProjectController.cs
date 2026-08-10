@@ -37,9 +37,11 @@ namespace WebAPI.Controllers.Projects
                 var provinces = await _db.tOptionAdminAreaProvince.AsNoTracking().Where(x => RegionParticipantIds.Contains(x.RegionParticipantId) && !x.Deprecated).ToListAsync(cancellationToken);
                 HashSet<int> ProvinceIds = provinces.Select(x => x.Id).ToHashSet();
 
-                var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().Where(x => ProvinceIds.Contains(x.ProvinceId) && !x.Deprecated).ToListAsync(cancellationToken);
+                var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().ToListAsync(cancellationToken);
+                //var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().Where(x => ProvinceIds.Contains(x.ProvinceId) && !x.Deprecated).ToListAsync(cancellationToken);
 
-                var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().Where(x => ProvinceIds.Contains(x.ProvinceId) && !x.Deprecated).ToListAsync(cancellationToken);
+                var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().ToListAsync(cancellationToken);
+                //var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().Where(x => ProvinceIds.Contains(x.ProvinceId) && !x.Deprecated).ToListAsync(cancellationToken);
 
                 var deos = await _db.vAdminDEO.AsNoTracking().Where(x => RegionParticipantIds.Contains(x.RegionParticipantId!) || string.IsNullOrEmpty(x.RegionParticipantId)).ToListAsync(cancellationToken);
 

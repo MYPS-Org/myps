@@ -333,19 +333,19 @@ namespace Helpers
             }
             int ProvinceId = ValidateProvince!.Id;
 
-            var ValidateCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.ProvinceId == ProvinceId && x.Name == p.City && !x.Deprecated, cancellationToken);
-            if (ValidateCity == null)
-            {
-                response.Message = $"Selected City/Municipality '{p.City}' is not valid."; response.Title = "Invalid City/Municipality";
-                return response;
-            }
+            //var ValidateCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.ProvinceId == ProvinceId && x.Name == p.City && !x.Deprecated, cancellationToken);
+            //if (ValidateCity == null)
+            //{
+            //    response.Message = $"Selected City/Municipality '{p.City}' is not valid."; response.Title = "Invalid City/Municipality";
+            //    return response;
+            //}
 
-            var ValidateLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => ProvinceId == x.ProvinceId && x.Name == p.LegislativeDistrict && !x.Deprecated, cancellationToken);
-            if (ValidateLD == null)
-            {
-                response.Message = $"Selected Legislative District '{p.LegislativeDistrict}' is not valid."; response.Title = "Invalid Legislative District";
-                return response;
-            }
+            //var ValidateLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => ProvinceId == x.ProvinceId && x.Name == p.LegislativeDistrict && !x.Deprecated, cancellationToken);
+            //if (ValidateLD == null)
+            //{
+            //    response.Message = $"Selected Legislative District '{p.LegislativeDistrict}' is not valid."; response.Title = "Invalid Legislative District";
+            //    return response;
+            //}
 
             var ValidateDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! && x.Name == p.DEO, cancellationToken);
             if (ValidateDEO == null)
