@@ -78,6 +78,7 @@ export interface StageList {
 export interface ProgramDetailsWithStages {
 	Id: number;
 	ProgramId: string;
+	ProgramPK: string;
 	RevisionNumber: number;
 	ProjectCount?: number;
 	Name: string;

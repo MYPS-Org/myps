@@ -278,7 +278,7 @@ export const importProject = async (payload: ImportProjectDTO) => {
 export const lrpToChainageConverter = async (sectionId: string, lrp: string) => {
     try {
         const response = await gisClient.get(
-            `/api_v1.0/infra/lrp_to_chainage`,
+            `/infra_inventory/lrp/lrp_to_chainage`,
             {
                 road_section_id: sectionId,
                 lrp_string: lrp,
