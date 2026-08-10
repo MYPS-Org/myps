@@ -206,11 +206,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   }, [mode, initialData]);
 
-  // Fetch GeoJSON data for map rendering
+  // Fetch GeoJSON data for map rendering. Skipped when there are no work locations to plot —
+  // the backend 400s on that ("Resource not found"), which httpClient auto-toasts, so calling
+  // it anyway just surfaces a misleading error for a normal empty state.
   const loadMapData = useCallback(async () => {
-    if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramPK) {
+    if (
+      mode === 'edit' &&
+      initialData?.ProjectDetails?.ProjectId &&
+      initialData?.ProgramDetails?.ProgramPK &&
+      (initialData?.MajorItemLocations?.length ?? 0) > 0
+    ) {
       try {
-        // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
         const response = await fetchProjectGeoJSON(
           initialData.ProjectDetails.ProjectFK || '',
           initialData.ProgramDetails.ProgramPK || '',
@@ -225,7 +231,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         // Gracefully handle error - map will show "No data available"
       }
     }
-  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId, initialData?.ProgramDetails?.StageName, user?.UserId]);
+  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId, initialData?.ProgramDetails?.StageName, initialData?.MajorItemLocations?.length, user?.UserId]);
 
   useEffect(() => {
     loadMapData();
