@@ -292,15 +292,15 @@ export const lrpToChainageConverter = async (sectionId: string, lrp: string) => 
     }
 };
 
-export const autoFillComponentDescription = async (username: string, reference_id: string, project_component_id: string, program_id: string, program_stage_name: string) => {
+export const autoFillComponentDescription = async (username: string, project_id: string, component_id: string, program_pk: string, program_stage_name: string) => {
     try {
         const response = await gisClient.get(
-            `/api_v1.0/infra/describe_project_component`,
+            `/projects_and_programs/get_proj_component_description`,
             {
                 username,
-                reference_id,
-                project_component_id,
-                program_id,
+                project_id,
+                component_id,
+                program_pk,
                 program_stage_name,
             },
             { preloaderMessage: 'Loading component description...' }
