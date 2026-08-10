@@ -163,7 +163,7 @@ const ProgramDetail: React.FC = () => {
         response.Data.Details.StageId,
         response.Data.Details.Type
       );
-      setNextStageName(nextStage ? nextStage.Name : 'Final Stage');
+      setNextStageName(nextStage ? nextStage.Name : '');
       setSkipStageName(skipStage ? skipStage.Name : null);
       setIsTerminalStage(reachedTerminalStage);
     } catch (error) {
