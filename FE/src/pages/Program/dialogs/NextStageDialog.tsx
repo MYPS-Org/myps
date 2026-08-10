@@ -10,7 +10,7 @@ import { getStageProgression } from '../utils/stageProgression';
 interface NextStageDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: { ProgramPK: string; Stage: number; Name?: string }) => void;
+    onSubmit: (data: { ProgramPK: string; StageName: string }) => void;
     program: ProgramDetails;
     stages: TableEnum[];
     isSkip: boolean;
@@ -105,14 +105,14 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                     : formData.Name
             };
 
-            await proceedToNextStage({ ProgramId: payload.ProgramPK, Stage: payload.Stage, Name: payload.Name });
-            
+            const response = await proceedToNextStage({ ProgramId: payload.ProgramPK, Stage: payload.Stage, Name: payload.Name });
+
             showToast({
                 type: 'success',
                 message: `Successfully proceeded to ${formData.StageName}!`,
             });
-            console.log('NextStageDialog payload:', payload);
-            // onSubmit(payload);
+
+            onSubmit({ ProgramPK: response.Data.ProgramPK, StageName: response.Data.StageName });
             handleClose();
         } catch (error) {
             showToast({
