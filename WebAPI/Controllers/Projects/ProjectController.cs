@@ -63,7 +63,7 @@ namespace WebAPI.Controllers.Projects
 
                 int CurrentYear = (int)Functions.CurrentDate().Year;
                 var categories = await _db.tOptionProjectCategory.AsNoTracking()
-                    .Where(c => c.IsActive || (c.ValidUntil >= CurrentYear || c.ValidUntil == 0)).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
+                    .Where(c => c.IsActive && (c.ValidUntil >= CurrentYear || c.ValidUntil == 0)).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
                 var thrusts = await _db.tOptionProjectThrustList.AsNoTracking()
                     .Where(t => t.IsActive).OrderBy(x => x.ThrustDescription).ToListAsync(cancellationToken);
                 var origins = await _db.tOptionProjectOrigin.AsNoTracking()
