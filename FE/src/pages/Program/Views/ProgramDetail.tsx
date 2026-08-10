@@ -329,10 +329,13 @@ const ProgramDetail: React.FC = () => {
     setIsSkip(isSkip);
   };
 
-  const handleNextStageSubmit = async (data: { ProgramPK: string; StageName: string }) => {
+  const handleNextStageSubmit = async (data: { ProgramPK: string; Stage: number; Name?: string }) => {
     try {
-      handleViewDetails(data.ProgramPK, data.StageName);
-      await fetchProgramDetail(data.ProgramPK, data.StageName);
+      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.NameId === data.Stage);
+      if (nextStageName) {
+        handleViewDetails(data.ProgramPK, nextStageName.Name);
+        await fetchProgramDetail(data.ProgramPK, nextStageName.Name);
+      }
     } catch (error) {
       console.error('Error handling next stage submission:', error);
       showToast({
