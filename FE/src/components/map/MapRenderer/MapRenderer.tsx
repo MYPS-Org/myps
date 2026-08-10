@@ -1,5 +1,6 @@
 import React from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import './mapPopup.css';
 import { useMapLibreMap } from './useMapLibreMap';
 import { useProjectMapLayers } from './useProjectMapLayers';
 import { DEFAULT_MAP_LAYERS } from './layerConfig';
@@ -7,7 +8,7 @@ import { DEFAULT_MAP_LAYERS } from './layerConfig';
 // import LayerControlWidget from './LayerControlWidget';
 import BasemapSwitcherWidget from './BasemapSwitcherWidget';
 import { MapEmptyState, MapErrorBanner, MapLoadingOverlay } from './MapStatusOverlays';
-import type { MapLayerDefinition } from './types';
+import type { MapLayerDefinition, PopupFieldConfig } from './types';
 
 interface MapRendererProps {
   geoJsonData?: GeoJSON.FeatureCollection | null;
@@ -15,16 +16,23 @@ interface MapRendererProps {
   projectId?: string;
   programId?: string;
   layers?: MapLayerDefinition[];
+  popupFields?: PopupFieldConfig[];
 }
 
-const MapRenderer: React.FC<MapRendererProps> = ({ geoJsonData, height = '400px', layers = DEFAULT_MAP_LAYERS }) => {
+const MapRenderer: React.FC<MapRendererProps> = ({
+  geoJsonData,
+  height = '400px',
+  layers = DEFAULT_MAP_LAYERS,
+  popupFields,
+}) => {
   const { containerRef, mapRef, isMapReady, basemap, setBasemap, styleGeneration } = useMapLibreMap();
   const { isLoading, error } = useProjectMapLayers(
     mapRef,
     isMapReady,
     styleGeneration,
     geoJsonData,
-    layers
+    layers,
+    popupFields
   );
 
   return (

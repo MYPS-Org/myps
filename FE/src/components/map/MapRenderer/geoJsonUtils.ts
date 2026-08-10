@@ -1,5 +1,5 @@
 import maplibregl from 'maplibre-gl';
-import type { MapLayerDefinition, ProjectFeatureProperties } from './types';
+import type { MapLayerDefinition, PopupFieldConfig, ProjectFeatureProperties } from './types';
 import { METRO_MANILA_CENTER } from './mapStyle';
 
 export interface BoundsAndCentroid {
@@ -56,20 +56,38 @@ export function groupFeaturesByLayer(
   return grouped;
 }
 
-export function buildPopupHtml(properties: ProjectFeatureProperties): string {
+const escapeHtml = (value: unknown): string =>
+  String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] as string);
+
+const popupRow = (label: string, value: unknown): string =>
+  `<p style="margin: 4px 0;"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
+
+function buildConfiguredFieldsHtml(properties: ProjectFeatureProperties, fields: PopupFieldConfig[]): string {
+  const rows = fields
+    .filter(({ key }) => properties[key] !== undefined && properties[key] !== null && properties[key] !== '')
+    .map(({ label, key }) => popupRow(label, properties[key]));
+
+  if (rows.length === 0) return '';
+
+  return `<div style="padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid #e5e7eb;">${rows.join('')}</div>`;
+}
+
+export function buildPopupHtml(properties: ProjectFeatureProperties, fields?: PopupFieldConfig[]): string {
+  const header = fields
+    ? buildConfiguredFieldsHtml(properties, fields)
+    : `<h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 14px;">${escapeHtml(properties.name || 'Project Location')}</h3>`;
+
   return `
     <div style="padding: 10px; max-width: 300px;">
-      <h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 14px;">
-        ${properties.name || 'Project Location'}
-      </h3>
-      ${properties.dsow ? `<p style="margin: 4px 0;"><strong>Scope:</strong> ${properties.dsow}</p>` : ''}
-      ${properties.work_scope ? `<p style="margin: 4px 0;"><strong>Work Type:</strong> ${properties.work_scope}</p>` : ''}
-      ${properties.length ? `<p style="margin: 4px 0;"><strong>Length:</strong> ${properties.length}m</p>` : ''}
-      ${properties.target_amount ? `<p style="margin: 4px 0;"><strong>Target:</strong> ${properties.target_amount} ${properties.target_unit || ''}</p>` : ''}
-      ${properties.cost_x ? `<p style="margin: 4px 0;"><strong>Cost:</strong> ₱${properties.cost_x.toLocaleString('en-PH')}</p>` : ''}
+      ${header}
+      ${properties.dsow ? popupRow('Scope', properties.dsow) : ''}
+      ${properties.work_scope ? popupRow('Work Type', properties.work_scope) : ''}
+      ${properties.length ? popupRow('Length', `${properties.length}m`) : ''}
+      ${properties.target_amount ? popupRow('Target', `${properties.target_amount} ${properties.target_unit || ''}`) : ''}
+      ${properties.cost_x ? popupRow('Cost', `₱${properties.cost_x.toLocaleString('en-PH')}`) : ''}
       ${
         properties.start_station_limit && properties.end_station_limit
-          ? `<p style="margin: 4px 0;"><strong>Station:</strong> ${properties.start_station_limit} - ${properties.end_station_limit}</p>`
+          ? popupRow('Station', `${properties.start_station_limit} - ${properties.end_station_limit}`)
           : ''
       }
     </div>

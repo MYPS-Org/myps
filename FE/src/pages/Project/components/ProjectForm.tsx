@@ -1093,10 +1093,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         </div>
         {isMapOpen && (
           <div className="p-4">
-            <MapRenderer 
+            <MapRenderer
               geoJsonData={geoJsonData}
               projectId={initialData?.ProjectDetails?.ProjectId}
               programId={initialData?.ProgramDetails?.ProgramId}
+              popupFields={[
+                { label: 'Component Id', key: 'ComponentId' },
+                { label: 'Start Station Limit', key: 'StartStationLimit' },
+                { label: 'End Station Limit', key: 'EndStationLimit' },
+              ]}
               height="500px"
             />
           </div>

@@ -19,3 +19,14 @@ export interface MapLayerDefinition {
 }
 
 export type LayerVisibilityState = Record<string, boolean>;
+
+// Lets each MapRenderer consumer (Project, GIS Playground, ...) declare which raw
+// feature properties to show as labeled rows at the top of the popup, since callers
+// pass their own property shapes straight through rather than a MapRenderer-owned
+// canonical one.
+export interface PopupFieldConfig {
+  /** Row label, e.g. 'Component Id'. */
+  label: string;
+  /** Feature property key to read the value from, e.g. 'ComponentId'. Row is omitted when blank/missing. */
+  key: string;
+}
