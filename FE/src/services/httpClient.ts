@@ -186,6 +186,14 @@ class HttpClient {
         };
     }
 
+    async put<T>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+        const response: AxiosResponse<T> = await this.client.put(url, data, config);
+        return {
+            Data: response.data,
+            Status: response.status,
+        };
+    }
+
     async get<T>(url: string, params?: Record<string, string>, config?: RequestConfig): Promise<ApiResponse<T>> {
         const response: AxiosResponse<T> = await this.client.get(url, { params, ...config });
         return {
