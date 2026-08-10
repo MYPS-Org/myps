@@ -1,6 +1,7 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Functions.Program;
+using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Table;
 using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views.Program;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel;
 using System.Security.Claims;
 using WebAPI.MicroService;
 namespace WebAPI.Controllers.Programs
@@ -805,9 +807,9 @@ namespace WebAPI.Controllers.Programs
                         NewRevisions.AddRange(ProjectRevisions.Select(project => new ProjectRevisions()
                         {
                             ProjectFK = project.ProjectFK,
-                            ProgramFK = project.ProgramId,
+                            ProgramFK = project.ProgramFK,
                             ProgramId = NewProgramUniqueId,
-                            ProjectId = project.ProjectId,
+                            ProjectId = HasNewProjectId ? project.ProjectId.ReplaceFirst("BP", FirstSegment) : project.ProjectId,
                             MYCAApprovalDate = project.MYCAApprovalDate,
                             Description = project.Description,
                             Region = project.Region,
@@ -854,11 +856,11 @@ namespace WebAPI.Controllers.Programs
                         await _db.SaveChangesAsync(cancellationToken);
                         #endregion
                         #region Project Stages
-                        var newStages = NewRevisions.Select(pr => new ProjectStages
+                        var newStages = NewRevisions.Select(pr => new DBHelper.Models.Table.Project.ProjectStages
                         {
                             ProjectFK = pr.ProjectFK,
                             ProgramFK = pr.ProgramFK,
-                            ProgramId = dto.ProgramId,
+                            ProgramId = NewProgramUniqueId,
                             RevisionId = pr.Id,
                             StageId = dto.Stage,
                             StageName = ValidateStage.Name,
@@ -879,7 +881,7 @@ namespace WebAPI.Controllers.Programs
                                     on newRevision.ProjectFK equals oldRevision.ProjectFK
                                 join fundingProfile in FundingProfiles
                                     on oldRevision.Id equals fundingProfile.ProjectRevisionFK
-                                select new ProjectFundingProfile
+                                select new DBHelper.Models.Table.Project.ProjectFundingProfile
                                 {
                                     ProjectRevisionFK = newRevision.Id,
                                     SourceOrg = fundingProfile.SourceOrg,
@@ -895,88 +897,181 @@ namespace WebAPI.Controllers.Programs
                             await _db.tProjectFundingProfile.AddRangeAsync(NewFundingProfiles);
                         }
                         #endregion
-                        #region Component Costs
-                        List<ProjectComponentCost> NewComponent = new List<ProjectComponentCost>();
-                        List<ProjectMajorWorkItem> NewMajorItems = new List<ProjectMajorWorkItem>();
+                        #region Component Costs with Per Year, Major Work Items and Major Work Locations
                         if (Components.Count() > 0)
                         {
                             var componentYearsLookup = ComponentsPerYear.ToLookup(x => x.ComponentCostFK);
+
                             var majorItemsLookup = MajorItems
                                 .ToLookup(x => x.ComponentCostFK);
+
                             var majorLocationsLookup = MajorLocations
                                 .ToLookup(x => x.WorkItemFK);
-                            NewComponent = Components
-                                .Where(component => ComponentCostFK.Contains(component.Id))
-                                .Select(component => new ProjectComponentCost
+                            #region ComponentCost
+                            var NewComponentCost =
+                            (
+                                from newRevision in NewRevisions
+                                join oldRevision in ProjectRevisions
+                                    on newRevision.ProjectFK equals oldRevision.ProjectFK
+                                join cc in Components
+                                    on oldRevision.Id equals cc.ProjectRevisionFK
+                                select new DBHelper.Models.Table.Project.ProjectComponentCost
                                 {
-                                    ProjectRevisionFK = component.ProjectRevisionFK,
-                                    ComponentType = component.ComponentType,
-                                    ComponentId = component.ComponentId,
-                                    Description = component.Description,
-                                    Total = component.Total,
-                                    CreatedBy = component.CreatedBy,
-                                    CreatedDate = component.CreatedDate,
-                                    IsDeleted = component.IsDeleted,
+                                    ProjectRevisionFK = newRevision.Id,
 
-                                    #region Cost Per Year
-                                    CostsPerYear = componentYearsLookup[component.Id]
-                                        .Select(year => new ProjectComponentCostPerYear
-                                        {
-                                            // Do not assign ComponentCostFK manually.
-                                            // EF Core obtains it from the parent relationship.
-                                            Amount = year.Amount,
-                                            Year = year.Year,
-                                            UACS = year.UACS,
-                                            StartDate = year.StartDate,
-                                            EndDate = year.EndDate,
-                                            CreatedBy = year.CreatedBy,
-                                            CreatedDate = year.CreatedDate,
-                                            IsDeleted = year.IsDeleted
-                                        })
-                                        .ToList(),
-                                    #endregion
+                                    ComponentType = cc.ComponentType,
+                                    ComponentId = cc.ComponentId,
+                                    Description = cc.Description,
+                                    Total = cc.Total,
 
-                                    #region Work Items and Locations
-                                    WorkItem = majorItemsLookup[component.Id]
-                                        .Select(majorItem => new ProjectMajorWorkItem
-                                        {
-                                            // Do not set ComponentCostFK.
-                                            YearOfWork = majorItem.YearOfWork,
-                                            WorkTypeFK = majorItem.WorkTypeFK,
-                                            InfraTypeFK = majorItem.InfraTypeFK,
-                                            CreatedBy = majorItem.CreatedBy,
-                                            CreatedDate = majorItem.CreatedDate,
-                                            IsDeleted = majorItem.IsDeleted,
+                                    CreatedBy = cc.CreatedBy,
+                                    CreatedDate = cc.CreatedDate,
 
-                                            WorkLocations = majorLocationsLookup[majorItem.Id]
-                                                .Select(location => new ProjectMajorWorkLocations
-                                                {
-                                                    // Do not set WorkItemFK.
-                                                    InfraId = location.InfraId,
-                                                    DetailedScope = location.DetailedScope,
-                                                    TargetUnitId = location.TargetUnitId,
-                                                    TargetUnit = location.TargetUnit,
-                                                    StartX = location.StartX,
-                                                    StartY = location.StartY,
-                                                    EndX = location.EndX,
-                                                    EndY = location.EndY,
-                                                    PhysicalTarget = location.PhysicalTarget,
-                                                    StartStationLimit = location.StartStationLimit,
-                                                    EndStationLimit = location.EndStationLimit,
-                                                    StartChainage = location.StartChainage,
-                                                    EndChainage = location.EndChainage,
-                                                    Length = location.Length,
-                                                    CreatedBy = location.CreatedBy,
-                                                    CreatedDate = location.CreatedDate,
-                                                    IsDeleted = location.IsDeleted
-                                                })
-                                                .ToList()
-                                        })
-                                        .ToList()
-                                    #endregion
-                                })
-                                .ToList();
-                            await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
+                                    UpdatedBy = cc.UpdatedBy,
+                                    UpdatedDate = cc.UpdatedDate,
+
+                                    IsDeleted = cc.IsDeleted
+                                }
+                            )
+                            .ToList();
+
+                            await _db.tProjectComponentCost
+                                .AddRangeAsync(NewComponentCost);
+                            await _db.SaveChangesAsync();
+                            #endregion
+
+                            #region Component Per Year
+                            var NewComponentCostPerYear =
+                            (
+                                from cc in NewComponentCost
+
+                                join year in ComponentsPerYear
+                                    on cc.ComponentId equals year.ComponentId
+
+                                select new DBHelper.Models.Table.Project.ProjectComponentCostPerYear
+                                {
+                                    ComponentCostFK = cc.Id,
+
+                                    ComponentId = year.ComponentId,
+
+                                    Amount = year.Amount,
+                                    Year = year.Year,
+                                    UACS = year.UACS,
+
+                                    StartDate = year.StartDate,
+                                    EndDate = year.EndDate,
+
+                                    CreatedBy = year.CreatedBy,
+                                    CreatedDate = year.CreatedDate,
+
+                                    UpdatedBy = year.UpdatedBy,
+                                    UpdatedDate = year.UpdatedDate,
+
+                                    IsDeleted = year.IsDeleted,
+                                }
+                            )
+                            .ToList();
+
+                            await _db.tProjectComponentCostPerYear
+                                .AddRangeAsync(NewComponentCostPerYear);
+                            #endregion
+
+                            #region Major Work Items
+                            var NewMajorWorkItems =
+                            (
+                                from cc in NewComponentCost
+
+                                join workItem in MajorItems
+                                    on cc.ComponentId equals workItem.ComponentId
+
+                                select new DBHelper.Models.Table.Project.ProjectMajorWorkItem
+                                {
+                                    // New Component Cost identity
+                                    ComponentCostFK = cc.Id,
+
+                                    ComponentId = workItem.ComponentId,
+
+                                    YearOfWork = workItem.YearOfWork,
+                                    WorkTypeFK = workItem.WorkTypeFK,
+                                    InfraTypeFK = workItem.InfraTypeFK,
+
+                                    CreatedBy = workItem.CreatedBy,
+                                    CreatedDate = workItem.CreatedDate,
+
+                                    UpdatedBy = workItem.UpdatedBy,
+                                    UpdatedDate = workItem.UpdatedDate,
+
+                                    IsDeleted = workItem.IsDeleted
+                                }
+                            )
+                            .ToList();
+
+                            await _db.tProjectMajorWorkItem
+                                .AddRangeAsync(NewMajorWorkItems);
+                            await _db.SaveChangesAsync();
+                            #endregion
+
+                            #region Major Work Locations
+                            var NewMajorWorkLocations =
+                            (
+                                from location in MajorLocations
+
+                                    // Find which OLD work item owns this location
+                                join oldWorkItem in MajorItems
+                                    on location.WorkItemFK equals oldWorkItem.Id
+
+                                // Find its equivalent NEW work item
+                                join newWorkItem in NewMajorWorkItems
+                                    on new
+                                    {
+                                        oldWorkItem.ComponentId,
+                                        oldWorkItem.YearOfWork,
+                                        oldWorkItem.WorkTypeFK,
+                                        oldWorkItem.InfraTypeFK
+                                    }
+                                    equals new
+                                    {
+                                        newWorkItem.ComponentId,
+                                        newWorkItem.YearOfWork,
+                                        newWorkItem.WorkTypeFK,
+                                        newWorkItem.InfraTypeFK
+                                    }
+
+                                select new DBHelper.Models.Table.Project.ProjectMajorWorkLocations
+                                {
+                                    WorkItemFK = newWorkItem.Id,
+
+                                    ComponentId = location.ComponentId,
+
+                                    InfraId = location.InfraId,
+                                    DetailedScope = location.DetailedScope,
+
+                                    TargetUnitId = location.TargetUnitId,
+                                    TargetUnit = location.TargetUnit,
+
+                                    StartX = location.StartX,
+                                    StartY = location.StartY,
+                                    EndX = location.EndX,
+                                    EndY = location.EndY,
+
+                                    PhysicalTarget = location.PhysicalTarget,
+
+                                    StartStationLimit = location.StartStationLimit,
+                                    EndStationLimit = location.EndStationLimit,
+
+                                    StartChainage = location.StartChainage,
+                                    EndChainage = location.EndChainage,
+
+                                    Length = location.Length,
+
+                                    CreatedBy = location.CreatedBy,
+                                    CreatedDate = location.CreatedDate,
+
+                                    IsDeleted = location.IsDeleted
+                                }
+                            )
+                            .ToList();
+                            #endregion
                         }
                         #endregion
                         #region Supporting Documents
@@ -1008,8 +1103,6 @@ namespace WebAPI.Controllers.Programs
                         #endregion
                         #endregion
 
-
-
                         #endregion
                         #region Program Level
                         #region Program Revisions
@@ -1030,7 +1123,7 @@ namespace WebAPI.Controllers.Programs
                         var newStage = new DBHelper.Models.Table.Program.ProgramStages()
                         {
                             ProgramFK = ProgramParent.ProgramPK,
-                            ProgramId = dto.ProgramId,
+                            ProgramId = NewProgramUniqueId,
                             RevisionId = NewProgramRevision.Id,
                             StageId = dto.Stage,
                             StageName = ValidateStage.Name,
@@ -1040,7 +1133,13 @@ namespace WebAPI.Controllers.Programs
                         await _db.tProgramStages.AddAsync(newStage);
                         if(dto.Stage == EnumProgramStage.GAAR)
                         {
-                            var SyncPublishableProjects = await _db.pRecomputeProjectPublishable.FromSqlInterpolated($"EXEC pRecomputeProjectPublishable {ProgramParent.ProgramPK}").FirstOrDefaultAsync();
+                            var syncPublishableProjects = (
+                                await _db.Database
+                                    .SqlQuery<int>(
+                                        $"EXEC dbo.pRecomputeProjectPublishable @ProgramFK = {ProgramParent.ProgramPK}"
+                                    )
+                                    .ToListAsync()
+                            ).FirstOrDefault();
                         }
                         #endregion
                         #endregion
@@ -1053,6 +1152,22 @@ namespace WebAPI.Controllers.Programs
                         });
                     }
                 }
+
+
+                //var ValidateProgram = await _db.ValidateProgramId(new ProgramHelperParams
+                //{
+                //    ProgramId = dto.ProgramId,
+                //    StageName = dto.StageName,
+                //    _Session = _Session,
+                //    ViewOldStage = true
+                //}, cancellationToken);
+                //if (!ValidateProgram.IsValid)
+                //{
+                //    return new BadRequestObjectResult(new { Message = ValidateProgram.Message, Title = ValidateProgram.Title });
+                //}
+                //ProgramParent = ValidateProgram.Data.Program;
+                //ProgramRevision = ValidateProgram.Data.ProgramRevision;
+                //ProgramStage = ValidateProgram.Data.ProgramStage;
                 return new BadRequestObjectResult(new
                 {
                     Message = "No projects are linked to this program.",
