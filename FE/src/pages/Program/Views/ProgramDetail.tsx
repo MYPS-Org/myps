@@ -8,6 +8,7 @@ import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects, Sho
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
+import { getStageProgression } from '../utils/stageProgression';
 // import MetroManilaMap from '../../../components/map/MetroManilaMap';
 import PublishProgramDialog from '../dialogs/PublishProgramDialog';
 import ActionsDropdown from '../components/programDetail/ActionsDropdown';
@@ -27,6 +28,7 @@ const ProgramDetail: React.FC = () => {
   const navigate = useNavigate();
   const [nextStageName, setNextStageName] = useState<string | null>(null);
   const [skipStageName, setSkipStageName] = useState<string | null>(null);
+  const [isTerminalStage, setIsTerminalStage] = useState(false);
   const [isSkipStage, setIsSkip] = useState(false);
   const { showToast } = useToast();
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
@@ -156,13 +158,14 @@ const ProgramDetail: React.FC = () => {
       setProgramEnums(normalizedData);
       setDefaultProgramEnums(normalizedData); // Store the original data for comparison
 
-      const nextStageId = response.Data.Details.StageId + 1;
-      const nextStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
+      const { nextStage, skipStage, isTerminalStage: reachedTerminalStage } = getStageProgression(
+        response.Data.Dropdowns.Stages,
+        response.Data.Details.StageId,
+        response.Data.Details.Type
+      );
       setNextStageName(nextStage ? nextStage.Name : 'Final Stage');
-
-      const skipStageId = response.Data.Details.StageId + 2;
-      const skipStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === skipStageId);
       setSkipStageName(skipStage ? skipStage.Name : null);
+      setIsTerminalStage(reachedTerminalStage);
     } catch (error) {
       console.error('Error fetching program details:', error);
       setProgramEnums(defaultProgramEnums);
@@ -328,7 +331,7 @@ const ProgramDetail: React.FC = () => {
 
   const handleNextStageSubmit = async (data: { ProgramId: string; Stage: number; Name?: string }) => {
     try {
-      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.Id === data.Stage);
+      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.NameId === data.Stage);
       if (nextStageName) {
         handleViewDetails(data.ProgramId, nextStageName.Name);
       }
@@ -342,7 +345,7 @@ const ProgramDetail: React.FC = () => {
   };
 
   const handlePublishToPCMA = () => {
-    if (programEnums?.Details.Status !== 1 || programEnums?.Details.StageId !== 10) return;
+    if (programEnums?.Details.Status !== 1 || !isTerminalStage) return;
     setIsPublishDialogOpen(true);
   };
 
@@ -542,8 +545,7 @@ const ProgramDetail: React.FC = () => {
             <div className="pt-4 flex justify-end gap-4">
               {programEnums.IsActive &&
                 programEnums.Details &&
-                programEnums.Details.StageId >= 4 &&
-                programEnums.Details.StageId < 10 && (
+                !isTerminalStage && (
                   <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(false)}>
                     Proceed to {nextStageName}
                   </Button>
@@ -593,17 +595,17 @@ const ProgramDetail: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
           <div className="flex items-center gap-4">
-            {programEnums.IsActive && programEnums.Details.StageId === 10 && defaultProgramEnums.Details.Status === 1 && (
+            {programEnums.IsActive && isTerminalStage && defaultProgramEnums.Details.Status === 1 && (
               <Button color="yellow" onClick={handlePublishToPCMA}>
                 Publish Program
               </Button>
             )}
-            {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 && programEnums?.Details?.StageId <= 10 && (
+            {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 && !isTerminalStage && (
               <Button color="blue" onClick={handleAddProject}>
                 Add Project
               </Button>
             )}
-            {programEnums.IsActive && programEnums?.Details?.StageId < 10 && (
+            {programEnums.IsActive && !isTerminalStage && (
               <Button color="blue" onClick={handleAddExistingProject}>
                 Add Existing Project
               </Button>
@@ -612,7 +614,7 @@ const ProgramDetail: React.FC = () => {
               programId={programEnums?.Details.ProgramPK ?? ''}
               programName={programEnums?.Details.Name ?? ''}
               isActive={programEnums.IsActive}
-              stageId={programEnums?.Details.StageId ?? 0}
+              isTerminalStage={isTerminalStage}
               defaultStatus={defaultProgramEnums.Details.Status}
               onRefresh={() => fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName)}
               onLoadingChange={setIsLoading}

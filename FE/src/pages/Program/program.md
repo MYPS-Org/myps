@@ -184,9 +184,10 @@ AIP/AIP02 payloads include all filter fields; RBP/RBPTier/RBPComponents/RDIP sen
 |-------|------|---------|
 | `programEnums` | `ProgramDetailsEnums` | Live/editable copy of program data |
 | `defaultProgramEnums` | `ProgramDetailsEnums` | Snapshot from last server load for dirty-check |
-| `nextStageName` | `string \| null` | Derived: `Stages[StageId + 1]?.Name` |
-| `skipStageName` | `string \| null` | Derived: `Stages[StageId + 2]?.Name` |
-| `isSkipStage` | `boolean` | Whether the "Proceed" button targets skip (+2) vs next (+1) |
+| `nextStageName` | `string \| null` | Derived via `getStageProgression()` (`utils/stageProgression.ts`): name of the stage one position after `StageId` in the program's own stage track |
+| `skipStageName` | `string \| null` | Derived via `getStageProgression()`: name of the stage two positions after `StageId` in the same track |
+| `isTerminalStage` | `boolean` | Derived via `getStageProgression()`: true when `StageId` is the last stage in its track (no next stage) |
+| `isSkipStage` | `boolean` | Whether the "Proceed" button targets skip (+2 position) vs next (+1 position) |
 
 **`preventUpdate()`** — disables Update button when no editable field has changed. Compares: Name, YearStart, YearEnd, Status, Type, UserGroup (sorted), DataSecurityGroup (sorted).
 
@@ -208,23 +209,25 @@ AIP/AIP02 payloads include all filter fields; RBP/RBPTier/RBPComponents/RDIP sen
 
 | Condition | Button |
 |-----------|--------|
-| `IsActive && StageId >= 4 && StageId < 10` | Proceed to {nextStageName} |
+| `IsActive && !isTerminalStage` | Proceed to {nextStageName} |
 | `IsActive && (StageId === 5 \|\| StageId === 7)` | Proceed to {skipStageName} |
 | `IsActive` | Update (disabled if no changes) |
 
+`isTerminalStage` is not a fixed StageId — it's `true` when the program's current stage is the last one in its stage track (see Stage Model below), computed positionally from the live `Dropdowns.Stages` list so it stays correct even if stages are added/removed/reordered via the Program Stage code table.
+
 **Publish Program Button** (in Projects section header):
 ```ts
-IsActive && Details.StageId === 10 && defaultProgramEnums.Details.Status === 1
+IsActive && isTerminalStage && defaultProgramEnums.Details.Status === 1
 ```
 
 **Add Project Button** (in Projects section header):
 ```ts
-IsActive && defaultProgramEnums.Details.Status === 3 && Details.StageId <= 10
+IsActive && defaultProgramEnums.Details.Status === 3 && !isTerminalStage
 ```
 
 **Add Existing Project Button:**
 ```ts
-IsActive && Details.StageId < 10
+IsActive && !isTerminalStage
 ```
 
 **Projects table columns:** Project ID | Description | Category | SubProgram | Implementing Office | Operating Unit | Publishable | Published
@@ -346,16 +349,18 @@ IsActive && Details.StageId < 10
 
 ## Stage Model
 
-Programs flow through stages managed by `StageId`:
+Programs flow through stages defined in the (admin-editable, via CodeTables) `tOptionProgramStage` table, referenced by `StageId`. StageId values are **not** guaranteed to be contiguous or to match any fixed numbering — `getStageProgression()` (`utils/stageProgression.ts`) always derives "next"/"skip"/"terminal" positionally from the live, sorted `Dropdowns.Stages` list rather than assuming specific numbers.
 
-| StageId range | Meaning |
-|--------------|---------|
-| 1–3 | Pre-BP stages |
-| 4 | BP (Budget Proposal) — RBP reports available |
-| 5, 7 | Stages where skipping one stage is allowed |
-| 4–9 | Can advance to next stage |
-| 10 | GAA (Final) — Publish to PCMA available |
-| 11 | TF type programs auto-assigned here |
+Programs run on one of two independent stage tracks, split by `Details.Type`:
+
+| Track | Stages (by Name, sorted by Id) | Who's on it |
+|-------|-------------------------------|-------------|
+| Main | BP → NEP → NEP-E → HGAB → HGAB-I → GAA → GAA-R → RBP → RDIP → PIP | Any program where `Type !== 3` |
+| Trust Fund | TF → TF-R | Programs where `Type === 3` (see `AddProgramDialog`'s Type=3 handling) |
+
+Within a program's track, `isTerminalStage` is true when its `StageId` is the last stage of that track (no further stage exists to proceed to) — this is what gates the Publish/Add Project/Add Existing Project buttons instead of a hardcoded StageId.
+
+The skip button (`StageId === 5 || StageId === 7`, i.e. HGAB-I and GAA-R) is a separate, curated business rule — not derived positionally — and is unrelated to `isTerminalStage`.
 
 `IsActive` controls whether the detail page allows editing.
 
