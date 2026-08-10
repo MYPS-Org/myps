@@ -10,7 +10,7 @@ import { getStageProgression } from '../utils/stageProgression';
 interface NextStageDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: { ProgramId: string; Stage: number; Name?: string }) => void;
+    onSubmit: (data: { ProgramPK: string; Stage: number; Name?: string }) => void;
     program: ProgramDetails;
     stages: TableEnum[];
     isSkip: boolean;
@@ -55,7 +55,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const parsedName = parseExistingName(program?.Name || '');
     
     const [formData, setFormData] = useState({
-        ProgramId: program?.ProgramId || '',
+        ProgramPK: program?.ProgramPK || '',
         Name: parsedName.baseName,
         AddedName: parsedName.additionalName,
         Stage: isSkip ? skipStageId : nextStageId,
@@ -98,21 +98,21 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
         
         try {
             const payload = {
-                ProgramId: formData.ProgramId,
+                ProgramPK: formData.ProgramPK,
                 Stage: formData.Stage,
                 Name: formData.AddedName && formData.AddedName.trim() 
                     ? `${formData.Name} - ${formData.AddedName}` 
                     : formData.Name
             };
 
-            await proceedToNextStage({ ProgramId: payload.ProgramId, Stage: payload.Stage, Name: payload.Name });
+            await proceedToNextStage({ ProgramId: payload.ProgramPK, Stage: payload.Stage, Name: payload.Name });
             
             showToast({
                 type: 'success',
                 message: `Successfully proceeded to ${formData.StageName}!`,
             });
-            
-            onSubmit(payload);
+            console.log('NextStageDialog payload:', payload);
+            // onSubmit(payload);
             handleClose();
         } catch (error) {
             showToast({
@@ -127,7 +127,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const handleClose = () => {
         const resetParsedName = parseExistingName(program?.Name || '');
         setFormData({
-            ProgramId: program?.ProgramId || '',
+            ProgramPK: program?.ProgramPK || '',
             Name: resetParsedName.baseName,
             AddedName: resetParsedName.additionalName,
             Stage: isSkip ? skipStageId : nextStageId,
