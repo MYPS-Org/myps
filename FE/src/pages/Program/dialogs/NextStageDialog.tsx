@@ -55,7 +55,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const parsedName = parseExistingName(program?.Name || '');
     
     const [formData, setFormData] = useState({
-        ProgramId: program?.ProgramPK || '',
+        ProgramId: program?.ProgramId || '',
         Name: parsedName.baseName,
         AddedName: parsedName.additionalName,
         Stage: isSkip ? skipStageId : nextStageId,
@@ -127,7 +127,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const handleClose = () => {
         const resetParsedName = parseExistingName(program?.Name || '');
         setFormData({
-            ProgramId: program?.ProgramPK || '',
+            ProgramId: program?.ProgramId || '',
             Name: resetParsedName.baseName,
             AddedName: resetParsedName.additionalName,
             Stage: isSkip ? skipStageId : nextStageId,
