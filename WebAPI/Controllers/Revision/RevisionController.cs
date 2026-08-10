@@ -26,7 +26,7 @@
 //    [Route("api/[controller]/[action]")]
 //    public class RevisionController : CoreController
 //    {
-//        public RevisionController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+//        public RevisionController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
 //        [HttpPost]
 //        public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto, CancellationToken cancellationToken)
@@ -120,7 +120,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex, dto);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -352,7 +352,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex, dto);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -607,7 +607,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex, dto);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -1658,7 +1658,7 @@
 //            catch (Exception ex)
 //            {
 //                await transaction.RollbackAsync(cancellationToken);
-//                return ExceptionHandler(ex, dto);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -1859,7 +1859,7 @@
 //            catch (Exception ex)
 //            {
 //                await transaction.RollbackAsync(cancellationToken);
-//                return ExceptionHandler(ex, dto);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -3116,7 +3116,7 @@
 //            catch (DbUpdateException ex)
 //            {
 //                await transaction.RollbackAsync(cancellationToken);
-//                return ExceptionHandler(ex, dto);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //    }

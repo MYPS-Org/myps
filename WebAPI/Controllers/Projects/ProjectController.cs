@@ -31,7 +31,6 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                EnumProgramStage.GetValues
                 var userId = _Session.UserId;
                 var regions = await _db.fUserVisibleRegions
                     .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleRegions({userId})")
@@ -1636,6 +1635,9 @@ namespace WebAPI.Controllers.Projects
                 HashSet<string> ComponentCostTypeIds = ComponentCost.Select(x => x.ComponentId).ToHashSet();
                 var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0 && !x.IsDeleted).ToList();
                 List<ProjectComponentCost> NewCostToAdd = new List<ProjectComponentCost>();
+
+                var MajorWorkItems = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => ComponentCostIds.Contains(x.ComponentCostFK)).ToListAsync(cancellationToken);
+
                 if (NewComponentCostData.Count > 0)
                 {
                     HasCostUpdate = true;
@@ -1927,7 +1929,7 @@ namespace WebAPI.Controllers.Projects
                 var NewComponentCostYearData = dto.ComponentCostPerYear.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
                 if (NewComponentCostYearData.Count > 0)
                 {
-                    var NewCostYearToAdd = NewCostToAdd
+                    var NewCostYearToAdd = ComponentCost
                         .SelectMany(a =>
                             NewComponentCostYearData
                             .Where(x => x.ComponentId == a.ComponentId)
@@ -2380,12 +2382,12 @@ namespace WebAPI.Controllers.Projects
                 {
                     HashSet<int> currentMajorItemIds = MajorWorkLocations.Select(x => x.Id).ToHashSet();
                     var UpdateMajorItems = dto.MajorItemLocations.Where(x => currentMajorItemIds.Contains(x.Id)).ToList();
+                    bool hasUpdate = false;
                     foreach (var item in UpdateMajorItems)
                     {
                         var ExistingItem = MajorWorkLocations.FirstOrDefault(x => x.Id == item.Id);
                         if (ExistingItem != null)
                         {
-                            bool hasUpdate = false;
                             if (ExistingItem.InfraId != item.InfraId)
                             {
                                 hasUpdate = true;
@@ -2610,18 +2612,61 @@ namespace WebAPI.Controllers.Projects
                                 });
                                 ExistingItem.Length = item.Length;
                             }
+                            if (hasUpdate)
+                            {
+                                ExistingItem.UpdatedBy = UserId;
+                                ExistingItem.UpdatedDate = CurrentDate;
+                            }
                         }
+                    }
+                    if (hasUpdate)
+                    {
+                        _db.tProjectMajorWorkLocations.UpdateRange(MajorWorkLocations);
                     }
                 }
                 #endregion
 
-                #region New Major Work Locations
-                var NewWorkLocations = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
-                if (NewWorkLocations.Count > 0)
+                //#region New Major Work Locations in New Work Items
+                //var NewWorkLocations = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
+                //if (NewWorkLocations.Count > 0)
+                //{
+                //    var selectedWorkLocationsToAdd = NewWorkItems
+                //    .SelectMany(a =>
+                //        NewWorkLocations
+                //        .Where(x => x.ComponentId == a.ComponentId)
+                //        .Select(item => new ProjectMajorWorkLocations
+                //        {
+                //            WorkItemFK = a.Id,
+                //            ComponentId = item.ComponentId,
+                //            InfraId = item.InfraId,
+                //            DetailedScope = item.DetailedScope,
+                //            TargetUnitId = item.TargetUnitId,
+                //            TargetUnit = item.TargetUnit,
+                //            StartX = item.StartX,
+                //            StartY = item.StartY,
+                //            EndX = item.EndX,
+                //            EndY = item.EndY,
+                //            PhysicalTarget = item.PhysicalTarget,
+                //            StartStationLimit = item.StartStationLimit,
+                //            EndStationLimit = item.EndStationLimit,
+                //            StartChainage = item.StartChainage,
+                //            EndChainage = item.EndChainage,
+                //            Length = item.Length,
+                //            CreatedBy = UserId,
+                //            CreatedDate = CurrentDate
+                //        }))
+                //    .ToList();
+                //    await _db.tProjectMajorWorkLocations.AddRangeAsync(selectedWorkLocationsToAdd, cancellationToken);
+                //}
+                //#endregion
+
+                #region New Major Work Locations in Existing Work Items
+                var NewWorkLocationsInExistingWorkItem = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
+                if (NewWorkLocationsInExistingWorkItem.Count > 0)
                 {
-                    var selectedWorkLocationsToAdd = NewWorkItems
+                    var selectedWorkLocationsToAdd = MajorWorkItems
                     .SelectMany(a =>
-                        NewWorkLocations
+                        NewWorkLocationsInExistingWorkItem
                         .Where(x => x.ComponentId == a.ComponentId)
                         .Select(item => new ProjectMajorWorkLocations
                         {
@@ -2790,19 +2835,19 @@ namespace WebAPI.Controllers.Projects
                 // TODO: BUGFIX: task timeouts here, computationally expensive
                  if (HasCostUpdate)
                 {
-                    var parameters = new DynamicParameters();
-                    parameters.Add("ProgramPK", ProgramFK);
+                    //var parameters = new DynamicParameters();
+                    //parameters.Add("ProgramPK", ProgramFK);
 
-                    var employees = await Sql.QueryAsync<dynamic>(
-                        Appsetting.DbConnections.MYPSDb,
-                        "pRecomputeProgramCost",
-                        parameters,
-                        commandType: CommandType.StoredProcedure,
-                        cancellationToken: cancellationToken);
+                    //var employees = await Sql.QueryAsync<dynamic>(
+                    //    Appsetting.DbConnections.MYPSDb,
+                    //    "pRecomputeProgramCost",
+                    //    parameters,
+                    //    commandType: CommandType.StoredProcedure,
+                    //    cancellationToken: cancellationToken);
 
-                    int totalCount = parameters.Get<int>("TotalCount");
-                    ProgramRevision.Cost = totalCount;
-                    await _db.SaveChangesAsync(cancellationToken);
+                    //int totalCount = parameters.Get<int>("TotalCount");
+                    //ProgramRevision.Cost = totalCount;
+                    //await _db.SaveChangesAsync(cancellationToken);
                 }
 
                 Console.WriteLine(">>>  Call to UpdateProjectDetails > CommitAsync");

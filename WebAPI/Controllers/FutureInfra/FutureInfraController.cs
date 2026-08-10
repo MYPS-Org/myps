@@ -72,10 +72,10 @@ namespace WebAPI.Controllers.Programs
 
 
                 if (!string.IsNullOrEmpty(dto.Filters.Name))
-                    filters.Add(( "v.Name = @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
+                    filters.Add(("v.Name LIKE @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoadId))
-                    filters.Add(("v.RoadId = @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
+                    filters.Add(("v.RoadId LIKE @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
 
                 FilterDataResult<FutureRoads> result =
                     await _db.FilterDataCursor<
@@ -385,7 +385,7 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowFutureRoadSections([FromBody] ShowFutureRoadSectionsDTO dto, CancellationToken cancellationToken)
         {
@@ -399,14 +399,14 @@ namespace WebAPI.Controllers.Programs
 
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoadId))
-                    filters.Add(("v.RoadId = @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
+                    filters.Add(("v.RoadId LIKE @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoadSectionId))
-                    filters.Add(("v.RoadSectionId = @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
+                    filters.Add(("v.RoadSectionId LIKE @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.DEO))
                 {
-                    filters.Add(("v.DEO = @DEO", "@DEO", $"%{dto.Filters.DEO.Trim()}%"));
+                    filters.Add(("v.DEOParticipantId LIKE @DEOParticipantId", "@DEOParticipantId", $"%{dto.Filters.DEO.Trim()}%"));
                 }
 
                 FilterDataResult<FutureRoadSections> result =
@@ -466,8 +466,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     RoadId = dto.RoadId,
                     RoadSectionId = dto.RoadSectionId,
-                    RoadLength = dto.RoadLength,
-                    DEO = dto.DEO,
+                    LengthM = double.Parse(dto.RoadLength),
+                    DEOParticipantId = dto.DEO,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
                 };
@@ -563,50 +563,35 @@ namespace WebAPI.Controllers.Programs
                     });
                     checkRoad.RoadSectionId = dto.RoadSectionId;
                 }
-                if (checkRoad.RoadLength != dto.RoadLength)
+                if (checkRoad.LengthM != double.Parse(dto.RoadLength))
                 {
                     Transactions.Add(new TransactionLog
                     {
                         ReferenceId = checkRoad.RoadId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
-                        AffectedColumn = "RoadLength",
-                        OldValue = checkRoad.RoadLength,
+                        AffectedColumn = "LengthM",
+                        OldValue = checkRoad.LengthM.ToString(),
                         NewValue = dto.RoadLength,
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
-                    checkRoad.RoadLength = dto.RoadLength;
+                    checkRoad.LengthM = double.Parse(dto.RoadLength);
                 }
-                if (checkRoad.RoadLength != dto.RoadLength)
+                if (checkRoad.DEOParticipantId != dto.DEO)
                 {
                     Transactions.Add(new TransactionLog
                     {
                         ReferenceId = checkRoad.RoadId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
-                        AffectedColumn = "RoadLength",
-                        OldValue = checkRoad.RoadLength,
-                        NewValue = dto.RoadLength,
-                        CreatedBy = UserId,
-                        CreatedDate = currentDate
-                    });
-                    checkRoad.RoadLength = dto.RoadLength;
-                }
-                if (checkRoad.DEO != dto.DEO)
-                {
-                    Transactions.Add(new TransactionLog
-                    {
-                        ReferenceId = checkRoad.RoadId,
-                        TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tFutureRoads",
-                        AffectedColumn = "DEO",
-                        OldValue = checkRoad.DEO,
+                        AffectedColumn = "DEOParticipantId",
+                        OldValue = checkRoad.DEOParticipantId,
                         NewValue = dto.DEO,
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
-                    checkRoad.DEO = dto.DEO;
+                    checkRoad.DEOParticipantId = dto.DEO;
                 }
                 if (Transactions.Count > 0)
                 {
@@ -726,21 +711,21 @@ namespace WebAPI.Controllers.Programs
 
 
                 if (!string.IsNullOrEmpty(dto.Filters.BridgeId))
-                    filters.Add(("v.BridgeId = @BridgeId", "@BridgeId", $"%{dto.Filters.BridgeId.Trim()}%"));
+                    filters.Add(("v.BridgeId LIKE @BridgeId", "@BridgeId", $"%{dto.Filters.BridgeId.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoadSectionId))
-                    filters.Add(("v.RoadSectionId = @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
+                    filters.Add(("v.RoadSectionId LIKE @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.Name))
                 {
-                    filters.Add(("v.Name = @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
+                    filters.Add(("v.Name LIKE @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
                 }
 
                 FilterDataResult<FutureBridge> result =
                     await _db.FilterDataCursor<
                         FutureBridge,
                         ShowFutureBridgeFilterDTO>(
-                            tableName: "tFutureRoadSections",
+                            tableName: "tFutureBridge",
                             dto: dto,
                             filter: filters,
                             keyColumn: "Id",

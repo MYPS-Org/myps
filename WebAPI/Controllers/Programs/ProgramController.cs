@@ -731,7 +731,7 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateProgramStage([FromBody] UpdateProgramStageDTO dto, CancellationToken cancellationToken)
         {
@@ -747,10 +747,19 @@ namespace WebAPI.Controllers.Programs
                 string ProgramId = dto.ProgramId;
                 DateTime CurrentDate = Functions.CurrentDate();
 
+                var currentVersion = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId, cancellationToken);
+                if (currentVersion == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Program Stage Not Found",
+                        Message = "The requested program stage could not be found. The program may no longer exist or you may be viewing an outdated stage. Please return to the Program List and open the program again to view the latest available stage."
+                    });
+                }
                 var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
                 {
                     ProgramId = dto.ProgramId,
-                    StageName = dto.Stage.ToString(),
+                    StageName = currentVersion.StageName.ToString(),
                     _Session = _Session
                 }, cancellationToken);
                 if(!ValidateProgramId.IsValid) {
@@ -767,7 +776,7 @@ namespace WebAPI.Controllers.Programs
                 .ToListAsync();
                 if (checkProjects.Count > 0)
                 {
-                    HashSet<int> ProjectRevisionFK = checkProjects.Select(x => x.Id).ToHashSet();
+                    HashSet<int> ProjectRevisionFK = checkProjects.Select(x => x.RevisionId).ToHashSet();
 
                     var FundingProfiles = await _db.tProjectFundingProfile.AsNoTracking().Where(x => ProjectRevisionFK.Contains(x.ProjectRevisionFK) && !x.IsDeleted).ToListAsync();
 
