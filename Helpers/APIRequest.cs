@@ -25,7 +25,21 @@ namespace Helpers
 
         public static async Task<T> XML<T>(XMLRequest<T> request)
         {
-            using (var client = new HttpClient())
+            var handler = new HttpClientHandler();
+
+            if (Appsetting.Environment == "Development")
+            {
+                /*
+                 * eptisa-dev.com (the dev-network stand-in for the real
+                 * DPWH PIS service) serves an mkcert-issued certificate
+                 * whose root CA is not trusted on every dev machine.
+                 * Skip validation for this call in Development only.
+                 */
+                handler.ServerCertificateCustomValidationCallback =
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            }
+
+            using (var client = new HttpClient(handler))
             {
                 using (var response = await client.SendAsync(request.ToHttpRequest()))
                 {
