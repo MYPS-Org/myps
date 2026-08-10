@@ -174,10 +174,10 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
-  const handleViewDetails = async (ProgramPK: string, stageName: string) => {
+  const handleViewDetails = async (programId: string, stageName: string) => {
       try {
-          if (ProgramPK && stageName) {
-              const programWithStage = ProgramPK + ':' + stageName;
+          if (programId && stageName) {
+              const programWithStage = programId + ':' + stageName;
               navigate(`/programs/programdetails/${programWithStage}`);
           }
       } catch (error) {
@@ -190,9 +190,9 @@ const ProgramDetail: React.FC = () => {
     // the /Program/ProgramDetails response's Details object doesn't currently carry ProgramPK/StageName,
     // so those were coming through as "undefined" in the query string and AddProject's dropdown-match
     // (componentDropdowns.Programs.find by ProgramId+StageName) never found the program.
-    const [ProgramPK, stageName] = id ?? [];
-    if (ProgramPK && stageName) {
-      navigate(`/projects/addproject?programId=${ProgramPK}&stageName=${stageName}`);
+    const [programId, stageName] = id ?? [];
+    if (programId && stageName) {
+      navigate(`/projects/addproject?programId=${programId}&stageName=${stageName}`);
     }
   };
 
@@ -200,10 +200,10 @@ const ProgramDetail: React.FC = () => {
     setIsBatchRestoreDialogOpen(true);
   };
 
-  const handleBatchRestoreSubmit = async (ProgramPK: string, projectIds: string) => {
+  const handleBatchRestoreSubmit = async (programId: string, projectIds: string) => {
     try {
       setIsLoading(true);
-      await batchRestoreProjects({ ProgramId: ProgramPK, ProjectIds: projectIds });
+      await batchRestoreProjects({ ProgramId: programId, ProjectIds: projectIds });
       showToast({
         type: 'success',
         message: 'Projects restored successfully.',
@@ -329,12 +329,11 @@ const ProgramDetail: React.FC = () => {
     setIsSkip(isSkip);
   };
 
-  const handleNextStageSubmit = async (data: { ProgramPK: string; Stage: number; Name?: string }) => {
+  const handleNextStageSubmit = async (data: { ProgramId: string; Stage: number; Name?: string }) => {
     try {
       const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.NameId === data.Stage);
       if (nextStageName) {
-        handleViewDetails(data.ProgramPK, nextStageName.Name);
-        await fetchProgramDetail(data.ProgramPK, nextStageName.Name);
+        handleViewDetails(data.ProgramId, nextStageName.Name);
       }
     } catch (error) {
       console.error('Error handling next stage submission:', error);
