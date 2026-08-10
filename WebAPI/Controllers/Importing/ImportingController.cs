@@ -267,7 +267,7 @@
 //                var CheckStatus = await _db.tImportingStatus.FirstOrDefaultAsync(x => x.ImportFunctionName == "ImportProject");
 //                CheckStatus.IsActive = false;
 //                _db.tImportingStatus.Update(CheckStatus);
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 
 //                bool hasErrors = FailedProjects.Count > 0
@@ -434,7 +434,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                await transaction.RollbackAsync();
+//                await transaction.RollbackAsync(cancellationToken);
 //                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }

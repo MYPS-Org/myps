@@ -124,7 +124,7 @@ namespace WebAPI.Controllers.Auth
                 //    LoginLog.ValidationMessage = "Invalid credentials";
                 //}
                 _db.tLoginHistory.Add(LoginLog);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return LoginLog.IsValid ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser("Invalid credentials. Please check your user ID and password and try again.");
             }

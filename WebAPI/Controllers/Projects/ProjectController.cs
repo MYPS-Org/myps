@@ -3,7 +3,9 @@ using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
+using DBHelper.Models.Table.Program;
 using DBHelper.Models.Table.Project;
+using DBHelper.Models.Views.Program;
 using DBHelper.Models.Views.Project;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
@@ -29,6 +31,7 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
+                EnumProgramStage.GetValues
                 var userId = _Session.UserId;
                 var regions = await _db.fUserVisibleRegions
                     .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleRegions({userId})")
@@ -371,7 +374,7 @@ namespace WebAPI.Controllers.Projects
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjects.AddAsync(SubmitProject);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
 
                 var ProjectRevision = new ProjectRevisions()
                 {
@@ -411,7 +414,7 @@ namespace WebAPI.Controllers.Projects
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjectRevisions.AddAsync(ProjectRevision);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
 
                 var ProjectStage = new ProjectStages()
                 {
@@ -425,7 +428,7 @@ namespace WebAPI.Controllers.Projects
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjectStages.AddAsync(ProjectStage);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -437,7 +440,7 @@ namespace WebAPI.Controllers.Projects
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -588,6 +591,12 @@ namespace WebAPI.Controllers.Projects
                 EnumProgramStage StageId = ProjectStage.StageId;
 
                 var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramFK, cancellationToken);
+                int ProgramRevisionId = CurrentProgramVersion.RevisionId;
+                var ProgramRevision = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.Id == ProgramRevisionId, cancellationToken);
+                if (ProgramRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Program Revision not found.", Title = "Program Not Found" });
+                }
                 if (CurrentProgramVersion == null)
                 {
                     return new BadRequestObjectResult(new
@@ -2359,7 +2368,7 @@ namespace WebAPI.Controllers.Projects
                     Console.WriteLine($">>>  selectedWorkItemsToAdd = {selectedWorkItemsToAdd.Count}");
                     NewWorkItems.AddRange(selectedWorkItemsToAdd);
                     await _db.tProjectMajorWorkItem.AddRangeAsync(NewWorkItems, cancellationToken);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                 }
 
                 #endregion
@@ -2775,7 +2784,7 @@ namespace WebAPI.Controllers.Projects
                 #endregion
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 Console.WriteLine(">>>  Call to UpdateProjectDetails > SaveChangesAsync");
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 Console.WriteLine(">>>!  Finished UpdateProjectDetails > SaveChangesAsync");
 
                 // TODO: BUGFIX: task timeouts here, computationally expensive
@@ -2792,10 +2801,12 @@ namespace WebAPI.Controllers.Projects
                         cancellationToken: cancellationToken);
 
                     int totalCount = parameters.Get<int>("TotalCount");
+                    ProgramRevision.Cost = totalCount;
+                    await _db.SaveChangesAsync(cancellationToken);
                 }
 
                 Console.WriteLine(">>>  Call to UpdateProjectDetails > CommitAsync");
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
                 Console.WriteLine(">>>!  Finished UpdateProjectDetails > CommitAsync");
 
                 return Ok(new
@@ -2807,7 +2818,7 @@ namespace WebAPI.Controllers.Projects
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -2869,13 +2880,13 @@ namespace WebAPI.Controllers.Projects
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjectSupportingDocs.AddAsync(AddSupporting);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new { Message = "Supporting Docs added successfully.", Title = "Add Success." });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -2932,13 +2943,13 @@ namespace WebAPI.Controllers.Projects
                     CreatedDate = Functions.CurrentDate()
                 });
                 _db.tProjectSupportingDocs.Remove(Note);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new { Message = "Supporting Document deleted successfully.", Title = "Delete Success." });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }

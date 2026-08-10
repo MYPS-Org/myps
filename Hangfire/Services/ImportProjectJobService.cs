@@ -53,7 +53,7 @@ namespace Hangfire.Services
         //    jobRecord.Status = "Processing";
         //    jobRecord.StartedAt = Functions.CurrentDate();
         //    _db.tImportJobResult.Update(jobRecord);
-        //    await _db.SaveChangesAsync();
+        //    await _db.SaveChangesAsync(cancellationToken);
 
         //    // ── Notify: processing ────────────────────────────────────────────
         //    await NotifyClient(payload.JobId, "Processing", "Import job has started processing.");
@@ -81,7 +81,7 @@ namespace Hangfire.Services
         //            //jobRecord.Message = IsValidProgram.Message;
         //            //jobRecord.CompletedAt = Functions.CurrentDate();
         //            //_db.tImportJobResult.Update(jobRecord);
-        //            //await _db.SaveChangesAsync();
+        //            //await _db.SaveChangesAsync(cancellationToken);
         //            //return;
         //        }
 
@@ -400,7 +400,7 @@ namespace Hangfire.Services
         //            jobRecord.ExcelFileName = hasErrors ? excelFileName : string.Empty;
         //            jobRecord.CompletedAt = Functions.CurrentDate();
         //            _db.tImportJobResult.Update(jobRecord);
-        //            await _db.SaveChangesAsync();
+        //            await _db.SaveChangesAsync(cancellationToken);
 
         //            // ── Notify: completed ──────────────────────────────────
         //            await _hub.Clients.Group($"import-{payload.JobId}").SendAsync("ImportStatusChanged", new
@@ -424,7 +424,7 @@ namespace Hangfire.Services
 
         //        if (!transactionFinalized)
         //        {
-        //            try { await transaction.RollbackAsync(); }
+        //            try { await transaction.RollbackAsync(cancellationToken); }
         //            catch (Exception rbEx) { _logger.LogWarning(rbEx, "Rollback failed for cancelled job {JobId}", payload.JobId); }
         //        }
 
@@ -434,7 +434,7 @@ namespace Hangfire.Services
         //            jobRecord.Message = "Import job was cancelled.";
         //            jobRecord.CompletedAt = Functions.CurrentDate();
         //            _db.tImportJobResult.Update(jobRecord);
-        //            await _db.SaveChangesAsync();
+        //            await _db.SaveChangesAsync(cancellationToken);
 
         //            await NotifyClient(payload.JobId, "Cancelled", "Import job was cancelled.");
         //        }
@@ -451,7 +451,7 @@ namespace Hangfire.Services
         //        {
         //            try
         //            {
-        //                await transaction.RollbackAsync();
+        //                await transaction.RollbackAsync(cancellationToken);
         //            }
         //            catch (Exception rollbackEx)
         //            {
@@ -467,7 +467,7 @@ namespace Hangfire.Services
         //            jobRecord.Message = ex.Message;
         //            jobRecord.CompletedAt = Functions.CurrentDate();
         //            _db.tImportJobResult.Update(jobRecord);
-        //            await _db.SaveChangesAsync();
+        //            await _db.SaveChangesAsync(cancellationToken);
         //        }
         //        catch (Exception saveEx)
         //        {
@@ -489,7 +489,7 @@ namespace Hangfire.Services
         //        if (lockRecord == null) return;
         //        lockRecord.IsActive = false;
         //        _db.tImportingStatus.Update(lockRecord);
-        //        await _db.SaveChangesAsync();
+        //        await _db.SaveChangesAsync(cancellationToken);
         //    }
 
         //    // ── Safe version for catch blocks — won't throw ────────────────────
@@ -510,7 +510,7 @@ namespace Hangfire.Services
         //        record.Message = message;
         //        record.CompletedAt = Functions.CurrentDate();
         //        _db.tImportJobResult.Update(record);
-        //        await _db.SaveChangesAsync();
+        //        await _db.SaveChangesAsync(cancellationToken);
 
         //        await NotifyClient(jobId, "Failed", message);
         //    }

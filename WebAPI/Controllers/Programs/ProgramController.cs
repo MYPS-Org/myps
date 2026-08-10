@@ -261,7 +261,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = CurrentDate,
                 };
                 await _db.tPrograms.AddAsync(newProgram);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 var newRevisions = new DBHelper.Models.Table.Program.ProgramRevisions()
                 {
                     ProgramFK = NewProgramUniqueId,
@@ -273,7 +273,7 @@ namespace WebAPI.Controllers.Programs
 
                 };
                 await _db.tProgramRevisions.AddAsync(newRevisions);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await _db.tProgramStages.AddAsync(new DBHelper.Models.Table.Program.ProgramStages()
                 {
                     ProgramFK = NewProgramUniqueId,
@@ -284,7 +284,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedBy = UserId,
                     CreatedDate = CurrentDate,
                 });
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -296,7 +296,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -515,17 +515,17 @@ namespace WebAPI.Controllers.Programs
                 var ProjectStages = await _db.tProjectStages.Where(x => ReferenceIds.Contains(x.ProjectFK)).AsNoTracking().ToListAsync();
 
                 _db.tProjectStages.RemoveRange(ProjectStages);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 _db.tProjectRevisions.RemoveRange(ProjectRevisions);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
 
                 _db.tProjects.RemoveRange(ProjectsInProgram);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
 
                 _db.tProgramStages.RemoveRange(ProgramStage);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 _db.tProgramRevisions.RemoveRange(ProgramRevisions);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
 
                 _db.tPrograms.Remove(ProgramParent);
 
@@ -536,7 +536,7 @@ namespace WebAPI.Controllers.Programs
                 //_db.tProjectRevisions.RemoveRange(ProjectRevisions);
                 //_db.tProjectStages.RemoveRange(ProjectStages);
 
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -546,7 +546,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -704,7 +704,7 @@ namespace WebAPI.Controllers.Programs
                 if (hasUpdated)
                 {
                     _db.tProgramRevisions.Update(ProgramRevisions);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await _db.tProgramStages.AddAsync(new DBHelper.Models.Table.Program.ProgramStages()
                     {
                         ProgramFK = ProgramRevisions.ProgramFK,
@@ -716,7 +716,7 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate,
                     });
                     await _db.tTransactionLog.AddRangeAsync(transactionLogs);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
                 }
                 return Ok(new
@@ -727,7 +727,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -842,7 +842,7 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         };
                         await _db.tTransactionLog.AddAsync(transactionLog);
-                        await _db.SaveChangesAsync();
+                        await _db.SaveChangesAsync(cancellationToken);
                         #endregion
                         #region Project Stages
                         var newStages = NewRevisions.Select(pr => new ProjectStages
@@ -1015,7 +1015,7 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         };
                         await _db.tProgramRevisions.AddAsync(NewProgramRevision);
-                        await _db.SaveChangesAsync();
+                        await _db.SaveChangesAsync(cancellationToken);
                         #endregion
                         #region Program Stages
                         var newStage = new DBHelper.Models.Table.Program.ProgramStages()
@@ -1035,7 +1035,7 @@ namespace WebAPI.Controllers.Programs
                         }
                         #endregion
                         #endregion
-                        await _db.SaveChangesAsync();
+                        await _db.SaveChangesAsync(cancellationToken);
                         await transaction.CommitAsync();
                         return Ok(new
                         {
@@ -1052,7 +1052,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -1676,7 +1676,7 @@ namespace WebAPI.Controllers.Programs
 
                 if (latestDeletedRevisionsQuery.Count() > 0)
                 {
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
 
                     return Ok(new
@@ -1694,7 +1694,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }

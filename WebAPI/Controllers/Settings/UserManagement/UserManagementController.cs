@@ -76,14 +76,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
         // Creates the module, then links any controllers/views whose Linked = true.
         // ─────────────────────────────────────────────────────────────────────────────
         [HttpPost]
-        public async Task<IActionResult> AddAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
+        public async Task<IActionResult> AddAppModule([FromBody] DBHelper.Models.Views.AppModules dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
                 // Guard: module name must be unique
                 var existing = await _db.tAppModules
-                    .FirstOrDefaultAsync(x => x.ModuleName == dto.ModuleName);
+                    .FirstOrDefaultAsync(x => x.ModuleName == dto.ModuleName, cancellationToken);
                 if (existing != null)
                 {
                     return new BadRequestObjectResult(new
@@ -100,7 +100,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 };
 
                 await _db.tAppModules.AddAsync(newModule);
-                await _db.SaveChangesAsync(); // Get the inserted row into the DB first
+                await _db.SaveChangesAsync(cancellationToken); // Get the inserted row into the DB first
 
                 // Link any controllers marked Linked = true
                 if (dto.Controllers != null)
@@ -152,8 +152,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
                 }
 
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -163,7 +163,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -177,12 +177,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
         //       Unlisted ones are left as-is.
         // ─────────────────────────────────────────────────────────────────────────────
         [HttpPost]
-        public async Task<IActionResult> UpdateAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
+        public async Task<IActionResult> UpdateAppModule([FromBody] DBHelper.Models.Views.AppModules dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getModule = await _db.tAppModules.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getModule = await _db.tAppModules.FirstOrDefaultAsync(x => x.Id == dto.Id, cancellationToken);
                 if (getModule == null)
                 {
                     return new BadRequestObjectResult(new
@@ -272,7 +272,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         var NoModulViews = await _db.tAppViews
                             .AsNoTracking()
                             .Where(x => string.IsNullOrEmpty(x.ModuleName))
-                            .ToListAsync();
+                            .ToListAsync(cancellationToken);
                         if(NoModulViews.Count > 0)
                         {
                             foreach(var view in NoModulViews)
@@ -285,8 +285,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
                 }
 
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -296,7 +296,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -307,12 +307,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
         // before calling delete.
         // ─────────────────────────────────────────────────────────────────────────────
         [HttpPost]
-        public async Task<IActionResult> DeleteAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
+        public async Task<IActionResult> DeleteAppModule([FromBody] DBHelper.Models.Views.AppModules dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getModule = await _db.tAppModules.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getModule = await _db.tAppModules.FirstOrDefaultAsync(x => x.Id == dto.Id, cancellationToken);
                 if (getModule == null)
                 {
                     return new BadRequestObjectResult(new
@@ -351,8 +351,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 _db.tAppModules.Remove(getModule);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -362,21 +362,21 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion
         #region USERS TAB
         [HttpPost]
-        public async Task<IActionResult> InitUserManagement()
+        public async Task<IActionResult> InitUserManagement(CancellationToken cancellationToken)
         {
             try
             {
-                var CountUsers = await _db.vUsers.CountAsync();
-                var CountPermissions = await _db.tApiActions.CountAsync();
-                var CountRoutePermissions = await _db.tAppViews.CountAsync();
-                var CountGroups = await _db.tGroups.CountAsync();
+                var CountUsers = await _db.vUsers.CountAsync(cancellationToken);
+                var CountPermissions = await _db.tApiActions.CountAsync(cancellationToken);
+                var CountRoutePermissions = await _db.tAppViews.CountAsync(cancellationToken);
+                var CountGroups = await _db.tGroups.CountAsync(cancellationToken);
                 List<DBHelper.Models.Views.Users> UserLists = await _db.vUsers
                 .AsNoTracking()
                 .OrderByDescending(x => x.Id)
@@ -458,23 +458,23 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
 
         [HttpPost]
-        public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto)
+        public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id, cancellationToken);
                 if (getUser == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exist in the System.", Title = "User not found" });
                 }
-                var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync();
+                var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync(cancellationToken);
                 if(getUserGroups.Count > 0)
                 {
                     _db.tUserGroups.RemoveRange(getUserGroups);
                 }
                 _db.tUsers.Remove(getUser);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -484,14 +484,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
-        public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto)
+        public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 // 1. Validate required fields
@@ -523,7 +523,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 // 2. Check if User exists in tUsers
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id, cancellationToken);
                 if (getUser == null)
                 {
                     return new BadRequestObjectResult(new
@@ -552,7 +552,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var existingGroupIds = await _db.tGroups
                         .Where(x => dto.UserGroupIds.Contains(x.Id))
                         .Select(x => x.Id)
-                        .ToListAsync();
+                        .ToListAsync(cancellationToken);
 
                     var invalidGroupIds = dto.UserGroupIds
                         .Except(existingGroupIds)
@@ -604,8 +604,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
                 }
 
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -615,12 +615,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
-        public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
+        public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -655,7 +655,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 // 2. Check if UserId already exists
                 var userExists = await _db.tUsers
-                    .AnyAsync(x => x.UserId.ToLower() == dto.UserId.ToLower());
+                    .AnyAsync(x => x.UserId.ToLower() == dto.UserId.ToLower(), cancellationToken);
 
                 if (userExists)
                 {
@@ -672,7 +672,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var existingGroupIds = await _db.tGroups
                         .Where(x => dto.UserGroupIds.Contains(x.Id))
                         .Select(x => x.Id)
-                        .ToListAsync();
+                        .ToListAsync(cancellationToken);
 
                     var invalidGroupIds = dto.UserGroupIds
                         .Except(existingGroupIds)
@@ -701,7 +701,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 };
 
                 await _db.tUsers.AddAsync(newUser);
-                await _db.SaveChangesAsync(); // Save first to get generated Id
+                await _db.SaveChangesAsync(cancellationToken); // Save first to get generated Id
 
                 // 5. Create UserGroups record linking User to GroupIds
                 if (dto.UserGroupIds.Length > 0)
@@ -715,10 +715,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     };
 
                     await _db.tUserGroups.AddAsync(newUserGroup);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                 }
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -729,7 +729,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -825,8 +825,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (updatedRoutes.Count > 0)
                     _db.tAppViews.UpdateRange(updatedRoutes);
 
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -836,7 +836,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -844,10 +844,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
         [HttpPost]
         public async Task<IActionResult> UpdateViewPermissionDetails([FromBody] UpdateViewPermissionDetailsDTO dto, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var getPermission = await _db.tAppViews.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getPermission = await _db.tAppViews.FirstOrDefaultAsync(x => x.Id == dto.Id, cancellationToken);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -858,8 +858,9 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
                 getPermission.Description = dto.Description;
                 _db.tAppViews.Update(getPermission);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync(); return Ok(new
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return Ok(new
                 {
                     Message = $"'{dto.RoutePath}' details have been saved successfully.",
                     Title = "Changes Saved"
@@ -867,17 +868,17 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
-        public async Task<IActionResult> DeleteViewPermission(int id)
+        public async Task<IActionResult> DeleteViewPermission(int id, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var getAction = await _db.tAppViews.FirstOrDefaultAsync(x => x.Id == id);
+                var getAction = await _db.tAppViews.FirstOrDefaultAsync(x => x.Id == id,cancellationToken);
                 if (getAction == null)
                 {
                     return new BadRequestObjectResult(new
@@ -889,7 +890,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 // Check if action is currently assigned to any roles before deleting
                 var isAssignedToRole = await _db.tGroupRoles
-                    .AnyAsync(x => x.ViewIds.Contains(getAction.Id));
+                    .AnyAsync(x => x.ViewIds.Contains(getAction.Id), cancellationToken);
 
                 if (isAssignedToRole)
                 {
@@ -901,8 +902,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 _db.tAppViews.Remove(getAction);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -912,7 +913,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
@@ -969,11 +970,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowPermissionGroups()
+        public async Task<IActionResult> ShowPermissionGroups(CancellationToken cancellationToken)
         {
             try
             {
-                List<ApiControllers> Groups = await _db.tApiControllers.ToListAsync();
+                List<ApiControllers> Groups = await _db.tApiControllers.ToListAsync(cancellationToken);
                 return Ok(Groups);
             }
             catch (Exception ex)
@@ -984,9 +985,9 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> SyncAPIPermissions()
+        public async Task<IActionResult> SyncAPIPermissions(CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 // 1. Discover all controller Types via reflection
@@ -997,7 +998,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     .OrderBy(x => x.Name);
 
                 // 2. Sync controllers to tApiControllers
-                var existingControllers = await _db.tApiControllers.ToListAsync();
+                var existingControllers = await _db.tApiControllers.ToListAsync(cancellationToken);
                 var existingNames = existingControllers
                     .Select(x => x.ControllerName)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1013,7 +1014,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (newControllers.Count > 0)
                 {
                     await _db.tApiControllers.AddRangeAsync(newControllers);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                 }
 
                 // 3. Discover all action methods per controller
@@ -1026,7 +1027,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 .OrderBy(x => x.ActionName);
 
                 // 4. Sync actions to tApiActions
-                var existingActions = await _db.tApiActions.ToListAsync();
+                var existingActions = await _db.tApiActions.ToListAsync(cancellationToken);
                 var existingActionKeys = existingActions
                     .Select(x => x.ActionName)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1046,17 +1047,17 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     await _db.tApiActions.AddRangeAsync(newActions);
                 }
 
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 var allControllers = await _db.tApiControllers
                     .OrderBy(x => x.ControllerName)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 var allActions = await _db.tApiActions
                     .OrderBy(x => x.ControllerName)
                     .ThenBy(x => x.ActionName)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -1068,7 +1069,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
@@ -1091,8 +1092,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 getPermission.Description = dto.Description;
                 getPermission.ModuleName = dto.ModuleName;
                 _db.tApiControllers.Update(getPermission);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
                 return Ok(new
                 {
                     Message = $"'{dto.ControllerName}' details have been saved successfully.",
@@ -1101,7 +1102,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -1109,10 +1110,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
         [HttpPost]
         public async Task<IActionResult> UpdatePermissionActionDetails([FromBody] UpdatePermissionActionDetailsDTO dto, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var getPermission = await _db.tApiActions.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                var getPermission = await _db.tApiActions.FirstOrDefaultAsync(x => x.Id == dto.Id, cancellationToken);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1123,8 +1124,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
                 getPermission.Description = dto.Description;
                 _db.tApiActions.Update(getPermission);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
                 return Ok(new
                 {
                     Message = $"'{dto.ActionName}' details have been saved successfully.",
@@ -1133,17 +1134,17 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
-        public async Task<IActionResult> DeletePermissionController(int id)
+        public async Task<IActionResult> DeletePermissionController(int id, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var getPermission = await _db.tApiControllers.FirstOrDefaultAsync(x => x.Id == id);
+                var getPermission = await _db.tApiControllers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
                 if (getPermission == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1165,7 +1166,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 var hasActions = await _db.tApiActions
-                    .AnyAsync(x => x.ControllerName == getPermission.ControllerName);
+                    .AnyAsync(x => x.ControllerName == getPermission.ControllerName, cancellationToken);
 
                 if (hasActions)
                 {
@@ -1177,8 +1178,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 _db.tApiControllers.Remove(getPermission);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -1188,17 +1189,17 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
         [HttpPost]
-        public async Task<IActionResult> DeletePermissionAction(int id)
+        public async Task<IActionResult> DeletePermissionAction(int id, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var getAction = await _db.tApiActions.FirstOrDefaultAsync(x => x.Id == id);
+                var getAction = await _db.tApiActions.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
                 if (getAction == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1210,7 +1211,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 // Check if action is currently assigned to any roles before deleting
                 var isAssignedToRole = await _db.tGroupRoles
-                    .AnyAsync(x => x.ActionIds.Contains(getAction.Id));
+                    .AnyAsync(x => x.ActionIds.Contains(getAction.Id), cancellationToken);
 
                 if (isAssignedToRole)
                 {
@@ -1222,8 +1223,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 _db.tApiActions.Remove(getAction);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -1233,7 +1234,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, id, _Session.UserId.ToString());
             }
         }
@@ -1241,27 +1242,26 @@ namespace WebAPI.Controllers.Settings.UserManagement
         #region USER GROUP TAB
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowUserGroupDropdowns()
+        public async Task<IActionResult> ShowUserGroupDropdowns(CancellationToken cancellationToken)
         {
             try
             {
                 var AppModules = await _db.tAppModules
                     .AsNoTracking()
                     .OrderBy(x => x.ModuleName)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
                 var PermissionControllers = await _db.tApiControllers
                     .AsNoTracking()
                     .OrderBy(x => x.ControllerName)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
                 var PermissionActions = await _db.tApiActions
                     .AsNoTracking()
                     .OrderBy(x => x.ActionName)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
                 var PermissionViews = await _db.tAppViews
                     .AsNoTracking()
                     .OrderBy(x => x.RoutePath)
-                    .ToListAsync();
-
+                    .ToListAsync(cancellationToken);
                 return Ok(new
                 {
                     AppModules,
@@ -1324,7 +1324,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         [HttpPost]
         public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupDTO dto, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 DateTime CurrentDate = Functions.CurrentDate();
@@ -1340,7 +1340,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 // 2. Check if GroupName already exists in tGroups
                 var groupExists = await _db.tGroups
-                    .AnyAsync(x => x.GroupName.ToLower() == dto.GroupName.ToLower());
+                    .AnyAsync(x => x.GroupName.ToLower() == dto.GroupName.ToLower(), cancellationToken);
 
                 if (groupExists)
                 {
@@ -1359,7 +1359,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     CreatedDate = CurrentDate,
                 };
                 await _db.tGroups.AddAsync(NewGroup);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 var NewGroupRoles = new DBHelper.Models.Table.User.GroupRoles
                 {
                     GroupId = NewGroup.Id,
@@ -1367,8 +1367,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     ViewIds = Array.Empty<int>(),
                 };
                 await _db.tGroupRoles.AddAsync(NewGroupRoles);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -1378,7 +1378,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -1386,7 +1386,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         [HttpPost]
         public async Task<IActionResult> UpdateUserGroup([FromBody] UpdateUserGroupDTO dto, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 // 1. Validate GroupName
@@ -1412,7 +1412,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 // 3. Check if GroupName is already taken by another group
                 var groupNameExists = await _db.tGroups
-                    .AnyAsync(x => x.GroupName.ToLower() == dto.GroupName.ToLower() && x.Id != dto.Id);
+                    .AnyAsync(x => x.GroupName.ToLower() == dto.GroupName.ToLower() && x.Id != dto.Id, cancellationToken);
 
                 if (groupNameExists)
                 {
@@ -1429,10 +1429,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var existingActionIds = await _db.tApiActions
                         .Where(x => dto.PermissionActionIds.Contains(x.Id))
                         .Select(x => x.Id)
-                        .ToListAsync();
+                        .ToListAsync(cancellationToken);
                     var existingActions= await _db.tApiActions
                         .Where(x => x.ControllerName == "ProjectController")
-                        .ToListAsync();
+                        .ToListAsync(cancellationToken);
 
 
                     
@@ -1479,7 +1479,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 _db.tGroups.Update(getGroup);
 
                 // 7. Update GroupRoles — get existing GroupRoles for this Group
-                var getGroupRoles = await _db.tGroupRoles.FirstOrDefaultAsync(x => x.GroupId == dto.Id);
+                var getGroupRoles = await _db.tGroupRoles.FirstOrDefaultAsync(x => x.GroupId == dto.Id, cancellationToken);
                 if (getGroupRoles != null)
                 {
                     // Update existing GroupRoles
@@ -1496,11 +1496,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         ActionIds = dto.PermissionActionIds.OrderBy(x => x).ToArray(),
                         ViewIds = dto.PermissionViewIds.OrderBy(x => x).ToArray(),
                     };
-                    await _db.tGroupRoles.AddAsync(newGroupRoles);
+                    await _db.tGroupRoles.AddAsync(newGroupRoles, cancellationToken);
                 }
 
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -1510,18 +1510,18 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
-        public async Task<IActionResult> DeleteUserGroup(int id)
+        public async Task<IActionResult> DeleteUserGroup(int id, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 // 1. Check if Group exists in tGroups
-                var getGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == id);
+                var getGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
                 if (getGroup == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1533,7 +1533,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 // 2. Check if Group is still assigned to any users in tUserGroups
                 var isAssignedToUsers = await _db.tUserGroups
-                    .AnyAsync(x => x.GroupIds.Contains(id));
+                    .AnyAsync(x => x.GroupIds.Contains(id), cancellationToken);
 
                 if (isAssignedToUsers)
                 {
@@ -1547,7 +1547,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 // 3. Remove associated GroupRoles first
                 var getGroupRoles = await _db.tGroupRoles
                     .Where(x => x.GroupId == id)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 if (getGroupRoles.Count > 0)
                 {
@@ -1557,8 +1557,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 // 4. Remove the Group
                 _db.tGroups.Remove(getGroup);
 
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -1568,7 +1568,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }

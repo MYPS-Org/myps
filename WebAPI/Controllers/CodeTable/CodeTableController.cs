@@ -2255,7 +2255,7 @@ namespace WebAPI.Controllers.CodeTable
                     });
                 }
                 _db.tCodeTableTransactionLog.Add(transactionLog);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -2265,7 +2265,7 @@ namespace WebAPI.Controllers.CodeTable
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }

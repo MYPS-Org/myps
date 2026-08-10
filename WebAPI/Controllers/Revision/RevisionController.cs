@@ -678,7 +678,7 @@
 //                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
 //                if (DocumentNaming == null)
 //                {
-//                    await transaction.RollbackAsync();
+//                    await transaction.RollbackAsync(cancellationToken);
 //                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason. Please contact Administrator.", Title = "Missing Document Naming" });
 //                }
 //                var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
@@ -1403,7 +1403,7 @@
 //                        ProjectRevision.ProjectId = NewProjectId;
 //                        ProjectRevision.Id = 0;
 //                        _db.tProjectRevisions.Add(ProjectRevision);
-//                        await _db.SaveChangesAsync();
+//                        await _db.SaveChangesAsync(cancellationToken);
 //                        var AddProjectStage = new ProjectStages
 //                        {
 //                            ReferenceId = ProjectRevision.ReferenceId,
@@ -1443,7 +1443,7 @@
 //                    ExistingProjectRevisions.IsActive = false;
 //                    _db.tRevisionProjects.Update(ExistingProjectRevisions);
 //                }
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                #region Commented Email Notification
 //                //        string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
@@ -1657,7 +1657,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                await transaction.RollbackAsync();
+//                await transaction.RollbackAsync(cancellationToken);
 //                return ExceptionHandler(ex, dto);
 //            }
 //        }
@@ -1852,13 +1852,13 @@
 //                }
 //                _db.tRevisionDetails.Update(RevisionDetails);
 //                #endregion
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                return Ok(new { Message = $"Revision Updated by {_Session.UserGroupNames}", Title = "Updated Successfully" });
 //            }
 //            catch (Exception ex)
 //            {
-//                await transaction.RollbackAsync();
+//                await transaction.RollbackAsync(cancellationToken);
 //                return ExceptionHandler(ex, dto);
 //            }
 //        }
@@ -1945,7 +1945,7 @@
 //                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
 //                if (DocumentNaming == null)
 //                {
-//                    await transaction.RollbackAsync();
+//                    await transaction.RollbackAsync(cancellationToken);
 //                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator.", Title = "Missing Document Naming" });
 //                }
 //                var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
@@ -3102,7 +3102,7 @@
 //                    DocumentName = NewDocName,
 //                    IsApprovedDocument = false
 //                });
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                return Ok(
 //                    new
@@ -3115,7 +3115,7 @@
 //            }
 //            catch (DbUpdateException ex)
 //            {
-//                await transaction.RollbackAsync();
+//                await transaction.RollbackAsync(cancellationToken);
 //                return ExceptionHandler(ex, dto);
 //            }
 //        }

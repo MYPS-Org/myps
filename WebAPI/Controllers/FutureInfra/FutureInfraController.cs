@@ -229,7 +229,7 @@ namespace WebAPI.Controllers.Programs
                     checkRoad.UpdatedBy = UserId;
                     checkRoad.UpdatedDate = currentDate;
                     _db.tFutureRoads.Update(checkRoad);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
                 }
                 return Ok(new
@@ -240,7 +240,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -285,7 +285,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = currentDate,
                 };
                 await _db.tFutureRoads.AddAsync(newFutureRoad);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -295,7 +295,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -350,7 +350,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 _db.tFutureRoads.Remove(checkRoad);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -360,7 +360,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -472,7 +472,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = currentDate,
                 };
                 await _db.tFutureRoadSections.AddAsync(newFutureRoadSection);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -482,7 +482,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -614,7 +614,7 @@ namespace WebAPI.Controllers.Programs
                     checkRoad.UpdatedBy = UserId;
                     checkRoad.UpdatedDate = currentDate;
                     _db.tFutureRoadSections.Update(checkRoad);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
                 }
                 return Ok(new
@@ -625,7 +625,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -678,7 +678,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 _db.tFutureRoadSections.Remove(checkRoadSection);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -688,7 +688,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -807,7 +807,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = currentDate,
                 };
                 await _db.tFutureBridge.AddAsync(newFutureBridge);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -817,7 +817,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -964,7 +964,7 @@ namespace WebAPI.Controllers.Programs
                     checkBridge.UpdatedBy = UserId;
                     checkBridge.UpdatedDate = currentDate;
                     _db.tFutureBridge.Update(checkBridge);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
                 }
                 return Ok(new
@@ -975,7 +975,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -1017,7 +1017,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 _db.tFutureBridge.Remove(checkBridge);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -1027,7 +1027,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
