@@ -407,7 +407,7 @@ GIS calls use native `fetch()` against `VITE_API_GIS_URL`.
 
 ### `AddProject.tsx`
 
-Reads `programId` and `stageName` from URL query params (`useSearchParams`), then renders `<ProjectForm mode="add" initialProgramId={...} initialStageName={...} />`.
+Reads `programPK` and `stageName` from URL query params (`useSearchParams`), then renders `<ProjectForm mode="add" initialProgramPK={...} initialStageName={...} />`.
 
 ### `EditProject.tsx`
 
@@ -427,7 +427,7 @@ Reads `programId` and `stageName` from URL query params (`useSearchParams`), the
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';         // default: 'add'
-  initialProgramId?: string;
+  initialProgramPK?: string;
   initialStageName?: string;
   onRefresh?: () => void;
 }

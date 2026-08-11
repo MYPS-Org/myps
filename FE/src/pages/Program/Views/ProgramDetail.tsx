@@ -208,13 +208,15 @@ const ProgramDetail: React.FC = () => {
     };
 
   const handleAddProject = () => {
-    // Source ProgramId/StageName from the route (id[0]/id[1]) rather than programEnums.Details:
+    // Source ProgramPK/StageName from the route (id[0]/id[1]) rather than programEnums.Details:
     // the /Program/ProgramDetails response's Details object doesn't currently carry ProgramPK/StageName,
     // so those were coming through as "undefined" in the query string and AddProject's dropdown-match
-    // (componentDropdowns.Programs.find by ProgramId+StageName) never found the program.
-    const [programId, stageName] = id ?? [];
-    if (programId && stageName) {
-      navigate(`/projects/addproject?programId=${programId}&stageName=${stageName}`);
+    // (componentDropdowns.Programs.find by ProgramPK+StageName) never found the program.
+    // Note: id[0] is the route's ProgramPK segment (see Program.tsx's handleViewDetails(program.ProgramPK, ...)),
+    // not the human-readable ProgramId — passing it as ProgramPK keeps this consistent with the match downstream.
+    const [programPK, stageName] = id ?? [];
+    if (programPK && stageName) {
+      navigate(`/projects/addproject?programPK=${programPK}&stageName=${stageName}`);
     }
   };
 
