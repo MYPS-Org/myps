@@ -8,6 +8,7 @@ using DBHelper.Models.Table.Lookups.Project;
 using DBHelper.Models.Table.Permission;
 using DBHelper.Models.Table.Program;
 using DBHelper.Models.Table.Project;
+using DBHelper.Models.Table.Revision;
 using DBHelper.Models.Table.User;
 using DBHelper.Models.Views;
 using DBHelper.Models.Views.Program;
@@ -187,9 +188,17 @@ namespace DBHelper.Data
         #endregion
 
         #region Revision
+        #region Tables
+        public DbSet<OptionRevisionHeader> tOptionRevisionHeader { get; set; }
+        public DbSet<OptionRevisionCategory> tOptionRevisionCategory { get; set; }
+        public DbSet<OptionRevisionReasons> tOptionRevisionReasons { get; set; }
+        public DbSet<OptionRevisionStatus> tOptionRevisionStatus { get; set; }
+        public DbSet<OptionRevisionDocuments> tOptionRevisionDocuments { get; set; }
+        #endregion
         #region Functions
         public DbSet<RevisionQueue> fRevisionQueue { get; set; }
         public DbSet<RevisionProjectDetails> fRevisionProjectDetails { get; set; }
+        public DbSet<PendingProjectComponentCost> fPendingProjectComponentCost { get; set; }
         #endregion
         #endregion
 
@@ -202,26 +211,21 @@ namespace DBHelper.Data
         #region Revisions
 
         #region Tables
-        public DbSet<Models.Table.RevisionDetails> tRevisionDetails { get; set; }
-        public DbSet<Models.Table.RevisionDocuments> tRevisionDocuments { get; set; }
-        public DbSet<Models.Table.RevisionForCorrectionDetails> tRevisionForCorrectionDetails { get; set; }
+        public DbSet<RevisionDetails> tRevisionDetails { get; set; }
+        public DbSet<RevisionDocuments> tRevisionDocuments { get; set; }
+        public DbSet<RevisionForCorrectionDetails> tRevisionForCorrectionDetails { get; set; }
         public DbSet<Models.Table.RevisionRules> tRevisionRules { get; set; }
-        public DbSet<Models.Table.RevisionTransactionLog> tRevisionTransactionLog { get; set; }
-        public DbSet<Models.Table.RevisionProjects> tRevisionProjects { get; set; }
-        public DbSet<Models.Table.RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }
-        public DbSet<Models.Table.RevisionProjectComponentCost> tRevisionProjectComponentCost { get; set; }
-        public DbSet<Models.Table.RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
-        public DbSet<Models.Table.RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
-        public DbSet<Models.Table.RevisionDetailsComponentsStatus> tRevisionDetailsComponentsStatus { get; set; }
-        public DbSet<Models.Table.RevisionProjectComponentCostPerYear> tRevisionProjectComponentCostPerYear { get; set; }
+        public DbSet<RevisionTransactionLog> tRevisionTransactionLog { get; set; }
+        public DbSet<RevisionProjects> tRevisionProjects { get; set; }
+        public DbSet<RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }
+        public DbSet<RevisionProjectComponentCost> tRevisionProjectComponentCost { get; set; }
+        public DbSet<RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
+        public DbSet<RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
+        public DbSet<RevisionDetailsComponentsStatus> tRevisionDetailsComponentsStatus { get; set; }
+        public DbSet<RevisionProjectComponentCostPerYear> tRevisionProjectComponentCostPerYear { get; set; }
         #endregion
 
         #region Lookups
-        public DbSet<OptionRevisionHeader> tOptionRevisionHeader { get; set; }
-        public DbSet<OptionRevisionReasons> tOptionRevisionReasons { get; set; }
-        public DbSet<OptionRevisionCategory> tOptionRevisionCategory { get; set; }
-        public DbSet<OptionRevisionStatus> tOptionRevisionStatus { get; set; }
-        public DbSet<OptionRevisionDocuments> tOptionRevisionDocuments { get; set; }
         #endregion
 
         #endregion
@@ -281,7 +285,6 @@ namespace DBHelper.Data
         public DbSet<Models.Views.APIPermissions> vAPIPermissions { get; set; }
         public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
         public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
-        public DbSet<ProjectComponentCostStatus> vProjectComponentCostStatus { get; set; }
         #endregion
 
         #endregion

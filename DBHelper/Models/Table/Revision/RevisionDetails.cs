@@ -1,17 +1,16 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Revision
 {
     public class RevisionDetails
     {
         [Key]
         public int Id { get; set; }
+        [MaxLength(200)]
+        public string? ProgramFK { get; set; }
         [Required]
         [MaxLength(200)]
-        public string ProgramRevisionId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(200)]
-        public string ProgramUniqueId { get; set; } = string.Empty;
+        public string ProgramId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;

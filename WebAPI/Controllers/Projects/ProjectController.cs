@@ -498,7 +498,7 @@ namespace WebAPI.Controllers.Projects
                 var ProjectStage = ValidateProjectId.Data.ProjectStage;
                 #endregion
 
-                string ProejctFK = ProjectParent.ProjectPK;
+                string ProjectFK = ProjectParent.ProjectPK;
                 string ProgramFK = ProjectParent.ProgramFK;
                 EnumProgramStage StageId = ProjectStage.StageId;
 
@@ -506,16 +506,16 @@ namespace WebAPI.Controllers.Projects
                 var Program = await _db.fProgramDetailsInProject.FromSqlInterpolated($"SELECT * FROM fProgramDetailsInProject({ProgramFK},{StageId})").AsNoTracking().FirstOrDefaultAsync(cancellationToken);
 
                 #region Funding Profile
-                var Funding = await _db.fProjectFundingProfile.FromSqlInterpolated($"SELECT * FROM fProjectFundingProfile({ProejctFK},{StageId})").AsNoTracking().ToListAsync(cancellationToken);
+                var Funding = await _db.fProjectFundingProfile.FromSqlInterpolated($"SELECT * FROM fProjectFundingProfile({ProjectFK},{StageId})").AsNoTracking().ToListAsync(cancellationToken);
                 #endregion
 
                 #region Project Components
 
-                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProejctFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
-                var ComponentCostYear = await _db.fProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({ProejctFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
+                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
+                var ComponentCostYear = await _db.fProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({ProjectFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
 
-                var MajorItemOfWork = await _db.fProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProejctFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
-                var MajorWorkLocation = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({ProejctFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
+                var MajorItemOfWork = await _db.fProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProjectFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
+                var MajorWorkLocation = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({ProjectFK}, {StageId})").AsNoTracking().ToListAsync(cancellationToken);
 
                 #endregion
 

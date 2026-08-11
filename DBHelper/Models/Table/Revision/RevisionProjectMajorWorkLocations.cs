@@ -5,18 +5,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Revision
 {
     public class RevisionProjectMajorWorkLocations
     {
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(200)]
+        [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string ParentId { get; set; } = string.Empty;
+        [MaxLength(20)]
+        public string ComponentId { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
@@ -26,20 +26,18 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        public Double? StartX { get; set; }
-        public Double? StartY { get; set; }
-        public Double? EndX { get; set; }
-        public Double? EndY { get; set; }
-        [Required]
-        public Double PhysicalTarget { get; set; }
+        public double? StartX { get; set; }
+        public double? StartY { get; set; }
+        public double? EndX { get; set; }
+        public double? EndY { get; set; }
+        public double? PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
         public string? EndStationLimit { get; set; }
-        public Double? EndChainage { get; set; }
-        public Double? StartChainage { get; set; }
-        public Double? Length { get; set; }
-        [Required]
+        public double? StartChainage { get; set; }
+        public double? EndChainage { get; set; }
+        public double? Length { get; set; }
         public bool IsDeleted { get; set; } = false;
     }
 }

@@ -25,6 +25,7 @@ using System.Text.RegularExpressions;
 using System.Transactions;
 using System.Xml;
 using WebAPI.MicroService;
+using DBHelper.Models.Table.Revision;
 namespace WebAPI.Controllers.CodeTable
 {
     [ApiController]

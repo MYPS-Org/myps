@@ -44,7 +44,7 @@ namespace DBHelper.Models.Table.Project
         [Required]
         public bool IsPublishable { get; set; }
         [Required]
-        public int PCMARevisionCount { get; set; }
+        public int PCMARevisionCount { get; set; } = 0;
         [MaxLength(100)]
         public string? LockedBy { get; set; }
         public DateTime? LockedDate { get; set; }

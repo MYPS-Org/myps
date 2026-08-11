@@ -1,7 +1,7 @@
 ﻿using DBHelper.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Revision
 {
     public class RevisionDetailsComponentsStatus
     {
@@ -18,6 +18,6 @@ namespace DBHelper.Models.Table
         [MaxLength(20)]
         public string ConstructionStatusName { get; set; } = string.Empty;
         [Required]
-        public bool IsPackaged { get; set; }
+        public bool IsPackaged { get; set; } = false;
     }
 }

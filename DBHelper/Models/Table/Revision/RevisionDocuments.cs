@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Revision
 {
     public class RevisionDocuments
     {
