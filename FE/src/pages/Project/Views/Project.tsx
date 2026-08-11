@@ -51,29 +51,29 @@ const Project: React.FC = () => {
         });
     };
 
-    const handleDropDownTable = async (projectId?: string) => {
+    const handleDropDownTable = async (projectPK?: string) => {
         try {
-            if (projectId) {
+            if (projectPK) {
                 // Check if the row is already expanded
-                const isCurrentlyExpanded = expandedRows.has(projectId);
+                const isCurrentlyExpanded = expandedRows.has(projectPK);
                 
                 // Toggle the expanded state for this row
                 setExpandedRows(prev => {
                     const newExpanded = new Set(prev);
-                    if (newExpanded.has(projectId)) {
-                        newExpanded.delete(projectId);
+                    if (newExpanded.has(projectPK)) {
+                        newExpanded.delete(projectPK);
                     } else {
-                        newExpanded.add(projectId);
+                        newExpanded.add(projectPK);
                     }
                     return newExpanded;
                 });
 
                 // Only fetch data if we're expanding (not collapsing) and data doesn't already exist
-                if (!isCurrentlyExpanded && !revisionLists[projectId]) {
-                    const response = await fetchProjectStagesByProjectId(projectId);
+                if (!isCurrentlyExpanded && !revisionLists[projectPK]) {
+                    const response = await fetchProjectStagesByProjectId(projectPK);
                     setRevisionLists(prev => ({
                         ...prev,
-                        [projectId]: response.Data
+                        [projectPK]: response.Data
                     }));
                 }
             }
@@ -170,8 +170,8 @@ const Project: React.FC = () => {
                         className="px-5"
                         data={pagination.data.lists}
                         rowKey={(project, idx) => `${project.Id}-${idx}`}
-                        isRowExpanded={(project) => expandedRows.has(project.ProjectId || '')}
-                        onToggleRow={(project) => handleDropDownTable(project.ProjectId)}
+                        isRowExpanded={(project) => expandedRows.has(project.ProjectPK || '')}
+                        onToggleRow={(project) => handleDropDownTable(project.ProjectPK)}
                         columns={[
                             {
                                 header: 'Project ID',
@@ -189,7 +189,7 @@ const Project: React.FC = () => {
                                     <div className="flex items-center space-x-1">
                                         <Button
                                             color="orange"
-                                            onClick={() => project.ProjectId && handleViewDetails(project.ProjectId, project.StageName)}
+                                            onClick={() => project.ProjectPK && handleViewDetails(project.ProjectPK, project.StageName)}
                                             className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                         >
                                             View Details
@@ -201,7 +201,7 @@ const Project: React.FC = () => {
                         renderExpandedContent={(project) => (
                             <ExpandedPanel
                                 title={`Project Stages for "${project.ProjectId}"`}
-                                badge={`${revisionLists[project.ProjectId || '']?.Stages?.length || 0} stages`}
+                                badge={`${revisionLists[project.ProjectPK || '']?.Stages?.length || 0} stages`}
                             >
                                 <Table className="mb-0">
                                     <TableHead>
@@ -217,7 +217,7 @@ const Project: React.FC = () => {
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {revisionLists[project.ProjectId || '']?.Stages?.map((stage) => (
+                                        {revisionLists[project.ProjectPK || '']?.Stages?.map((stage) => (
                                             <TableRow key={stage.Id}>
                                                 <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.ProjectId}</TableCell>
                                                 <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.StageName}</TableCell>
