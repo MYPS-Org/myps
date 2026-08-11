@@ -10,6 +10,7 @@ using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.CodeAnalysis;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel;
@@ -218,6 +219,10 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if(dto.Type == EnumProgramType.TrustFund)
+                {
+                    dto.Stage = EnumProgramStage.TF;
+                }
                 var checkProgram = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkProgram != null)
                 {
@@ -409,7 +414,8 @@ namespace WebAPI.Controllers.Programs
                 //    .Skip(0 * 15)
                 //    .Take(15)
                 //    .ToListAsync();
-                var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync();
+                var AllowedStages = new[] { EnumProgramStage.NEP, EnumProgramStage.NEPE, EnumProgramStage.HGAB, EnumProgramStage.HGABI, EnumProgramStage.GAA, EnumProgramStage.GAAR }.Select(stage => (int)stage).Select(x => x).ToList();
+                var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().Where(x => AllowedStages.Contains(x.NameId)).ToListAsync();
                 var AvailableTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
                 var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync();
@@ -579,6 +585,10 @@ namespace WebAPI.Controllers.Programs
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
+                if(ProgramDetails.StageName != dto.StageName)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} is not in the '{dto.StageName}' stage. Please ensure you are updating the correct stage of the program.", Title = "Update Failed" });
+                }
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty.", Title = "Update Failed" }); }
                 //var NewProgramVersion = new ProgramRevisions()
@@ -1012,65 +1022,51 @@ namespace WebAPI.Controllers.Programs
                             #endregion
 
                             #region Major Work Locations
+
+
                             var NewMajorWorkLocations =
                             (
-                                from location in MajorLocations
+                                from item in NewMajorWorkItems
 
-                                    // Find which OLD work item owns this location
-                                join oldWorkItem in MajorItems
-                                    on location.WorkItemFK equals oldWorkItem.Id
-
-                                // Find its equivalent NEW work item
-                                join newWorkItem in NewMajorWorkItems
-                                    on new
-                                    {
-                                        oldWorkItem.ComponentId,
-                                        oldWorkItem.YearOfWork,
-                                        oldWorkItem.WorkTypeFK,
-                                        oldWorkItem.InfraTypeFK
-                                    }
-                                    equals new
-                                    {
-                                        newWorkItem.ComponentId,
-                                        newWorkItem.YearOfWork,
-                                        newWorkItem.WorkTypeFK,
-                                        newWorkItem.InfraTypeFK
-                                    }
+                                join loc in MajorLocations
+                                    on item.ComponentId equals loc.ComponentId
 
                                 select new DBHelper.Models.Table.Project.ProjectMajorWorkLocations
                                 {
-                                    WorkItemFK = newWorkItem.Id,
+                                    WorkItemFK = item.Id,
 
-                                    ComponentId = location.ComponentId,
+                                    ComponentId = loc.ComponentId,
 
-                                    InfraId = location.InfraId,
-                                    DetailedScope = location.DetailedScope,
+                                    InfraId = loc.InfraId,
+                                    DetailedScope = loc.DetailedScope,
 
-                                    TargetUnitId = location.TargetUnitId,
-                                    TargetUnit = location.TargetUnit,
+                                    TargetUnitId = loc.TargetUnitId,
+                                    TargetUnit = loc.TargetUnit,
 
-                                    StartX = location.StartX,
-                                    StartY = location.StartY,
-                                    EndX = location.EndX,
-                                    EndY = location.EndY,
+                                    StartX = loc.StartX,
+                                    StartY = loc.StartY,
+                                    EndX = loc.EndX,
+                                    EndY = loc.EndY,
 
-                                    PhysicalTarget = location.PhysicalTarget,
+                                    PhysicalTarget = loc.PhysicalTarget,
 
-                                    StartStationLimit = location.StartStationLimit,
-                                    EndStationLimit = location.EndStationLimit,
+                                    StartStationLimit = loc.StartStationLimit,
+                                    EndStationLimit = loc.EndStationLimit,
 
-                                    StartChainage = location.StartChainage,
-                                    EndChainage = location.EndChainage,
+                                    StartChainage = loc.StartChainage,
+                                    EndChainage = loc.EndChainage,
 
-                                    Length = location.Length,
+                                    Length = loc.Length,
 
-                                    CreatedBy = location.CreatedBy,
-                                    CreatedDate = location.CreatedDate,
+                                    CreatedBy = loc.CreatedBy,
+                                    CreatedDate = loc.CreatedDate,
 
-                                    IsDeleted = location.IsDeleted
+                                    IsDeleted = loc.IsDeleted
                                 }
                             )
                             .ToList();
+                            await _db.tProjectMajorWorkLocations
+                                .AddRangeAsync(NewMajorWorkLocations);
                             #endregion
                         }
                         #endregion

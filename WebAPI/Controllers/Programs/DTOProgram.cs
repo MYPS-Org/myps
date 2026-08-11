@@ -19,7 +19,6 @@ namespace WebAPI.Controllers.Programs
     }
     public class AddProgramDTO
     {
-        [Required]
         public EnumProgramStage Stage { get; set; }
         [Required]
         public EnumProgramStatus Status { get; set; }

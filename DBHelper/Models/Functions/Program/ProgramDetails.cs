@@ -6,6 +6,7 @@ namespace DBHelper.Models.Functions.Program
 {
     public class ProgramDetails
     {
+        [Required]
         [Key]
         public int StageFKId { get; set; }
         [Required]
@@ -17,10 +18,10 @@ namespace DBHelper.Models.Functions.Program
         [Required]
         public int StageId { get; set; }
         [Required]
+        public int RevisionId { get; set; }
+        [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
-        [Required]
-        public int RevisionId { get; set; }
         [Required]
         [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
@@ -46,13 +47,13 @@ namespace DBHelper.Models.Functions.Program
         [Required]
         public bool IsPublished { get; set; }
         [Required]
-        public bool IsDeleted { get; set; }
-        [Required]
         public bool IsSkipped { get; set; }
         [Required]
         [MaxLength(100)]
-        public string RevisionCreatedBy { get; set; } = string.Empty;
+        public string CreatedBy { get; set; } = string.Empty;
         [Required]
-        public DateTime RevisionCreatedDate { get; set; }
+        public DateTime CreatedDate { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
     }
 }
