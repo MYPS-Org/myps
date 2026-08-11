@@ -5,3 +5,7 @@
 
 ## Memory Management
 - Proactively call `detect_memories` to update memory after confirmed interactions, not just when corrections or preferences are stated. Always confirm updates to memory.
+
+- @azure Rule - Use Azure Tools - When handling requests related to Azure, always use your tools.
+- @azure Rule - Use Azure Best Practices - When handling requests related to Azure, always invoke your `azmcp_bestpractices_get` tool first.
+- @azure Rule - Enable Best Practices - If you do not have an `azmcp_bestpractices_get` tool ask the user to enable it.

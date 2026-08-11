@@ -31,7 +31,7 @@ namespace WebAPI.Controllers.CodeTable
     [Route("api/[controller]/[action]")]
     public class CodeTableController : CoreController
     {
-        public CodeTableController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+        public CodeTableController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
         [HttpPost]
         public async Task<IActionResult> GetAllCodeTables()
@@ -90,7 +90,7 @@ namespace WebAPI.Controllers.CodeTable
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
 
@@ -116,7 +116,7 @@ namespace WebAPI.Controllers.CodeTable
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
 
@@ -192,7 +192,7 @@ namespace WebAPI.Controllers.CodeTable
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -2120,13 +2120,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Hierarchy!;
                             existing.Hierarchy = data.Hierarchy;
                         }
-                        //if (existing.ProvinceId != data.ProvinceId)
-                        //{
-                        //    transactionLog.AffectedColumn = "ProvinceId";
-                        //    transactionLog.NewValue = data.ProvinceId.ToString();
-                        //    transactionLog.OldValue = existing.ProvinceId.ToString();
-                        //    existing.ProvinceId = data.ProvinceId;
-                        //}
+                        if (existing.ProvinceCode != data.ProvinceCode)
+                        {
+                            transactionLog.AffectedColumn = "ProvinceCode";
+                            transactionLog.NewValue = data.ProvinceCode.ToString();
+                            transactionLog.OldValue = existing.ProvinceCode.ToString();
+                            existing.ProvinceCode = data.ProvinceCode;
+                        }
                         if (existing.Deprecated != data.Deprecated)
                         {
                             transactionLog.AffectedColumn = "Deprecated";
@@ -2179,13 +2179,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Hierarchy!;
                             existing.Hierarchy = data.Hierarchy;
                         }
-                        //if (existing.ProvinceId != data.ProvinceId)
-                        //{
-                        //    transactionLog.AffectedColumn = "ProvinceId";
-                        //    transactionLog.NewValue = data.ProvinceId.ToString();
-                        //    transactionLog.OldValue = existing.ProvinceId.ToString();
-                        //    existing.ProvinceId = data.ProvinceId;
-                        //}
+                        if (existing.ProvinceCode != data.ProvinceCode)
+                        {
+                            transactionLog.AffectedColumn = "ProvinceCode";
+                            transactionLog.NewValue = data.ProvinceCode.ToString();
+                            transactionLog.OldValue = existing.ProvinceCode.ToString();
+                            existing.ProvinceCode = data.ProvinceCode;
+                        }
                         if (existing.Deprecated != data.Deprecated)
                         {
                             transactionLog.AffectedColumn = "Deprecated";
@@ -2255,7 +2255,7 @@ namespace WebAPI.Controllers.CodeTable
                     });
                 }
                 _db.tCodeTableTransactionLog.Add(transactionLog);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -2265,8 +2265,8 @@ namespace WebAPI.Controllers.CodeTable
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
     }

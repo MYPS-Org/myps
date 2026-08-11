@@ -8,7 +8,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import '../../../utils/GlobalFunctions';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
-import type { ProgramList } from '../../Program/Model';
+import type { ProgramLatest } from '../../Program/Model';
 import { autoFillComponentDescription } from '../Service';
 // LS component type is exclusive to the LSWallet module — exclude it from regular project dropdowns
 import { WALLET_EXCLUSIVE_COMPONENT_TYPES } from '../../LSWallet/utils/constants';
@@ -27,7 +27,7 @@ interface ComponentCostDialogProps {
   ReferenceId?: string;
   maxAmountCost?: number;
   disabled?: boolean;
-  programDetails: ProgramList;
+  programDetails: ProgramLatest;
   hasMajorLocations?: boolean;
 }
 
@@ -41,7 +41,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   componentTypes,
   componentCosts,
   ProjectId,
-  ReferenceId,
+  // ReferenceId,
   maxAmountCost,
   disabled = false,
   programDetails,
@@ -51,14 +51,14 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const { showToast } = useToast();
   const [formData, setFormData] = useState<ComponentCost>({
     Id: 0,
+    Source: '',
+    ProjectFK: '',
     ProjectId: ProjectId,
-    CostId: '',
     ComponentType: '',
     ComponentId: '',
     Description: '',
     Total: 0,
     StageName: '',
-    RevisedNumber: 0,
     CreatedBy: user?.UserId || '',
     CreatedDate: new Date().toISOString(),
     UpdatedBy: user?.UserId || '',
@@ -79,13 +79,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     try {
       const response = await autoFillComponentDescription(
         user?.UserId || '',
-        ReferenceId || '',
+        ProjectId || '',
         formData.ComponentId,
-        programDetails.ProgramId,
+        programDetails.ProgramPK,
         programDetails.StageName
       );
-      const data = response?.Data as Record<string, string> | undefined;
-      const description = data?.component_description ?? data?.description ?? data?.Description ?? '';
+      const gisResponse = response?.Data as { status?: string; data?: string } | undefined;
+      const description = gisResponse?.data ?? '';
       if (description) {
         handleChange('Description', description);
         console.log('Auto-filled description:', description);
@@ -121,9 +121,12 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     const nonDeletedCosts = componentCostPerYear.filter(cost => !cost.IsDeleted);
     const newPerYearCost: ComponentCostPerYear = {
       Id: 0,
-      ComponentCostId: formData.CostId,
+      Source: '',
+      ProjectFK: '',
+      ProjectId: ProjectId,
+      ComponentId: formData.ComponentId,
       Amount: 0,
-      Year: programDetails?.YearStart + nonDeletedCosts.length,
+      Year: programDetails?.StartYear + nonDeletedCosts.length,
       StartDate: null,
       EndDate: null,
       CreatedBy: user?.UserId || '',
@@ -165,14 +168,14 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     if (editingCost && mode === 'edit') {
       setFormData({
         Id: editingCost.Id ?? 0,
+        Source: editingCost.Source ?? '',
+        ProjectFK: editingCost.ProjectFK ?? '',
         ProjectId: editingCost.ProjectId ?? ProjectId,
-        CostId: editingCost.CostId ?? '',
         ComponentType: editingCost.ComponentType ?? '',
         ComponentId: editingCost.ComponentId ?? '',
         Description: editingCost.Description ?? '',
         Total: editingCost.Total ?? 0,
         StageName: editingCost.StageName || '',
-        RevisedNumber: editingCost.RevisedNumber ?? 0,
         CreatedBy: editingCost.CreatedBy ?? '',
         CreatedDate: editingCost.CreatedDate ?? new Date().toISOString(),
         UpdatedBy: editingCost.UpdatedBy ?? '',
@@ -187,17 +190,16 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       isInitializedRef.current = true;
     } else if (mode === 'add') {
       // Reset form for new entry
-      const tempCostId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setFormData({
         Id: 0,
+        Source: '',
+        ProjectFK: '',
         ProjectId: ProjectId,
-        CostId: tempCostId,
         ComponentType: '',
         ComponentId: '',
         Description: '',
         Total: 0,
         StageName: '',
-        RevisedNumber: 0,
         CreatedBy: '',
         CreatedDate: new Date().toISOString(),
         UpdatedBy: '',
@@ -322,7 +324,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       }
     }
 
-    if(formData.Total <= 0) {
+    if(!formData.Total || formData.Total <= 0) {
       showToast({
         type: 'error',
         message: 'Total amount must be greater than zero.'
@@ -356,14 +358,14 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         // Create ComponentCost object
         const componentCostData: ComponentCost = {
           Id: formData.Id,
+          Source: formData.Source,
+          ProjectFK: formData.ProjectFK,
           ProjectId: formData.ProjectId,
-          CostId: formData.CostId,
           ComponentType: formData.ComponentType,
           ComponentId: formData.ComponentId,
           Description: formData.Description,
           Total: formData.Total,
           StageName: formData.StageName,
-          RevisedNumber: formData.RevisedNumber,
           CreatedBy: user?.UserId || '',
           CreatedDate: formData.CreatedDate,
           UpdatedBy: user?.UserId,
@@ -376,7 +378,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         const perYearCosts = componentCostPerYear
           .map(cost => ({
             ...cost,
-            ComponentCostId: formData.CostId,
+            ComponentId: formData.ComponentId,
             CreatedBy: cost.CreatedBy || user?.UserId || '',
             UpdatedBy: user?.UserId || '',
             UpdatedDate: new Date().toISOString(),
@@ -395,17 +397,16 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   };
 
     const handleReset = () => {
-        const tempCostId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         setFormData({
             Id: 0,
+            Source: '',
+            ProjectFK: '',
             ProjectId: '',
-            CostId: tempCostId,
             ComponentType: '',
             ComponentId: '',
             Description: '',
             Total: 0,
             StageName: '',
-            RevisedNumber: 0,
             CreatedBy: '',
             CreatedDate: new Date().toISOString(),
             UpdatedBy: '',
@@ -569,8 +570,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 value={cost.Year || ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'Year', parseInt(e.target.value) || 0)}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                                placeholder={String(programDetails?.YearStart || new Date().getFullYear())}
-                                                min={programDetails?.YearStart?.toString() || '2000'}
+                                                placeholder={String(programDetails?.StartYear || new Date().getFullYear())}
+                                                min={programDetails?.StartYear?.toString() || '2000'}
                                                 max={programDetails?.YearEnd?.toString() || '2100'}
                                             />
                                         </div>
@@ -662,11 +663,11 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-gray-700">Total Cost:</span>
                             <span className={`text-lg font-semibold ${
-                                remainingBudget !== null && formData.Total > remainingBudget 
-                                    ? 'text-red-600' 
+                                remainingBudget !== null && (formData.Total || 0) > remainingBudget
+                                    ? 'text-red-600'
                                     : 'text-blue-600'
                             }`}>
-                                ₱{formData.Total.toLocaleString('en-PH')}
+                                ₱{(formData.Total || 0).toLocaleString('en-PH')}
                             </span>
                         </div>
                         {/* {remainingBudget !== null && (

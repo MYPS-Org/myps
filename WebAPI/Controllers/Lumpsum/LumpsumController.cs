@@ -26,7 +26,7 @@ namespace WebAPI.Controllers.Lumpsum
     [Route("api/[controller]/[action]")]
     public class LumpsumController : CoreController
     {
-        public LumpsumController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+        public LumpsumController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
         #region Lumpsum Lists
 
@@ -75,7 +75,7 @@ namespace WebAPI.Controllers.Lumpsum
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
 
@@ -137,7 +137,7 @@ namespace WebAPI.Controllers.Lumpsum
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -193,7 +193,7 @@ namespace WebAPI.Controllers.Lumpsum
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -220,7 +220,7 @@ namespace WebAPI.Controllers.Lumpsum
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -284,7 +284,7 @@ namespace WebAPI.Controllers.Lumpsum
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 

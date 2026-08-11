@@ -32,7 +32,7 @@ namespace DBHelper.Models.Functions.Program
         [Required]
         public int StartYear { get; set; }
         public int? ProjectCount { get; set; }
-        [Column(TypeName = "decimal(38,2)")]
-        public decimal? Amount { get; set; }
+        [Column(TypeName = "decimal(38,5)")]
+        public decimal? Cost { get; set; }
     }
 }

@@ -78,12 +78,13 @@ export function useMapLibreMap(): UseMapLibreMapResult {
     if (!map) return;
 
     setBasemapState(id);
-    console.log('[map-debug] setBasemap called', id); // TEMP DEBUG
     map.once('style.load', () => {
-      console.log('[map-debug] style.load fired for', id); // TEMP DEBUG
       setStyleGeneration((generation) => generation + 1);
     });
-    map.setStyle(BASEMAPS[id].style);
+    // diff: false forces a full style reload so 'style.load' fires — the diff path
+    // (default) silently strips our runtime-added project layers/sources when they're
+    // absent from the target basemap style, and never fires 'style.load' to rebuild them.
+    map.setStyle(BASEMAPS[id].style, { diff: false });
   }, []);
 
   return { containerRef, mapRef, isMapReady, basemap, setBasemap, styleGeneration };

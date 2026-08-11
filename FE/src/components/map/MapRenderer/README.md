@@ -12,6 +12,11 @@ import MapRenderer from '../../../components/map/MapRenderer';
 <MapRenderer
   geoJsonData={geoJsonData} // GeoJSON.FeatureCollection | null
   height="500px"            // optional, defaults to '400px'
+  popupFields={[                                    // optional, see below
+    { label: 'Component Id', key: 'ComponentId' },
+    { label: 'Start Station Limit', key: 'StartStationLimit' },
+    { label: 'End Station Limit', key: 'EndStationLimit' },
+  ]}
 />
 ```
 
@@ -20,6 +25,22 @@ loading/error/empty states) is handled internally. `geoJsonData` is expected to 
 raw response from `fetchProjectGeoJSON` (`pages/Project/Service.ts`): one flat
 `FeatureCollection` where each feature's `properties` include `work_scope`, `dsow`,
 `length`, `cost_x`, `start_station_limit`, etc.
+
+### `popupFields` — configuring the popup header rows per consumer
+
+Different callers pass different raw property shapes straight through as `geoJsonData`
+(the Project module's `ComponentId`/`StartStationLimit`/`EndStationLimit`, GIS
+Playground's adapted `name`, etc.), so the popup header isn't a single hardcoded field.
+Pass a `PopupFieldConfig[]` (`types.ts`) to render one labeled row per entry, in order,
+above the rest of the popup content:
+
+```ts
+{ label: string; key: string }[]
+```
+
+`key` is read off the feature's raw `properties`; the row is skipped when the value is
+blank/missing. Omit the prop entirely to keep the old single-line header behavior
+(`properties.name || 'Project Location'`).
 
 ## How it's put together
 

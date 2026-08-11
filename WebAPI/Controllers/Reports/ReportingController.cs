@@ -112,7 +112,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -195,7 +195,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -267,7 +267,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -350,7 +350,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion
@@ -373,7 +373,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -422,7 +422,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion
@@ -474,7 +474,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion
@@ -526,7 +526,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion
@@ -549,7 +549,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 
@@ -598,7 +598,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion
@@ -985,7 +985,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion

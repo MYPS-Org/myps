@@ -1,0 +1,11 @@
+# Graphify indexing exclusions (in addition to .gitignore, which is respected automatically)
+FE/node_modules/
+FE/dist/
+FE/coverage/
+**/bin/
+**/obj/
+.vs/
+
+# Uploaded business records (contracts, project notes) — not code documentation,
+# and shouldn't be sent to an external LLM for semantic extraction.
+Main/Resources/UploadedFiles/

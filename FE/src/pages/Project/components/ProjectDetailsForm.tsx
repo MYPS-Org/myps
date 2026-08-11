@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
-import type { ProgramList } from "../../Program/Model.d";
+import type { ProgramLatest } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
 import { getDisabledClass, formatDropdownOptions } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
@@ -12,7 +12,7 @@ interface ProjectDetailsFormProps {
     onChange: (field: keyof ProjectDetails, value: any) => void;
     mode?: string; // 'add' or 'edit'
     projectEnums?: ProjectEnums;
-    programDetails?: ProgramList;
+    programDetails?: ProgramLatest;
     errors?: FormValidationError<ProjectDetails>;
     disabled?: boolean;
 }
@@ -47,7 +47,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             let newCity = projectDetails?.City;
             let newLD = projectDetails?.LegislativeDistrict;
             let newDEO = projectDetails?.DEO;
-            
             if (newCity) {
                 const cityBelongsToProvince = projectEnums?.Cities?.find(
                     (city) => city.Code === newCity && city.ProvinceCode === newProvince
@@ -58,7 +57,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             }
 
             if (newLD) {
-                const ldBelongsToProvince = projectEnums?.LDs?.find(
+                const ldBelongsToProvince = projectEnums?.LegislativeDistricts?.find(
                     (ld) => ld.Code === newLD && ld.ProvinceCode === newProvince
                 );
                 if (!ldBelongsToProvince) {
@@ -76,7 +75,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             }
 
             onChange('Province', newProvince);
-            if (newCity !== projectDetails?.City) onChange('City', newCity);
+            if (newCity !== projectDetails?.City) console.log('pumasok'); onChange('City', newCity);
             if (newLD !== projectDetails?.LegislativeDistrict) onChange('LegislativeDistrict', newLD);
             if (newDEO !== projectDetails?.DEO) onChange('DEO', newDEO);
         }
@@ -92,7 +91,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 
                 // Clear LD if it doesn't belong to the same province
                 if (projectDetails?.LegislativeDistrict) {
-                    const currentLD = projectEnums?.LDs?.find(
+                    const currentLD = projectEnums?.LegislativeDistricts?.find(
                         (ld) => ld.Code === projectDetails.LegislativeDistrict
                     );
                     if (currentLD && currentLD.ProvinceCode !== selectedCity.ProvinceCode) {
@@ -103,7 +102,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             onChange(field, value);
         }
         else if (field === 'LegislativeDistrict') {
-            const selectedLD = projectEnums?.LDs?.find((ld) => ld.Code === value);
+            const selectedLD = projectEnums?.LegislativeDistricts?.find((ld) => ld.Code === value);
             if (selectedLD) {
                 // Auto-set province if not set or different
                 const currentProvinceGdbId = projectDetails?.Province;
@@ -148,12 +147,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             }
             onChange(field, value);
         }
+        else if (field === 'Region') {
+            // Auto-populate IslandCode/ProjectType from the selected region's real geographic island code.
+            // Mirrors handleBoxClick, which drives both fields together for the LS/NP override.
+            const selectedRegion = projectEnums?.Regions?.find((region) => region.ParticipantId === value);
+            onChange('IslandCode', selectedRegion?.IslandCode);
+            onChange('ProjectType', selectedRegion?.IslandCode);
+            onChange(field, value);
+        }
         else if (field === 'ImplementingOffice') {
             // When IO changes, clear OU if it doesn't belong to the new IO
             let newOU = projectDetails?.OperatingUnit;
             
             if (newOU && value) {
-                const selectedIO = projectEnums?.IOs?.find((io) => io.ParticipantId === value.toString());
+                const selectedIO = projectEnums?.ImplementingOffices?.find((io) => io.ParticipantId === value.toString());
                 if (selectedIO) {
                     // Check if current OU belongs to the new IO
                     const ouBelongsToIO = projectEnums?.OperatingUnits?.find(
@@ -161,12 +168,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         (ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' && ou.OrgType === 'CO'))
                     );
                     if (!ouBelongsToIO) {
-                        newOU = undefined;
+                        newOU = '';
                     }
                 }
             } else if (!value) {
                 // If IO is cleared, also clear OU
-                newOU = undefined;
+                newOU = '';
             }
             
             onChange(field, value);
@@ -185,6 +192,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         
         const newValue = projectDetails?.IslandCode === boxValue ? null : boxValue;
         handleInputChange('IslandCode', newValue);
+        // Clicking Lump Sum/Non Project overrides IslandCode regardless of the Region-derived value,
+        // and drives ProjectType the same way.
+        onChange('ProjectType', newValue);
 
         // When switching to Lump Sum, clear geographic fields that are no longer required
         if (newValue === 'LS') {
@@ -195,12 +205,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             onChange('Region', undefined);
         }
     };
-
-    const regionWideData = [
-        { id: 1, enum: 1, name: "Region Wide" },
-        { id: 2, enum: 2, name: "Non-Region Wide" },
-        { id: 3, enum: 3, name: "Region Wide AIP ignores DEO" },
-    ];
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -267,7 +271,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className='grid grid-cols-3 gap-5'>
 
-                        <div className='w-full flex flex-col text-left gap-2'>
+                        {/* <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>External ID:</label>
                                 <input 
@@ -278,8 +282,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 />
                             </div>
-                        </div>
-                        <div className='w-full flex flex-col text-left gap-2'>
+                        </div> */}
+                        {/* <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.UACS ? 'text-red-500' : 'text-gray-600'}`}>OA Project Code (UACS):</label>
                                 <input 
@@ -290,7 +294,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 />
                             </div>
-                        </div>
+                        </div> */}
 
                         <div className="w-full flex flex-row gap-5 items-center">
                             <label
@@ -308,8 +312,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 } ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                                 disabled={disabled}
                             >
-                                <option value={1}>Tier I</option>
-                                <option value={2}>Tier II</option>
+                                {projectEnums?.Tiers?.map((tier) => (
+                                    <option key={tier.Id} value={tier.NameId}>
+                                        {tier.Name}
+                                    </option>
+                                ))}
                             </select>
                             </div>
                             {programDetails?.StageId === 3 && (
@@ -465,7 +472,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}Legislative District:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
-                                       options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
+                                       options={formatDropdownOptions(filteredLegislativeDistricts || [], 'Code', 'Name', 'Id')}
                                         value={projectDetails?.LegislativeDistrict}
                                         onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : value.toString())}
                                         placeholder="Select Legislative District"
@@ -578,14 +585,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                  <option value={0}>Select Region Wide</option>
-                                    {/* {projectEnums?.RegionWide?.map((region) => (
-                                        <option key={region.Id} value={region.Enum}>
+                                    {projectEnums?.RegionWides?.map((region) => (
+                                        <option key={region.Id} value={region.NameId}>
                                             {region.Name}
-                                        </option>
-                                    ))}  */}
-                                    {regionWideData.map((region) => (
-                                        <option key={region.id} value={region.enum}>
-                                            {region.name}
                                         </option>
                                     ))}
                                 </select>
@@ -718,7 +720,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select ROW Availability</option>
-                                    {projectEnums?.RowsAvailable?.map((row) => (
+                                    {projectEnums?.RowAvailables?.map((row) => (
                                         <option key={row.Id} value={row.NameId}>
                                             {row.Name}
                                         </option>
@@ -744,7 +746,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select Feasibility Study</option>
-                                    {projectEnums?.Feasibility?.map((feasibility) => (
+                                    {projectEnums?.Feasibilities?.map((feasibility) => (
                                         <option key={feasibility.Id} value={feasibility.NameId}>
                                             {feasibility.Name}
                                         </option>
@@ -777,7 +779,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select Detailed Design</option>
-                                    {projectEnums?.DetailedDesign?.map((design) => (
+                                    {projectEnums?.DetailedDesigns?.map((design) => (
                                         <option key={design.Id} value={design.NameId}>
                                             {design.Name}
                                         </option>

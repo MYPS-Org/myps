@@ -2,15 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../pages/login/Service';
 import type { User } from '../pages/login/Service';
-import {
-    isBackendUnreachable,
-    isKnownRoute,
-    offlineFallbackEnabled,
-    offlineRoute,
-    offlineUser,
-    offlineViewAccess,
-    onlineRoute,
-} from '../utils/offlineMode';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -63,7 +54,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     // Avoid infinite loop by not redirecting back to login
                     const path = (storedPath && storedPath !== '/login')
                         ? storedPath
-                        : onlineRoute;
+                        : (import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard');
                     localStorage.removeItem('currentPath'); // Clean up after use
                     window.location.href = path;
                 }
@@ -84,23 +75,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
         } catch (error) {
             console.error('❌ Session validation failed:', error);
-
-            // VPN down / backend unreachable: run offline instead of bouncing to /login,
-            // which cannot be completed without the backend either.
-            if (offlineFallbackEnabled && isBackendUnreachable(error)) {
-                console.warn(`📴 Backend unreachable — offline session, landing on ${offlineRoute}`);
-                setAuthState({
-                    isAuthenticated: true,
-                    isLoading: false,
-                    user: offlineUser,
-                    ViewAccess: offlineViewAccess
-                });
-                const path = window.location.pathname;
-                if (path !== offlineRoute && !isKnownRoute(path)) {
-                    window.location.href = offlineRoute;
-                }
-                return;
-            }
 
             setAuthState({
                 isAuthenticated: false,

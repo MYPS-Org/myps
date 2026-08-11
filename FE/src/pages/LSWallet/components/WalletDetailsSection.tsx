@@ -83,29 +83,29 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
     onChange('Province', value);
     // Clear City if it no longer belongs to the new province
     if (wallet.City && value) {
-      const city = projectEnums?.Cities?.find(c => c.GdbId === wallet.City);
-      if (city && city.ProvinceGdbId !== value) onChange('City', undefined);
+      const city = projectEnums?.Cities?.find(c => c.Code === wallet.City);
+      if (city && city.ProvinceCode !== value) onChange('City', undefined);
     }
     // Clear LD if it no longer belongs to the new province
     if (wallet.LegislativeDistrict && value) {
-      const ld = projectEnums?.LDs?.find(l => l.GdbId === wallet.LegislativeDistrict);
-      if (ld && ld.ProvinceGdbId !== value) onChange('LegislativeDistrict', undefined);
+      const ld = projectEnums?.LegislativeDistricts?.find(l => l.Code === wallet.LegislativeDistrict);
+      if (ld && ld.ProvinceCode !== value) onChange('LegislativeDistrict', undefined);
     }
   };
 
   const handleCityChange = (value: string | undefined) => {
     if (value) {
-      const city = projectEnums?.Cities?.find(c => c.GdbId === value);
+      const city = projectEnums?.Cities?.find(c => c.Code === value);
       if (city) {
         // Auto-set Province from City if not already matching
-        const province = projectEnums?.Provinces?.find(p => p.GdbId === city.ProvinceGdbId);
-        if (province && province.GdbId !== wallet.Province) {
-          onChange('Province', province.GdbId);
+        const province = projectEnums?.Provinces?.find(p => p.Code === city.ProvinceCode);
+        if (province && province.Code !== wallet.Province) {
+          onChange('Province', province.Code);
         }
         // Clear LD if it doesn't share the same province
         if (wallet.LegislativeDistrict) {
-          const ld = projectEnums?.LDs?.find(l => l.GdbId === wallet.LegislativeDistrict);
-          if (ld && ld.ProvinceGdbId !== city.ProvinceGdbId) {
+          const ld = projectEnums?.LegislativeDistricts?.find(l => l.Code === wallet.LegislativeDistrict);
+          if (ld && ld.ProvinceCode !== city.ProvinceCode) {
             onChange('LegislativeDistrict', undefined);
           }
         }
@@ -116,17 +116,17 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
 
   const handleLDChange = (value: string | undefined) => {
     if (value) {
-      const ld = projectEnums?.LDs?.find(l => l.GdbId === value);
+      const ld = projectEnums?.LegislativeDistricts?.find(l => l.Code === value);
       if (ld) {
         // Auto-set Province from LD if not already matching
-        const province = projectEnums?.Provinces?.find(p => p.GdbId === ld.ProvinceGdbId);
-        if (province && province.GdbId !== wallet.Province) {
-          onChange('Province', province.GdbId);
+        const province = projectEnums?.Provinces?.find(p => p.Code === ld.ProvinceCode);
+        if (province && province.Code !== wallet.Province) {
+          onChange('Province', province.Code);
         }
         // Clear City if it doesn't share the same province
         if (wallet.City) {
-          const city = projectEnums?.Cities?.find(c => c.GdbId === wallet.City);
-          if (city && city.ProvinceGdbId !== ld.ProvinceGdbId) {
+          const city = projectEnums?.Cities?.find(c => c.Code === wallet.City);
+          if (city && city.ProvinceCode !== ld.ProvinceCode) {
             onChange('City', undefined);
           }
         }
@@ -370,7 +370,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
               </label>
               <div className="w-2/3">
                 <SearchableDropdown
-                  options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
+                  options={formatDropdownOptions(projectEnums?.Provinces || [], 'Code', 'Name', 'Id')}
                   value={wallet.Province}
                   onChange={(value) => handleProvinceChange(value === '' ? undefined : value.toString())}
                   placeholder="Select Province"
@@ -390,7 +390,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
               </label>
               <div className="w-2/3">
                 <SearchableDropdown
-                  options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
+                  options={formatDropdownOptions(filteredCities || [], 'Code', 'Name', 'Id')}
                   value={wallet.City}
                   onChange={(value) => handleCityChange(value === '' ? undefined : value.toString())}
                   placeholder="Select City/Municipality"
@@ -410,7 +410,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
               </label>
               <div className="w-2/3">
                 <SearchableDropdown
-                  options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
+                  options={formatDropdownOptions(filteredLegislativeDistricts || [], 'Code', 'Name', 'Id')}
                   value={wallet.LegislativeDistrict}
                   onChange={(value) => handleLDChange(value === '' ? undefined : value.toString())}
                   placeholder="Select Legislative District"
@@ -652,7 +652,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
                 disabled={disabled}
               >
                 <option value="">Select ROW Availability</option>
-                {projectEnums?.RowsAvailable?.map((row) => (
+                {projectEnums?.RowAvailables?.map((row) => (
                   <option key={row.Id} value={row.NameId}>{row.Name}</option>
                 ))}
               </select>
@@ -674,7 +674,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
                 disabled={disabled}
               >
                 <option value="">Select Feasibility Study</option>
-                {projectEnums?.Feasibility?.map((f) => (
+                {projectEnums?.Feasibilities?.map((f) => (
                   <option key={f.Id} value={f.NameId}>{f.Name}</option>
                 ))}
               </select>
@@ -710,7 +710,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
                 disabled={disabled}
               >
                 <option value="">Select Detailed Design</option>
-                {projectEnums?.DetailedDesign?.map((d) => (
+                {projectEnums?.DetailedDesigns?.map((d) => (
                   <option key={d.Id} value={d.NameId}>{d.Name}</option>
                 ))}
               </select>

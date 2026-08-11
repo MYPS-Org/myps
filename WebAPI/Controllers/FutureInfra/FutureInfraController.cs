@@ -7,6 +7,7 @@ using Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebAPI.MicroService;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WebAPI.Controllers.Programs
 {
@@ -14,7 +15,7 @@ namespace WebAPI.Controllers.Programs
     [Route("api/[controller]/[action]")]
     public class FutureInfraController : CoreController
     {
-        public FutureInfraController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+        public FutureInfraController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
         [HttpPost]
         public async Task<IActionResult> GetInfraInfo()
@@ -35,7 +36,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
         #region Future Roads
@@ -55,10 +56,10 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowFutureRoads([FromBody] ShowFutureRoadsDTO dto, CancellationToken cancellationToken)
         {
@@ -71,10 +72,10 @@ namespace WebAPI.Controllers.Programs
 
 
                 if (!string.IsNullOrEmpty(dto.Filters.Name))
-                    filters.Add(( "v.Name = @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
+                    filters.Add(("v.Name LIKE @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoadId))
-                    filters.Add(("v.RoadId = @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
+                    filters.Add(("v.RoadId LIKE @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
 
                 FilterDataResult<FutureRoads> result =
                     await _db.FilterDataCursor<
@@ -95,7 +96,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             Title = "Pagination error",
                             Message =
-                                result.ToString() ??
+                                result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
                 }
@@ -104,7 +105,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -228,7 +229,7 @@ namespace WebAPI.Controllers.Programs
                     checkRoad.UpdatedBy = UserId;
                     checkRoad.UpdatedDate = currentDate;
                     _db.tFutureRoads.Update(checkRoad);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
                 }
                 return Ok(new
@@ -239,8 +240,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -284,7 +285,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = currentDate,
                 };
                 await _db.tFutureRoads.AddAsync(newFutureRoad);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -294,8 +295,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -349,7 +350,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 _db.tFutureRoads.Remove(checkRoad);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -359,8 +360,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion
@@ -381,10 +382,10 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowFutureRoadSections([FromBody] ShowFutureRoadSectionsDTO dto, CancellationToken cancellationToken)
         {
@@ -398,14 +399,14 @@ namespace WebAPI.Controllers.Programs
 
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoadId))
-                    filters.Add(("v.RoadId = @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
+                    filters.Add(("v.RoadId LIKE @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoadSectionId))
-                    filters.Add(("v.RoadSectionId = @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
+                    filters.Add(("v.RoadSectionId LIKE @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.DEO))
                 {
-                    filters.Add(("v.DEO = @DEO", "@DEO", $"%{dto.Filters.DEO.Trim()}%"));
+                    filters.Add(("v.DEOParticipantId LIKE @DEOParticipantId", "@DEOParticipantId", $"%{dto.Filters.DEO.Trim()}%"));
                 }
 
                 FilterDataResult<FutureRoadSections> result =
@@ -427,7 +428,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             Title = "Pagination error",
                             Message =
-                                result.ToString() ??
+                                result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
                 }
@@ -436,7 +437,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -465,13 +466,13 @@ namespace WebAPI.Controllers.Programs
                 {
                     RoadId = dto.RoadId,
                     RoadSectionId = dto.RoadSectionId,
-                    RoadLength = dto.RoadLength,
-                    DEO = dto.DEO,
+                    LengthM = double.Parse(dto.RoadLength),
+                    DEOParticipantId = dto.DEO,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
                 };
                 await _db.tFutureRoadSections.AddAsync(newFutureRoadSection);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -481,8 +482,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -562,50 +563,35 @@ namespace WebAPI.Controllers.Programs
                     });
                     checkRoad.RoadSectionId = dto.RoadSectionId;
                 }
-                if (checkRoad.RoadLength != dto.RoadLength)
+                if (checkRoad.LengthM != double.Parse(dto.RoadLength))
                 {
                     Transactions.Add(new TransactionLog
                     {
                         ReferenceId = checkRoad.RoadId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
-                        AffectedColumn = "RoadLength",
-                        OldValue = checkRoad.RoadLength,
+                        AffectedColumn = "LengthM",
+                        OldValue = checkRoad.LengthM.ToString(),
                         NewValue = dto.RoadLength,
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
-                    checkRoad.RoadLength = dto.RoadLength;
+                    checkRoad.LengthM = double.Parse(dto.RoadLength);
                 }
-                if (checkRoad.RoadLength != dto.RoadLength)
+                if (checkRoad.DEOParticipantId != dto.DEO)
                 {
                     Transactions.Add(new TransactionLog
                     {
                         ReferenceId = checkRoad.RoadId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tFutureRoads",
-                        AffectedColumn = "RoadLength",
-                        OldValue = checkRoad.RoadLength,
-                        NewValue = dto.RoadLength,
-                        CreatedBy = UserId,
-                        CreatedDate = currentDate
-                    });
-                    checkRoad.RoadLength = dto.RoadLength;
-                }
-                if (checkRoad.DEO != dto.DEO)
-                {
-                    Transactions.Add(new TransactionLog
-                    {
-                        ReferenceId = checkRoad.RoadId,
-                        TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tFutureRoads",
-                        AffectedColumn = "DEO",
-                        OldValue = checkRoad.DEO,
+                        AffectedColumn = "DEOParticipantId",
+                        OldValue = checkRoad.DEOParticipantId,
                         NewValue = dto.DEO,
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
-                    checkRoad.DEO = dto.DEO;
+                    checkRoad.DEOParticipantId = dto.DEO;
                 }
                 if (Transactions.Count > 0)
                 {
@@ -613,7 +599,7 @@ namespace WebAPI.Controllers.Programs
                     checkRoad.UpdatedBy = UserId;
                     checkRoad.UpdatedDate = currentDate;
                     _db.tFutureRoadSections.Update(checkRoad);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
                 }
                 return Ok(new
@@ -624,8 +610,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -677,7 +663,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 _db.tFutureRoadSections.Remove(checkRoadSection);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -687,8 +673,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion
@@ -709,7 +695,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
         [HttpPost]
@@ -725,21 +711,21 @@ namespace WebAPI.Controllers.Programs
 
 
                 if (!string.IsNullOrEmpty(dto.Filters.BridgeId))
-                    filters.Add(("v.BridgeId = @BridgeId", "@BridgeId", $"%{dto.Filters.BridgeId.Trim()}%"));
+                    filters.Add(("v.BridgeId LIKE @BridgeId", "@BridgeId", $"%{dto.Filters.BridgeId.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoadSectionId))
-                    filters.Add(("v.RoadSectionId = @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
+                    filters.Add(("v.RoadSectionId LIKE @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.Name))
                 {
-                    filters.Add(("v.Name = @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
+                    filters.Add(("v.Name LIKE @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
                 }
 
                 FilterDataResult<FutureBridge> result =
                     await _db.FilterDataCursor<
                         FutureBridge,
                         ShowFutureBridgeFilterDTO>(
-                            tableName: "tFutureRoadSections",
+                            tableName: "tFutureBridge",
                             dto: dto,
                             filter: filters,
                             keyColumn: "Id",
@@ -754,7 +740,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             Title = "Pagination error",
                             Message =
-                                result.ToString() ??
+                                result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
                 }
@@ -763,7 +749,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -806,7 +792,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = currentDate,
                 };
                 await _db.tFutureBridge.AddAsync(newFutureBridge);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -816,8 +802,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -963,7 +949,7 @@ namespace WebAPI.Controllers.Programs
                     checkBridge.UpdatedBy = UserId;
                     checkBridge.UpdatedDate = currentDate;
                     _db.tFutureBridge.Update(checkBridge);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
                 }
                 return Ok(new
@@ -974,8 +960,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -1016,7 +1002,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 _db.tFutureBridge.Remove(checkBridge);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -1026,8 +1012,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion

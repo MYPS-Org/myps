@@ -89,7 +89,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     if (isOpen) {
       fetchInfraData();
     }
-  }, [isOpen, activeTab, currentPage, pageSize, selectedRoadSectionId]);
+  }, [isOpen, activeTab, currentPage, pageSize, selectedRoadSectionId, deo]);
 
   const fetchInfraData = async (page = currentPage, search = searchTerm) => {
     setLoading(true);
@@ -99,7 +99,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           filters: {
             RoadId: '',
             RoadSectionId: search || '',
-            DEO: ''
+            DEO: deo || ''
           },
           sortField: '',
           sortDirection: 1,

@@ -326,10 +326,10 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
             items={(DataSecurity || []).map(item => ({
               id: item.ParticipantId ?? '',
               name: item.Name ?? '',
-              groupType: item.OrgType === 'C' ? 'Central Office' : 
-                         item.OrgType === 'R' ? 'Regional Offices' : 
-                         item.OrgType === 'B' ? 'Bureaus' :
-                         item.OrgType === 'PMO' ? 'Project Management Offices' : 
+              groupType: item.OrgType === 'CO' ? 'CO' :
+                         item.OrgType === 'B' ? 'CO' :
+                         item.OrgType === 'R' ? 'Regional Offices' :
+                         item.OrgType === 'PMO' ? 'Project Management Offices' :
                          item.OrgType || 'Other'
             }))}
             selectedIds={formData.DataSecurityGroup}

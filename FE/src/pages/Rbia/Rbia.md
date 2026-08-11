@@ -175,7 +175,7 @@ interface FutureRoads {
   Name: string;
   Classification: number;      // 1=Primary, 2=Secondary, 3=Tertiary, 4=Quaternary
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy?: string;
   UpdatedDate?: string;
 }
@@ -193,7 +193,7 @@ interface FutureRoadSections {
   RoadLength: number;          // in metres
   DEO: string;                 // FK to RODEOEnum.ParticipantId
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy?: string;
   UpdatedDate?: string;
 }
@@ -214,7 +214,7 @@ interface FutureBridge {
   CarriageWay?: number;        // Number of carriage ways
   OverallWidth: number;        // Total width in metres
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy?: string;
   UpdatedDate?: string;
 }

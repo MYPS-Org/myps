@@ -4,14 +4,15 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '../../../components/tailwindui/button';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { nextStage as proceedToNextStage } from '../Service';
-import type { ProgramDetails, ProgramEnums } from '../Model';
+import type { ProgramDetails, TableEnum } from '../Model';
+import { getStageProgression } from '../utils/stageProgression';
 
 interface NextStageDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: { ProgramId: string; Stage: number; Name?: string }) => void;
     program: ProgramDetails;
-    stages: ProgramEnums[];
+    stages: TableEnum[];
     isSkip: boolean;
 }
 
@@ -25,10 +26,11 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
 }) => {
     
     const { showToast } = useToast();
-    const nextStageId = program.StageId + 1;
-    const nextStage = stages.find(stage => stage.Id === nextStageId);
-    const skipStageId = program.StageId + 2;
-    const skipStage = stages.find(stage => stage.Id === skipStageId);
+    const { nextStage, skipStage } = getStageProgression(stages, program.StageId, program.Type);
+    // Submitted as Stage in the updateProgramStage payload, which the backend
+    // matches/persists by NameId (not the tOptionProgramStage.Id identity column).
+    const nextStageId = nextStage?.NameId ?? program.StageId;
+    const skipStageId = skipStage?.NameId ?? program.StageId;
     
     // Function to parse existing program name and split it
     const parseExistingName = (currentName: string) => {
@@ -53,7 +55,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const parsedName = parseExistingName(program?.Name || '');
     
     const [formData, setFormData] = useState({
-        ProgramId: program?.ProgramPK || '',
+        ProgramId: program?.ProgramId || '',
         Name: parsedName.baseName,
         AddedName: parsedName.additionalName,
         Stage: isSkip ? skipStageId : nextStageId,
@@ -125,7 +127,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const handleClose = () => {
         const resetParsedName = parseExistingName(program?.Name || '');
         setFormData({
-            ProgramId: program?.ProgramPK || '',
+            ProgramId: program?.ProgramId || '',
             Name: resetParsedName.baseName,
             AddedName: resetParsedName.additionalName,
             Stage: isSkip ? skipStageId : nextStageId,

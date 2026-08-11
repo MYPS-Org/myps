@@ -9,13 +9,13 @@ namespace WebAPI.Controllers.Revision
     public class RevisionRequestsFilter
     {
         public string? TransactionId { get; set; }
-        public int? RevisionGroupId { get; set; }
-        public int? CategoryId { get; set; }
-        public int? ReasonId { get; set; }
-        public EnumRevisionStatus? RegionStatus { get; set; }
-        public EnumRevisionStatus? COStatus { get; set; }
+        public string? ProjectId { get; set; }
+        public string? RevisionType { get; set; }
+        public string? RevisionStatus { get; set; }
+        public string? CurrentStage { get; set; }
     }
     public class RevisionRequestsDTO : EnumPagination<RevisionRequestsFilter> { }
+
     public class ViewReviseProjectDTO
     {
         public string TransactionId { get; set; } = string.Empty;

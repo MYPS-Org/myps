@@ -19,7 +19,7 @@ namespace WebAPI.Controllers.MockUps
     [Route("api/[controller]/[action]")]
     public class PISController : CoreController
     {
-        public PISController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+        public PISController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto, CancellationToken cancellationToken)
@@ -68,7 +68,7 @@ namespace WebAPI.Controllers.MockUps
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
@@ -118,7 +118,7 @@ namespace WebAPI.Controllers.MockUps
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         //[AllowAnonymous]
@@ -165,7 +165,7 @@ namespace WebAPI.Controllers.MockUps
         //    }
         //    catch (Exception ex)
         //    {
-        //        return ExceptionHandler(ex);
+        //        return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
         //    }
         //}
     }

@@ -8,7 +8,7 @@ interface BatchActionsDropdownProps {
   programId: string;
   programName: string;
   isActive: boolean;
-  stageId: number;
+  isTerminalStage: boolean;
   defaultStatus: number;
   onRefresh: () => Promise<void>;
   onLoadingChange: (loading: boolean) => void;
@@ -18,7 +18,7 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
   programId,
   programName,
   isActive,
-  stageId,
+  isTerminalStage,
   defaultStatus,
   onRefresh,
   onLoadingChange,
@@ -62,7 +62,7 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
     }
   };
 
-  const showPublishActions = isActive && stageId === 10 && defaultStatus === 1;
+  const showPublishActions = isActive && isTerminalStage && defaultStatus === 1;
 
   return (
     <>

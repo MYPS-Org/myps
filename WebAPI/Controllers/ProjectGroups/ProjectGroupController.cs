@@ -94,7 +94,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion
@@ -122,7 +122,7 @@
 //                    CreatedDate = Functions.CurrentDate()
 //                };
 //                await _db.tProjectGroups.AddAsync(NewGroup);
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                return Ok(new
 //                {
@@ -133,8 +133,8 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                await transaction.RollbackAsync(cancellationToken);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion
@@ -188,7 +188,7 @@
 //                }
 //                _db.tProjectsInGroup.RemoveRange(ExistingProjects);
 //                await _db.tTransactionLog.AddRangeAsync(transactionLogs);
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                return Ok(new
 //                {
@@ -198,8 +198,8 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                await transaction.RollbackAsync(cancellationToken);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion
@@ -231,7 +231,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
         
@@ -275,7 +275,7 @@
 //                        CreatedDate = Functions.CurrentDate()
 //                    };
 //                }));
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                return Ok(new
 //                {
@@ -285,8 +285,8 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                await transaction.RollbackAsync(cancellationToken);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
         
@@ -321,7 +321,7 @@
 //                    CreatedDate = Functions.CurrentDate()
 //                });
 //                _db.tProjectsInGroup.Remove(ExistingProject!);
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                return Ok(new
 //                {
@@ -331,8 +331,8 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                await transaction.RollbackAsync(cancellationToken);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion
@@ -369,7 +369,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
         
@@ -452,7 +452,7 @@
 //                {
 //                    if (hasChangesInDetails) { _db.tProjectGroups.Update(GroupDetail); }
 //                    await _db.tTransactionLog.AddRangeAsync(transactionLogs);
-//                    await _db.SaveChangesAsync();
+//                    await _db.SaveChangesAsync(cancellationToken);
 //                }
 //                return Ok(new
 //                {
@@ -462,7 +462,7 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //        #endregion

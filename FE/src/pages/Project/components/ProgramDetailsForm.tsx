@@ -1,34 +1,34 @@
 import { useState, useEffect } from "react";
 import SearchableDropdown from "../../../components/ui/SearchableDropdown";
 import { formatDropdownOptions } from "../../../utils/GlobalFunctions";
-import type { ProgramList } from "../../Program/Model";
+import type { ProgramLatest } from "../../Program/Model";
 import { searchProgram } from "../Service";
 
 interface ProgramDetailsFormProps {
   initialData?: any;
-  programDetails: ProgramList;
-  setProgramDetails: React.Dispatch<React.SetStateAction<ProgramList>>;
-  onChange?: (updatedDetails: ProgramList) => void;
+  programDetails: ProgramLatest;
+  setProgramDetails: React.Dispatch<React.SetStateAction<ProgramLatest>>;
+  onChange?: (updatedDetails: ProgramLatest) => void;
   mode?: 'add' | 'edit';
   initialStageName?: string;
+  initialProgramId?: string;
 }
 
-const emptyProgramDetails: ProgramList = {
+const emptyProgramDetails: ProgramLatest = {
   Id: 0,
   RevisionId: 0,
+  StageFKId: 0,
+  ProgramPK: '',
   ProgramId: '',
+  StageId: 0,
   StageName: '',
   Name: '',
-  GroupName: '',
-  RegionCode: '',
   Status: undefined,
   Type: '',
-  Cost: 0,
-  YearStart: 0,
+  DataSecurityGroup: '',
+  UserGroup: '',
+  StartYear: 0,
   YearEnd: 0,
-  CreatedBy: '',
-  CreatedDate: '',
-  IsPublishable: false,
 };
 
 const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
@@ -36,9 +36,10 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
   setProgramDetails,
   onChange,
   mode = 'add',
-  initialStageName
+  initialStageName,
+  initialProgramId
 }) => {
-  const [programs, setPrograms] = useState<ProgramList[]>([]);
+  const [programs, setPrograms] = useState<ProgramLatest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Load programs from /Program/ShowProgram as soon as the form mounts in add mode
@@ -57,6 +58,17 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
           return true;
         });
         setPrograms(results);
+
+        // Pre-select the program we arrived with (e.g. "Add Project" from a Program's detail page).
+        // ProjectForm can't do this itself: /Project/ShowProjectComponentDropdowns doesn't return a
+        // Programs list, so this component's own searchProgram() call is the only source of it.
+        if (initialProgramId) {
+          const preselected = results.find(program => program.ProgramId === initialProgramId);
+          if (preselected) {
+            setProgramDetails(preselected);
+            onChange?.(preselected);
+          }
+        }
       })
       .catch((error) => {
         console.error('Error loading programs:', error);
@@ -67,7 +79,10 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [mode, initialStageName]);
+    // onChange/setProgramDetails intentionally omitted: parent passes a fresh onChange each render,
+    // and re-running this fetch on every parent render would spam /Program/ShowProgram.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, initialStageName, initialProgramId]);
 
   const setProgram = (value: string | number) => {
     const selectedProgram = programs.find(program => program.ProgramId === value);
@@ -115,7 +130,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">Program Type:</label>
               <input
                   type="text"
-                  value={programDetails.TypeName || ''}
+                  value={programDetails.ProgramType || ''}
                   disabled={mode === 'edit'}
                   readOnly
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
@@ -126,7 +141,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">Start Year:</label>
               <input
                   type="number"
-                  value={programDetails.YearStart || ''}
+                  value={programDetails.StartYear || ''}
                   disabled={mode === 'edit'}
                   readOnly
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'

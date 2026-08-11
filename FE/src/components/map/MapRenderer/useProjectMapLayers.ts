@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import maplibregl, { type GeoJSONSource, type MapLayerMouseEvent } from 'maplibre-gl';
-import type { LayerVisibilityState, MapLayerDefinition, ProjectFeatureProperties } from './types';
+import type { LayerVisibilityState, MapLayerDefinition, PopupFieldConfig, ProjectFeatureProperties } from './types';
 import { buildPopupHtml, computeBoundsAndCentroid, groupFeaturesByLayer } from './geoJsonUtils';
 
 export interface UseProjectMapLayersResult {
@@ -29,7 +29,8 @@ export function useProjectMapLayers(
   isMapReady: boolean,
   styleGeneration: number,
   geoJsonData: GeoJSON.FeatureCollection | null | undefined,
-  layers: MapLayerDefinition[]
+  layers: MapLayerDefinition[],
+  popupFields?: PopupFieldConfig[]
 ): UseProjectMapLayersResult {
   const [visibility, setVisibility] = useState<LayerVisibilityState>(() =>
     Object.fromEntries(layers.map((layer) => [layer.id, true]))
@@ -48,13 +49,15 @@ export function useProjectMapLayers(
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapReady) return;
-    console.log('[map-debug] skeleton effect running, styleGeneration=', styleGeneration); // TEMP DEBUG
 
     const handleFeatureClick = (e: MapLayerMouseEvent) => {
       const feature = e.features?.[0];
       if (!feature) return;
       const properties = (feature.properties ?? {}) as ProjectFeatureProperties;
-      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(buildPopupHtml(properties)).addTo(map);
+      new maplibregl.Popup({ className: 'myps-map-popup' })
+        .setLngLat(e.lngLat)
+        .setHTML(buildPopupHtml(properties, popupFields))
+        .addTo(map);
     };
     const handleMouseEnter = () => {
       map.getCanvas().style.cursor = 'pointer';
@@ -134,7 +137,7 @@ export function useProjectMapLayers(
         });
       });
     };
-  }, [mapRef, isMapReady, styleGeneration, layers]);
+  }, [mapRef, isMapReady, styleGeneration, layers, popupFields]);
 
   // Feed the grouped GeoJSON into each bucket's source whenever the data changes, and
   // again whenever the style reloads (a basemap switch wipes source data back to empty).
@@ -144,7 +147,6 @@ export function useProjectMapLayers(
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapReady) return;
-    console.log('[map-debug] data effect running, styleGeneration=', styleGeneration, 'sourceBridgesExists=', !!map.getSource(sourceId('bridges'))); // TEMP DEBUG
 
     if (!geoJsonData) {
       setError(null);

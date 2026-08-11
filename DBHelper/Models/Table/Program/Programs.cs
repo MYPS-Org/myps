@@ -12,9 +12,6 @@ namespace DBHelper.Models.Table.Program
         [MaxLength(200)]
         public string ProgramPK { get; set; } = string.Empty;
         [Required]
-        [MaxLength(255)]
-        public string ProgramId { get; set; } = string.Empty;
-        [Required]
         [MaxLength(1000)]
         public int[] UserGroup { get; set; } = Array.Empty<int>();
         [Required]

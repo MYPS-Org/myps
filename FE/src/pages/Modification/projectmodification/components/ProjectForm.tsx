@@ -30,7 +30,7 @@ import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
 import { addProjectDetails, getProjectEnums, fetchProjectGeoJSON } from '../../../Project/Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import type { ProgramList } from '../../../Program/Model';
+import type { ProgramLatest } from '../../../Program/Model';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
 import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
@@ -136,29 +136,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
 
   // Initialize state with empty data or provided initial data
-  const [programDetails, setProgramDetails] = useState<ProgramList>(
+  const [programDetails, setProgramDetails] = useState<ProgramLatest>(
     initialData?.ProgramDetails || {
     Id: 0,
     RevisionId: 0,
+    StageFKId: 0,
+    ProgramPK: '',
     ProgramId: '',
+    StageId: 0,
     StageName: '',
     Name: '',
-    GroupName: '',
-    RegionCode: '',
-    Status: 0,
+    Status: undefined,
     Type: '',
-    Cost: 0,
-    YearStart: 0,
+    DataSecurityGroup: '',
+    UserGroup: '',
+    StartYear: 0,
     YearEnd: 0,
-    CreatedBy: '',
-    CreatedDate: '',
-    IsPublishable: false,
   });
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
     initialData?.ProjectDetails || {
       Id: 0,
-      ProjectPK: '',
+      ProjectFK: '',
       ProjectType: '',
       ProgramId: '',
       ProgramName: '',
@@ -207,13 +206,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   } = useFieldPermissions();
 
   // #region GEOJSON DATA FOR MAP
-  // Fetch GeoJSON data for map rendering
+  // Fetch GeoJSON data for map rendering. Skipped when there are no work locations to plot —
+  // the backend 400s on that ("Resource not found"), which httpClient auto-toasts, so calling
+  // it anyway just surfaces a misleading error for a normal empty state.
   const loadMapData = useCallback(async () => {
-    if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+    if (
+      mode === 'edit' &&
+      initialData?.ProjectDetails?.ProjectId &&
+      initialData?.ProgramDetails?.ProgramPK &&
+      (initialData?.MajorItemLocations?.length ?? 0) > 0
+    ) {
       try {
         const response = await fetchProjectGeoJSON(
-          initialData.ProjectDetails.ReferenceId || '',
-          initialData.ProgramDetails.ProgramId,
+          initialData.ProjectDetails.ProjectFK || '',
+          initialData.ProgramDetails.ProgramPK,
           user?.UserId || '',
           initialData.ProgramDetails.StageName
         );
@@ -225,7 +231,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         // Gracefully handle error - map will show "No data available"
       }
     }
-  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId, initialData?.ProgramDetails?.StageName, user?.UserId]);
+  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId, initialData?.ProgramDetails?.StageName, initialData?.MajorItemLocations?.length, user?.UserId]);
 
   useEffect(() => {
     loadMapData();
@@ -257,7 +263,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         program => program.ProgramId === initialProgramId
       );
       if (selectedProgram) {
-        setProgramDetails(selectedProgram);
+        // projectEnums.Programs is still ProgramList-shaped (see @deprecated note on ProjectEnums.Programs) — this
+        // path is not currently populated by the backend, so the cast can't be structurally verified.
+        setProgramDetails(selectedProgram as unknown as ProgramLatest);
         // Also update project details with the program ID
         setProjectDetails(prev => ({
           ...prev,
@@ -400,7 +408,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   };
 
-  const handleProgramDetailsChange = (updatedProgramDetails: ProgramList) => {
+  const handleProgramDetailsChange = (updatedProgramDetails: ProgramLatest) => {
     setProgramDetails(updatedProgramDetails);
     
     // Update project details with program information
@@ -891,10 +899,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         </div>
         {isMapOpen && (
           <div className="p-4">
-            <MapRenderer 
+            <MapRenderer
               geoJsonData={geoJsonData}
               projectId={initialData?.ProjectDetails?.ProjectId}
               programId={initialData?.ProgramDetails?.ProgramId}
+              popupFields={[
+                { label: 'Component Id', key: 'ComponentId' },
+                { label: 'Start Station Limit', key: 'StartStationLimit' },
+                { label: 'End Station Limit', key: 'EndStationLimit' },
+              ]}
               height="500px"
             />
           </div>

@@ -20,7 +20,7 @@ export interface PermissionGroup {
      Name: string;
      UpdatedBy: string;
      UpdatedDate: string;
-     CreatedDate: string;
+     CreatedDate: string | null;
      CreatedBy: string;
 }
 
@@ -77,7 +77,7 @@ export interface UserGroups {
     NumberOfUsers: number;
     Description?: string;
     CreatedBy?: string;
-    CreatedDate: string;
+    CreatedDate: string | null;
     PermissionIds: string; // API returns comma-separated string of numeric IDs
     PermissionNames: string; // API returns comma-separated string of permission names
 }
@@ -144,7 +144,7 @@ export interface vUserGroups{
     NumberOfUsers: number;
     Description?: string;
     CreatedBy: string;
-    CreatedDate: string;
+    CreatedDate: string | null;
     ModulePermissions: ModulePermission[];
     // kept optional for locally-constructed fallback objects
     PermissionActionIds?: number[];

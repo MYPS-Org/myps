@@ -1,22 +1,27 @@
-﻿namespace DBHelper.Models.Enums
+﻿using System.ComponentModel.DataAnnotations;
+using System.Runtime.Serialization;
+
+namespace DBHelper.Models.Enums
 {
     #region Stages
     public enum EnumProgramStage
     {
-        RBP = 8,
         BP = 1,
         NEP = 2,
-        NEPE = 3,
+        //[EnumMember(Value = "NEP-E")]
+        NEPE = 3,	
         HGAB = 4,
+        //[EnumMember(Value = "HGAB-I")]
         HGABI = 5,
         GAA = 6,
+        //[EnumMember(Value = "GAA-R")]
         GAAR = 7,
-         
-        RDIP = 9,
-        UDIP = 10,
-        PIP = 11,
+        RBP = 8,	
+        RDIP = 9,	
+        PIP = 11,	
         TF = 12,
-        TFR = 13
+        //[EnumMember(Value = "TF-R")]
+        TFR = 13,	
     }
     #endregion
     #region Type

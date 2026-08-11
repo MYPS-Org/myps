@@ -25,11 +25,85 @@ namespace WebAPI.Controllers.Projects
         [Required]
         public string ProjectId { get; set; } = string.Empty;
     }
-    public class AddProjectDTO : ProjectDetails
+    public class AddProjectDTO : AddProjectDetails
     {
         [Required]
         public string ProgramId { get; set; } = string.Empty;
         public bool IsAllowedToProceed { get; set; } = false;
+    }
+
+    public class AddProjectDetails
+    {
+        [Key]
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string StageName { get; set; } = string.Empty;
+        public string? ProjectType { get; set; }
+        [Required]
+        public string Description { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(20)]
+        public string Region { get; set; } = string.Empty;
+        [MaxLength(20)]
+        public string? Province { get; set; }
+        [MaxLength(20)]
+        public string? City { get; set; }
+        [MaxLength(20)]
+        public string? LegislativeDistrict { get; set; }
+        [Required]
+        [MaxLength(20)]
+        public string DEO { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(20)]
+        public string OperatingUnit { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(20)]
+        public string ImplementingOffice { get; set; } = string.Empty;
+        [MaxLength(2)]
+        public string? IslandCode { get; set; }
+        [Required]
+        public int Category { get; set; }
+        [MaxLength(200)]
+        public string? CategoryName { get; set; }
+        public int? Thrust { get; set; }
+        [MaxLength(400)]
+        public string? ThrustName { get; set; }
+        [Required]
+        public int Origin { get; set; }
+        [MaxLength(50)]
+        public string? OriginName { get; set; }
+        [Required]
+        public int Agency { get; set; }
+        [MaxLength(200)]
+        public string? AgencyName { get; set; }
+        public int ImplementationMode { get; set; }
+        [MaxLength(50)]
+        public string? ImplementationModeName { get; set; }
+        public int EmergencyMode { get; set; }
+        [MaxLength(50)]
+        public string? EmergencyModeName { get; set; }
+        [Required]
+        public int RegionWide { get; set; }
+        [MaxLength(200)]
+        public string? RegionWideName { get; set; }
+        public int? Feasibility { get; set; }
+        [MaxLength(50)]
+        public string? FeasibilityName { get; set; }
+        public DateTime? FeasibilityDate { get; set; }
+        public int? DetailedDesign { get; set; }
+        [MaxLength(50)]
+        public string? DetailedDesignName { get; set; }
+        public DateTime? DetailedDesignDate { get; set; }
+        public int? RowAvailable { get; set; }
+        [MaxLength(50)]
+        public string? RowAvailableName { get; set; }
+        [Required]
+        public int Tier { get; set; }
+        [MaxLength(50)]
+        public string? TierName { get; set; }
+        public Double? Rank { get; set; }
+        public DateTime? MYCAApprovalDate { get; set; }
     }
     public class SearchProgramDTO
     {
@@ -99,7 +173,7 @@ namespace WebAPI.Controllers.Projects
         // FK -> dbo.tProjectRevisions(Id)
         public int ProjectRevisionFK { get; set; }
         [Required]
-        [MaxLength(10)]
+        [MaxLength(20)]
         // FK -> dbo.tOptionProjectComponentType(ComponentId)
         public string ComponentType { get; set; } = string.Empty;
         [Required]
@@ -119,8 +193,8 @@ namespace WebAPI.Controllers.Projects
         public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
-        public ICollection<ProjectComponentCostPerYearDTO> CostsPerYear { get; set; } = new List<ProjectComponentCostPerYearDTO>();
-        public ICollection<ProjectMajorWorkItemDTO> WorkItems { get; set; } = new List<ProjectMajorWorkItemDTO>();
+        //public ICollection<ProjectComponentCostPerYearDTO> CostsPerYear { get; set; } = new List<ProjectComponentCostPerYearDTO>();
+        //public ICollection<ProjectMajorWorkItemDTO> WorkItems { get; set; } = new List<ProjectMajorWorkItemDTO>();
     }
     public class ProjectComponentCostPerYearDTO
     {
@@ -129,6 +203,9 @@ namespace WebAPI.Controllers.Projects
         public int Id { get; set; }
         // FK -> dbo.tProjectComponentCost(Id)
         public int ComponentCostFK { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
         [Required]
         [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
@@ -148,7 +225,7 @@ namespace WebAPI.Controllers.Projects
         public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
-        public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
+        //public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
     }
     public class ProjectMajorWorkItemDTO
     {
@@ -164,6 +241,9 @@ namespace WebAPI.Controllers.Projects
         // FK -> dbo.tProjectComponentCost(Id)
         public int ComponentCostFK { get; set; }
         [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
         public int YearOfWork { get; set; }
         [Required]
         // FK -> dbo.tOptionScopeOfWork(Enum)
@@ -173,17 +253,9 @@ namespace WebAPI.Controllers.Projects
         // FK -> dbo.tOptionInfraType(InfraCode)
         public string InfraTypeFK { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        [Required]
-        public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
-        [Required]
         public bool IsDeleted { get; set; }
-        public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
-        public ICollection<ProjectMajorWorkLocationsDTO> WorkLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
+        //public ProjectComponentCostDTO ComponentCost { get; set; } = null!;
+        //public ICollection<ProjectMajorWorkLocationsDTO> WorkLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
     }
     public class ProjectMajorWorkLocationsDTO
     {
@@ -192,6 +264,9 @@ namespace WebAPI.Controllers.Projects
         public int Id { get; set; }
         // FK -> dbo.tProjectMajorWorkItem(Id)
         public int WorkItemFK { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
@@ -215,16 +290,8 @@ namespace WebAPI.Controllers.Projects
         public double? EndChainage { get; set; }
         public double? Length { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        [Required]
-        public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
-        [Required]
         public bool IsDeleted { get; set; }
-        public ProjectMajorWorkItemDTO WorkItem { get; set; } = null!;
+        //public ProjectMajorWorkItemDTO WorkItem { get; set; } = null!;
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {

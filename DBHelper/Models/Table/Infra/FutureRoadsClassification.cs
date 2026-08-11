@@ -11,6 +11,7 @@ namespace DBHelper.Models.Table.Infra
     {
         [Key]
         public int Id { get; set; }
+        [Required]
         public int ClassificationId { get; set; }
         [Required]
         [MaxLength(10)]

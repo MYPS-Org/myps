@@ -1,10 +1,8 @@
 // import type { PaginationParams, PaginationResponse } from '../../model/Pagination';
 import { httpClient } from '../../services/httpClient';
-import type { TableEnum } from './Model';
 import type { ImportProjectDTO } from '../Project/Model';
 
-
-import type { ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType } from './Model';
+import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -37,6 +35,18 @@ export const fetchProgram = async (data: PaginatedRequest<ProgramFilter>) => {
 export const fetchProgramById = async (programId: string, StageName: string) => {
     try {
         const request = await httpClient.post< ProgramDetailsEnums >(`/Program/ProgramDetails`, { ProgramId: programId, StageName: StageName }, {
+            preloaderMessage: 'Loading program details...'
+        });
+        return request;
+    } catch (error) {
+        console.error('Error fetching program details:', error)
+        throw error;
+    }
+};
+
+export const ShowProjectsInProgram = async (data: ShowProjectsInProgramRequest) => {
+    try {
+        const request = await httpClient.post<ProgramProjectsPaginationResponse>(`/Program/ShowProjectsInProgram`, data, {
             preloaderMessage: 'Loading program details...'
         });
         return request;

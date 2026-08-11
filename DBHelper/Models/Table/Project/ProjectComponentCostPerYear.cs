@@ -17,6 +17,9 @@ namespace DBHelper.Models.Table.Project
         // FK -> dbo.tProjectComponentCost(Id)
         public int ComponentCostFK { get; set; }
         [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
         [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
         [Required]

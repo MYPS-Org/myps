@@ -157,11 +157,13 @@ export const UserGroupsTab: React.FC<UserGroupsTabProps> = ({
 										{group.Description}
 									</TableCell>
 									<TableCell className="text-gray-500">
-										{new Date(group.CreatedDate).toLocaleDateString('en-US', {
-											year: 'numeric',
-											month: 'numeric',
-											day: 'numeric',
-										})}
+										{group.CreatedDate
+											? new Date(group.CreatedDate).toLocaleDateString('en-US', {
+												year: 'numeric',
+												month: 'numeric',
+												day: 'numeric',
+											})
+											: '-'}
 									</TableCell>
 									<TableCell onClick={(e) => e.stopPropagation()}>
 										<div className="flex justify-center space-x-2">

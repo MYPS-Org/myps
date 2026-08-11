@@ -1,14 +1,16 @@
 ﻿//using Castle.Components.DictionaryAdapter.Xml;
-//using Microsoft.AspNetCore.SignalR;
 //using DBHelper.Data;
 //using DBHelper.Models.Enums;
 //using DBHelper.Models.Extra;
+//using DBHelper.Models.Functions.Program;
+//using DBHelper.Models.Functions.Revision;
 //using DBHelper.Models.Table;
 //using DBHelper.Models.Views;
 //using Helpers;
 //using Microsoft.AspNetCore.Authorization;
 //using Microsoft.AspNetCore.Http.HttpResults;
 //using Microsoft.AspNetCore.Mvc;
+//using Microsoft.AspNetCore.SignalR;
 //using Microsoft.EntityFrameworkCore;
 //using Newtonsoft.Json;
 //using System;
@@ -16,126 +18,123 @@
 //using System.Linq;
 //using System.Reflection;
 //using System.Xml;
+//using WebAPI.Controllers.Programs;
+//using WebAPI.MicroService;
 //namespace WebAPI.Controllers.Revision
 //{
 //    [ApiController]
 //    [Route("api/[controller]/[action]")]
 //    public class RevisionController : CoreController
 //    {
-//        public RevisionController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
-        
+//        public RevisionController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
+
 //        [HttpPost]
 //        public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto, CancellationToken cancellationToken)
 //        {
 //            try
 //            {
-//                if (dto.Filters == null)
+//                var filters = new List<(
+//                    string Clause,
+//                    string ParamName,
+//                    object? Value)>();
+
+
+//                if (!string.IsNullOrWhiteSpace(dto.Filters.TransactionId))
 //                {
-//                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+//                    filters.Add((
+//                        "v.TransactionId = @TransactionId",
+//                        "@TransactionId",
+//                        dto.Filters.TransactionId));
 //                }
-//                if (!string.IsNullOrEmpty(dto.SortField))
+//                if (!string.IsNullOrWhiteSpace(dto.Filters.ProjectId))
 //                {
-//                    bool isValid = typeof(DBHelper.Models.Views.Project.Projects)
-//                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-//                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-//                    if (!isValid)
-//                    {
-//                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-//                    }
+//                    filters.Add((
+//                        "v.TransactionId = @TransactionId",
+//                        "@TransactionId",
+//                        dto.Filters.TransactionId));
 //                }
-//                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
-
-//                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-//                if (!isValidDirection)
+//                if (!string.IsNullOrWhiteSpace(dto.Filters.RevisionType))
 //                {
-//                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
+//                    filters.Add((
+//                        "v.RevisionType = @RevisionType",
+//                        "@RevisionStatus",
+//                        dto.Filters.RevisionType));
 //                }
-//                // Validate pagination parameters
-//                if (dto.page < 1) dto.page = 1;
-//                if (dto.limit < 1) dto.limit = 10;
-
-//                var AllowedStatusForCO = await _db.tOptionRevisionStatus
-//                    .AsNoTracking()
-//                    .Where(x => x.Enum == EnumRevisionStatus.Approved)
-//                    .Select(x => (EnumRevisionStatus?)x.Enum)
-//                    .ToListAsync();
-//                bool isCentralOffice = _Session.UserGroupNames.Contains("AUC");
-//                var baseQuery = _db.vRevisionLists.AsNoTracking();
-//                if (isCentralOffice)
+//                if (!string.IsNullOrWhiteSpace(dto.Filters.RevisionStatus))
 //                {
-//                    baseQuery = baseQuery.Where(x => AllowedStatusForCO.Contains(x.RegionStatus) || x.CreatedBy == _Session.UserId);
+//                    filters.Add((
+//                        "v.RevisionStatus = @RevisionStatus",
+//                        "@RevisionStatus",
+//                        dto.Filters.RevisionStatus));
+//                }
+//                if (!string.IsNullOrWhiteSpace(dto.Filters.CurrentStage))
+//                {
+//                    filters.Add((
+//                        "v.CurrentStage = @CurrentStage",
+//                        "@CurrentStage",
+//                        dto.Filters.CurrentStage));
 //                }
 
-
-//                // Apply filters to base query
-//                if (!string.IsNullOrEmpty(dto.Filters?.TransactionId))
-//                    baseQuery = baseQuery.Where(e => e.TransactionId!.Contains(dto.Filters.TransactionId));
-
-//                if (dto.Filters?.RevisionGroupId != null)
-//                    baseQuery = baseQuery.Where(e => e.RevisionGroupId == dto.Filters.RevisionGroupId);
-
-//                if (dto.Filters?.CategoryId != null)
-//                    baseQuery = baseQuery.Where(e => e.CategoryId == dto.Filters.CategoryId);
-
-//                if (dto.Filters?.ReasonId != null)
-//                    baseQuery = baseQuery.Where(e => e.ReasonId == dto.Filters.ReasonId);
-
-//                if (dto.Filters?.RegionStatus != null)
-//                    baseQuery = baseQuery.Where(e => e.RegionStatus == dto.Filters.RegionStatus);
-
-//                if (dto.Filters?.COStatus != null)
-//                    baseQuery = baseQuery.Where(e => e.COStatus == dto.Filters.COStatus);
-
-
-//                // Get total count of filtered results (before pagination)
-//                var totalRecords = await baseQuery.CountAsync();
-
-//                // Apply sorting and pagination
-//                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-//                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-//                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-//                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
-
-
-//                // Apply pagination and execute query
-//                List<DBHelper.Models.Views.RevisionLists> permissionLists = await sortedQuery
-//                   .Skip((dto.page - 1) * dto.limit)
-//                   .Take(dto.limit)
-//                   .ToListAsync();
-
-//                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-//                var RevisionStatus = await _db.tOptionRevisionStatus.ToListAsync();
-//                var response = new
+//                string @Level = "IO";
+//                string[] UserGroup = _Session.UserGroupNames.ToArray();
+//                if (UserGroup.Contains("RPC"))
 //                {
-//                    lists = permissionLists,
-//                    dto.page,
-//                    dto.limit,
-//                    total = totalRecords,
-//                    totalPages,
-//                    Status = RevisionStatus
+//                    @Level = "RO";
+//                }
+//                if (UserGroup.Contains("DPDAdmin"))
+//                {
+//                    @Level = "CO";
+//                }
+//                var sourceParameters =
+//                new List<(string ParamName, object? Value)>
+//                {
+//                    ("@Level", @Level)
 //                };
+//                FilterDataResult<RevisionQueue> result =
+//                    await _db.FilterDataCursor<
+//                        RevisionQueue,
+//                        RevisionRequestsFilter>(
+//                            tableName: $"fRevisionQueue",
+//                            sourceParameters: sourceParameters,
+//                            isTableValuedFunction: true,
+//                            dto: dto,
+//                            filter: filters,
+//                            keyColumn: "Id",
+//                            descending: true,
+//                            includeTotal: true,
+//                            ct: cancellationToken);
 
-//                return Ok(response); // Remove the extra wrapper
+//                if (result.HasError)
+//                {
+//                    return new BadRequestObjectResult(
+//                        new ErrorResult
+//                        {
+//                            Title = "Pagination error",
+//                            Message =
+//                                result.ErrorMessage ??
+//                                "Unable to retrieve the records."
+//                        });
+//                }
+
+//                return Ok(result.Data);
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
-        
+
 //        [HttpPost]
 //        public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
 //        {
 //            try
 //            {
-//                var RevisionTransation = dto.TransactionId.Split('-');
+//                var RevisionTransation = dto.TransactionId.SplitA('-');
 //                string ProjectId = RevisionTransation[0];
-//                var prog = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == ProjectId);
-//                var Project = await _db.fPendingProjectRevisions
-//                .FromSqlInterpolated($"SELECT * FROM fPendingProjectRevisions({dto.TransactionId})")
+//                var Project = await _db.fRevisionProjectDetails
+//                .FromSqlInterpolated($"SELECT * FROM fRevisionProjectDetails({dto.TransactionId})")
 //                .AsNoTracking()
-//                .FirstOrDefaultAsync();
+//                .FirstOrDefaultAsync(cancellationToken);
 //                if (Project == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
@@ -144,9 +143,9 @@
 //                {
 //                    return new BadRequestObjectResult(new { Message = "You don't have permission to view this project.", Title = "Permission Denied" });
 //                }
-//                int? RevisedNumber = Project.RevisedNumber;
+//                int? RevisedNumber = Project.pcma;
 //                var RevisionDetails = await _db.vRevisionLists.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
-//                if(RevisionDetails == null)
+//                if (RevisionDetails == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = "Revision details not found.", Title = "Invalid Revision" });
 //                }
@@ -291,7 +290,7 @@
 //                    Header = SelectedType,
 //                    Category = SelectedCategory,
 //                    Reason = SelectedReason,
-                    
+
 //                    RevisionDetails = RevisionDetails,
 //                    ForCorrectionsDetails = ForCorrections,
 //                    RevisionDocs = RevisionDoc,
@@ -353,10 +352,10 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
-        
+
 //        [HttpPost]
 //        public async Task<IActionResult> ReviseProject([FromBody] ReviseProjectDTO dto, CancellationToken cancellationToken)
 //        {
@@ -367,20 +366,20 @@
 //                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {dto.ProjectId} AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
 //                .AsNoTracking()
 //                .FirstOrDefaultAsync();
-//                if(Project == null)
+//                if (Project == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
 //                }
 //                var ComponentCost = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
 //                string json = JsonConvert.SerializeObject(ComponentCost);
-//                if(ComponentCost.Count == 0)
+//                if (ComponentCost.Count == 0)
 //                {
 //                    return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
 //                }
 //                if (dto.RevisionHeader == 9 || dto.RevisionHeader == 16 || dto.RevisionReason == 47)
 //                {
 //                    var hasTerminated = ComponentCost.FirstOrDefault(x => x.ConstructionStatusName == "Terminated");
-//                    if(hasTerminated == null)
+//                    if (hasTerminated == null)
 //                    {
 //                        return new BadRequestObjectResult(new { Message = "Project has no terminated components", Title = "No Terminated Components" });
 //                    }
@@ -393,7 +392,7 @@
 //                    return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
 //                }
 //                #region Validate PCMA Status
-//                if(ComponentCost == null)
+//                if (ComponentCost == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
 //                }
@@ -462,14 +461,14 @@
 
 //                #region Validate Selected Revision Details
 //                var SelectedType = new DBHelper.Models.Table.OptionRevisionHeader();
-//                var SelectedCategory  = new DBHelper.Models.Table.OptionRevisionCategory();
+//                var SelectedCategory = new DBHelper.Models.Table.OptionRevisionCategory();
 //                var SelectedReason = new DBHelper.Models.Table.OptionRevisionReasons();
 //                SelectedType = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == dto.RevisionHeader);
-//                if(SelectedType == null)
+//                if (SelectedType == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = "Revision Type not found.", Title = "Invalid Revision Type" });
 //                }
-//                if(dto.RevisionCategory != null)
+//                if (dto.RevisionCategory != null)
 //                {
 //                    SelectedCategory = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == dto.RevisionCategory);
 //                    if (SelectedCategory == null)
@@ -504,7 +503,7 @@
 
 //                //var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
 
-                
+
 //                //var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
 //                var ComponentCostYear = await _db.tProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync();
 
@@ -608,12 +607,12 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                return ExceptionHandler(ex);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
-        
+
 //        [HttpPost]
-//        public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto, CancellationToken cancellationToken)  
+//        public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto, CancellationToken cancellationToken)
 //        {
 //            var transaction = await _db.Database.BeginTransactionAsync();
 //            try
@@ -679,7 +678,7 @@
 //                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
 //                if (DocumentNaming == null)
 //                {
-//                    await transaction.RollbackAsync();
+//                    await transaction.RollbackAsync(cancellationToken);
 //                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason. Please contact Administrator.", Title = "Missing Document Naming" });
 //                }
 //                var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
@@ -1012,7 +1011,7 @@
 //                            .ForEach(x => x.ComponentCostId = SelectedComponent.CostId);
 //                        }
 //                    }
-                    
+
 //                }
 //                if (jsonRules.ComponentCostRules.CRUD.CanAdd)
 //                {
@@ -1404,7 +1403,7 @@
 //                        ProjectRevision.ProjectId = NewProjectId;
 //                        ProjectRevision.Id = 0;
 //                        _db.tProjectRevisions.Add(ProjectRevision);
-//                        await _db.SaveChangesAsync();
+//                        await _db.SaveChangesAsync(cancellationToken);
 //                        var AddProjectStage = new ProjectStages
 //                        {
 //                            ReferenceId = ProjectRevision.ReferenceId,
@@ -1444,7 +1443,7 @@
 //                    ExistingProjectRevisions.IsActive = false;
 //                    _db.tRevisionProjects.Update(ExistingProjectRevisions);
 //                }
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                #region Commented Email Notification
 //                //        string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
@@ -1658,20 +1657,20 @@
 //            }
 //            catch (Exception ex)
 //            {
-//                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                await transaction.RollbackAsync(cancellationToken);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
-        
+
 //        [HttpPost]
 //        public async Task<IActionResult> UpdateRevisionStatus([FromBody] UpdateRevisionStatusDTO dto, CancellationToken cancellationToken)
 //        {
 //            var transaction = await _db.Database.BeginTransactionAsync();
 //            try
 //            {
-//                DateTime CurrentDate = Functions.CurrentDate();;
+//                DateTime CurrentDate = Functions.CurrentDate(); ;
 //                var RevisionDetails = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus != EnumRevisionStatus.Rejected || x.COStatus != EnumRevisionStatus.Rejected));
-//                if(RevisionDetails == null)
+//                if (RevisionDetails == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = $"Revision Transaction ID {dto.TransactionId} does not exist in revision requests", Title = "Transaction ID not found" });
 //                }
@@ -1681,7 +1680,7 @@
 //                }
 //                bool isROUser = _Session.UserGroupNames.Contains("RPC");
 //                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
-//                if(!isCOUser && !isROUser)
+//                if (!isCOUser && !isROUser)
 //                {
 //                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to update Revision. Please contact administrator.", Title = "Invalid User Group" });
 //                }
@@ -1712,7 +1711,7 @@
 //                        RevisionDetails.COApprover = _Session.UserId;
 //                        RevisionDetails.COApprovedDate = CurrentDate;
 //                        SelectedProjectRevision.IsActive = true;
-//                        if(OldRevisionProjects != null)
+//                        if (OldRevisionProjects != null)
 //                        {
 //                            OldRevisionProjects.IsActive = false;
 //                        }
@@ -1778,7 +1777,7 @@
 //                                }
 //                                //MajorWorkLocations.Select(x => { x.ProjectId = $"{ProjectDetails.ProjectId}-A"; return x; }).ToList();
 //                                var getProgramId = await _db.tProjects.FirstOrDefaultAsync(x => x.ReferenceId == $"B{ProjectDetails.ProjectId}");
-//                                if(getProgramId == null)
+//                                if (getProgramId == null)
 //                                {
 //                                    return new BadRequestObjectResult(new { Message = $"Program details not found for the given project reference ID,\n\n<b>Project Reference ID:</b> <i><u>B{ProjectDetails.ProjectId}</u></i> ", Title = "Program details not found" });
 //                                }
@@ -1819,9 +1818,9 @@
 //                            });
 //                        }
 //                    }
-                    
+
 //                    _db.tRevisionProjects.Update(SelectedProjectRevision);
-//                    if(OldRevisionProjects != null)
+//                    if (OldRevisionProjects != null)
 //                    {
 //                        _db.tRevisionProjects.Update(OldRevisionProjects);
 //                    }
@@ -1853,17 +1852,17 @@
 //                }
 //                _db.tRevisionDetails.Update(RevisionDetails);
 //                #endregion
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                return Ok(new { Message = $"Revision Updated by {_Session.UserGroupNames}", Title = "Updated Successfully" });
 //            }
 //            catch (Exception ex)
 //            {
-//                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                await transaction.RollbackAsync(cancellationToken);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
-        
+
 //        [HttpPost]
 //        public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto, CancellationToken cancellationToken)
 //        {
@@ -1891,31 +1890,32 @@
 //                List<RevisionTransactionLog> Logs = new List<RevisionTransactionLog>();
 //                #region Validating Created Revision Project Data
 //                var ExistingRevision = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus == EnumRevisionStatus.ForCorrection || x.COStatus == EnumRevisionStatus.ForCorrection));
-//                if(ExistingRevision == null)
+//                if (ExistingRevision == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = $"For Correction revision status does not exist in revision requests,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Transaction ID not found" });
 //                }
 //                var ExistingRevisionProject = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
-//                if(ExistingRevisionProject == null)
+//                if (ExistingRevisionProject == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = $"Revision project details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Project not found" });
 //                }
 //                var ExistingFundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
-//                if(ExistingFundingProfile == null) {
+//                if (ExistingFundingProfile == null)
+//                {
 //                    return new BadRequestObjectResult(new { Message = $"Revision funding profile not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Funding Profile not found" });
 //                }
 //                var ExistingComponent = await _db.tRevisionProjectComponentCost.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
-//                if(ExistingComponent == null)
+//                if (ExistingComponent == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost not found" });
 //                }
 //                var ExistingComponentYear = await _db.tRevisionProjectComponentCostPerYear.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
-//                if(ExistingComponentYear == null)
+//                if (ExistingComponentYear == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = $"Revision component cost per year not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost Per Year not found" });
 //                }
 //                var ExistingMajorWorkItem = await _db.tRevisionProjectMajorWorkItem.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
-//                if(ExistingMajorWorkItem == null)
+//                if (ExistingMajorWorkItem == null)
 //                {
 //                    return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Item not found" });
 //                }
@@ -1945,14 +1945,15 @@
 //                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
 //                if (DocumentNaming == null)
 //                {
-//                    await transaction.RollbackAsync();
+//                    await transaction.RollbackAsync(cancellationToken);
 //                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator.", Title = "Missing Document Naming" });
 //                }
 //                var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
 //                    .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectDetails.ProjectId!) && x.COStatus != EnumRevisionStatus.Approved);
 //                if (HasPendingModification != null)
 //                {
-//                    if(HasPendingModification.RegionStatus == EnumRevisionStatus.Pending || (HasPendingModification.COStatus == EnumRevisionStatus.Pending && HasPendingModification.RegionStatus != EnumRevisionStatus.ForCorrection)) {
+//                    if (HasPendingModification.RegionStatus == EnumRevisionStatus.Pending || (HasPendingModification.COStatus == EnumRevisionStatus.Pending && HasPendingModification.RegionStatus != EnumRevisionStatus.ForCorrection))
+//                    {
 //                        return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
 //                    }
 //                }
@@ -2499,7 +2500,7 @@
 //                .Select(p => p.Name)
 //                .ToList();
 //                var UpdateComponentCostPerYear = dto.ComponentCostPerYear.Where(x => x.Id != 0);
-//                if(ExistingComponentYear.Count > 0)
+//                if (ExistingComponentYear.Count > 0)
 //                {
 //                    bool CanDelete = jsonRules.ComponentCostYearRules.CRUD.CanDelete;
 //                    foreach (var component in UpdateComponentCostPerYear)
@@ -2996,7 +2997,7 @@
 //                                        CreatedDate = CurrentDate
 //                                    });
 //                                }
-//                                if(OldSelectedComponent.Length != UpdateMajorWorkLocation.Length)
+//                                if (OldSelectedComponent.Length != UpdateMajorWorkLocation.Length)
 //                                {
 //                                    Logs.Add(new RevisionTransactionLog
 //                                    {
@@ -3101,7 +3102,7 @@
 //                    DocumentName = NewDocName,
 //                    IsApprovedDocument = false
 //                });
-//                await _db.SaveChangesAsync();
+//                await _db.SaveChangesAsync(cancellationToken);
 //                await transaction.CommitAsync();
 //                return Ok(
 //                    new
@@ -3114,8 +3115,8 @@
 //            }
 //            catch (DbUpdateException ex)
 //            {
-//                await transaction.RollbackAsync();
-//                return ExceptionHandler(ex);
+//                await transaction.RollbackAsync(cancellationToken);
+//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
 //            }
 //        }
 //    }

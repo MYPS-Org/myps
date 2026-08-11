@@ -281,10 +281,10 @@ const Program: React.FC = () => {
                                     {stageLists[program.ProgramPK || '']?.Stages?.map((stage) => (
                                         <TableRow key={stage.Id}>
                                             <TableCell className="font-medium text-sm text-center">{stage.StageName}</TableCell>
-                                            <TableCell className="text-sm text-gray-600 text-center">{stage.TypeName}</TableCell>
-                                            <TableCell className="text-sm text-gray-600 text-center">{stage.YearStart}</TableCell>
+                                            <TableCell className="text-sm text-gray-600 text-center">{stage.ProgramType}</TableCell>
+                                            <TableCell className="text-sm text-gray-600 text-center">{stage.StartYear}</TableCell>
                                             <TableCell className="text-sm font-medium text-center">
-                                                {stage.NumberOfProjects !== undefined ? stage.NumberOfProjects : 'N/A'}
+                                                {stage.ProjectCount !== undefined ? stage.ProjectCount : 'N/A'}
                                             </TableCell>
                                             <TableCell className="text-sm font-medium text-center">
                                                 {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
@@ -293,7 +293,7 @@ const Program: React.FC = () => {
                                                 <Button
                                                     color="blue"
                                                     className="text-xs px-3 py-1.5 text-center"
-                                                    onClick={() => handleViewDetails(stage.ProgramId, stage.Description ?? stage.StageName)}
+                                                    onClick={() => handleViewDetails(stage.ProgramPK, stage.Description ?? stage.StageName)}
                                                 >
                                                     View Details
                                                 </Button>

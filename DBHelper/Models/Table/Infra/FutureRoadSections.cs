@@ -22,11 +22,12 @@ namespace DBHelper.Models.Table.Infra
         [MaxLength(100)]
         public string RoadSectionId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(200)]
-        public string RoadLength { get; set; } = string.Empty;
+        public Double LengthM { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string DEO { get; set; } = string.Empty;
+        [MaxLength(50)]
+        public string DEOParticipantId { get; set; } = string.Empty;
+        [MaxLength(50)]
+        public string? RegionParticipantId { get; set; }
         [Required]
         [MaxLength(200)]
         public string CreatedBy { get; set; } = string.Empty;

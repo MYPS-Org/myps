@@ -1,5 +1,7 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
+using DBHelper.Models.Functions.Program;
+using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Table;
 using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views.Program;
@@ -10,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel;
 using System.Security.Claims;
 using WebAPI.MicroService;
 namespace WebAPI.Controllers.Programs
@@ -18,7 +21,7 @@ namespace WebAPI.Controllers.Programs
     [Route("api/[controller]/[action]")]
     public class ProgramController : CoreController
     {
-        public ProgramController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
+        public ProgramController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
         #region Program Lists
         
         [HttpPost]
@@ -46,10 +49,9 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto, CancellationToken cancellationToken)
         {
@@ -137,7 +139,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             Title = "Pagination error",
                             Message =
-                                result.ToString() ??
+                                result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
                 }
@@ -146,12 +148,12 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         
         [HttpPost]
-        public async Task<IActionResult> ShowProgramStages([FromBody] ProgramDetailsDTO dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> ShowProgramStages([FromBody] ShowProgramStagesDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -179,7 +181,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -206,7 +208,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
         
@@ -253,7 +255,6 @@ namespace WebAPI.Controllers.Programs
                 var newProgram = new DBHelper.Models.Table.Program.Programs()
                 {
                     ProgramPK = NewProgramUniqueId,
-                    ProgramId = NewProgramUniqueId,
                     DataSecurityGroup = dto.DataSecurityGroup,
                     UserGroup = dto.UserGroup,
                     Type = dto.Type,
@@ -262,7 +263,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = CurrentDate,
                 };
                 await _db.tPrograms.AddAsync(newProgram);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 var newRevisions = new DBHelper.Models.Table.Program.ProgramRevisions()
                 {
                     ProgramFK = NewProgramUniqueId,
@@ -274,7 +275,7 @@ namespace WebAPI.Controllers.Programs
 
                 };
                 await _db.tProgramRevisions.AddAsync(newRevisions);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await _db.tProgramStages.AddAsync(new DBHelper.Models.Table.Program.ProgramStages()
                 {
                     ProgramFK = NewProgramUniqueId,
@@ -285,7 +286,7 @@ namespace WebAPI.Controllers.Programs
                     CreatedBy = UserId,
                     CreatedDate = CurrentDate,
                 });
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -297,14 +298,81 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion
         #region Program Details
+        [HttpPost]
+        public async Task<IActionResult> ShowProjectsInProgram([FromBody] ShowProjectsInProgramDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
 
-        [AllowAnonymous]
+                if (!string.IsNullOrEmpty(dto.Filters.ProjectId))
+                    filters.Add(("v.ProjectId = @projectId", "@projectId", dto.Filters.ProjectId));
+                if (_Session.ApplyFilter)
+                {
+                    filters.Add((
+                        "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
+                        "@regCode", _Session.RegCode));
+                }
+                if (!Enum.TryParse<EnumProgramStage>(
+                    dto.StageName.Replace("-", ""),
+                    ignoreCase: true,
+                    out var stage))
+                {
+                    return new BadRequestObjectResult(new ErrorResult
+                    {
+                        Title = "Invalid stage",
+                        Message = $"Invalid StageName: '{dto.StageName}'."
+                    });
+                }
+                var sourceParameters =
+                new List<(string ParamName, object? Value)>
+                {
+                    ("@ProgramId", dto.ProgramId),
+                    ("@StageId", (int)stage)
+                };
+                FilterDataResult<ProgramProjects> result =
+                    await _db.FilterDataCursor<
+                        ProgramProjects,
+                        ShowProjectsInProgramFilterDTO>(
+                            tableName: $"fProgramProjects",
+                            sourceParameters: sourceParameters,
+                            isTableValuedFunction: true,
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
+                {
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ErrorMessage ??
+                                "Unable to retrieve the records."
+                        });
+                }
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+        }
+
         [HttpPost]
         public async Task<IActionResult> ProgramDetails([FromBody] ProgramDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -329,7 +397,7 @@ namespace WebAPI.Controllers.Programs
                 var ProgramRevision = ValidateProgram.Data.ProgramRevision;
                 var ProgramStage = ValidateProgram.Data.ProgramStage;
 
-                var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramRevision.ProgramFK);
+                var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramRevision.ProgramPK, cancellationToken);
                 if(CurrentProgramVersion == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the System.", Title = "Program not found" });
@@ -365,11 +433,9 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto, CancellationToken cancellationToken)
         {
@@ -406,7 +472,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
-                var ProgramRevisions = ValidateProgramId.Data.ProgramRevision;
+                var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
                 if (StagesToCheck.Contains(ProgramStage.StageId))
                 {
@@ -425,7 +491,7 @@ namespace WebAPI.Controllers.Programs
                     {
                         return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it is not in a deletable stage.", Title = "Delete Not Allowed" });
                     }
-                    if (ProgramRevisions.Cost > 0)
+                    if (ProgramDetails.Cost > 0)
                     {
                         return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has projects associated with it.", Title = "Delete Not Allowed" });
                     }
@@ -443,23 +509,25 @@ namespace WebAPI.Controllers.Programs
                 };
                 await _db.tTransactionLog.AddRangeAsync(TransactionLog);
 
+                var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
+
                 var ProjectsInProgram = await _db.tProjects.Where(x => x.ProgramId == ProgramRevisions.ProgramId).AsNoTracking().ToListAsync();
                 HashSet<string> ReferenceIds = ProjectsInProgram.Select(x => x.ProjectPK).ToHashSet();
                 var ProjectRevisions = await _db.tProjectRevisions.Where(x => ReferenceIds.Contains(x.ProjectFK)).AsNoTracking().ToListAsync();
                 var ProjectStages = await _db.tProjectStages.Where(x => ReferenceIds.Contains(x.ProjectFK)).AsNoTracking().ToListAsync();
 
                 _db.tProjectStages.RemoveRange(ProjectStages);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 _db.tProjectRevisions.RemoveRange(ProjectRevisions);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
 
                 _db.tProjects.RemoveRange(ProjectsInProgram);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
 
                 _db.tProgramStages.RemoveRange(ProgramStage);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 _db.tProgramRevisions.RemoveRange(ProgramRevisions);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
 
                 _db.tPrograms.Remove(ProgramParent);
 
@@ -470,7 +538,7 @@ namespace WebAPI.Controllers.Programs
                 //_db.tProjectRevisions.RemoveRange(ProjectRevisions);
                 //_db.tProjectStages.RemoveRange(ProjectStages);
 
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -480,8 +548,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         
@@ -509,7 +577,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
-                var ProgramRevisions = ValidateProgramId.Data.ProgramRevision;
+                var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty.", Title = "Update Failed" }); }
@@ -523,6 +591,7 @@ namespace WebAPI.Controllers.Programs
                 //    CreatedBy = _Session.UserId,
                 //    CreatedDate = CurrentDate
                 //};
+                var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
                 if (dto.Name != ProgramRevisions.Name && !string.IsNullOrEmpty(ProgramRevisions.Name))
                 {
                     hasUpdated = true;
@@ -637,7 +706,7 @@ namespace WebAPI.Controllers.Programs
                 if (hasUpdated)
                 {
                     _db.tProgramRevisions.Update(ProgramRevisions);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await _db.tProgramStages.AddAsync(new DBHelper.Models.Table.Program.ProgramStages()
                     {
                         ProgramFK = ProgramRevisions.ProgramFK,
@@ -649,7 +718,7 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate,
                     });
                     await _db.tTransactionLog.AddRangeAsync(transactionLogs);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
                 }
                 return Ok(new
@@ -660,11 +729,11 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateProgramStage([FromBody] UpdateProgramStageDTO dto, CancellationToken cancellationToken)
         {
@@ -680,18 +749,28 @@ namespace WebAPI.Controllers.Programs
                 string ProgramId = dto.ProgramId;
                 DateTime CurrentDate = Functions.CurrentDate();
 
+                var currentVersion = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId, cancellationToken);
+                if (currentVersion == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Program Stage Not Found",
+                        Message = "The requested program stage could not be found. The program may no longer exist or you may be viewing an outdated stage. Please return to the Program List and open the program again to view the latest available stage."
+                    });
+                }
                 var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
                 {
                     ProgramId = dto.ProgramId,
-                    StageName = dto.Stage.ToString(),
+                    StageName = currentVersion.StageName.ToString(),
                     _Session = _Session
                 }, cancellationToken);
                 if(!ValidateProgramId.IsValid) {
                     return new BadRequestObjectResult(new { Message = ValidateProgramId.Message, Title = ValidateProgramId.Title });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
-                var ProgramRevision = ValidateProgramId.Data.ProgramRevision;
+                var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
+                var ProgramRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
 
                 var checkProjects = await _db.vProjectLatest
                 .Where(x => x.ProgramFK == ProgramParent.ProgramPK)
@@ -699,7 +778,7 @@ namespace WebAPI.Controllers.Programs
                 .ToListAsync();
                 if (checkProjects.Count > 0)
                 {
-                    HashSet<int> ProjectRevisionFK = checkProjects.Select(x => x.Id).ToHashSet();
+                    HashSet<int> ProjectRevisionFK = checkProjects.Select(x => x.RevisionId).ToHashSet();
 
                     var FundingProfiles = await _db.tProjectFundingProfile.AsNoTracking().Where(x => ProjectRevisionFK.Contains(x.ProjectRevisionFK) && !x.IsDeleted).ToListAsync();
 
@@ -728,9 +807,9 @@ namespace WebAPI.Controllers.Programs
                         NewRevisions.AddRange(ProjectRevisions.Select(project => new ProjectRevisions()
                         {
                             ProjectFK = project.ProjectFK,
-                            ProgramFK = project.ProgramId,
+                            ProgramFK = project.ProgramFK,
                             ProgramId = NewProgramUniqueId,
-                            ProjectId = project.ProjectId,
+                            ProjectId = HasNewProjectId ? project.ProjectId.ReplaceFirst("BP", FirstSegment) : project.ProjectId,
                             MYCAApprovalDate = project.MYCAApprovalDate,
                             Description = project.Description,
                             Region = project.Region,
@@ -774,14 +853,14 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         };
                         await _db.tTransactionLog.AddAsync(transactionLog);
-                        await _db.SaveChangesAsync();
+                        await _db.SaveChangesAsync(cancellationToken);
                         #endregion
                         #region Project Stages
-                        var newStages = NewRevisions.Select(pr => new ProjectStages
+                        var newStages = NewRevisions.Select(pr => new DBHelper.Models.Table.Project.ProjectStages
                         {
                             ProjectFK = pr.ProjectFK,
                             ProgramFK = pr.ProgramFK,
-                            ProgramId = dto.ProgramId,
+                            ProgramId = NewProgramUniqueId,
                             RevisionId = pr.Id,
                             StageId = dto.Stage,
                             StageName = ValidateStage.Name,
@@ -802,7 +881,7 @@ namespace WebAPI.Controllers.Programs
                                     on newRevision.ProjectFK equals oldRevision.ProjectFK
                                 join fundingProfile in FundingProfiles
                                     on oldRevision.Id equals fundingProfile.ProjectRevisionFK
-                                select new ProjectFundingProfile
+                                select new DBHelper.Models.Table.Project.ProjectFundingProfile
                                 {
                                     ProjectRevisionFK = newRevision.Id,
                                     SourceOrg = fundingProfile.SourceOrg,
@@ -818,88 +897,181 @@ namespace WebAPI.Controllers.Programs
                             await _db.tProjectFundingProfile.AddRangeAsync(NewFundingProfiles);
                         }
                         #endregion
-                        #region Component Costs
-                        List<ProjectComponentCost> NewComponent = new List<ProjectComponentCost>();
-                        List<ProjectMajorWorkItem> NewMajorItems = new List<ProjectMajorWorkItem>();
+                        #region Component Costs with Per Year, Major Work Items and Major Work Locations
                         if (Components.Count() > 0)
                         {
                             var componentYearsLookup = ComponentsPerYear.ToLookup(x => x.ComponentCostFK);
+
                             var majorItemsLookup = MajorItems
                                 .ToLookup(x => x.ComponentCostFK);
+
                             var majorLocationsLookup = MajorLocations
                                 .ToLookup(x => x.WorkItemFK);
-                            NewComponent = Components
-                                .Where(component => ComponentCostFK.Contains(component.Id))
-                                .Select(component => new ProjectComponentCost
+                            #region ComponentCost
+                            var NewComponentCost =
+                            (
+                                from newRevision in NewRevisions
+                                join oldRevision in ProjectRevisions
+                                    on newRevision.ProjectFK equals oldRevision.ProjectFK
+                                join cc in Components
+                                    on oldRevision.Id equals cc.ProjectRevisionFK
+                                select new DBHelper.Models.Table.Project.ProjectComponentCost
                                 {
-                                    ProjectRevisionFK = component.ProjectRevisionFK,
-                                    ComponentType = component.ComponentType,
-                                    ComponentId = component.ComponentId,
-                                    Description = component.Description,
-                                    Total = component.Total,
-                                    CreatedBy = component.CreatedBy,
-                                    CreatedDate = component.CreatedDate,
-                                    IsDeleted = component.IsDeleted,
+                                    ProjectRevisionFK = newRevision.Id,
 
-                                    #region Cost Per Year
-                                    CostsPerYear = componentYearsLookup[component.Id]
-                                        .Select(year => new ProjectComponentCostPerYear
-                                        {
-                                            // Do not assign ComponentCostFK manually.
-                                            // EF Core obtains it from the parent relationship.
-                                            Amount = year.Amount,
-                                            Year = year.Year,
-                                            UACS = year.UACS,
-                                            StartDate = year.StartDate,
-                                            EndDate = year.EndDate,
-                                            CreatedBy = year.CreatedBy,
-                                            CreatedDate = year.CreatedDate,
-                                            IsDeleted = year.IsDeleted
-                                        })
-                                        .ToList(),
-                                    #endregion
+                                    ComponentType = cc.ComponentType,
+                                    ComponentId = cc.ComponentId,
+                                    Description = cc.Description,
+                                    Total = cc.Total,
 
-                                    #region Work Items and Locations
-                                    WorkItem = majorItemsLookup[component.Id]
-                                        .Select(majorItem => new ProjectMajorWorkItem
-                                        {
-                                            // Do not set ComponentCostFK.
-                                            YearOfWork = majorItem.YearOfWork,
-                                            WorkTypeFK = majorItem.WorkTypeFK,
-                                            InfraTypeFK = majorItem.InfraTypeFK,
-                                            CreatedBy = majorItem.CreatedBy,
-                                            CreatedDate = majorItem.CreatedDate,
-                                            IsDeleted = majorItem.IsDeleted,
+                                    CreatedBy = cc.CreatedBy,
+                                    CreatedDate = cc.CreatedDate,
 
-                                            WorkLocations = majorLocationsLookup[majorItem.Id]
-                                                .Select(location => new ProjectMajorWorkLocations
-                                                {
-                                                    // Do not set WorkItemFK.
-                                                    InfraId = location.InfraId,
-                                                    DetailedScope = location.DetailedScope,
-                                                    TargetUnitId = location.TargetUnitId,
-                                                    TargetUnit = location.TargetUnit,
-                                                    StartX = location.StartX,
-                                                    StartY = location.StartY,
-                                                    EndX = location.EndX,
-                                                    EndY = location.EndY,
-                                                    PhysicalTarget = location.PhysicalTarget,
-                                                    StartStationLimit = location.StartStationLimit,
-                                                    EndStationLimit = location.EndStationLimit,
-                                                    StartChainage = location.StartChainage,
-                                                    EndChainage = location.EndChainage,
-                                                    Length = location.Length,
-                                                    CreatedBy = location.CreatedBy,
-                                                    CreatedDate = location.CreatedDate,
-                                                    IsDeleted = location.IsDeleted
-                                                })
-                                                .ToList()
-                                        })
-                                        .ToList()
-                                    #endregion
-                                })
-                                .ToList();
-                            await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
+                                    UpdatedBy = cc.UpdatedBy,
+                                    UpdatedDate = cc.UpdatedDate,
+
+                                    IsDeleted = cc.IsDeleted
+                                }
+                            )
+                            .ToList();
+
+                            await _db.tProjectComponentCost
+                                .AddRangeAsync(NewComponentCost);
+                            await _db.SaveChangesAsync();
+                            #endregion
+
+                            #region Component Per Year
+                            var NewComponentCostPerYear =
+                            (
+                                from cc in NewComponentCost
+
+                                join year in ComponentsPerYear
+                                    on cc.ComponentId equals year.ComponentId
+
+                                select new DBHelper.Models.Table.Project.ProjectComponentCostPerYear
+                                {
+                                    ComponentCostFK = cc.Id,
+
+                                    ComponentId = year.ComponentId,
+
+                                    Amount = year.Amount,
+                                    Year = year.Year,
+                                    UACS = year.UACS,
+
+                                    StartDate = year.StartDate,
+                                    EndDate = year.EndDate,
+
+                                    CreatedBy = year.CreatedBy,
+                                    CreatedDate = year.CreatedDate,
+
+                                    UpdatedBy = year.UpdatedBy,
+                                    UpdatedDate = year.UpdatedDate,
+
+                                    IsDeleted = year.IsDeleted,
+                                }
+                            )
+                            .ToList();
+
+                            await _db.tProjectComponentCostPerYear
+                                .AddRangeAsync(NewComponentCostPerYear);
+                            #endregion
+
+                            #region Major Work Items
+                            var NewMajorWorkItems =
+                            (
+                                from cc in NewComponentCost
+
+                                join workItem in MajorItems
+                                    on cc.ComponentId equals workItem.ComponentId
+
+                                select new DBHelper.Models.Table.Project.ProjectMajorWorkItem
+                                {
+                                    // New Component Cost identity
+                                    ComponentCostFK = cc.Id,
+
+                                    ComponentId = workItem.ComponentId,
+
+                                    YearOfWork = workItem.YearOfWork,
+                                    WorkTypeFK = workItem.WorkTypeFK,
+                                    InfraTypeFK = workItem.InfraTypeFK,
+
+                                    CreatedBy = workItem.CreatedBy,
+                                    CreatedDate = workItem.CreatedDate,
+
+                                    UpdatedBy = workItem.UpdatedBy,
+                                    UpdatedDate = workItem.UpdatedDate,
+
+                                    IsDeleted = workItem.IsDeleted
+                                }
+                            )
+                            .ToList();
+
+                            await _db.tProjectMajorWorkItem
+                                .AddRangeAsync(NewMajorWorkItems);
+                            await _db.SaveChangesAsync();
+                            #endregion
+
+                            #region Major Work Locations
+                            var NewMajorWorkLocations =
+                            (
+                                from location in MajorLocations
+
+                                    // Find which OLD work item owns this location
+                                join oldWorkItem in MajorItems
+                                    on location.WorkItemFK equals oldWorkItem.Id
+
+                                // Find its equivalent NEW work item
+                                join newWorkItem in NewMajorWorkItems
+                                    on new
+                                    {
+                                        oldWorkItem.ComponentId,
+                                        oldWorkItem.YearOfWork,
+                                        oldWorkItem.WorkTypeFK,
+                                        oldWorkItem.InfraTypeFK
+                                    }
+                                    equals new
+                                    {
+                                        newWorkItem.ComponentId,
+                                        newWorkItem.YearOfWork,
+                                        newWorkItem.WorkTypeFK,
+                                        newWorkItem.InfraTypeFK
+                                    }
+
+                                select new DBHelper.Models.Table.Project.ProjectMajorWorkLocations
+                                {
+                                    WorkItemFK = newWorkItem.Id,
+
+                                    ComponentId = location.ComponentId,
+
+                                    InfraId = location.InfraId,
+                                    DetailedScope = location.DetailedScope,
+
+                                    TargetUnitId = location.TargetUnitId,
+                                    TargetUnit = location.TargetUnit,
+
+                                    StartX = location.StartX,
+                                    StartY = location.StartY,
+                                    EndX = location.EndX,
+                                    EndY = location.EndY,
+
+                                    PhysicalTarget = location.PhysicalTarget,
+
+                                    StartStationLimit = location.StartStationLimit,
+                                    EndStationLimit = location.EndStationLimit,
+
+                                    StartChainage = location.StartChainage,
+                                    EndChainage = location.EndChainage,
+
+                                    Length = location.Length,
+
+                                    CreatedBy = location.CreatedBy,
+                                    CreatedDate = location.CreatedDate,
+
+                                    IsDeleted = location.IsDeleted
+                                }
+                            )
+                            .ToList();
+                            #endregion
                         }
                         #endregion
                         #region Supporting Documents
@@ -931,8 +1103,6 @@ namespace WebAPI.Controllers.Programs
                         #endregion
                         #endregion
 
-
-
                         #endregion
                         #region Program Level
                         #region Program Revisions
@@ -947,13 +1117,13 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         };
                         await _db.tProgramRevisions.AddAsync(NewProgramRevision);
-                        await _db.SaveChangesAsync();
+                        await _db.SaveChangesAsync(cancellationToken);
                         #endregion
                         #region Program Stages
                         var newStage = new DBHelper.Models.Table.Program.ProgramStages()
                         {
                             ProgramFK = ProgramParent.ProgramPK,
-                            ProgramId = dto.ProgramId,
+                            ProgramId = NewProgramUniqueId,
                             RevisionId = NewProgramRevision.Id,
                             StageId = dto.Stage,
                             StageName = ValidateStage.Name,
@@ -963,11 +1133,17 @@ namespace WebAPI.Controllers.Programs
                         await _db.tProgramStages.AddAsync(newStage);
                         if(dto.Stage == EnumProgramStage.GAAR)
                         {
-                            var SyncPublishableProjects = await _db.pRecomputeProjectPublishable.FromSqlInterpolated($"EXEC pRecomputeProjectPublishable {ProgramParent.ProgramPK}").FirstOrDefaultAsync();
+                            var syncPublishableProjects = (
+                                await _db.Database
+                                    .SqlQuery<int>(
+                                        $"EXEC dbo.pRecomputeProjectPublishable @ProgramFK = {ProgramParent.ProgramPK}"
+                                    )
+                                    .ToListAsync()
+                            ).FirstOrDefault();
                         }
                         #endregion
                         #endregion
-                        await _db.SaveChangesAsync();
+                        await _db.SaveChangesAsync(cancellationToken);
                         await transaction.CommitAsync();
                         return Ok(new
                         {
@@ -976,6 +1152,22 @@ namespace WebAPI.Controllers.Programs
                         });
                     }
                 }
+
+
+                //var ValidateProgram = await _db.ValidateProgramId(new ProgramHelperParams
+                //{
+                //    ProgramId = dto.ProgramId,
+                //    StageName = dto.StageName,
+                //    _Session = _Session,
+                //    ViewOldStage = true
+                //}, cancellationToken);
+                //if (!ValidateProgram.IsValid)
+                //{
+                //    return new BadRequestObjectResult(new { Message = ValidateProgram.Message, Title = ValidateProgram.Title });
+                //}
+                //ProgramParent = ValidateProgram.Data.Program;
+                //ProgramRevision = ValidateProgram.Data.ProgramRevision;
+                //ProgramStage = ValidateProgram.Data.ProgramStage;
                 return new BadRequestObjectResult(new
                 {
                     Message = "No projects are linked to this program.",
@@ -984,8 +1176,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
@@ -1150,7 +1342,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         [HttpPost]
@@ -1351,7 +1543,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -1533,7 +1725,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
 
@@ -1608,7 +1800,7 @@ namespace WebAPI.Controllers.Programs
 
                 if (latestDeletedRevisionsQuery.Count() > 0)
                 {
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
 
                     return Ok(new
@@ -1626,8 +1818,8 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
         #endregion

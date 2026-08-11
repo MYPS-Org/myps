@@ -42,10 +42,9 @@ function getUniqueRegions(deos: RODEOEnum[]): RegionOption[] {
     const seen = new Set<string>();
     const result: RegionOption[] = [];
     for (const deo of deos) {
-        if (!seen.has(deo.RegionParticipantId)) {
-            seen.add(deo.RegionParticipantId);
-            result.push({ ParticipantId: deo.RegionParticipantId, Name: deo.RegionName });
-        }
+        if (!deo.RegionParticipantId || seen.has(deo.RegionParticipantId)) continue;
+        seen.add(deo.RegionParticipantId);
+        result.push({ ParticipantId: deo.RegionParticipantId, Name: deo.RegionName || '' });
     }
     return result;
 }
@@ -53,7 +52,7 @@ function getUniqueRegions(deos: RODEOEnum[]): RegionOption[] {
 /**
  * Standard filtering rules for normal projects.
  * Province → Cities, LDs, DEOs
- * City / LD / DEO → cross-filter each other via ProvinceGdbId
+ * City / LD / DEO → cross-filter each other via ProvinceCode
  * DEO → IOs (region-scoped R orgs + UPMO)
  * IO  → OUs
  * Region options are derived from the currently selected DEO.
@@ -63,31 +62,31 @@ export function getStandardLocationFilters(
     details: LocationDetails,
 ): FilteredLocationData {
     let availableCities = enums.Cities || [];
-    let availableLDs = enums.LDs || [];
+    let availableLDs = enums.LegislativeDistricts || [];
     let availableDEOs = enums.DEOs || [];
-    let availableIOs = enums.IOs || [];
+    let availableIOs = enums.ImplementingOffices || [];
     let availableOUs = enums.OperatingUnits || [];
 
     // ── Province-based filtering ──────────────────────────────────────────
     if (details.Province) {
-        const ProvinceGdbId = details.Province;
-        availableCities = enums.Cities?.filter((city) => city.ProvinceGdbId === ProvinceGdbId) || [];
-        availableLDs = enums.LDs?.filter((ld) => ld.ProvinceGdbId === ProvinceGdbId) || [];
-        availableDEOs = enums.DEOs?.filter((deo) => deo.ProvinceGdbId === ProvinceGdbId) || [];
+        const provinceCode = details.Province;
+        availableCities = enums.Cities?.filter((city) => city.ProvinceCode === provinceCode) || [];
+        availableLDs = enums.LegislativeDistricts?.filter((ld) => ld.ProvinceCode === provinceCode) || [];
+        availableDEOs = enums.DEOs?.filter((deo) => deo.ProvinceCode === provinceCode) || [];
     } else if (details.City) {
-        const selectedCity = enums.Cities?.find((city) => city.GdbId === details.City);
+        const selectedCity = enums.Cities?.find((city) => city.Code === details.City);
         if (selectedCity) {
-            availableLDs = enums.LDs?.filter((ld) => ld.ProvinceGdbId === selectedCity.ProvinceGdbId) || [];
+            availableLDs = enums.LegislativeDistricts?.filter((ld) => ld.ProvinceCode === selectedCity.ProvinceCode) || [];
         }
     } else if (details.LegislativeDistrict) {
-        const selectedLD = enums.LDs?.find((ld) => ld.GdbId === details.LegislativeDistrict);
+        const selectedLD = enums.LegislativeDistricts?.find((ld) => ld.Code === details.LegislativeDistrict);
         if (selectedLD) {
-            availableCities = enums.Cities?.filter((city) => city.ProvinceGdbId === selectedLD.ProvinceGdbId) || [];
+            availableCities = enums.Cities?.filter((city) => city.ProvinceCode === selectedLD.ProvinceCode) || [];
         }
     } else if (details.DEO) {
         const selectedDEO = enums.DEOs?.find((deo) => deo.ParticipantId === details.DEO?.toString());
         if (selectedDEO) {
-            availableCities = enums.Cities?.filter((city) => city.ProvinceGdbId === selectedDEO.ProvinceGdbId) || [];
+            availableCities = enums.Cities?.filter((city) => city.ProvinceCode === selectedDEO.ProvinceCode) || [];
         }
     }
 
@@ -95,7 +94,7 @@ export function getStandardLocationFilters(
     if (details.DEO) {
         const selectedDEO = enums.DEOs?.find((deo) => deo.ParticipantId === details.DEO?.toString());
         if (selectedDEO) {
-            availableIOs = enums.IOs?.filter(
+            availableIOs = enums.ImplementingOffices?.filter(
                 (io) =>
                     (io.RegionParticipantId === selectedDEO.RegionParticipantId && io.OrgType === 'R') ||
                     io.OrgType === 'UPMO' ||
@@ -103,12 +102,12 @@ export function getStandardLocationFilters(
             ) || [];
         }
     } else {
-        availableIOs = enums.IOs?.filter((io) => io.OrgType === 'UPMO') || [];
+        availableIOs = enums.ImplementingOffices?.filter((io) => io.OrgType === 'UPMO') || [];
     }
 
     // ── OU filtering (IO-scoped) ──────────────────────────────────────────
     if (details.ImplementingOffice) {
-        const selectedIO = enums.IOs?.find((io) => io.ParticipantId === details.ImplementingOffice);
+        const selectedIO = enums.ImplementingOffices?.find((io) => io.ParticipantId === details.ImplementingOffice);
         const selectedDEO = enums.DEOs?.find((deo) => deo.ParticipantId === details.DEO?.toString());
         if (selectedIO) {
             availableOUs = enums.OperatingUnits?.filter(
@@ -124,9 +123,9 @@ export function getStandardLocationFilters(
     }
 
     // ── Region options (derived from selected DEO) ────────────────────────
-    const regions = (enums.DEOs || [])
-        .filter((deo) => deo.ParticipantId === details.DEO)
-        .map((deo) => ({ ParticipantId: deo.RegionParticipantId, Name: deo.RegionName }));
+    const regions = getUniqueRegions(
+        (enums.DEOs || []).filter((deo) => deo.ParticipantId === details.DEO),
+    );
 
     return {
         cities: availableCities,
@@ -149,14 +148,14 @@ export function getLumpsumLocationFilters(
     details: LocationDetails,
 ): FilteredLocationData {
     // All location fields are unfiltered for LS
-    let availableIOs = enums.IOs?.filter((io) => io.OrgType === 'UPMO') || [];
+    let availableIOs = enums.ImplementingOffices?.filter((io) => io.OrgType === 'UPMO') || [];
     let availableOUs = enums.OperatingUnits || [];
 
     // Still apply IO → OU scoping if IO is selected
     if (details.ImplementingOffice) {
-        const selectedIO = enums.IOs?.find((io) => io.ParticipantId === details.ImplementingOffice);
+        const selectedIO = enums.ImplementingOffices?.find((io) => io.ParticipantId === details.ImplementingOffice);
         if (selectedIO) {
-            availableIOs = enums.IOs?.filter(
+            availableIOs = enums.ImplementingOffices?.filter(
                 (io) => io.OrgType === 'UPMO' || io.ParticipantId === selectedIO.ParticipantId,
             ) || [];
             availableOUs = enums.OperatingUnits?.filter(
@@ -170,7 +169,7 @@ export function getLumpsumLocationFilters(
 
     return {
         cities: enums.Cities || [],
-        legislativeDistricts: enums.LDs || [],
+        legislativeDistricts: enums.LegislativeDistricts || [],
         deos: enums.DEOs || [],
         ios: availableIOs,
         ous: availableOUs,

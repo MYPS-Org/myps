@@ -53,7 +53,7 @@ export interface WalletFundingProfile {
   Percentage: number;
   Amount: number;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   IsDeleted: boolean;
 }
 
@@ -73,7 +73,7 @@ export interface WalletComponentCost {
   PackedStatusCode?: boolean;
   PackedStatusName?: string;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy?: string;
   UpdatedDate?: string;
 }
@@ -87,7 +87,7 @@ export interface WalletComponentCostPerYear {
   StartDate?: string | null;
   EndDate?: string | null;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy?: string;
   UpdatedDate?: string;
   IsDeleted: boolean;
@@ -184,7 +184,7 @@ export interface LSWallet {
 
   // Audit
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedBy?: string;
   UpdatedDate?: string;
   IsDeleted: boolean;
@@ -285,7 +285,7 @@ export interface ItemizedProject {
   RowAvailable?: number;
 
   // ── Audit ─────────────────────────────────────────────────────────────────
-  CreatedDate: string;
+  CreatedDate: string | null;
   UpdatedDate?: string;
 }
 
@@ -317,7 +317,7 @@ export interface ItemizedProjectRevision {
   Notes?: string;
   RequestedCost: number;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
 }
 
 // ---------------------------------------------------------------------------

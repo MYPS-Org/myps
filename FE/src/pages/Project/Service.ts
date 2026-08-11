@@ -29,22 +29,11 @@ export const initProgramDetails = async (programId: number) => {
     }
 }
 
-const mapToProgramList = (program: ProgramLatest): ProgramList => ({
-    Id: program.Id,
-    RevisionId: program.RevisionId,
-    ProgramId: program.ProgramId,
-    NumberOfProjects: program.NumberOfProjects,
-    TypeName: program.Type,
-    StageName: program.StageName,
-    StageId: program.StageId,
-    Name: program.Name,
-    RegionCode: '',
-    Type: program.Type,
-    YearStart: program.StartYear,
+// vProgramLatest has no end-year column, so YearEnd isn't returned by /Program/ShowProgram.
+// Fall back to StartYear here to preserve the year-range behavior consumers (e.g. ComponentCostDialog) expect.
+const mapToProgramLatest = (program: ProgramLatest): ProgramLatest => ({
+    ...program,
     YearEnd: program.StartYear,
-    CreatedBy: '',
-    CreatedDate: '',
-    IsPublishable: true,
 });
 
 export const searchProgram = async (programName: string, limit: number = 100): Promise<ApiResponse<SearchProgram>> => {
@@ -57,7 +46,7 @@ export const searchProgram = async (programName: string, limit: number = 100): P
         });
         return {
             ...response,
-            Data: { Programs: (response.Data.lists || []).map(mapToProgramList) }
+            Data: { Programs: (response.Data.lists || []).map(mapToProgramLatest) }
         };
     } catch (ErrorResponse) {
         console.error('Error searching program:', ErrorResponse);
@@ -239,10 +228,10 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
 export const fetchProjectGeoJSON = async (referenceId: string, programId: string, username: string, stageName: string) => {
     try {
         const response = await gisClient.get(
-            `/api_v1.0/project/features_v4`,
+            `/projects_and_programs/get_proj_geom`,
             {
                 project_id: referenceId,
-                program_id: programId,
+                program_pk: programId,
                 username,
                 program_stage_name: stageName,
             },
@@ -258,7 +247,7 @@ export const fetchProjectGeoJSON = async (referenceId: string, programId: string
 export const chainageToLrpConverter = async (sectionId: string, chainage: number) => {
     try {
         const response = await gisClient.get(
-            `/api_v1.0/infra/chainage_to_lrp`,
+            `/infra_inventory/lrp/chainage_to_lrp`,
             {
                 road_section_id: sectionId,
                 chainage: chainage.toString(),
@@ -289,7 +278,7 @@ export const importProject = async (payload: ImportProjectDTO) => {
 export const lrpToChainageConverter = async (sectionId: string, lrp: string) => {
     try {
         const response = await gisClient.get(
-            `/api_v1.0/infra/lrp_to_chainage`,
+            `/infra_inventory/lrp/lrp_to_chainage`,
             {
                 road_section_id: sectionId,
                 lrp_string: lrp,
@@ -303,15 +292,15 @@ export const lrpToChainageConverter = async (sectionId: string, lrp: string) => 
     }
 };
 
-export const autoFillComponentDescription = async (username: string, reference_id: string, project_component_id: string, program_id: string, program_stage_name: string) => {
+export const autoFillComponentDescription = async (username: string, project_id: string, component_id: string, program_pk: string, program_stage_name: string) => {
     try {
         const response = await gisClient.get(
-            `/api_v1.0/infra/describe_project_component`,
+            `/projects_and_programs/get_proj_component_description`,
             {
                 username,
-                reference_id,
-                project_component_id,
-                program_id,
+                project_id,
+                component_id,
+                program_pk,
                 program_stage_name,
             },
             { preloaderMessage: 'Loading component description...' }

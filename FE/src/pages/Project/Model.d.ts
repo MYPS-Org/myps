@@ -1,4 +1,4 @@
-import type { ProgramList } from "../Program/Model";
+import type { ProgramList, ProgramLatest } from "../Program/Model";
 
 export interface ProjectFilter {
   ProgramId?: string;
@@ -9,7 +9,7 @@ export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
   IsUnlock?: boolean;
-  ProgramDetails: ProgramList;
+  ProgramDetails: ProgramLatest;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
   ComponentCostPerYear: ComponentCostPerYear[];
@@ -55,31 +55,22 @@ export interface OptionRevisionCategory {
 
 export interface ProjectDetails {
 	Id: number;
-	ProjectPK: string;
+	ProjectFK: string;
 	ProjectId: string;
 	ProjectType: string;
-	// Legacy fields kept from the pre-migration model — not in the new aligned shape.
-	// TODO: clarify with backend whether these are still needed before removing.
-	ProgramId?: string; // drives program-linking in ProjectForm.handleProgramDetailsChange and projectDetailsRules
-	ReferenceId?: string; // drives fetchProjectGeoJSON (map) and ComponentCostDialog's ReferenceId prop
-	ExternalId?: string; // editable "External ID" field in ProjectDetailsForm
-	MYId?: string; // editable "Multi Year ID" field in ProjectDetailsForm
-	UACS?: string; // editable "OA Project Code (UACS)" field in ProjectDetailsForm
-	RevisionId?: number; // relationship to new RevisionCreatedBy/RevisionCreatedDate unclear
-	CreatedBy?: string; // editable "Created By" admin field in ProjectDetailsForm
-	UpdatedBy?: string; // relationship to new LastUpdatedBy unclear — no UI currently reads/writes either
-	UpdatedDate?: string; // relationship to new LastUpdatedDate unclear — no UI currently reads/writes either
-	IsAllowedToProceed?: boolean;
+	ProgramFK: string;
+	ProgramId: string;
 	ProgramName?: string;
-	StageName: string; 
+	StageName: string;
 	AlternateId?: string;
+	MYId?: string;
 	Description: string;
 	Region: string;
 	Province?: string;
 	City?: string;
 	LegislativeDistrict?: string;
 	DEO: string | undefined;
-	OperatingUnit: string | undefined;
+	OperatingUnit: string;
 	ImplementingOffice: string;
 	IslandCode?: string;
 	Category: number;
@@ -107,12 +98,11 @@ export interface ProjectDetails {
 	Tier: number;
 	TierName?: string;
 	Rank?: number;
-	MYCAApprovalDate?: string | null;
-	CreatedDate: string;
+	MYCAApprovalDate?: string;
+	CreatedBy: string;
+	CreatedDate?: string;
 	LastUpdatedBy?: string;
 	LastUpdatedDate?: string;
-	RevisionCreatedBy: string;
-	RevisionCreatedDate: string;
 	Source: string;
 }
 export interface ProjectLists {
@@ -123,6 +113,7 @@ export interface ProjectLists {
 	RevisionNumber: number;
 	Description: string;
 	Category?: string;
+	CategoryName?: string;
 	Thrust?: string;
 	Origin?: string;
 	City?: string;
@@ -140,7 +131,10 @@ export interface ProjectLists {
 	StageName: string;
 	CreatedBy: string;
 	CreatedDate: string;
-	UpdateBy?: string;
+	RevisionCreatedBy?: string;
+	RevisionCreatedDate?: string;
+	LastUpdatedDate?: string;
+	LastUpdatedBy?: string;
 	UpdatedDate?: string;
 	IsPublished?: boolean;
 	IsPublishable: boolean;
@@ -162,7 +156,7 @@ export interface TransactionLog {
   OldValue: string;
   NewValue: string;
   CreatedBy: string;
-  CreatedDate: string;
+  CreatedDate: string | null;
 }
 
 export interface ScopeOfWorkEnum {
@@ -251,38 +245,60 @@ export interface FileEntity {
 	DataUrl: string
 }
 
+export interface FundingProfile {
+	Id: number;
+	Source: string;
+	ProjectFK: string;
+	ProjectId?: string;
+	StageName: string;
+	SourceOrg: string;
+	AgreementCode: string;
+	Amount: number;
+	Percentage: number;
+	IsWalletDraw?: boolean;
+	CreatedBy?: string;
+	CreatedDate?: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
+	IsDeleted: boolean;
+}
 // #region ComponentCost
 export interface ComponentCost {
 	Id: number;
+	Source: string;
+	ProjectFK: string;
 	ProjectId: string;
-	CostId: string;
+	StageName?: string;
 	ComponentType: string;
+	ComponentName?: string;
 	ComponentId: string;
 	Description?: string;
-	Total: number;
-	StageName?: string;
-	IsDeleted: boolean;
-	RevisedNumber?: number;
+	Total?: number;
 	ConstructionStatusCode?: number;
 	ConstructionStatusName?: string;
-	PackedStatusCode?: boolean;
-	PackedStatusName?: string;
-	CreatedBy: string;
-	CreatedDate: string;
+	IsPackaged?: string;
+	CreatedBy?: string;
+	CreatedDate?: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
+	IsDeleted: boolean;
 }
 
 export interface ComponentCostPerYear {
 	Id: number;
-	ComponentCostId: string;
+	Source: string;
+	ProjectFK: string;
+	ProjectId: string;
 	StageName?: string;
+	ComponentId: string;
 	Amount?: number;
 	Year?: number;
+	UACS?: string;
 	StartDate?: string | null;
 	EndDate?: string | null;
-	CreatedBy: string;
-	CreatedDate: string;
+	DateOfApproval?: string;
+	CreatedBy?: string;
+	CreatedDate?: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
 	IsDeleted: boolean;
@@ -295,36 +311,48 @@ export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 }
 export interface MajorItemOfWork {
 	Id: number;
-	ProjectId: string;
-	ReferenceId: string;
-	StageName?: string;
+	Source: string;
+	ProjectFK: string;
+	ProjectId?: string;
+	StageName: string;
 	ComponentId: string;
 	YearOfWork: number;
-	WorkTypeId: number;
-	InfraType: string;
+	WorkTypeFK: number;
+	InfraTypeFK: string;
 	TargetUnitId: number;
 	TargetUnit: string;
-	CreatedBy: string;
+	CreatedBy?: string;
+	CreatedDate?: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 	IsDeleted: boolean;
 }
 export interface MajorItemLocations {
 	Id: number;
-	ParentId: string;
+	Source: string;
+	ProjectFK: string;
+	ProjectId?: string;
 	StageName: string;
+	ComponentId: string;
+	YearOfWork: number;
 	InfraId: string;
-	DetailedScope: string;
+	DetailedScope?: string;
 	TargetUnitId: number;
-	TargetUnit: string; // Changed from number to string to match the UI usage
-	PhysicalTarget?: number | null;
-	Length?: number | null;
-	EndChainage: number;
-	StartChainage: number;
-	StartX: number;
-	StartY: number;
-	EndX: number | null;
-	EndY: number | null;
-	StartStationLimit: string;
-	EndStationLimit: string;
+	TargetUnit: string;
+	StartX?: number;
+	StartY?: number;
+	EndX?: number;
+	EndY?: number;
+	PhysicalTarget?: number;
+	StartStationLimit?: string;
+	EndStationLimit?: string;
+	StartChainage?: number;
+	EndChainage?: number;
+	Length?: number;
+	CreatedBy?: string;
+	CreatedDate?: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 	IsDeleted: boolean;
 }
 export interface ProjectNote {
@@ -349,25 +377,13 @@ export interface ProjectSupportingDocs {
 	CreatedDate?: string;
 	IsDeleted?: boolean;
 }
-export interface FundingProfile {
-	Id: number;
-	ProjectId: string;
-	StageName?: string;
-	Source: string;
-	Agreement: string;
-	Percentage: number;
-	Amount: number;
-	CreatedBy: string;
-	CreatedDate: string;
-	IsDeleted: boolean;
-}
 
 // #region Additional interfaces for dropdowns and enums
 // Shape of the /Project/ShowProjectComponentDropdowns response — dropdown data
 // for everything on ProjectForm.tsx that ShowProjectDropdowns does not cover.
 export interface Dropdowns {
 	// Program Details
-	Programs: ProgramList[];
+	Programs: ProgramLatest[];
 	// Component Cost
 	ComponentTypes: ComponentTypeEnum[];
 	// Funding Profile
@@ -385,7 +401,7 @@ export interface Dropdowns {
 // Shape of the /Program/ShowProgram response, adapted for the Program Details
 // type-ahead search in ProgramDetailsForm.tsx.
 export interface SearchProgram {
-	Programs?: ProgramList[];
+	Programs?: ProgramLatest[];
 }
 export interface DropdownSupportingDocs {
 	Id: number;
@@ -491,17 +507,19 @@ export interface ProjectEnums {
   Origins: TableEnum[];
   Cities: ProjectCityEnum[];
   Provinces: ProjectProvinceEnum[];
-  LDs: ProjectLegislativeDistrictEnum[];
+  LegislativeDistricts: ProjectLegislativeDistrictEnum[];
   OperatingUnits: ProjectOperatingUnitEnum[];
-  IOs: ProjectImplementingOfficeEnum[];
+  ImplementingOffices: ProjectImplementingOfficeEnum[];
   DEOs: RODEOEnum[];
+  Regions: ProjectRegionEnum[];
   Agencies: AgencyEnum[];
   ImplementationModes: TableEnum[];
   EmergencyModes: TableEnum[];
-  RowsAvailable: TableEnum[];
-  Feasibility: TableEnum[];
-  DetailedDesign: TableEnum[];
-  RegionWide: TableEnum[];
+  RowAvailables: TableEnum[];
+  Feasibilities: TableEnum[];
+  DetailedDesigns: TableEnum[];
+  RegionWides: TableEnum[];
+  Tiers: TableEnum[];
 }
 
 export interface ProjectCityEnum {
@@ -540,6 +558,14 @@ export interface ProjectLegislativeDistrictEnum {
 	ProvinceCode: string;
 }
 
+export interface ProjectRegionEnum {
+	Id: number;
+	ParticipantId: string;
+	Code: string;
+	Name: string;
+	IslandCode: string;
+}
+
 export interface ProjectOperatingUnitEnum {
 	Name: string;
 	ParticipantId: string;
@@ -565,7 +591,9 @@ export interface ProjectStages {
 	StageName: string;
 	Description: string;
 	Category: string;
+	CategoryName: string;
 	Thrust: string;
+	ThrustName: string;
 	Origin: string;
 	City: string;
 	LegislativeDistrict: string;
@@ -574,8 +602,8 @@ export interface ProjectStages {
 	DEO: string;
 	Region: string;
 	Agency: string;
-	CreatedBy: string;
-	CreatedDate: string;
+	RevisionCreatedBy: string;
+	RevisionCreatedDate: string;
 	UpdatedBy?: string;
 }
 

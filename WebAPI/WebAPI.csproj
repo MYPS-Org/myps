@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Controllers\Dashboard\**" />
+    <EmbeddedResource Remove="Controllers\Dashboard\**" />
+    <None Remove="Controllers\Dashboard\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="DinkToPdf" Version="1.0.8" />
     <PackageReference Include="Eaf.Middleware.Ldap" Version="8.0.0" />
     <PackageReference Include="EPPlus" Version="7.7.2" />
@@ -36,10 +42,11 @@
     <ProjectReference Include="..\ReportGeneration\ReportGeneration.csproj" />
   </ItemGroup>
 
+  <!-- Temporarily excluded: out of sync with the refactored Project/Program schema (~90 build errors). 
   <ItemGroup>
-    <Folder Include="Controllers\Dashboard\" />
+    <Compile Remove="Controllers\Revision\RevisionController.cs" />
   </ItemGroup>
-
+-->
   <!--<ItemGroup>
     <None Include="..\Main\Resources\Images\ReportLogo.png" Link="Resources\Images\ReportLogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

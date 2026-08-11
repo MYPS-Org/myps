@@ -9,13 +9,19 @@ namespace DBHelper.Models.Functions.Project
         public int Id { get; set; }
         [Required]
         [MaxLength(200)]
-        public string ProjectPK { get; set; } = string.Empty;
+        public string ProjectFK { get; set; } = string.Empty;
         [Required]
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
         public string ProjectType { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string ProgramFK { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(255)]
+        public string ProgramId { get; set; } = string.Empty;
         [MaxLength(200)]
         public string? ProgramName { get; set; }
         [Required]
@@ -23,6 +29,8 @@ namespace DBHelper.Models.Functions.Project
         public string StageName { get; set; } = string.Empty;
         [MaxLength(400)]
         public string? AlternateId { get; set; }
+        [MaxLength(200)]
+        public string? MYId { get; set; }
         [Required]
         public string Description { get; set; } = string.Empty;
         [Required]
@@ -60,10 +68,10 @@ namespace DBHelper.Models.Functions.Project
         public int Agency { get; set; }
         [MaxLength(200)]
         public string? AgencyName { get; set; }
-        public int ImplementationMode { get; set; }
+        public int? ImplementationMode { get; set; }
         [MaxLength(50)]
         public string? ImplementationModeName { get; set; }
-        public int EmergencyMode { get; set; }
+        public int? EmergencyMode { get; set; }
         [MaxLength(50)]
         public string? EmergencyModeName { get; set; }
         [Required]
@@ -88,15 +96,13 @@ namespace DBHelper.Models.Functions.Project
         public Double? Rank { get; set; }
         public DateTime? MYCAApprovalDate { get; set; }
         [Required]
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(200)]
         public string? LastUpdatedBy { get; set; }
         public DateTime? LastUpdatedDate { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string RevisionCreatedBy { get; set; } = string.Empty;
-        [Required]
-        public DateTime RevisionCreatedDate { get; set; }
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;

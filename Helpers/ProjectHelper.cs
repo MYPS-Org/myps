@@ -27,7 +27,7 @@ namespace Helpers
         public class ValidateProjectIdDataResult
         {
             public DBHelper.Models.Table.Project.Projects Project { get; set; } = new DBHelper.Models.Table.Project.Projects();
-            public DBHelper.Models.Table.Project.ProjectRevisions ProjectRevision { get; set; } = new DBHelper.Models.Table.Project.ProjectRevisions();
+            public DBHelper.Models.Functions.Project.ProjectDetails ProjectRevision { get; set; } = new DBHelper.Models.Functions.Project.ProjectDetails();
             public DBHelper.Models.Table.Project.ProjectStages ProjectStage { get; set; } = new DBHelper.Models.Table.Project.ProjectStages();
         }
         public class ValidateProjectIdParams
@@ -46,7 +46,7 @@ namespace Helpers
                 response.Title = "Invalid Project ID";
                 return response;
             }
-            if (!Enum.TryParse<EnumProgramStage>(p.StageName, out var SelectedStage))
+            if (!Enum.TryParse<EnumProgramStage>(p.StageName.Replace("-", ""), out var SelectedStage))
             {
                 response.Title = "Invalid Stage";
                 response.Message = $"'{p.StageName}' is not a valid program stage.";
@@ -96,9 +96,8 @@ namespace Helpers
                 response.Message = $"The Project with ID '{p.ProjectId}' does not exist in the system.";
                 return response;
             }
-            response.IsValid = true;
             response.Data = new ValidateProjectIdDataResult();
-            var GetProjectRevision = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CheckProjectStage.RevisionId, cancellationToken);
+            var GetProjectRevision = await _db.fProjectDetails.FromSqlInterpolated($"SELECT * FROM fProjectDetails({CheckProjectStage.ProjectPK}, {CheckProjectStage.StageId})").AsNoTracking().FirstOrDefaultAsync(cancellationToken);
             if(GetProjectRevision == null)
             {
                 response.Title = "Project Revision Not Found";
@@ -112,6 +111,7 @@ namespace Helpers
                 response.Message = $"The Project stage for Project ID '{p.ProjectId}' does not exist in the system.";
                 return response;
             }
+            response.IsValid = true;
             response.Data.Project = ProjectParent;
             response.Data.ProjectRevision = GetProjectRevision;
             response.Data.ProjectStage = GetProjectStage;
@@ -282,8 +282,8 @@ namespace Helpers
             public string OperatingUnit { get; set; } = string.Empty;
             public int Origin { get; set; }
             public int Agency { get; set; }
-            public int ImplementationMode { get; set; }
-            public int EmergencyMode { get; set; }
+            public int? ImplementationMode { get; set; }
+            public int? EmergencyMode { get; set; }
             public int? RowAvailable { get; set; }
             public int? Feasibility { get; set; }
             public DateTime? FeasibilityDate { get; set; }
@@ -321,46 +321,46 @@ namespace Helpers
             if (ValidateRegion == null)
             {
                 response.Message = $"Selected Region '{p.Region}' is not valid."; response.Title = "Invalid Region";
-                return response;
+                //return response;
             }
-            string RegionParticipantId = ValidateRegion.ParticipantId;
+            string RegionParticipantId = p.Region;//ValidateRegion.ParticipantId;
 
-            var ValidateProvince = await _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.RegionParticipantId == RegionParticipantId && x.Name == p.Province && !x.Deprecated, cancellationToken);
+            var ValidateProvince = await _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.RegionParticipantId == RegionParticipantId && x.Code == p.Province && !x.Deprecated, cancellationToken);
             if (ValidateProvince == null)
             {
                 response.Message = $"Selected Province '{p.Province}' is not valid."; response.Title = "Invalid Province";
                 return response;
             }
-            int ProvinceId = ValidateProvince!.Id;
+            string ProvinceCode = ValidateProvince!.Code;
 
-            //var ValidateCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.ProvinceId == ProvinceId && x.Name == p.City && !x.Deprecated, cancellationToken);
-            //if (ValidateCity == null)
-            //{
-            //    response.Message = $"Selected City/Municipality '{p.City}' is not valid."; response.Title = "Invalid City/Municipality";
-            //    return response;
-            //}
+            var ValidateCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.ProvinceCode == ProvinceCode && x.Code == p.City && !x.Deprecated, cancellationToken);
+            if (ValidateCity == null)
+            {
+                response.Message = $"Selected City/Municipality '{p.City}' is not valid."; response.Title = "Invalid City/Municipality";
+                return response;
+            }
 
-            //var ValidateLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => ProvinceId == x.ProvinceId && x.Name == p.LegislativeDistrict && !x.Deprecated, cancellationToken);
-            //if (ValidateLD == null)
-            //{
-            //    response.Message = $"Selected Legislative District '{p.LegislativeDistrict}' is not valid."; response.Title = "Invalid Legislative District";
-            //    return response;
-            //}
+            var ValidateLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => ProvinceCode == x.ProvinceCode && x.Code == p.LegislativeDistrict && !x.Deprecated, cancellationToken);
+            if (ValidateLD == null)
+            {
+                response.Message = $"Selected Legislative District '{p.LegislativeDistrict}' is not valid."; response.Title = "Invalid Legislative District";
+                return response;
+            }
 
-            var ValidateDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! && x.Name == p.DEO, cancellationToken);
+            var ValidateDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! && x.ParticipantId == p.DEO, cancellationToken);
             if (ValidateDEO == null)
             {
                 response.Message = $"Selected District Engineering Office '{p.DEO}' is not valid."; response.Title = "Invalid District Engineering Office";
                 return response;
             }
 
-            var ValidateIO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! || x.Name == p.ImplementingOffice, cancellationToken);
+            var ValidateIO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! || x.ParticipantId == p.ImplementingOffice, cancellationToken);
             if (ValidateIO == null)
             {
                 response.Message = $"Selected Implementing Office '{p.ImplementingOffice}' is not valid."; response.Title = "Invalid Implementing Office";
                 return response;
             }
-            var ValidateOU = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! || x.Name == p.OperatingUnit, cancellationToken);
+            var ValidateOU = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! || x.ParticipantId == p.OperatingUnit, cancellationToken);
             if (ValidateOU == null)
             {
                 response.Message = $"Selected Operating Unit '{p.OperatingUnit}' is not valid."; response.Title = "Invalid Operating Unit";
@@ -432,7 +432,7 @@ namespace Helpers
                 return response;
             }
             response.IsValid = true;
-            response.Data = ValidateRegion.IslandCode;
+            response.Data = p.Region;//ValidateRegion.IslandCode;
             return response;
         }
         #endregion

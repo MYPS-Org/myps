@@ -1,0 +1,25 @@
+/* Overrides for MapLibre's default popup chrome, scoped to our own popups via the
+   `myps-map-popup` className passed to `new maplibregl.Popup({ className: ... })`
+   in useProjectMapLayers.ts — keeps this from leaking into any other MapLibre usage. */
+
+.myps-map-popup .maplibregl-popup-content {
+  padding: 0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.myps-map-popup .maplibregl-popup-close-button {
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+  line-height: 28px;
+  color: #6b7280;
+  right: 4px;
+  top: 4px;
+}
+
+.myps-map-popup .maplibregl-popup-close-button:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+  border-radius: 50%;
+}

@@ -90,11 +90,21 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "Feasibility",
         message: "Feasibility is required.",
-        validate: (value) => typeof value === 'number'
+        validate: (value) => typeof value === 'number' && value > 0
     },
     {
         field: "DetailedDesign",
         message: "Detailed Design is required.",
         validate: (value) => typeof value === 'number'
+    },
+    {
+        field: "RowAvailable",
+        message: "ROW Available is required.",
+        validate: (value) => typeof value === 'number'
+    },
+    {
+        field: "RegionWide",
+        message: "Region Wide is required.",
+        validate: (value) => typeof value === 'number' && value > 0
     }
 ]

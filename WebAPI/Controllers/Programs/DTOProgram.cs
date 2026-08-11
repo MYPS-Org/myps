@@ -37,11 +37,28 @@ namespace WebAPI.Controllers.Programs
         [MaxLength(250)]
         public string? SkipReason { get; set; }
     }
+    public class ShowProgramStagesDTO
+    {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
+    }
     public class ProgramDetailsDTO
     {
         [Required]
         public string ProgramId { get; set; } = string.Empty;
+        [Required]
         public string StageName { get; set; } = string.Empty;
+    }
+    public class ShowProjectsInProgramDTO : EnumPagination<ShowProjectsInProgramFilterDTO>
+    {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
+        [Required]
+        public string StageName { get; set; } = string.Empty;
+    }
+    public class ShowProjectsInProgramFilterDTO
+    {
+        public string ProjectId { get; set; } = string.Empty;
     }
     public class DeleteProgramDTO
     {

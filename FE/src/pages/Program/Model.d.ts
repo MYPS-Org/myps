@@ -1,5 +1,3 @@
-import type { ProjectLists } from "../Project/Model";
-
 export interface ProgramModel {
 	Id: number;
 	Stage: number;
@@ -39,10 +37,15 @@ export interface ProgramLatest {
 	Name: string;
 	Status?: string;
 	Type?: string;
+	ProgramType?: string;
 	DataSecurityGroup: string;
 	UserGroup: string;
 	NumberOfProjects?: number;
 	StartYear: number;
+	/** Not returned by the backend today (vProgramLatest has no end-year column); populated client-side where available (e.g. mapToProgramLatest), otherwise undefined. */
+	YearEnd?: number;
+	/** Not returned by the backend today; kept for Modification/Revision's excess-component cost fallback, which has no live backend wiring yet. */
+	Cost?: number;
 }
 
 export interface ProgramDetails {
@@ -75,8 +78,9 @@ export interface StageList {
 export interface ProgramDetailsWithStages {
 	Id: number;
 	ProgramId: string;
+	ProgramPK: string;
 	RevisionNumber: number;
-	NumberOfProjects?: number;
+	ProjectCount?: number;
 	Name: string;
 	StageId: number;
 	StageName: string;
@@ -86,10 +90,9 @@ export interface ProgramDetailsWithStages {
 	UserGroup: number;
 	RegionCode: string;
 	Status: number;
-	Type: number;
-	TypeName: string;
+	ProgramType: string;
 	Cost?: number;
-	YearStart: number;
+	StartYear: number;
 	YearEnd: number;
 	CreatedBy: string;
 	CreatedDate: string;
@@ -99,7 +102,6 @@ export interface ProgramDetailsWithStages {
 
 export interface ProgramDetailsEnums{
   Details: ProgramDetails;
-  Projects: ProjectLists[];
   IsActive: boolean;
   Dropdowns: {
     Stages: TableEnums[];
@@ -124,6 +126,57 @@ export interface ProgramFilter {
   Type?: string;
 }
 
+export interface ProgramProjectFilter {
+	ProjectId?: string;
+}
+
+/** Request contract for /Program/ShowProjectsInProgram — a program-scoped pagination endpoint,
+ * so it carries ProgramId/StageName alongside its own cursor fields (Navigation/PageCursorId)
+ * rather than the generic PaginatedRequest<T>/Direction shape used elsewhere. */
+export interface ShowProjectsInProgramRequest {
+	Filters?: ProgramProjectFilter;
+	limit: number;
+	page: number;
+	Navigation: number;
+	PreviousFilteredId: number;
+	NextFilteredId: number;
+	PageCursorId: number;
+	ProgramId: string;
+	StageName: string;
+}
+
+export interface ProgramProjectsPaginationResponse extends PaginationResponse<ProgramProjects> {
+	PageCursorId?: number | null;
+}
+
+export interface ProgramProjects {
+	Id: number;
+	RevisionId: number;
+	StageFK: number;
+	ProjectPK: string;
+	ProgramFK: string;
+	ProgramId: string;
+	ProjectId: string;
+	ProgramName?: string;
+	StageName: string;
+	Category: number;
+	CategoryName?: string;
+	Description: string;
+	Region: string;
+	ThrustName: string;
+	OperatingUnitName: string;
+	ImplementingOfficeName: string;
+	CreatedDate: string;
+	LastUpdatedBy?: string;
+	LastUpdatedDate?: string;
+	RevisionCreatedBy: string;
+	RevisionCreatedDate: string;
+	Source: string;
+	OldSourceId?: number;
+	IsPublishable?: boolean;
+	IsPublished?: boolean;
+}
+
 export interface ProgramList {
 	Id: number;
 	RevisionId: number;
@@ -141,7 +194,7 @@ export interface ProgramList {
 	YearStart: number;
 	YearEnd: number;
 	CreatedBy: string;
-	CreatedDate: string;
+	CreatedDate: string | null;
 	// IsPublished: boolean;
 	IsPublishable: boolean;
 }

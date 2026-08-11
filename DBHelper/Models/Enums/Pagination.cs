@@ -13,26 +13,26 @@ namespace DBHelper.Models.Enums
         [Required]
         [DefaultValue(10)]
         public int limit { get; set; } = 10;
-
-        // The page currently displayed by the client.
-        // The server increments/decrements it according to Direction.
         [Required]
         [DefaultValue(1)]
         public int page { get; set; } = 1;
-        [Required]
-        public PaginationDirection Direction { get; set; } = PaginationDirection.Next;
+        public PaginationNavigation Navigation { get; set; }
+            = PaginationNavigation.First;
 
         // First key of the current page. Used when Direction = Previous.
         public long? PreviousFilteredId { get; set; }
 
         // Last key of the current page. Used when Direction = Next.
         public long? NextFilteredId { get; set; }
+        public long? PageCursorId { get; set; }
     }
-
-    public enum PaginationDirection
+    public enum PaginationNavigation
     {
-        Next,
-        Previous
+        First = 0,
+        Previous = 1,
+        Next = 2,
+        Last = 3,
+        Page = 4
     }
 
     public class PaginationPages
@@ -79,6 +79,7 @@ namespace DBHelper.Models.Enums
         public long? NextFilteredId { get; set; }
         public bool HasPrevious { get; set; }
         public bool HasNext { get; set; }
+        public long? PageCursorId { get; set; }
     }
 
     // Configure this as a keyless EF Core entity:

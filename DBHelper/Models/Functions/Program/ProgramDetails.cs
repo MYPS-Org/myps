@@ -7,7 +7,6 @@ namespace DBHelper.Models.Functions.Program
     public class ProgramDetails
     {
         [Key]
-        [Required]
         public int StageFKId { get; set; }
         [Required]
         [MaxLength(200)]
@@ -30,6 +29,7 @@ namespace DBHelper.Models.Functions.Program
         [MaxLength(50)]
         public string? StatusName { get; set; }
         [Required]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Cost { get; set; }
         [Required]
         public int Type { get; set; }
@@ -51,8 +51,8 @@ namespace DBHelper.Models.Functions.Program
         public bool IsSkipped { get; set; }
         [Required]
         [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
+        public string RevisionCreatedBy { get; set; } = string.Empty;
         [Required]
-        public DateTime CreatedDate { get; set; }
+        public DateTime RevisionCreatedDate { get; set; }
     }
 }

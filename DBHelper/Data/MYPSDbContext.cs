@@ -1,6 +1,7 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Functions.Project;
+using DBHelper.Models.Functions.Revision;
 using DBHelper.Models.Table.Infra;
 using DBHelper.Models.Table.Lookups;
 using DBHelper.Models.Table.Lookups.Project;
@@ -61,6 +62,7 @@ namespace DBHelper.Data
         public DbSet<Models.Functions.Program.ProgramStages> fProgramStages { get; set; }
         public DbSet<Models.Functions.Program.UserVisiblePrograms> fUserVisiblePrograms { get; set; }
         public DbSet<ProgramDetails> fProgramDetails { get; set; }
+        public DbSet<ProgramProjects> fProgramProjects { get; set; }
         public DbSet<ProgramDetailsInProject> fProgramDetailsInProject { get; set; }
         #endregion
 
@@ -165,7 +167,7 @@ namespace DBHelper.Data
 
         public DbSet<OptionScopeOfWork> tOptionScopeOfWork { get; set; }
 
-        public DbSet<Models.Table.DropdownSupportingDocs> tDropdownSupportingDocs { get; set; }
+        public DbSet<Models.Table.Lookups.Project.OptionSupportingDocs> tOptionSupportingDocs { get; set; }
         #endregion
 
         #endregion
@@ -182,6 +184,13 @@ namespace DBHelper.Data
         public DbSet<ProjectsInGroup> vProjectsInGroup { get; set; }
         #endregion
 
+        #endregion
+
+        #region Revision
+        #region Functions
+        public DbSet<RevisionQueue> fRevisionQueue { get; set; }
+        public DbSet<RevisionProjectDetails> fRevisionProjectDetails { get; set; }
+        #endregion
         #endregion
 
         #region PCMA
@@ -236,6 +245,10 @@ namespace DBHelper.Data
 
         #region Tables
         public DbSet<Models.Table.Lumpsum.LSWallets> tLSWallets { get; set; }
+        public DbSet<Models.Table.Lumpsum.LSWalletRevisions> tLSWalletRevisions { get; set; }
+        public DbSet<Models.Table.Lumpsum.LSWalletFundingProfile> tLSWalletFundingProfile { get; set; }
+        public DbSet<Models.Table.Lumpsum.LSWalletComponentCost> tLSWalletComponentCost { get; set; }
+        public DbSet<Models.Table.Lumpsum.LSWalletComponentCostPerYear> tLSWalletComponentCostPerYear { get; set; }
         #endregion
 
         #region Views
@@ -282,6 +295,13 @@ namespace DBHelper.Data
             modelBuilder.Entity<UserVisiblePrograms>().HasNoKey().ToView("fUserVisiblePrograms");
             modelBuilder.Entity<PaginationCount>().HasNoKey().ToView("PaginationCount");
             modelBuilder.Entity<Models.Views.Lumpsum.LSWalletBalance>().HasNoKey().ToView("vLSWalletBalance");
+            // Wallet Component Cost → Costs Per Year
+            modelBuilder.Entity<Models.Table.Lumpsum.LSWalletComponentCost>()
+                .HasMany(x => x.CostsPerYear)
+                .WithOne(x => x.ComponentCost)
+                .HasForeignKey(x => x.ComponentCostFK)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Component Cost → Costs Per Year
             modelBuilder.Entity<Models.Table.Project.ProjectComponentCost>()
                 .HasMany(x => x.CostsPerYear)

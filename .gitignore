@@ -368,4 +368,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
+# graphify knowledge graph output
 graphify-out/

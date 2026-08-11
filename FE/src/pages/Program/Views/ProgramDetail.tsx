@@ -1,13 +1,14 @@
 "use-client";
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
+import type { ProgramDetailsEnums, ProgramProjectFilter, ProgramProjects } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects, ShowProjectsInProgram } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
+import { getStageProgression } from '../utils/stageProgression';
 // import MetroManilaMap from '../../../components/map/MetroManilaMap';
 import PublishProgramDialog from '../dialogs/PublishProgramDialog';
 import ActionsDropdown from '../components/programDetail/ActionsDropdown';
@@ -15,8 +16,14 @@ import BatchActionsDropdown from '../components/programDetail/BatchActionsDropdo
 import AddExistingProjectDialog from '../dialogs/AddExistingProjectDialog';
 import BatchRestoreDialog from '../dialogs/BatchRestoreDialog';
 import CheckboxList from '../../../components/ui/CheckboxList';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationBar } from '@/components/tailwindui/PaginationBar';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
+
+// NameIds (matching DBHelper's EnumProgramStage) excluded from the main BP→GAAR
+// progression track so GAAR is treated as terminal by "Proceed to Next Stage".
+const MAIN_PROGRESSION_EXCLUDED_STAGE_IDS = [8, 9, 11]; // RBP, RDIP, PIP
 
 // Mock projects data for the table
 const ProgramDetail: React.FC = () => {
@@ -25,6 +32,7 @@ const ProgramDetail: React.FC = () => {
   const navigate = useNavigate();
   const [nextStageName, setNextStageName] = useState<string | null>(null);
   const [skipStageName, setSkipStageName] = useState<string | null>(null);
+  const [isTerminalStage, setIsTerminalStage] = useState(false);
   const [isSkipStage, setIsSkip] = useState(false);
   const { showToast } = useToast();
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
@@ -49,7 +57,6 @@ const ProgramDetail: React.FC = () => {
         CreatedDate: '',
     },
     IsActive: false,
-    Projects: [],
     Dropdowns: {
       Statuses: [],
       Stages: [],
@@ -58,6 +65,35 @@ const ProgramDetail: React.FC = () => {
       DataSecurity: []
     }
   });
+
+  // ShowProjectsInProgram needs ProgramId/StageName (from the route) plus its own
+  // Navigation/PageCursorId cursor fields — neither of which the generic usePagination
+  // hook knows about — so adapt its PaginatedRequest calls into that shape here.
+  const pageCursorRef = useRef(0);
+  const fetchProgramProjects = useCallback(
+    async (params: PaginatedRequest<ProgramProjectFilter>) => {
+      const response = await ShowProjectsInProgram({
+        Filters: params.Filters,
+        limit: params.limit,
+        page: params.page,
+        Navigation: params.Direction ?? 0,
+        PreviousFilteredId: params.PreviousFilteredId ?? 0,
+        NextFilteredId: params.NextFilteredId ?? 0,
+        PageCursorId: pageCursorRef.current,
+        ProgramId: id?.[0] ?? '',
+        StageName: id?.[1] ?? '',
+      });
+      pageCursorRef.current = response.Data.PageCursorId ?? 0;
+      return response;
+    },
+    [id]
+  );
+
+  const pagination = usePagination<ProgramProjectFilter, ProgramProjects>(fetchProgramProjects, {
+      initialFilters: { ProjectId: '' },
+      limit: 10,
+  });
+
   const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
         StageFKId: 0,
@@ -80,7 +116,6 @@ const ProgramDetail: React.FC = () => {
         CreatedDate: '',
     },
     IsActive: false,
-    Projects: [],
     Dropdowns: {
       Statuses: [],
       Stages: [],
@@ -96,18 +131,6 @@ const ProgramDetail: React.FC = () => {
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isAddExistingProjectDialogOpen, setIsAddExistingProjectDialogOpen] = useState(false);
   const [isBatchRestoreDialogOpen, setIsBatchRestoreDialogOpen] = useState(false);
-  
-  // Group data security by OrgType
-  // const groupedDataSecurity = useMemo(() => {
-  //   return (programEnums?.Dropdowns.DataSecurity || []).reduce((acc, item) => {
-  //     const orgType = item.OrgType || 'Other';
-  //     if (!acc[orgType]) {
-  //       acc[orgType] = [];
-  //     }
-  //     acc[orgType].push(item);
-  //     return acc;
-  //   }, {} as {[key: string]: typeof programEnums.Dropdowns.DataSecurity});
-  // }, [programEnums?.Dropdowns.DataSecurity]);
 
   useEffect(() => {
     const loadProgramDetail = async () => {
@@ -129,16 +152,39 @@ const ProgramDetail: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await fetchProgramById(programId, stageName);
-      setProgramEnums(response.Data);
-      setDefaultProgramEnums(response.Data); // Store the original data for comparison
+      const normalizedData = {
+        ...response.Data,
+        Details: {
+          ...response.Data.Details,
+          UserGroup: (response.Data.Details.UserGroup || []).map(String),
+        },
+      };
+      setProgramEnums(normalizedData);
+      setDefaultProgramEnums(normalizedData); // Store the original data for comparison
 
-      const nextStageId = response.Data.Details.StageId + 1;
-      const nextStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
-      setNextStageName(nextStage ? nextStage.Name : 'Final Stage');
-
-      const skipStageId = response.Data.Details.StageId + 2;
-      const skipStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === skipStageId);
+      // "Proceed to Next Stage" only walks the main BP→GAAR track, so RBP/RDIP/PIP
+      // are excluded here to make GAAR its terminal stage. TF/TFR are left in —
+      // getStageProgression already segregates them onto their own track for Trust
+      // Fund programs (see isTrustFundStage in stageProgression.ts), and removing
+      // them here would empty that track and make TF programs terminal immediately.
+      const mainProgressionStages = response.Data.Dropdowns.Stages.filter(
+        stage => !MAIN_PROGRESSION_EXCLUDED_STAGE_IDS.includes(stage.NameId)
+      );
+      const { nextStage, isTerminalStage: reachedTerminalStage } = getStageProgression(
+        mainProgressionStages,
+        response.Data.Details.StageId,
+        response.Data.Details.Type
+      );
+      // Skip stays on the full, unfiltered list — it's a separate flow (HGABI→GAAR,
+      // GAAR→RDIP) gated by its own StageId check further down, not by isTerminalStage.
+      const { skipStage } = getStageProgression(
+        response.Data.Dropdowns.Stages,
+        response.Data.Details.StageId,
+        response.Data.Details.Type
+      );
+      setNextStageName(nextStage ? nextStage.Name : '');
       setSkipStageName(skipStage ? skipStage.Name : null);
+      setIsTerminalStage(reachedTerminalStage);
     } catch (error) {
       console.error('Error fetching program details:', error);
       setProgramEnums(defaultProgramEnums);
@@ -159,7 +205,14 @@ const ProgramDetail: React.FC = () => {
     };
 
   const handleAddProject = () => {
-    navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramPK}&stageName=${programEnums?.Details.StageName}`);
+    // Source ProgramId/StageName from the route (id[0]/id[1]) rather than programEnums.Details:
+    // the /Program/ProgramDetails response's Details object doesn't currently carry ProgramPK/StageName,
+    // so those were coming through as "undefined" in the query string and AddProject's dropdown-match
+    // (componentDropdowns.Programs.find by ProgramId+StageName) never found the program.
+    const [programId, stageName] = id ?? [];
+    if (programId && stageName) {
+      navigate(`/projects/addproject?programId=${programId}&stageName=${stageName}`);
+    }
   };
 
   const handleAddExistingProject = () => {
@@ -241,62 +294,6 @@ const ProgramDetail: React.FC = () => {
     }));
   };
 
-  // Helper function to check if all items in a group are selected
-  // const isGroupSelected = (orgType: string): boolean => {
-  //   const groupItems = groupedDataSecurity[orgType] || [];
-  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
-  //   return groupItems.length > 0 && groupItems.every(item => 
-  //     currentDataSecurityGroup.includes(item.ParticipantId ?? '')
-  //   );
-  // };
-
-  // Helper function to check if some items in a group are selected
-  // const isGroupPartiallySelected = (orgType: string): boolean => {
-  //   const groupItems = groupedDataSecurity[orgType] || [];
-  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
-  //   return groupItems.some(item => 
-  //     currentDataSecurityGroup.includes(item.ParticipantId ?? '')
-  //   ) && !isGroupSelected(orgType);
-  // };
-
-  // Helper function to toggle all items in a group
-  // const handleGroupToggle = (orgType: string) => {
-  //   const groupItems = groupedDataSecurity[orgType] || [];
-  //   const groupItemIds = groupItems.map(item => item.ParticipantId ?? '');
-  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
-    
-  //   if (isGroupSelected(orgType)) {
-  //     // Remove all group items
-  //     setProgramEnums(prev => ({
-  //       ...prev,
-  //       Details: {
-  //         ...prev.Details,
-  //         DataSecurityGroup: currentDataSecurityGroup.filter(id => !groupItemIds.includes(id))
-  //       }
-  //     }));
-  //   } else {
-  //     // Add all group items
-  //     setProgramEnums(prev => ({
-  //       ...prev,
-  //       Details: {
-  //         ...prev.Details,
-  //         DataSecurityGroup: [...new Set([...currentDataSecurityGroup, ...groupItemIds])]
-  //       }
-  //     }));
-  //   }
-  // };
-
-  // Get program location for map display
-  // const getProgramLocation = () => {
-  //   // You can map region codes or program data to coordinates later
-  //   // For now, return a sample location in Metro Manila
-  //   return {
-  //     lat: 14.6091,
-  //     lng: 121.0223,
-  //     name: programEnums?.Details.Name || "Program Location"
-  //   };
-  // };
-
   const handleUpdate = async () => {
     setIsLoading(true);
     try {
@@ -353,7 +350,7 @@ const ProgramDetail: React.FC = () => {
 
   const handleNextStageSubmit = async (data: { ProgramId: string; Stage: number; Name?: string }) => {
     try {
-      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.Id === data.Stage);
+      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.NameId === data.Stage);
       if (nextStageName) {
         handleViewDetails(data.ProgramId, nextStageName.Name);
       }
@@ -367,7 +364,7 @@ const ProgramDetail: React.FC = () => {
   };
 
   const handlePublishToPCMA = () => {
-    if (programEnums?.Details.Status !== 1 || programEnums?.Details.StageId !== 10) return;
+    if (programEnums?.Details.Status !== 1 || !isTerminalStage) return;
     setIsPublishDialogOpen(true);
   };
 
@@ -523,9 +520,9 @@ const ProgramDetail: React.FC = () => {
               items={(programEnums?.Dropdowns.DataSecurity || []).map(item => ({
                 id: item.ParticipantId ?? '',
                 name: item.Name ?? '',
-                groupType: item.OrgType === 'C' ? 'Central Office' :
-                           item.OrgType === 'R' ? (item.RegionName ?? 'Regional Offices') :
-                           item.OrgType === 'B' ? 'Bureaus' :
+                groupType: item.OrgType === 'CO' ? 'CO' :
+                           item.OrgType === 'B' ? 'CO' :
+                           item.OrgType === 'R' ? 'Regional Offices' :
                            item.OrgType === 'PMO' ? 'Project Management Offices' :
                            item.OrgType || 'Other'
               }))}
@@ -548,7 +545,7 @@ const ProgramDetail: React.FC = () => {
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Created Date:</label>
                 <input
                   // value={programEnums?.Details.User}
-                  value={programEnums?.Details.CreatedDate.StringToDate()}
+                  value={programEnums?.Details.CreatedDate ? programEnums.Details.CreatedDate.StringToDate() : ''}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
                 />
@@ -567,8 +564,7 @@ const ProgramDetail: React.FC = () => {
             <div className="pt-4 flex justify-end gap-4">
               {programEnums.IsActive &&
                 programEnums.Details &&
-                programEnums.Details.StageId >= 4 &&
-                programEnums.Details.StageId < 10 && (
+                !isTerminalStage && (
                   <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(false)}>
                     Proceed to {nextStageName}
                   </Button>
@@ -618,17 +614,17 @@ const ProgramDetail: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
           <div className="flex items-center gap-4">
-            {programEnums.IsActive && programEnums.Details.StageId === 10 && defaultProgramEnums.Details.Status === 1 && (
+            {programEnums.IsActive && isTerminalStage && defaultProgramEnums.Details.Status === 1 && (
               <Button color="yellow" onClick={handlePublishToPCMA}>
                 Publish Program
               </Button>
             )}
-            {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 && programEnums?.Details?.StageId <= 10 && (
+            {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 && !isTerminalStage && (
               <Button color="blue" onClick={handleAddProject}>
                 Add Project
               </Button>
             )}
-            {programEnums.IsActive && programEnums?.Details?.StageId < 10 && (
+            {programEnums.IsActive && !isTerminalStage && (
               <Button color="blue" onClick={handleAddExistingProject}>
                 Add Existing Project
               </Button>
@@ -637,7 +633,7 @@ const ProgramDetail: React.FC = () => {
               programId={programEnums?.Details.ProgramPK ?? ''}
               programName={programEnums?.Details.Name ?? ''}
               isActive={programEnums.IsActive}
-              stageId={programEnums?.Details.StageId ?? 0}
+              isTerminalStage={isTerminalStage}
               defaultStatus={defaultProgramEnums.Details.Status}
               onRefresh={() => fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName)}
               onLoadingChange={setIsLoading}
@@ -694,7 +690,7 @@ const ProgramDetail: React.FC = () => {
             </TableHead>
             
             <TableBody className="bg-white divide-y divide-gray-200">
-              {programEnums?.Projects ? programEnums.Projects.map((project) => (
+              {pagination.data.lists ? pagination.data.lists.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
                     <button onClick={() => handleViewProject(project.ProjectId, project.StageName)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
@@ -705,16 +701,16 @@ const ProgramDetail: React.FC = () => {
                     {project.Description}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.Category}
+                    {project.CategoryName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.Thrust}
+                    {project.ThrustName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.ImplementingOffice}
+                    {project.ImplementingOfficeName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
-                    {project.OperatingUnit}
+                    {project.OperatingUnitName}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.IsPublishable ? 'Yes' : 'No'}
@@ -740,6 +736,15 @@ const ProgramDetail: React.FC = () => {
             )}
             </TableBody>
           </Table>
+          <PaginationBar
+              currentPage={pagination.data.page}
+              totalPages={pagination.data.totalPages}
+              hasPrevious={pagination.hasPrevious}
+              hasNext={pagination.hasNext}
+              onGoToPage={pagination.goToPage}
+              onNext={pagination.goNext}
+              onPrevious={pagination.goPrevious}
+          />
         </div>
       </div>
 
