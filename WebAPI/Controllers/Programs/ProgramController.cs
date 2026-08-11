@@ -414,7 +414,7 @@ namespace WebAPI.Controllers.Programs
                 //    .Skip(0 * 15)
                 //    .Take(15)
                 //    .ToListAsync();
-                var AllowedStages = new[] { EnumProgramStage.NEP, EnumProgramStage.NEPE, EnumProgramStage.HGAB, EnumProgramStage.HGABI, EnumProgramStage.GAA, EnumProgramStage.GAAR }.Select(stage => (int)stage).Select(x => x).ToList();
+                var AllowedStages = new[] { EnumProgramStage.BP, EnumProgramStage.NEP, EnumProgramStage.NEPE, EnumProgramStage.HGAB, EnumProgramStage.HGABI, EnumProgramStage.GAA, EnumProgramStage.GAAR }.Select(stage => (int)stage).Select(x => x).ToList();
                 var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().Where(x => AllowedStages.Contains(x.NameId)).ToListAsync();
                 var AvailableTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
@@ -716,17 +716,17 @@ namespace WebAPI.Controllers.Programs
                 if (hasUpdated)
                 {
                     _db.tProgramRevisions.Update(ProgramRevisions);
-                    await _db.SaveChangesAsync(cancellationToken);
-                    await _db.tProgramStages.AddAsync(new DBHelper.Models.Table.Program.ProgramStages()
-                    {
-                        ProgramFK = ProgramRevisions.ProgramFK,
-                        ProgramId = ProgramRevisions.ProgramId,
-                        RevisionId = ProgramRevisions.Id,
-                        StageId = ProgramStage.StageId,
-                        StageName = ProgramStage.StageName,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate,
-                    });
+                    //await _db.SaveChangesAsync(cancellationToken);
+                    //await _db.tProgramStages.AddAsync(new DBHelper.Models.Table.Program.ProgramStages()
+                    //{
+                    //    ProgramFK = ProgramRevisions.ProgramFK,
+                    //    ProgramId = ProgramRevisions.ProgramId,
+                    //    RevisionId = ProgramRevisions.Id,
+                    //    StageId = ProgramStage.StageId,
+                    //    StageName = ProgramStage.StageName,
+                    //    CreatedBy = _Session.UserId,
+                    //    CreatedDate = CurrentDate,
+                    //});
                     await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                     await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
