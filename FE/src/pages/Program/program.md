@@ -210,7 +210,7 @@ AIP/AIP02 payloads include all filter fields; RBP/RBPTier/RBPComponents/RDIP sen
 | Condition | Button |
 |-----------|--------|
 | `IsActive && !isTerminalStage` | Proceed to {nextStageName} |
-| `IsActive && (StageId === 5 \|\| StageId === 7)` | Proceed to {skipStageName} |
+| `IsActive && StageId === 5` | Proceed to {skipStageName} |
 | `IsActive` | Update (disabled if no changes) |
 
 `isTerminalStage` is not a fixed StageId — it's `true` when the program's current stage is the last one in its stage track (see Stage Model below), computed positionally from the live `Dropdowns.Stages` list so it stays correct even if stages are added/removed/reordered via the Program Stage code table.
@@ -241,7 +241,8 @@ IsActive && !isTerminalStage
 - **Props:** `isOpen`, `onClose`, `onSubmit`, `programEnums`
 - **Auto-name generation:** `StageName + " " + YearStart` (e.g., `"BP 2025"`)
 - **Sub Name field:** appended on submit as `Name + " " + AddedName`
-- **Type = 3 (TF) special case:** auto-sets Stage to 11; name becomes `"TF{YearStart}"`
+- **Type = 3 (TF) special case:** auto-sets Stage to 12 (TF) and disables the Stage select; name becomes `"TF {YearStart}"` (same `stageName + " " + yearStart` pattern as every other stage). Switching away from Type 3 resets Stage back to 0 and re-enables the select.
+- **TF/TF-R (NameId 12/13) are excluded from manual Stage selection** — TF is only shown (and disabled) when Type is Trust Fund; TF-R never appears in this dialog.
 - **Skip logic:** Stages NameId 5–11 auto-set `IsSkipped = true`
 - **On success:** navigates to `programdetails/{newId}:{StageName}`
 
@@ -355,12 +356,14 @@ Programs run on one of two independent stage tracks, split by `Details.Type`:
 
 | Track | Stages (by Name, sorted by Id) | Who's on it |
 |-------|-------------------------------|-------------|
-| Main | BP → NEP → NEP-E → HGAB → HGAB-I → GAA → GAA-R → RBP → RDIP → PIP | Any program where `Type !== 3` |
+| Main | BP → NEP → NEP-E → HGAB → HGAB-I → GAA → GAA-R | Any program where `Type !== 3` |
 | Trust Fund | TF → TF-R | Programs where `Type === 3` (see `AddProgramDialog`'s Type=3 handling) |
+
+RBP, RDIP, and PIP (NameId 8, 9, 11) are excluded from the "Proceed to next stage" progression entirely (`MAIN_PROGRESSION_EXCLUDED_STAGE_IDS` in `ProgramDetail.tsx`), so **GAA-R (NameId 7) is the terminal stage of the Main track** — reaching it shows the Publish/Add Project buttons, not another Proceed button.
 
 Within a program's track, `isTerminalStage` is true when its `StageId` is the last stage of that track (no further stage exists to proceed to) — this is what gates the Publish/Add Project/Add Existing Project buttons instead of a hardcoded StageId.
 
-The skip button (`StageId === 5 || StageId === 7`, i.e. HGAB-I and GAA-R) is a separate, curated business rule — not derived positionally — and is unrelated to `isTerminalStage`.
+The skip button (`StageId === 5`, i.e. HGAB-I → GAA-R) is a separate, curated business rule — not derived positionally — and is unrelated to `isTerminalStage`. It intentionally does **not** fire at GAA-R(7) anymore, since GAA-R is terminal and must not offer any further proceed/skip path.
 
 `IsActive` controls whether the detail page allows editing.
 

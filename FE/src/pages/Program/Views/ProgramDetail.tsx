@@ -176,8 +176,10 @@ const ProgramDetail: React.FC = () => {
         response.Data.Details.StageId,
         response.Data.Details.Type
       );
-      // Skip stays on the full, unfiltered list — it's a separate flow (HGABI→GAAR,
-      // GAAR→RDIP) gated by its own StageId check further down, not by isTerminalStage.
+      // Skip stays on the full, unfiltered list — it's a separate flow (HGABI→GAAR)
+      // gated by its own StageId check further down, not by isTerminalStage. GAAR(7)
+      // is intentionally excluded from that check: it's the terminal stage of the main
+      // track, so nothing (proceed or skip) should offer a path out of it anymore.
       const { skipStage } = getStageProgression(
         response.Data.Dropdowns.Stages,
         response.Data.Details.StageId,
@@ -572,7 +574,7 @@ const ProgramDetail: React.FC = () => {
               )}
               {programEnums.IsActive &&
                 programEnums.Details &&
-                (programEnums?.Details?.StageId === 5 || programEnums?.Details?.StageId === 7) && (
+                programEnums?.Details?.StageId === 5 && (
                   <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(true)}>
                     Proceed to {skipStageName}
                   </Button>
