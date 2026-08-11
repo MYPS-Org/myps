@@ -16,6 +16,12 @@ namespace Helpers
         public string Host { get; set; } = string.Empty;
         public string userName { get; set; } = string.Empty;
         public string password { get; set; } = string.Empty;
+        /// <summary>
+        /// Local dev escape hatch: skip the PIS password check during login.
+        /// Only honoured when the environment is Development. Defaults to false,
+        /// so leaving it out of appsettings keeps the normal PIS round trip.
+        /// </summary>
+        public bool BypassLogin { get; set; } = false;
     }
     public class MYPSToPCMA
     {
