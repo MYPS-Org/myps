@@ -6,6 +6,12 @@ interface UsePaginationOptions<TFilters> {
     /** Static sort passed on every request. No column-sort UI wires this yet — set once at hook init. */
     sortField?: string;
     sortDirection?: 0 | 1;
+    /**
+     * Gates the initial mount fetch. Default true (fires immediately on mount, matching prior
+     * behavior). Pass false when fetchFn depends on data that isn't ready yet (e.g. an id from
+     * a parent record still loading) — the hook fires the initial fetch once this flips to true.
+     */
+    enabled?: boolean;
 }
 
 interface UsePaginationReturn<TFilters, TItem> {
@@ -37,7 +43,7 @@ export function usePagination<TFilters, TItem>(
     fetchFn: (params: PaginatedRequest<TFilters>) => Promise<{ Data: PaginationResponse<TItem> }>,
     options: UsePaginationOptions<TFilters> = {}
 ): UsePaginationReturn<TFilters, TItem> {
-    const { initialFilters, limit = 10, sortField, sortDirection } = options;
+    const { initialFilters, limit = 10, sortField, sortDirection, enabled = true } = options;
     const sortParams = { SortField: sortField, sortDirection };
 
     const [data, setData] = useState<PaginationResponse<TItem>>({
@@ -75,12 +81,14 @@ export function usePagination<TFilters, TItem>(
         }
     }, [fetchFn]);
 
-    // Fetch on mount with initialFilters at page 1 — no Direction or keyset cursors.
-    // Empty deps array is intentional: this effect should only run once on mount.
+    // Fetch on mount (or once `enabled` flips true) with initialFilters at page 1 — no Direction
+    // or keyset cursors. Deps intentionally omit initialFilters/limit/sortParams: this should
+    // only run once, either on mount or when `enabled` becomes true.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
+        if (!enabled) return;
         fetchData({ Filters: initialFilters, limit, page: 1, ...sortParams });
-    }, []);
+    }, [enabled]);
 
     /** Plain page-jump — no Direction or cursor fields sent. */
     const goToPage = useCallback((page: number) => {
