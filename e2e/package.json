@@ -1,0 +1,16 @@
+{
+  "name": "myps-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:report": "npx playwright show-report",
+    "install:playwright": "npx playwright install"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@types/node": "^20.14.0",
+    "dotenv": "^17.4.2"
+  }
+}

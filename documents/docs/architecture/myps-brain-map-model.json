@@ -1,0 +1,666 @@
+{
+  "version": "1.2.0",
+  "evidenceDate": "2026-08-11",
+  "sources": [
+    "sources/context/MYPS_CODEX_MASTER_CONTEXT.md",
+    "sources/database/myps_db(08-10-2026-full-schema).sql",
+    "docs/process/MYPS_PROGRAM_STAGE_ADVANCEMENT_SPECIFICATION.md",
+    "docs/formal-revision/MYPS_FORMAL_REVISION_REDESIGN_AND_MIGRATION_PLAN.md",
+    "docs/formal-revision/MYPS_FORMAL_REVISION_USE_CASE_SPECIFICATION.md"
+  ],
+  "nodeKinds": [
+    "domain",
+    "process",
+    "actor",
+    "state",
+    "entity",
+    "lookup",
+    "rule",
+    "risk",
+    "test",
+    "external-system"
+  ],
+  "edgeKinds": [
+    "physical-fk",
+    "logical-relationship",
+    "workflow-transition",
+    "ownership",
+    "derived-result",
+    "traceability"
+  ],
+  "nodes": [
+    {
+      "id": "program_anchor",
+      "label": "Program anchor",
+      "kind": "entity",
+      "technical": "dbo.tPrograms",
+      "evidence": "DB-VERIFIED",
+      "description": "Stable ProgramPK, governance, Type, StartYear, security, publication, deletion, and skip state. It intentionally has no ProgramId.",
+      "source": "master:453; sql:1287"
+    },
+    {
+      "id": "program_state",
+      "label": "Program state",
+      "kind": "entity",
+      "technical": "dbo.tProgramRevisions",
+      "evidence": "DB-VERIFIED",
+      "description": "Versioned ProgramId, name, status, cost, creator, timestamp, and import reference.",
+      "source": "master:509; sql:75"
+    },
+    {
+      "id": "program_stage",
+      "label": "Program stage history",
+      "kind": "entity",
+      "technical": "dbo.tProgramStages",
+      "evidence": "DB-VERIFIED",
+      "description": "Associates a Program state with a lifecycle Stage.",
+      "source": "master:542; sql:1799"
+    },
+    {
+      "id": "program_type",
+      "label": "Program Type",
+      "kind": "lookup",
+      "technical": "dbo.tOptionProgramType",
+      "evidence": "DB-VERIFIED",
+      "description": "Program classification referenced physically through Id.",
+      "source": "master:604; sql:1820"
+    },
+    {
+      "id": "stage_dictionary",
+      "label": "Program Stage dictionary",
+      "kind": "lookup",
+      "technical": "dbo.tOptionProgramStage",
+      "evidence": "DB-VERIFIED",
+      "description": "Stage labels and StageHierarchy business ordering.",
+      "source": "master:630; sql:2108"
+    },
+    {
+      "id": "type_stage_matrix",
+      "label": "Program Type/Stage matrix",
+      "kind": "lookup",
+      "technical": "dbo.tProgramTypeStages",
+      "evidence": "DB-VERIFIED",
+      "description": "Zero-or-one JSON-backed active-stage matrix row per Program Type.",
+      "source": "master:764; sql:2622"
+    },
+    {
+      "id": "project_anchor",
+      "label": "Project anchor",
+      "kind": "entity",
+      "technical": "dbo.tProjects",
+      "evidence": "DB-VERIFIED",
+      "description": "Stable ProjectPK equal to the initial ProjectId, plus Program ownership, type, groups/wallet, publication/readiness flags, and lock metadata.",
+      "source": "master:1001; sql:96"
+    },
+    {
+      "id": "base_project_state",
+      "label": "Lifecycle/base Project revision",
+      "kind": "entity",
+      "technical": "dbo.tProjectRevisions",
+      "evidence": "DB-VERIFIED",
+      "description": "Ordinary scalar Project state used by current-stage editing and lifecycle advancement.",
+      "source": "master:1089; sql:2020"
+    },
+    {
+      "id": "project_stage",
+      "label": "Project stage history",
+      "kind": "entity",
+      "technical": "dbo.tProjectStages",
+      "evidence": "DB-VERIFIED",
+      "description": "Associates a Project revision with a Program lifecycle Stage.",
+      "source": "master:1171; sql:1998"
+    },
+    {
+      "id": "funding",
+      "label": "Project funding",
+      "kind": "entity",
+      "technical": "dbo.tProjectFundingProfile",
+      "evidence": "DB-VERIFIED",
+      "description": "Funding rows owned by a base Project revision.",
+      "source": "master:1327; sql:1973"
+    },
+    {
+      "id": "component",
+      "label": "Project component",
+      "kind": "entity",
+      "technical": "dbo.tProjectComponentCost",
+      "evidence": "DB-VERIFIED",
+      "description": "Component Total and classification owned by a base Project revision.",
+      "source": "master:1381; sql:3140"
+    },
+    {
+      "id": "annual_cost",
+      "label": "Component cost per year",
+      "kind": "entity",
+      "technical": "dbo.tProjectComponentCostPerYear",
+      "evidence": "DB-VERIFIED",
+      "description": "Annual amount and schedule owned by a component SQL Id.",
+      "source": "master:1440; sql:3725"
+    },
+    {
+      "id": "work_item",
+      "label": "Major work item",
+      "kind": "entity",
+      "technical": "dbo.tProjectMajorWorkItem",
+      "evidence": "DB-VERIFIED",
+      "description": "Year-specific major work owned by a component SQL Id.",
+      "source": "master:1500; sql:3973"
+    },
+    {
+      "id": "work_location",
+      "label": "Major work location",
+      "kind": "entity",
+      "technical": "dbo.tProjectMajorWorkLocations",
+      "evidence": "DB-VERIFIED",
+      "description": "Location owned by a work-item SQL Id; YearOfWork is inherited from the work item.",
+      "source": "master:1563; sql:4051"
+    },
+    {
+      "id": "stage_advancement",
+      "label": "Program stage advancement",
+      "kind": "process",
+      "technical": "application transaction and dbo.pCopyProjectDetailChain",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "Advances exactly one configured Stage, creates a new Program state, copies every active Project and its complete child graph, then preserves the source as read-only history.",
+      "source": "stage-spec:3,6-11; master:930"
+    },
+    {
+      "id": "immediate_next_stage",
+      "label": "Immediate next Stage only",
+      "kind": "rule",
+      "technical": "tProgramTypeStages.StageIds + tOptionProgramStage.StageHierarchy",
+      "evidence": "CLIENT-CONFIRMED + PROPOSED RESOLVER",
+      "description": "Initial creation may use any allowed Stage; later advancement must use the next allowed Stage only. Jumps, reversals, and same-Stage copies are rejected.",
+      "source": "stage-spec:3,6"
+    },
+    {
+      "id": "all_active_projects",
+      "label": "All active Projects advance",
+      "kind": "rule",
+      "technical": "tProjects.ProgramFK and active lifecycle source selection",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "Every active Project advances automatically. Incomplete or invalid Projects do not block the Program and are not left behind.",
+      "source": "stage-spec:3,10"
+    },
+    {
+      "id": "program_identifier_rule",
+      "label": "Stage-specific ProgramId",
+      "kind": "rule",
+      "technical": "tProgramRevisions.ProgramId; tProgramStages.ProgramId",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "Each destination Program revision receives a new unique ProgramId and starts as Working status 3. tPrograms has no ProgramId.",
+      "source": "stage-spec:3,5.1"
+    },
+    {
+      "id": "project_identifier_rule",
+      "label": "Stable ProjectPK, changing ProjectId",
+      "kind": "rule",
+      "technical": "tProjects.ProjectPK; tProjectRevisions.ProjectId",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "ProjectPK is the initial ProjectId and never changes. Advancement recalculates only the ProjectId Stage prefix: BP, MY, or P.",
+      "source": "stage-spec:5.2-5.4"
+    },
+    {
+      "id": "read_only_history",
+      "label": "Read-only Stage history",
+      "kind": "rule",
+      "technical": "Program/Project revision and Stage write guards",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "Successful advancement adds destination rows; prior Program, Project, Stage, and child rows become read-only historical data.",
+      "source": "stage-spec:3,15"
+    },
+    {
+      "id": "publishability",
+      "label": "Project publishability",
+      "kind": "rule",
+      "technical": "dbo.pRecomputeProjectPublishable",
+      "evidence": "DB-VERIFIED",
+      "description": "Derived independently for each GAA-R Project. Failed Projects remain in GAA-R for correction and do not block Program advancement.",
+      "source": "master:2384; sql:8762"
+    },
+    {
+      "id": "publication",
+      "label": "Published baseline",
+      "kind": "process",
+      "technical": "sp_myps_pub_* and application publication flow",
+      "evidence": "APP-SNAPSHOT",
+      "description": "Publishes eligible Projects to PCMA after GAA-R. Only publishable Projects are selected; invalid Projects remain unpublished.",
+      "source": "master:2490"
+    },
+    {
+      "id": "revision_type",
+      "label": "Revision Type",
+      "kind": "lookup",
+      "technical": "dbo.tOptionRevisionHeader",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "Required first selection. RevisionGroupId scopes optional Categories and Reasons.",
+      "source": "master:112,227; formal-use-case:8.1"
+    },
+    {
+      "id": "revision_category",
+      "label": "Optional Revision Category",
+      "kind": "lookup",
+      "technical": "dbo.tOptionRevisionCategory",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "Required only when the selected Revision Type has active Category rows for the same RevisionGroupId; otherwise Category remains null.",
+      "source": "master:113,227; sql:4187,5217"
+    },
+    {
+      "id": "revision_reason",
+      "label": "Revision Reason",
+      "kind": "lookup",
+      "technical": "dbo.tOptionRevisionReasons",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "Always filtered by Revision Type and additionally by Category when the Type has Categories.",
+      "source": "master:113,227; sql:2786,5222"
+    },
+    {
+      "id": "reason_category_encoding",
+      "label": "Reason Category encoding",
+      "kind": "risk",
+      "technical": "tOptionRevisionReasons.CategoryId nvarchar(200)",
+      "evidence": "OPEN-DECISION",
+      "description": "No Category FK or seed data proves how one/multiple Categories and the no-Category case are encoded. Inspect deployed rows and current parser before implementing filtering.",
+      "source": "formal-plan:10.1; formal-use-case:8.1"
+    },
+    {
+      "id": "formal_revision",
+      "label": "Formal Revision transaction",
+      "kind": "entity",
+      "technical": "dbo.tRevisionDetails",
+      "evidence": "DB-VERIFIED",
+      "description": "Post-publication workflow root attached to stable ProjectPK and an originating base ProjectRevisionFK.",
+      "source": "master:2625; sql:214"
+    },
+    {
+      "id": "revision_snapshot",
+      "label": "Formal Revision snapshot",
+      "kind": "entity",
+      "technical": "dbo.tRevisionProjectSnapshot",
+      "evidence": "DB-VERIFIED",
+      "description": "Proposed scalar Project data isolated until complete approval.",
+      "source": "master:2671; sql:173"
+    },
+    {
+      "id": "revision_approval",
+      "label": "Revision approval",
+      "kind": "entity",
+      "technical": "dbo.tRevisionApprovals",
+      "evidence": "DB-VERIFIED",
+      "description": "One row per formal Revision Detail and approval level.",
+      "source": "master:2846; sql:786"
+    },
+    {
+      "id": "revision_documents",
+      "label": "Revision workflow documents",
+      "kind": "entity",
+      "technical": "dbo.tRevisionDocuments",
+      "evidence": "DB-VERIFIED + CLIENT-CONFIRMED",
+      "description": "Stores formal Revision documents. IsApprovedDocument = 1 means the separate CO approval document; confirm whether zero exclusively means the IO submission document.",
+      "source": "master:108-109; formal-use-case:6,10"
+    },
+    {
+      "id": "io_submission_document_gate",
+      "label": "IO Submit document modal",
+      "kind": "process",
+      "technical": "IO Submit/Resubmit command + tRevisionDocuments",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "Before every IO Submit/Resubmit action, the modal requires a valid IO document. Document evidence and review-queue transition belong to the same command attempt.",
+      "source": "formal-use-case:UC-REV-006"
+    },
+    {
+      "id": "co_approval_document_gate",
+      "label": "CO Approve document modal",
+      "kind": "process",
+      "technical": "CO Approve command + tRevisionDocuments.IsApprovedDocument = 1",
+      "evidence": "CLIENT-CONFIRMED",
+      "description": "Before CO approval/publication, the modal requires a separate CO document classified by IsApprovedDocument = 1.",
+      "source": "formal-use-case:UC-REV-013"
+    },
+    {
+      "id": "io_queue",
+      "label": "IO queue",
+      "kind": "state",
+      "technical": "dbo.fRevisionQueue('IO')",
+      "evidence": "DB-VERIFIED",
+      "description": "Draft, RO-correction, and returned-from-CO ownership. The IO document is collected in the Submit/Resubmit modal, not after RO approval.",
+      "source": "master:3032"
+    },
+    {
+      "id": "ro_queue",
+      "label": "RO queue",
+      "kind": "state",
+      "technical": "dbo.fRevisionQueue('RO')",
+      "evidence": "DB-VERIFIED",
+      "description": "Submitted formal Revisions awaiting RO review.",
+      "source": "master:3107"
+    },
+    {
+      "id": "co_queue",
+      "label": "CO queue",
+      "kind": "state",
+      "technical": "dbo.fRevisionQueue('CO')",
+      "evidence": "DB-VERIFIED",
+      "description": "RO-approved formal Revisions awaiting CO review. RO approval routes directly here because IO documentation was required at submission.",
+      "source": "master:3129"
+    },
+    {
+      "id": "fully_approved",
+      "label": "Fully approved formal Revision",
+      "kind": "state",
+      "technical": "dbo.fRevisionApprovalStatus",
+      "evidence": "DB-VERIFIED",
+      "description": "RO status 4 and CO status 4.",
+      "source": "master:2901; sql:1412"
+    },
+    {
+      "id": "effective_project",
+      "label": "Effective Project",
+      "kind": "rule",
+      "technical": "dbo.fProjectEffectiveRevision and dbo.vProjectLatest",
+      "evidence": "DB-VERIFIED",
+      "description": "Latest fully approved formal Revision when available, otherwise latest active base Project revision.",
+      "source": "master:2188; sql:2069"
+    },
+    {
+      "id": "cost_ambiguity",
+      "label": "LS/wallet cost ambiguity",
+      "kind": "risk",
+      "technical": "pRecomputeProgramCost versus fProgramStages",
+      "evidence": "OPEN-DECISION",
+      "description": "Current database objects do not share one canonical LS/wallet Program-cost definition.",
+      "source": "master:1957"
+    },
+    {
+      "id": "stage_revision_mismatch",
+      "label": "Stage/revision mismatch",
+      "kind": "risk",
+      "technical": "current read models",
+      "evidence": "DB-VERIFIED",
+      "description": "Independently selecting the latest revision and highest Stage can combine incompatible rows.",
+      "source": "master:2246"
+    }
+  ],
+  "edges": [
+    {
+      "source": "program_type",
+      "target": "program_anchor",
+      "kind": "physical-fk",
+      "relation": "tPrograms.Type → tOptionProgramType.Id"
+    },
+    {
+      "source": "program_type",
+      "target": "type_stage_matrix",
+      "kind": "physical-fk",
+      "relation": "one Program Type → zero or one matrix row"
+    },
+    {
+      "source": "type_stage_matrix",
+      "target": "stage_dictionary",
+      "kind": "logical-relationship",
+      "relation": "StageIds JSON membership"
+    },
+    {
+      "source": "program_anchor",
+      "target": "program_state",
+      "kind": "logical-relationship",
+      "relation": "ProgramPK → ProgramFK"
+    },
+    {
+      "source": "program_state",
+      "target": "program_stage",
+      "kind": "logical-relationship",
+      "relation": "Id → RevisionId"
+    },
+    {
+      "source": "program_anchor",
+      "target": "project_anchor",
+      "kind": "logical-relationship",
+      "relation": "ProgramPK → ProgramFK"
+    },
+    {
+      "source": "project_anchor",
+      "target": "base_project_state",
+      "kind": "physical-fk",
+      "relation": "ProjectPK → ProjectFK; live unique-index verification required"
+    },
+    {
+      "source": "base_project_state",
+      "target": "project_stage",
+      "kind": "physical-fk",
+      "relation": "Id → RevisionId"
+    },
+    {
+      "source": "base_project_state",
+      "target": "funding",
+      "kind": "physical-fk",
+      "relation": "Id → ProjectRevisionFK"
+    },
+    {
+      "source": "base_project_state",
+      "target": "component",
+      "kind": "physical-fk",
+      "relation": "Id → ProjectRevisionFK"
+    },
+    {
+      "source": "component",
+      "target": "annual_cost",
+      "kind": "physical-fk",
+      "relation": "Id → ComponentCostFK"
+    },
+    {
+      "source": "component",
+      "target": "work_item",
+      "kind": "physical-fk",
+      "relation": "Id → ComponentCostFK"
+    },
+    {
+      "source": "work_item",
+      "target": "work_location",
+      "kind": "physical-fk",
+      "relation": "Id → WorkItemFK"
+    },
+    {
+      "source": "stage_advancement",
+      "target": "base_project_state",
+      "kind": "ownership",
+      "relation": "creates destination lifecycle state"
+    },
+    {
+      "source": "immediate_next_stage",
+      "target": "stage_advancement",
+      "kind": "traceability",
+      "relation": "permits exactly one configured Stage forward",
+      "evidence": "CLIENT-CONFIRMED",
+      "sourceRef": "stage-spec:6"
+    },
+    {
+      "source": "stage_advancement",
+      "target": "all_active_projects",
+      "kind": "traceability",
+      "relation": "selects every active Project without validity filtering",
+      "evidence": "CLIENT-CONFIRMED",
+      "sourceRef": "stage-spec:10"
+    },
+    {
+      "source": "stage_advancement",
+      "target": "program_identifier_rule",
+      "kind": "derived-result",
+      "relation": "generates destination ProgramId and Working state",
+      "evidence": "CLIENT-CONFIRMED",
+      "sourceRef": "stage-spec:5.1,9"
+    },
+    {
+      "source": "stage_advancement",
+      "target": "project_identifier_rule",
+      "kind": "derived-result",
+      "relation": "preserves ProjectPK and recalculates ProjectId prefix",
+      "evidence": "CLIENT-CONFIRMED",
+      "sourceRef": "stage-spec:5.2-5.4"
+    },
+    {
+      "source": "stage_advancement",
+      "target": "read_only_history",
+      "kind": "derived-result",
+      "relation": "source rows become immutable history after commit",
+      "evidence": "CLIENT-CONFIRMED",
+      "sourceRef": "stage-spec:3,15"
+    },
+    {
+      "source": "stage_advancement",
+      "target": "publishability",
+      "kind": "derived-result",
+      "relation": "recomputes at GAA-R"
+    },
+    {
+      "source": "publishability",
+      "target": "publication",
+      "kind": "workflow-transition",
+      "relation": "readiness gate"
+    },
+    {
+      "source": "publication",
+      "target": "formal_revision",
+      "kind": "workflow-transition",
+      "relation": "post-publication change boundary"
+    },
+    {
+      "source": "revision_type",
+      "target": "revision_category",
+      "kind": "logical-relationship",
+      "relation": "optional active Categories by RevisionGroupId"
+    },
+    {
+      "source": "revision_type",
+      "target": "revision_reason",
+      "kind": "physical-fk",
+      "relation": "Reasons belong to Header through RevisionGroupId"
+    },
+    {
+      "source": "revision_category",
+      "target": "revision_reason",
+      "kind": "logical-relationship",
+      "relation": "conditional Category association; deployed text encoding must be verified"
+    },
+    {
+      "source": "revision_type",
+      "target": "formal_revision",
+      "kind": "physical-fk",
+      "relation": "tRevisionDetails.RevisionGroupId"
+    },
+    {
+      "source": "revision_category",
+      "target": "formal_revision",
+      "kind": "physical-fk",
+      "relation": "nullable tRevisionDetails.CategoryId"
+    },
+    {
+      "source": "revision_reason",
+      "target": "formal_revision",
+      "kind": "physical-fk",
+      "relation": "tRevisionDetails.ReasonId"
+    },
+    {
+      "source": "reason_category_encoding",
+      "target": "revision_reason",
+      "kind": "traceability",
+      "relation": "blocks safe Category filter until deployed data is inspected"
+    },
+    {
+      "source": "base_project_state",
+      "target": "formal_revision",
+      "kind": "physical-fk",
+      "relation": "ProjectRevisionFK baseline pointer"
+    },
+    {
+      "source": "formal_revision",
+      "target": "revision_snapshot",
+      "kind": "physical-fk",
+      "relation": "RevisionDetailFK; one active snapshot not DB-enforced"
+    },
+    {
+      "source": "formal_revision",
+      "target": "revision_approval",
+      "kind": "physical-fk",
+      "relation": "RevisionDetailFK"
+    },
+    {
+      "source": "formal_revision",
+      "target": "revision_documents",
+      "kind": "physical-fk",
+      "relation": "RevisionDetailFK"
+    },
+    {
+      "source": "formal_revision",
+      "target": "io_queue",
+      "kind": "workflow-transition",
+      "relation": "draft/correction/document ownership"
+    },
+    {
+      "source": "io_queue",
+      "target": "io_submission_document_gate",
+      "kind": "workflow-transition",
+      "relation": "IO selects Submit or Resubmit"
+    },
+    {
+      "source": "io_submission_document_gate",
+      "target": "revision_documents",
+      "kind": "ownership",
+      "relation": "stores attempt-linked IO evidence; zero-classifier meaning pending confirmation"
+    },
+    {
+      "source": "io_submission_document_gate",
+      "target": "ro_queue",
+      "kind": "workflow-transition",
+      "relation": "valid IO document plus atomic initial/RO-return submission"
+    },
+    {
+      "source": "ro_queue",
+      "target": "co_queue",
+      "kind": "workflow-transition",
+      "relation": "RO approval routes directly to CO pending"
+    },
+    {
+      "source": "co_queue",
+      "target": "co_approval_document_gate",
+      "kind": "workflow-transition",
+      "relation": "CO selects Approve"
+    },
+    {
+      "source": "co_approval_document_gate",
+      "target": "revision_documents",
+      "kind": "ownership",
+      "relation": "stores CO evidence with IsApprovedDocument = 1"
+    },
+    {
+      "source": "co_approval_document_gate",
+      "target": "fully_approved",
+      "kind": "workflow-transition",
+      "relation": "valid separate CO document plus successful approval/publication"
+    },
+    {
+      "source": "fully_approved",
+      "target": "effective_project",
+      "kind": "derived-result",
+      "relation": "latest approved Revision overlay"
+    },
+    {
+      "source": "base_project_state",
+      "target": "effective_project",
+      "kind": "derived-result",
+      "relation": "fallback when no fully approved formal Revision exists"
+    },
+    {
+      "source": "stage_revision_mismatch",
+      "target": "effective_project",
+      "kind": "traceability",
+      "relation": "risk attached to current-stage reads"
+    },
+    {
+      "source": "cost_ambiguity",
+      "target": "stage_advancement",
+      "kind": "traceability",
+      "relation": "open decision attached to Program cost recomputation"
+    }
+  ]
+}
