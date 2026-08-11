@@ -379,6 +379,7 @@ namespace WebAPI.Controllers.Projects
                     ProgramFK = ProgramFK,
                     ProjectPK = ProjectPK,
                     ProgramId = ProgramId,
+                    MYId = dto.MYId,
                     ProjectType = dto.ProjectType!,
                     CreatedBy = UserId,
                     CreatedDate = CurrentDate
@@ -394,6 +395,8 @@ namespace WebAPI.Controllers.Projects
                     ProjectId = ProjectPK,
                     MYCAApprovalDate = dto.MYCAApprovalDate,
                     Description = dto.Description!,
+
+                    AlternateId = dto.AlternateId,
 
                     Region = dto.Region!,
                     Province = dto.Province,
@@ -864,8 +867,7 @@ namespace WebAPI.Controllers.Projects
                         .Where(x => x.Id == 0)
                         .GroupBy(x => new
                         {
-                            x.ComponentClientId,
-                            x.ComponentCostFK,
+                            x.ComponentId,
                             x.Year
                         })
                         .Where(g => g.Count() > 1)
@@ -876,7 +878,7 @@ namespace WebAPI.Controllers.Projects
                         return new BadRequestObjectResult(new
                         {
                             Title = "Duplicate Cost Per Year",
-                            Message = "Duplicate Cost Per Year entries were found for the same Year within a Component Cost."
+                            Message = "Duplicate Cost Per Year entries were found for the same Year within a Component ID."
                         });
                     }
 
@@ -1577,7 +1579,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    Project.FeasibilityDate = dto.ProjectDetails?.FeasibilityDate;
+                    Project.FeasibilityDate = (Project.Feasibility == 1) ? null : Project.FeasibilityDate;
                 }
                 if (Project.DetailedDesign != dto.ProjectDetails?.DetailedDesign)
                 {
@@ -1615,7 +1617,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    Project.DetailedDesignDate = dto.ProjectDetails?.DetailedDesignDate;
+                    Project.DetailedDesign = (Project.DetailedDesign == 1) ? null : Project.DetailedDesign;
                 }
 
                 if (Project.Rank != dto.ProjectDetails?.Rank)

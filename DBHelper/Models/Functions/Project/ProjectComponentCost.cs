@@ -20,7 +20,7 @@ namespace DBHelper.Models.Functions.Project
         [MaxLength(200)]
         public string? StageName { get; set; }
         [Required]
-        [MaxLength(20)]
+        [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
         public string? ComponentName { get; set; }
         public string ComponentId { get; set; } = string.Empty;

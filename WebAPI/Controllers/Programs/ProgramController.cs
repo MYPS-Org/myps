@@ -678,41 +678,41 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                var Types = await _db.tOptionProgramType.FirstOrDefaultAsync(x => x.NameId == (int)dto.Type);
-                if (Types == null) { return new BadRequestObjectResult(new { Message = $"The selected Type is invalid. Please ensure the Type field has a valid value selected.", Title = "Update Failed" }); }
-                if (dto.Type != ProgramParent.Type)
-                {
-                    hasUpdated = true;
-                    var Current = await _db.tOptionProgramType.FirstOrDefaultAsync(x => x.NameId == (int)ProgramParent.Type);
-                    ProgramParent.Type = dto.Type;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        ReferenceId = ProgramId,
-                        TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "Type",
-                        NewValue = Types.Name!,
-                        OldValue = Current!.Name!,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                if (dto.YearStart != ProgramParent.StartYear)
-                {
-                    hasUpdated = true;
-                    ProgramParent.StartYear = dto.YearStart;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        ReferenceId = ProgramId,
-                        TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "StartYear",
-                        NewValue = dto.YearStart.ToString(),
-                        OldValue = ProgramParent.StartYear.ToString(),
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
+                //var Types = await _db.tOptionProgramType.FirstOrDefaultAsync(x => x.NameId == (int)dto.Type);
+                //if (Types == null) { return new BadRequestObjectResult(new { Message = $"The selected Type is invalid. Please ensure the Type field has a valid value selected.", Title = "Update Failed" }); }
+                //if (dto.Type != ProgramParent.Type)
+                //{
+                //    hasUpdated = true;
+                //    var Current = await _db.tOptionProgramType.FirstOrDefaultAsync(x => x.NameId == (int)ProgramParent.Type);
+                //    ProgramParent.Type = dto.Type;
+                //    transactionLogs.Add(new TransactionLog
+                //    {
+                //        ReferenceId = ProgramId,
+                //        TransactionType = EnumTransactionType.Update.ToString(),
+                //        AffectedTable = "tProgramRevisions",
+                //        AffectedColumn = "Type",
+                //        NewValue = Types.Name!,
+                //        OldValue = Current!.Name!,
+                //        CreatedBy = _Session.UserId,
+                //        CreatedDate = CurrentDate
+                //    });
+                //}
+                //if (dto.YearStart != ProgramParent.StartYear)
+                //{
+                //    hasUpdated = true;
+                //    ProgramParent.StartYear = dto.YearStart;
+                //    transactionLogs.Add(new TransactionLog
+                //    {
+                //        ReferenceId = ProgramId,
+                //        TransactionType = EnumTransactionType.Update.ToString(),
+                //        AffectedTable = "tProgramRevisions",
+                //        AffectedColumn = "StartYear",
+                //        NewValue = dto.YearStart.ToString(),
+                //        OldValue = ProgramParent.StartYear.ToString(),
+                //        CreatedBy = _Session.UserId,
+                //        CreatedDate = CurrentDate
+                //    });
+                //}
                 if (hasUpdated)
                 {
                     _db.tProgramRevisions.Update(ProgramRevisions);
@@ -780,6 +780,10 @@ namespace WebAPI.Controllers.Programs
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
+                if(ProgramStage.StageId == dto.Stage)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} is already in the '{dto.Stage}' stage. Please ensure you are updating to a different stage.", Title = "Update Failed" });
+                }
                 var ProgramRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
 
                 var checkProjects = await _db.vProjectLatest
@@ -822,6 +826,7 @@ namespace WebAPI.Controllers.Programs
                             ProjectId = HasNewProjectId ? project.ProjectId.ReplaceFirst("BP", FirstSegment) : project.ProjectId,
                             MYCAApprovalDate = project.MYCAApprovalDate,
                             Description = project.Description,
+                            AlternateId = project.AlternateId,
                             Region = project.Region,
                             Province = project.Province,
                             City = project.City,
