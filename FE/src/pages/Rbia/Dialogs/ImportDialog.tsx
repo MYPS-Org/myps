@@ -149,7 +149,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
   const handleImport = async () => {
     if (selected.size === 0) return;
     setIsImporting(true);
-    const userName = user?.UserName ?? '';
+    const userName = user?.UserId ?? '';
     try {
       const tasks: Promise<unknown>[] = [];
       // Roads, Road Section, Bridges, and Region all share the same GIS "import all
