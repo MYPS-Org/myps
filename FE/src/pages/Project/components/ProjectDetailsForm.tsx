@@ -181,6 +181,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 onChange('OperatingUnit', newOU);
             }
         }
+        else if (field === 'Feasibility') {
+            onChange(field, value);
+            // Clear the date if Feasibility Study is not "Yes"
+            if (value !== 1) {
+                onChange('FeasibilityDate', null);
+            }
+        }
+        else if (field === 'DetailedDesign') {
+            onChange(field, value);
+            // Clear the date if Detailed Design is not "Yes"
+            if (value !== 1) {
+                onChange('DetailedDesignDate', null);
+            }
+        }
         else {
             onChange(field, value);
         }
