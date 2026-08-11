@@ -257,6 +257,9 @@ const Project: React.FC = () => {
                         onGoToPage={pagination.goToPage}
                         onNext={pagination.goNext}
                         onPrevious={pagination.goPrevious}
+                        onFirst={pagination.goFirst}
+                        onLast={pagination.goLast}
+                        isLoading={pagination.isLoading}
                     />
                     <div className='mb-3.5 text-center'>
                         {

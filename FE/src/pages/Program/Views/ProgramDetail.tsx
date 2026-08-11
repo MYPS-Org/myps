@@ -1,5 +1,5 @@
 "use-client";
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, ProgramProjectFilter, ProgramProjects } from '../Model.d'; // Adjust the import path as necessary
@@ -66,24 +66,22 @@ const ProgramDetail: React.FC = () => {
     }
   });
 
-  // ShowProjectsInProgram needs ProgramId/StageName (from the route) plus its own
-  // Navigation/PageCursorId cursor fields — neither of which the generic usePagination
-  // hook knows about — so adapt its PaginatedRequest calls into that shape here.
-  const pageCursorRef = useRef(0);
+  // ShowProjectsInProgram needs ProgramId/StageName (from the route) alongside the generic
+  // usePagination hook's PaginatedRequest — adapt it into that shape here. The hook already
+  // threads Navigation/PreviousFilteredId/NextFilteredId/PageCursorId correctly per request.
   const fetchProgramProjects = useCallback(
     async (params: PaginatedRequest<ProgramProjectFilter>) => {
       const response = await ShowProjectsInProgram({
         Filters: params.Filters,
         limit: params.limit,
         page: params.page,
-        Navigation: params.Direction ?? 0,
+        Navigation: params.Navigation ?? 0,
         PreviousFilteredId: params.PreviousFilteredId ?? 0,
         NextFilteredId: params.NextFilteredId ?? 0,
-        PageCursorId: pageCursorRef.current,
+        PageCursorId: params.PageCursorId ?? 0,
         ProgramId: programEnums?.Details.ProgramPK ?? '',
         StageName: id?.[1] ?? '',
       });
-      pageCursorRef.current = response.Data.PageCursorId ?? 0;
       return response;
     },
     [id, programEnums?.Details.ProgramPK]
@@ -749,6 +747,9 @@ const ProgramDetail: React.FC = () => {
               onGoToPage={pagination.goToPage}
               onNext={pagination.goNext}
               onPrevious={pagination.goPrevious}
+              onFirst={pagination.goFirst}
+              onLast={pagination.goLast}
+              isLoading={pagination.isLoading}
           />
         </div>
       </div>
