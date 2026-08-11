@@ -112,7 +112,7 @@ Defined in `GlobalSearchDialog.tsx`. Maps `CategoryName` → a function that bui
 | `Alternate ID` | `/projects/project-details/{ProjectId}:{StageName}` |
 | `Description` | `/projects/project-details/{ProjectId}:{StageName}` |
 | `UACS` | `/projects/project-details/{ProjectId}:{StageName}` |
-| `Program Name` | `/programs/programdetails/{ProgramId}` |
+| `Program Name` | `/programs/programdetails/{ProgramPK}:{StageName}` |
 | `Roads` | *(not in CATEGORY_NAV — no View button)* |
 | `Road Section` | *(not in CATEGORY_NAV — no View button)* |
 | `Bridge` | *(not in CATEGORY_NAV — no View button)* |
@@ -131,7 +131,7 @@ To add navigation for a new category, add an entry to `CATEGORY_NAV` in `GlobalS
 | `alternateId` | Alternate ID | `Projects` | `AlternateId` | `/projects/project-details/:ProjectId::StageName` |
 | `description` | Description | `Projects` | `Description` | `/projects/project-details/:ProjectId::StageName` |
 | `uacs` | UACS | `Projects` | `UACS` | `/projects/project-details/:ProjectId::StageName` |
-| `programName` | Program Name | `Programs` | `Name` | `/programs/programdetails/:ProgramId` |
+| `programName` | Program Name | `Programs` | `Name` | `/programs/programdetails/:ProgramPK` |
 | `roads` | Roads | `vRoads` | `RoadName` | *(no link — pending)* |
 | `roadSection` | Road Section | `vRoadSections` | `RoadSectionId` | *(no link — pending)* |
 | `bridge` | Bridge | `vBridges` | `BridgeName` | *(no link — pending)* |
@@ -255,3 +255,4 @@ Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts`. Its `label` m
 | 2026-03-24 | Copilot | Added `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`; project categories navigate to `/projects/project-details/{ProjectId}:{StageName}`; Program Name navigates to `/programs/programdetails/{ProgramId}`; View button shown per row only when link resolves; dialog resets all state on close |
 | 2026-07-31 | Claude | Added `EXCLUDED_RESULT_COLUMNS` / `isExcludedResultColumn()` to `config.ts` (exact-match list + `PK`/`FKId` suffix rule) and wired it into `GlobalSearchDialog.tsx`'s `dynamicColumns` filter, so internal PK/FK columns (e.g. `StageFKId`, `ProgramPK`) returned by backend view models no longer render in the results table |
 | 2026-07-31 | Claude | Replaced dynamic column derivation with `SEARCH_FIELD_CONFIG`-driven columns: `GlobalSearchDialog.tsx` now looks up the entry whose `label` matches the selected `CategoryName` and renders its `resultColumns` directly, instead of deriving/filtering/ordering/labeling columns from the raw API row. Removed the now-unused `EXCLUDED_RESULT_COLUMNS`, `isExcludedResultColumn()`, `getColumnLabel()`, `COLUMN_ORDER_BY_CATEGORY`, `orderResultColumns()` from `config.ts`. `SEARCH_FIELD_CONFIG` is no longer reference-only — adding a category now requires a matching entry (see "How to Add a New Searchable Field") |
+| 2026-08-11 | Claude | Fixed `Program Name` navigation to use `ProgramPK` instead of `ProgramId` in the URL (`GlobalSearchDialog.tsx`'s `CATEGORY_NAV` and `config.ts`'s reference `getLink`). `ProgramDetail.tsx`'s `:program` route param is resolved via `ProgramPK` everywhere else in the app (`Program.tsx`, `AddProgramDialog.tsx`); `ProgramId` is a separate display code and was producing a route the backend couldn't resolve |
