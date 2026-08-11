@@ -80,18 +80,19 @@ const ProgramDetail: React.FC = () => {
         PreviousFilteredId: params.PreviousFilteredId ?? 0,
         NextFilteredId: params.NextFilteredId ?? 0,
         PageCursorId: pageCursorRef.current,
-        ProgramId: id?.[0] ?? '',
+        ProgramId: programEnums?.Details.ProgramPK ?? '',
         StageName: id?.[1] ?? '',
       });
       pageCursorRef.current = response.Data.PageCursorId ?? 0;
       return response;
     },
-    [id]
+    [id, programEnums?.Details.ProgramPK]
   );
 
   const pagination = usePagination<ProgramProjectFilter, ProgramProjects>(fetchProgramProjects, {
       initialFilters: { ProjectId: '' },
       limit: 10,
+      enabled: !!programEnums?.Details.ProgramPK,
   });
 
   const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
