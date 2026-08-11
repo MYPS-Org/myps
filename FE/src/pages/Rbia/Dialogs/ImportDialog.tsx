@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../contexts/AuthContext';
-import { importNationalRoads, importRoadSections, importBridges } from '../Service';
+import { importAllInfrastructure, importAdminOrgLookups } from '../Service';
 
 // Keep these exports so Rbia.tsx doesn't break — they're no longer used internally
 // but may be referenced elsewhere.
@@ -149,13 +149,23 @@ const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
   const handleImport = async () => {
     if (selected.size === 0) return;
     setIsImporting(true);
-    const userName = user?.UserName ?? '';
+    const userName = user?.UserId ?? '';
     try {
       const tasks: Promise<unknown>[] = [];
-      if (selected.has('roads')) tasks.push(importNationalRoads(userName));
-      if (selected.has('road-section')) tasks.push(importRoadSections(userName));
-      if (selected.has('bridges')) tasks.push(importBridges(userName));
-      // TODO: add service calls for region-data-security, city-municipality-legislative-district, deo-implementing-office
+      // Roads, Road Section, Bridges, and Region all share the same GIS "import all
+      // infrastructure" endpoint — call it once if any are checked.
+      const wantsInfrastructure =
+        selected.has('roads') ||
+        selected.has('road-section') ||
+        selected.has('bridges') ||
+        selected.has('region-data-security');
+      if (wantsInfrastructure) tasks.push(importAllInfrastructure(userName));
+      // City/Municipality+Legislative District and DEO+Implementing Office share the
+      // GIS admin/org lookup import endpoint — call it once if any are checked.
+      const wantsAdminOrgLookups =
+        selected.has('city-municipality-legislative-district') ||
+        selected.has('deo-implementing-office');
+      if (wantsAdminOrgLookups) tasks.push(importAdminOrgLookups(userName));
       await Promise.all(tasks);
       handleClose();
     } catch (error) {

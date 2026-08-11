@@ -21,6 +21,10 @@ import { PaginationBar } from '@/components/tailwindui/PaginationBar';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
+// NameIds (matching DBHelper's EnumProgramStage) excluded from the main BP→GAAR
+// progression track so GAAR is treated as terminal by "Proceed to Next Stage".
+const MAIN_PROGRESSION_EXCLUDED_STAGE_IDS = [8, 9, 11]; // RBP, RDIP, PIP
+
 // Mock projects data for the table
 const ProgramDetail: React.FC = () => {
   const { program } = useParams<{ program: string }>();
@@ -158,7 +162,22 @@ const ProgramDetail: React.FC = () => {
       setProgramEnums(normalizedData);
       setDefaultProgramEnums(normalizedData); // Store the original data for comparison
 
-      const { nextStage, skipStage, isTerminalStage: reachedTerminalStage } = getStageProgression(
+      // "Proceed to Next Stage" only walks the main BP→GAAR track, so RBP/RDIP/PIP
+      // are excluded here to make GAAR its terminal stage. TF/TFR are left in —
+      // getStageProgression already segregates them onto their own track for Trust
+      // Fund programs (see isTrustFundStage in stageProgression.ts), and removing
+      // them here would empty that track and make TF programs terminal immediately.
+      const mainProgressionStages = response.Data.Dropdowns.Stages.filter(
+        stage => !MAIN_PROGRESSION_EXCLUDED_STAGE_IDS.includes(stage.NameId)
+      );
+      const { nextStage, isTerminalStage: reachedTerminalStage } = getStageProgression(
+        mainProgressionStages,
+        response.Data.Details.StageId,
+        response.Data.Details.Type
+      );
+      // Skip stays on the full, unfiltered list — it's a separate flow (HGABI→GAAR,
+      // GAAR→RDIP) gated by its own StageId check further down, not by isTerminalStage.
+      const { skipStage } = getStageProgression(
         response.Data.Dropdowns.Stages,
         response.Data.Details.StageId,
         response.Data.Details.Type

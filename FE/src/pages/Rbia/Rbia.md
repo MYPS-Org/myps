@@ -125,7 +125,7 @@ The **`selectedItemAtom`** is the cross-hook atom used to pass the currently edi
 
 ## `Service.ts` — API Functions
 
-All MYPS backend calls use `httpClient.post<T>(url, body)`. Import calls use native `fetch` directly against `VITE_API_GIS_URL`.
+All MYPS backend calls use `httpClient.post<T>(url, body)`. Import calls use `gisClient.put<T>(url, body)` directly against `VITE_API_GIS_URL`.
 
 ### MYPS Backend Endpoints
 
@@ -148,17 +148,14 @@ All MYPS backend calls use `httpClient.post<T>(url, body)`. Import calls use nat
 | `deleteFutureBridge(id)` | `POST /futureinfra/DeleteFutureBridge` | `{ BridgeId: string }` | `{ success: boolean }` |
 | `getInfraCounts()` | `POST FutureInfra/GetInfraInfo` | — | `{ Roads: number; RoadSections: number; Bridge: number }` |
 
-### GIS API Endpoints (native fetch via `VITE_API_GIS_URL`)
+### GIS API Endpoints (`gisClient.put` via `VITE_API_GIS_URL`)
 
-All GIS calls append `?username={encodeURIComponent(userName)}` as a query param (username sourced from `useAuth`). Headers include `ngrok-skip-browser-warning: true`.
+All GIS calls append `?username={encodeURIComponent(userName)}` as a query param (username sourced from `useAuth`). Headers include `ngrok-skip-browser-warning: true`. The GIS service (see its `/docs` OpenAPI schema) only exposes two import endpoints — there is no per-entity import, so `ImportDialog` collapses all checkbox selections down to these two calls.
 
-| Function | Path | Purpose |
-|---|---|---|
-| `importNationalRoads(userName)` | `POST /api_v2.0/inventory/import_national_roads` | Pulls roads from GIS |
-| `importRoadSections(userName)` | `POST /api_v2.0/inventory/import_national_road_sections` | Pulls road sections from GIS |
-| `importBridges(userName)` | `POST /api_v2.0/inventory/import_national_bridges` | Pulls bridges from GIS |
-
-> Import calls for `region-data-security`, `city-municipality-legislative-district`, and `deo-implementing-office` are listed in `ImportDialog` UI groups but their service calls are **TODO** (commented out or not yet implemented).
+| Function | Path | Purpose | Triggered by (ImportDialog checkboxes) |
+|---|---|---|---|
+| `importAllInfrastructure(userName)` | `PUT /infra_inventory/import_all` | Imports roads, road sections, and bridges from GIS in one call | Roads, Road Section, Bridges, Region (any one checked fires this once) |
+| `importAdminOrgLookups(userName)` | `PUT /admin_org_mgmt/import_aams_ioms` | Imports admin area + implementing office lookup data in one call | City/Municipality-Legislative District, DEO-Implementing Office (any one checked fires this once) |
 
 ---
 
@@ -420,9 +417,8 @@ Tree-grouped checkbox selection dialog with three groups:
 | Import Lookup tables from Internal Org | DEO, Implementing Office |
 
 - Each group has an `IndeterminateCheckbox` (select-all / partial) header.
-- On submit: `Promise.all` fires `importNationalRoads`, `importRoadSections`, and/or `importBridges` based on selection. Username from `useAuth` context.
-- Region, City/Municipality/Legislative District, DEO/Implementing Office: **TODO** — UI checkboxes exist but no service calls are wired.
-- Calls GIS API directly via native `fetch` with `ngrok-skip-browser-warning` header (development/staging environment assumption).
+- On submit: `Promise.all` fires `importAllInfrastructure` (if any of Roads/Road Section/Bridges/Region checked) and/or `importAdminOrgLookups` (if any of City/Municipality-Legislative District/DEO-Implementing Office checked) — at most one call per group regardless of how many items within it are checked. Username from `useAuth` context.
+- Calls GIS API directly via `gisClient` (PUT) with `ngrok-skip-browser-warning` header (development/staging environment assumption).
 
 ---
 
@@ -454,7 +450,7 @@ Island code is the trailing alphabetic suffix: regex `/[A-Za-z]+$/`.
 - **Tab re-mounts on switch**: Each time a tab is clicked, the component re-mounts and `initializeData()` re-fetches data. There is no keep-alive or data caching between tab switches.
 - **Counts vs. paginated totals**: `roadCount`, `roadSectionCount`, `bridgeCount` on the tab badges come from `getInfraCounts()` (fetched once on mount). They do not update after add/delete operations. The paginated `total` inside the data atom is updated optimistically and shown in the per-component footer.
 - **Add Road Section / Add Bridge standalone**: Both "Add Road Section" and "Add Bridge" standalone buttons are commented out in `RoadSection.tsx` and `Bridge.tsx`. These entities can only be created from their parent entity row ("Add Section" on Road, "Add Bridge" on Road Section).
-- **Import is GIS-only for infra items**: The non-infrastructure import items (Region, City/Municipality, DEO, Implementing Office) are present in the UI but have no service calls wired yet.
+- **Import checkboxes are UI-only granularity**: The GIS API has no per-entity import — only "import all infrastructure" and "import all admin/org lookups". So checking just "Roads" still imports road sections and bridges too (and vice versa); same for the two admin/org checkboxes.
 - **`FutureRoadDialog` optimistic add**: After `addFutureRoad` succeeds, the dialog pushes `formData` to the legacy `roadsAtom` array but does NOT update the paginated `roadDataAtom`. This means the table does not show the new road until a re-fetch. The `addRoadToState` optimistic helper exists in the hook but is not called from the dialog currently.
 - **Classification in add payload is sent as string**: `addFutureRoad` sends `{ Classification: formData.Classification.toString() }`. Edit sends the numeric value. Inconsistency with the API — may cause issues.
 - **`deoListAtom` shared between Road and Road Section hooks**: Both `useRoadData.initializeData` and `useRoadSectionData.initializeData` both call `fetchRoadSectionInitData()` and write to `deoListAtom`. Whichever resolves last wins. Since both fetch the same data, this is harmless but redundant.

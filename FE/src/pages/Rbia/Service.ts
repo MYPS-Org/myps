@@ -152,59 +152,34 @@ export const deleteFutureBridge = async (bridgeId: string) => {
     }
 }
 
-export const importNationalRoads = async (userName: string) => {
+// Covers Roads, Road Section, Bridges, and Region — the GIS API only exposes one
+// combined infrastructure import endpoint (no per-entity import).
+export const importAllInfrastructure = async (userName: string) => {
     try {
-        const response = await gisClient.post(
-            `/api_v2.0/inventory/import_national_roads?username=${encodeURIComponent(userName)}`,
+        const response = await gisClient.put(
+            `/infra_inventory/import_all?username=${encodeURIComponent(userName)}`,
             undefined,
-            { preloaderMessage: 'Importing national roads...' }
+            { preloaderMessage: 'Importing road network data...' }
         );
         return response;
     } catch (error) {
-        console.error('Error importing national roads:', error);
+        console.error('Error importing road network data:', error);
         throw error;
     }
 }
 
-export const importRoadSections = async (userName: string) => {
+// Covers Region, City/Municipality + Legislative District, and DEO + Implementing Office —
+// the GIS API only exposes one combined admin/org lookup import endpoint.
+export const importAdminOrgLookups = async (userName: string) => {
     try {
-        const response = await gisClient.post(
-            `/api_v2.0/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`,
+        const response = await gisClient.put(
+            `/admin_org_mgmt/import_aams_ioms?username=${encodeURIComponent(userName)}`,
             undefined,
-            { preloaderMessage: 'Importing road sections...' }
+            { preloaderMessage: 'Importing admin area and organization lookups...' }
         );
         return response;
     } catch (error) {
-        console.error('Error importing national road sections:', error);
-        throw error;
-    }
-}
-
-export const importBridges = async (userName: string) => {
-    try {
-        const response = await gisClient.post(
-            `/api_v2.0/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`,
-            undefined,
-            { preloaderMessage: 'Importing bridges...' }
-        );
-        return response;
-    } catch (error) {
-        console.error('Error importing national bridges:', error);
-        throw error;
-    }
-}
-
-
-export const importImplementingOffices = async (userName: string) => {
-    try {
-        const response = await gisClient.post(
-            `/api_v2.0/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`,
-            undefined,
-            { preloaderMessage: 'Importing implementing offices...' }
-        );
-        return response;
-    } catch (error) {
-        console.error('Error importing implementing offices:', error);
+        console.error('Error importing admin/org lookups:', error);
         throw error;
     }
 }

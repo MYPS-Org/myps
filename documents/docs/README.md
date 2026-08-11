@@ -1,0 +1,38 @@
+# MYPS Documentation Index
+
+## Process specifications
+
+| Document | Purpose | Status |
+|---|---|---|
+| [Program-to-Project process-flow plan](process/MYPS_PROGRAM_TO_PROJECT_PROCESS_FLOW_PLAN.md) | Delivery plan for the complete client and developer documentation suite | Partially client-validated |
+| [Program Stage advancement specification](process/MYPS_PROGRAM_STAGE_ADVANCEMENT_SPECIFICATION.md) | Confirmed business flow, data contract, identifier rules, exceptions, implementation plan, and acceptance tests | Client-confirmed baseline with open technical verifications |
+
+## Formal Revision specifications
+
+| Document | Purpose | Status |
+|---|---|---|
+| [Formal Revision redesign and migration plan](formal-revision/MYPS_FORMAL_REVISION_REDESIGN_AND_MIGRATION_PLAN.md) | Approved table scope, target invariants, migration/cutover/rollback controls, testing strategy, and release gates | Planning baseline; implementation blockers identified |
+| [Formal Revision use-case specification](formal-revision/MYPS_FORMAL_REVISION_USE_CASE_SPECIFICATION.md) | IO/RO/CO business flows, dual document modals, PCMA rule evaluation, errors, transaction boundaries, traceability, and 52 UAT scenarios | UAT baseline; open policy decisions identified |
+
+## Engineering plans
+
+| Document | Purpose | Status |
+|---|---|---|
+| [`RevisionController` refactoring plan](engineering/MYPS_REVISION_CONTROLLER_REFACTORING_PLAN.md) | Code-informed defect register, target architecture, query/command split, workflow state machine, document/PCMA design, test plan, and incremental rollout | Planning baseline; application code not changed |
+| [`RevisionRequests` refactoring specification](engineering/MYPS_REVISION_REQUESTS_REFACTORING_SPECIFICATION.md) | Focused queue analysis covering filter defects, actor and row scope, corrected workflow ownership, API/frontend contract, pagination, tests, and rollout | Business decisions complete 2026-08-11; ready for technical implementation planning |
+
+## Database design samples
+
+| Document | Purpose | Status |
+|---|---|---|
+| [Formal Revision V2 SQL sample](architecture/database/MYPS_FORMAL_REVISION_SCHEMA_V2_SAMPLE.sql) | Early design exploration combining legacy Revision fields with normalized relationships | Exploratory only; superseded by the approved scope in the redesign plan |
+
+## Visual documentation
+
+See the [architecture and visual catalogue](architecture/README.md) for the lifecycle, ERDs, effective-data flow, and brain-map model.
+
+## Source evidence
+
+See the [source evidence catalogue](../sources/README.md).
+
+Every statement should carry an evidence class. Unverified application behavior remains proposed or an open decision until confirmed against current code or deployed data.

@@ -110,6 +110,7 @@ export interface ProjectLists {
 	ProgramId: string;
 	ProgramName: string;
 	ProjectId: string;
+	ProjectPK: string;
 	RevisionNumber: number;
 	Description: string;
 	Category?: string;
