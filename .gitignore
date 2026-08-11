@@ -17,6 +17,15 @@
 mono_crash.*
 FE/node_modules
 FE/.env.development
+FE/.env.*.local
+
+# E2E/QA suite local state — credentials, saved login cookies, run artifacts.
+# These were committed in ae03c6e2 before these rules existed; see that commit
+# if you are auditing the credential exposure.
+e2e/.env
+e2e/.auth/
+e2e/playwright-report/
+e2e/test-results/
 
 # MCP memory store (local only, do not commit)
 memory.json
