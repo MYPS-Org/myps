@@ -624,7 +624,7 @@ const ProgramDetail: React.FC = () => {
                 Add Project
               </Button>
             )}
-            {programEnums.IsActive && !isTerminalStage && (
+            {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 &&  !isTerminalStage && (
               <Button color="blue" onClick={handleAddExistingProject}>
                 Add Existing Project
               </Button>
