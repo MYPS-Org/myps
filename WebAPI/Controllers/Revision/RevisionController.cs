@@ -692,8 +692,10 @@ namespace WebAPI.Controllers.Revision
                     await transaction.RollbackAsync(cancellationToken);
                     return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason. Please contact Administrator.", Title = "Missing Document Naming" });
                 }
-                var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectDetails.ProjectId!) && x.COStatus != EnumRevisionStatus.Approved);
+                var HasPendingModification = await _db.vRevisionLists
+                    .FromSqlInterpolated($"SELECT * FROM vRevisionLists WHERE TransactionId LIKE {dto.ProjectDetails.ProjectId + "%"} AND COStatus != {EnumRevisionStatus.Approved}")
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
                 if (HasPendingModification != null && (HasPendingModification.COStatus == EnumRevisionStatus.Pending || HasPendingModification.RegionStatus == EnumRevisionStatus.Pending))
                 {
                     return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
@@ -2021,8 +2023,10 @@ namespace WebAPI.Controllers.Revision
                     await transaction.RollbackAsync(cancellationToken);
                     return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator.", Title = "Missing Document Naming" });
                 }
-                var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectDetails.ProjectId!) && x.COStatus != EnumRevisionStatus.Approved);
+                var HasPendingModification = await _db.vRevisionLists
+                    .FromSqlInterpolated($"SELECT * FROM vRevisionLists WHERE TransactionId LIKE {dto.ProjectDetails.ProjectId + "%"} AND COStatus != {EnumRevisionStatus.Approved}")
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
                 if (HasPendingModification != null)
                 {
                     if (HasPendingModification.RegionStatus == EnumRevisionStatus.Pending || (HasPendingModification.COStatus == EnumRevisionStatus.Pending && HasPendingModification.RegionStatus != EnumRevisionStatus.ForCorrection))
