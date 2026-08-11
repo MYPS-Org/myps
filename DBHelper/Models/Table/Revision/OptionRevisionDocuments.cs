@@ -6,19 +6,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table.Lookups
+namespace DBHelper.Models.Table.Revision
 {
-    public class OptionRevisionStatus
+    public class OptionRevisionDocuments
     {
         [Key]
         public int Id { get; set; }
         public bool IsActive { get; set; } = false;
         [Required]
-        public EnumRevisionStatus Enum { get; set; }
+        public int RevisionGroupId { get; set; }
+        public int? CategoryId { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string Name { get; set; } = string.Empty;
-        [MaxLength(200)]
-        public string? Description { get; set; }
+        [MaxLength(10)]
+        public string SecondSegmentName { get; set; } = string.Empty;
     }
 }

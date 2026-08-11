@@ -7,25 +7,29 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Revision
 {
     public class RevisionProjectComponentCostPerYear
     {
         [Key]
         public int Id { get; set; }
-        [MaxLength(255)]
-        public string? TransactionId { get; set; }
         [Required]
         [MaxLength(100)]
-        public string ComponentCostId { get; set; } = string.Empty;
+        public string TransactionId { get; set; } = string.Empty;
         [Required]
-        public Double Amount { get; set; }
+        [MaxLength(20)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
+        [Column(TypeName = "decimal(18,5)")]
+        public decimal Amount { get; set; }
         [Required]
         public int Year { get; set; }
+        [MaxLength(50)]
+        public string? UACS { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
         [Required]
-        public DateTime StartDate { get; set; }
-        [Required]
-        public DateTime EndDate { get; set; }
         public bool IsDeleted { get; set; } = false;
+        public DateTime? DateOfApproval { get; set; }
     }
 }
