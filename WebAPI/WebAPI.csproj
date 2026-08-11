@@ -36,6 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CrystalReportService\CrystalReportService.csproj" />
     <ProjectReference Include="..\DBHelper\DBHelper.csproj" />
     <ProjectReference Include="..\Helpers\Helpers.csproj" />
     <ProjectReference Include="..\ReportGeneration\ReportGeneration.csproj" />

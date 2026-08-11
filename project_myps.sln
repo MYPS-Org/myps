@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReportGeneration", "ReportG
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire", "Hangfire\Hangfire.csproj", "{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrystalReportService", "CrystalReportService\CrystalReportService.csproj", "{F38585B5-EF64-4CBC-92CC-DC62D90AF508}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,6 +60,12 @@ Global
 		{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}.Staging|Any CPU.ActiveCfg = Release|Any CPU
 		{0ABAB8FE-94C1-0EAF-12B7-F1CFC52F75BB}.Staging|Any CPU.Build.0 = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Staging|Any CPU.ActiveCfg = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Staging|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

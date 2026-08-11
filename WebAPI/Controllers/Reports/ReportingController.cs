@@ -34,16 +34,16 @@
 
 //        private static string GetStageFullName(string? stageName) => stageName?.ToUpperInvariant() switch
 //        {
-//            "BP"                          => "Budget Proposal",
-//            "NEP" or "NEP-E"              => "National Expenditure Program",
-//            "HGAB" or "HGAB-I"           => "House General Appropriations Bill",
-//            "GAA" or "GAA-R"             => "General Appropriations Act",
-//            "TF" or "TF-R"               => "Trust Fund",
-//            _                             => stageName ?? ""
+//            "BP" => "Budget Proposal",
+//            "NEP" or "NEP-E" => "National Expenditure Program",
+//            "HGAB" or "HGAB-I" => "House General Appropriations Bill",
+//            "GAA" or "GAA-R" => "General Appropriations Act",
+//            "TF" or "TF-R" => "Trust Fund",
+//            _ => stageName ?? ""
 //        };
 
 //        #region AIP 
-        
+
 //        [HttpPost]
 //        public async Task<IActionResult> GetAIPReportDropdowns()
 //        {
@@ -138,15 +138,15 @@
 //                {
 //                    programDetailsQuery = programDetailsQuery.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
 //                    var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
-//                         dto.RegionName = dto.RegionName ?? Region?.Name;
-//                    }
-//                    var ProgramDetails = await programDetailsQuery.FirstOrDefaultAsync();
-//                    var param = new Dictionary<string, object> {
+//                    dto.RegionName = dto.RegionName ?? Region?.Name;
+//                }
+//                var ProgramDetails = await programDetailsQuery.FirstOrDefaultAsync();
+//                var param = new Dictionary<string, object> {
 //                        { "@ProgramId", dto.ProgramId }
 //                    };
-//                    if (!string.IsNullOrEmpty(dto.StageName)) { param.Add("@StageName", dto.StageName); }
-//                    if (!string.IsNullOrEmpty(dto.CategoryName)) { param.Add("@CategoryName", dto.CategoryName); }
-//                    if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
+//                if (!string.IsNullOrEmpty(dto.StageName)) { param.Add("@StageName", dto.StageName); }
+//                if (!string.IsNullOrEmpty(dto.CategoryName)) { param.Add("@CategoryName", dto.CategoryName); }
+//                if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
 //                if (!string.IsNullOrEmpty(dto.OperatingUnitName)) { param.Add("@OperatingUnitName", dto.OperatingUnitName); }
 //                if (!string.IsNullOrEmpty(dto.DistrictEngineeringOffice)) { param.Add("@DistrictEngineeringOffice", dto.DistrictEngineeringOffice); }
 //                if (!string.IsNullOrEmpty(dto.ImplementingOfficeName)) { param.Add("@ImplementingOfficeName", dto.ImplementingOfficeName); }
@@ -158,7 +158,8 @@
 //                );
 //                if (aip.Count < 1)
 //                {
-//                    return new BadRequestObjectResult(new {
+//                    return new BadRequestObjectResult(new
+//                    {
 //                        Title = "No Data Found",
 //                        Message = "No AIP data found for the given parameters."
 //                    });
@@ -240,7 +241,8 @@
 //                );
 //                if (aip.Count < 1)
 //                {
-//                    return new BadRequestObjectResult(new {
+//                    return new BadRequestObjectResult(new
+//                    {
 //                        Title = "No Data Found",
 //                        Message = "No AIP data found for the given parameters."
 //                    });
@@ -354,7 +356,7 @@
 //        #endregion
 
 //        #region RBPComponents
-        
+
 //        [HttpPost]
 //        public async Task<IActionResult> GetRBPReportDropdowns()
 //        {
@@ -453,7 +455,8 @@
 //                    Appsetting.DbConnections.MYPSDb,
 //                    aipSql, param
 //                );
-//                if (RBP.Count == 0) {
+//                if (RBP.Count == 0)
+//                {
 //                    return new BadRequestObjectResult(new
 //                    {
 //                        Title = "No Data Found",
@@ -504,7 +507,7 @@
 //                    Appsetting.DbConnections.MYPSDb,
 //                    aipSql, param
 //                );
-//                if(RBP.Count == 0)
+//                if (RBP.Count == 0)
 //                {
 //                    return new BadRequestObjectResult(new
 //                    {
@@ -529,7 +532,7 @@
 //        #endregion
 
 //        #region RDIP
-        
+
 //        [HttpPost]
 //        public async Task<IActionResult> GetRDIPReportDropdowns()
 //        {
@@ -576,7 +579,7 @@
 //                    Appsetting.DbConnections.MYPSDb,
 //                    aipSql, param
 //                );
-//                if(RDIP.Count == 0)
+//                if (RDIP.Count == 0)
 //                {
 //                    return new BadRequestObjectResult(new
 //                    {
@@ -663,7 +666,7 @@
 //                    Appsetting.DbConnections.MYPSDb,
 //                    WorkItemSql, WorkItemParams
 //                );
-                
+
 
 //                var majorWorkReferenceIds = majorWorkItems.Select(m => m.ReferenceId).ToList();
 
