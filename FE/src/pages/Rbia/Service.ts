@@ -152,44 +152,18 @@ export const deleteFutureBridge = async (bridgeId: string) => {
     }
 }
 
-export const importNationalRoads = async (userName: string) => {
+// Covers Roads, Road Section, Bridges, and Region — the GIS API only exposes one
+// combined infrastructure import endpoint (no per-entity import).
+export const importAllInfrastructure = async (userName: string) => {
     try {
         const response = await gisClient.put(
-            `/infra_inventory/road/import?username=${encodeURIComponent(userName)}`,
+            `/infra_inventory/import_all?username=${encodeURIComponent(userName)}`,
             undefined,
-            { preloaderMessage: 'Importing roads...' }
+            { preloaderMessage: 'Importing road network data...' }
         );
         return response;
     } catch (error) {
-        console.error('Error importing roads:', error);
-        throw error;
-    }
-}
-
-export const importRoadSections = async (userName: string) => {
-    try {
-        const response = await gisClient.put(
-            `/infra_inventory/road_section/import?username=${encodeURIComponent(userName)}`,
-            undefined,
-            { preloaderMessage: 'Importing road sections...' }
-        );
-        return response;
-    } catch (error) {
-        console.error('Error importing road sections:', error);
-        throw error;
-    }
-}
-
-export const importBridges = async (userName: string) => {
-    try {
-        const response = await gisClient.put(
-            `/infra_inventory/bridge/import?username=${encodeURIComponent(userName)}`,
-            undefined,
-            { preloaderMessage: 'Importing bridges...' }
-        );
-        return response;
-    } catch (error) {
-        console.error('Error importing bridges:', error);
+        console.error('Error importing road network data:', error);
         throw error;
     }
 }
