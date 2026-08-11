@@ -409,7 +409,15 @@ namespace WebAPI.Controllers.Programs
                 //    .Skip(0 * 15)
                 //    .Take(15)
                 //    .ToListAsync();
-                var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync();
+
+
+                var NotAllowedStages = new[] { 
+                    EnumProgramStage.RBP,
+                    EnumProgramStage.RDIP,
+                    EnumProgramStage.PIP,
+                    EnumProgramStage.TF,
+                    EnumProgramStage.TFR }.Select(stage => (int)stage).ToList();
+                var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().Where(x => !NotAllowedStages.Contains(x.NameId)).ToListAsync();
                 var AvailableTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
                 var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync();
