@@ -1,5 +1,5 @@
 "use-client";
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, ProgramProjectFilter, ProgramProjects } from '../Model.d'; // Adjust the import path as necessary
@@ -66,9 +66,16 @@ const ProgramDetail: React.FC = () => {
     }
   });
 
-  // ShowProjectsInProgram needs ProgramId/StageName (from the route) alongside the generic
-  // usePagination hook's PaginatedRequest — adapt it into that shape here. The hook already
-  // threads Navigation/PreviousFilteredId/NextFilteredId/PageCursorId correctly per request.
+  // Holds the ProgramPK from the latest /Program/ProgramDetails response (fetchProgramDetail
+  // below sets it). NOT the URL's route segment and NOT Details.ProgramId (a different,
+  // human-readable field) — the payload's ProgramId must carry the actual ProgramPK from the
+  // program-details response. A ref (not state) so fetchProgramProjects always reads the
+  // latest value the instant fetchProgramDetail resolves, without waiting on a re-render.
+  const programPKRef = useRef('');
+
+  // ShowProjectsInProgram needs ProgramId/StageName alongside the generic usePagination hook's
+  // PaginatedRequest — adapt it into that shape here. The hook already threads
+  // Navigation/PreviousFilteredId/NextFilteredId/PageCursorId correctly per request.
   const fetchProgramProjects = useCallback(
     async (params: PaginatedRequest<ProgramProjectFilter>) => {
       const response = await ShowProjectsInProgram({
@@ -79,18 +86,22 @@ const ProgramDetail: React.FC = () => {
         PreviousFilteredId: params.PreviousFilteredId ?? 0,
         NextFilteredId: params.NextFilteredId ?? 0,
         PageCursorId: params.PageCursorId ?? 0,
-        ProgramId: programEnums?.Details.ProgramPK ?? '',
+        ProgramId: programPKRef.current,
         StageName: id?.[1] ?? '',
       });
       return response;
     },
-    [id, programEnums?.Details.ProgramPK]
+    [id]
   );
 
+  // enabled: false — this list is fetched explicitly from the [id] effect below, right after
+  // fetchProgramDetail resolves and sets programPKRef.current, instead of pagination's own
+  // mount-fetch (which would fire before programPKRef has a value). This way it re-fetches on
+  // every stage change, not just once on mount.
   const pagination = usePagination<ProgramProjectFilter, ProgramProjects>(fetchProgramProjects, {
       initialFilters: { ProjectId: '' },
       limit: 10,
-      enabled: !!programEnums?.Details.ProgramPK,
+      enabled: false,
   });
 
   const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
@@ -136,6 +147,11 @@ const ProgramDetail: React.FC = () => {
       if (id && id.length === 2) {
         try {
           await fetchProgramDetail(id[0], id[1]);
+          // Recall the projects list once fetchProgramDetail has set programPKRef.current to
+          // the fresh ProgramPK from the program-details response — same trigger (`id`
+          // changing) and ordering as the program-details reload above, so it re-fetches on
+          // every stage change (e.g. "Proceed to Next Stage"), not just once on mount.
+          pagination.applyFilters(pagination.currentFilters ?? { ProjectId: '' });
         } catch (error) {
           console.error('Error fetching program details:', error);
         }
@@ -158,6 +174,9 @@ const ProgramDetail: React.FC = () => {
           UserGroup: (response.Data.Details.UserGroup || []).map(String),
         },
       };
+      // Set synchronously (ref, not state) so fetchProgramProjects — read moments later in the
+      // same [id] effect — sees the fresh ProgramPK without waiting on a re-render.
+      programPKRef.current = normalizedData.Details.ProgramPK;
       setProgramEnums(normalizedData);
       setDefaultProgramEnums(normalizedData); // Store the original data for comparison
 
@@ -351,11 +370,15 @@ const ProgramDetail: React.FC = () => {
     setIsSkip(isSkip);
   };
 
-  const handleNextStageSubmit = async (data: { ProgramId: string; Stage: number; Name?: string }) => {
+  const handleNextStageSubmit = async (data: { ProgramId: string; ProgramPK: string; Stage: number; Name?: string }) => {
     try {
       const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.NameId === data.Stage);
       if (nextStageName) {
-        handleViewDetails(data.ProgramId, nextStageName.Name);
+        // Proceeding to the next stage doesn't change the program itself, only its
+        // StageName — the URL's ProgramPK segment (id[0]) stays the same. data.ProgramId is
+        // the human-readable code (e.g. "DESKTOP-9OG49KJ_...", used by the updateProgramStage
+        // payload), not the PK the route expects — using it here as the URL segment was the bug.
+        handleViewDetails(id?.[0] ?? '', nextStageName.Name);
       }
     } catch (error) {
       console.error('Error handling next stage submission:', error);
