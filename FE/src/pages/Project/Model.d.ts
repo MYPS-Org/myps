@@ -369,7 +369,7 @@ export interface ProjectNote {
 export interface ProjectSupportingDocs {
 	Id: number;
 	DocumentType: string;
-	DoctypeFK: string;
+	DocTypeFK: string;
 	ProjectId: string;
 	FileName: string;
 	FileExtension: string;
