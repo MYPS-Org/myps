@@ -118,7 +118,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
       { field: 'Name',      label: 'Program Name' },
       { field: 'StageName', label: 'Stage'        },
       { field: 'StartYear', label: 'Year Start'   },
-      { field: 'Status',    label: 'Status'       },
+      { field: 'StatusName',    label: 'Status'       },
     ],
     getLink: (row) =>
       row['ProgramPK'] ? `/programs/programdetails/${row['ProgramPK']}` : null,

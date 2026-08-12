@@ -115,7 +115,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
                 )}
               </TableCell>
               <TableCell className="text-center">
-                <span className="text-xs text-gray-500 mt-1">{doc.DocumentType}</span>
+                <span className="text-xs text-gray-500 mt-1">{doc.DoctypeFK}</span>
               </TableCell>
               <TableCell className="text-center">
                   <span title={doc.Description} className="text-xs text-gray-500 mt-1">{doc.Description}</span>
