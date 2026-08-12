@@ -92,7 +92,10 @@ export const deleteProgram = async (program: ProgramList) => {
     }
 };
 
-export const nextStage = async (data: { ProgramId: string; Stage: number, Name: string }) => {
+// ProgramPK is sent alongside ProgramId for forward-compat with a planned backend change to
+// UpdateProgramStageDTO — the current DTO has no ProgramPK property, so the API ignores it
+// until that backend work lands.
+export const nextStage = async (data: { ProgramId: string; ProgramPK: string; Stage: number, Name: string }) => {
     try {
         const request = await httpClient.post<ProgramDetails>('/Program/updateProgramStage', data, {
             preloaderMessage: 'Proceeding to next stage...'
