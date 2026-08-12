@@ -10,7 +10,7 @@ import { getStageProgression } from '../utils/stageProgression';
 interface NextStageDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: { ProgramId: string; Stage: number; Name?: string }) => void;
+    onSubmit: (data: { ProgramId: string; ProgramPK: string; Stage: number; Name?: string }) => void;
     program: ProgramDetails;
     stages: TableEnum[];
     isSkip: boolean;
@@ -56,6 +56,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     
     const [formData, setFormData] = useState({
         ProgramId: program?.ProgramId || '',
+        ProgramPK: program?.ProgramPK || '',
         Name: parsedName.baseName,
         AddedName: parsedName.additionalName,
         Stage: isSkip ? skipStageId : nextStageId,
@@ -99,13 +100,14 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
         try {
             const payload = {
                 ProgramId: formData.ProgramId,
+                ProgramPK: formData.ProgramPK,
                 Stage: formData.Stage,
-                Name: formData.AddedName && formData.AddedName.trim() 
-                    ? `${formData.Name} - ${formData.AddedName}` 
+                Name: formData.AddedName && formData.AddedName.trim()
+                    ? `${formData.Name} - ${formData.AddedName}`
                     : formData.Name
             };
 
-            await proceedToNextStage({ ProgramId: payload.ProgramId, Stage: payload.Stage, Name: payload.Name });
+            await proceedToNextStage({ ProgramId: payload.ProgramId, ProgramPK: payload.ProgramPK, Stage: payload.Stage, Name: payload.Name });
             
             showToast({
                 type: 'success',
@@ -128,6 +130,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
         const resetParsedName = parseExistingName(program?.Name || '');
         setFormData({
             ProgramId: program?.ProgramId || '',
+            ProgramPK: program?.ProgramPK || '',
             Name: resetParsedName.baseName,
             AddedName: resetParsedName.additionalName,
             Stage: isSkip ? skipStageId : nextStageId,
