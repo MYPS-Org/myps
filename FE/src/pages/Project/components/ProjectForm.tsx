@@ -49,12 +49,12 @@ import { defaultCoordinates } from '../utils/coordinates';
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';
-  initialProgramId?: string;
+  initialProgramPK?: string;
   initialStageName?: string;
   onRefresh?: () => void;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, initialStageName, onRefresh }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramPK, initialStageName, onRefresh }) => {
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -237,7 +237,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     loadMapData();
   }, [loadMapData]);
 
-  // Pre-selecting the program for initialProgramId/initialStageName happens inside
+  // Pre-selecting the program for initialProgramPK/initialStageName happens inside
   // ProgramDetailsForm (via its searchProgram() call + onChange), since
   // /Project/ShowProjectComponentDropdowns never returns a Programs list for us to match against here.
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
@@ -1137,7 +1137,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 mode={mode}
                 initialData={initialData}
                 initialStageName={initialStageName}
-                initialProgramId={initialProgramId}
+                initialProgramPK={initialProgramPK}
               />
             </div>
           )}

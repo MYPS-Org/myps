@@ -1,5 +1,5 @@
 "use-client";
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, ProgramProjectFilter, ProgramProjects } from '../Model.d'; // Adjust the import path as necessary
@@ -66,24 +66,22 @@ const ProgramDetail: React.FC = () => {
     }
   });
 
-  // ShowProjectsInProgram needs ProgramId/StageName (from the route) plus its own
-  // Navigation/PageCursorId cursor fields — neither of which the generic usePagination
-  // hook knows about — so adapt its PaginatedRequest calls into that shape here.
-  const pageCursorRef = useRef(0);
+  // ShowProjectsInProgram needs ProgramId/StageName (from the route) alongside the generic
+  // usePagination hook's PaginatedRequest — adapt it into that shape here. The hook already
+  // threads Navigation/PreviousFilteredId/NextFilteredId/PageCursorId correctly per request.
   const fetchProgramProjects = useCallback(
     async (params: PaginatedRequest<ProgramProjectFilter>) => {
       const response = await ShowProjectsInProgram({
         Filters: params.Filters,
         limit: params.limit,
         page: params.page,
-        Navigation: params.Direction ?? 0,
+        Navigation: params.Navigation ?? 0,
         PreviousFilteredId: params.PreviousFilteredId ?? 0,
         NextFilteredId: params.NextFilteredId ?? 0,
-        PageCursorId: pageCursorRef.current,
+        PageCursorId: params.PageCursorId ?? 0,
         ProgramId: programEnums?.Details.ProgramPK ?? '',
         StageName: id?.[1] ?? '',
       });
-      pageCursorRef.current = response.Data.PageCursorId ?? 0;
       return response;
     },
     [id, programEnums?.Details.ProgramPK]
@@ -208,13 +206,15 @@ const ProgramDetail: React.FC = () => {
     };
 
   const handleAddProject = () => {
-    // Source ProgramId/StageName from the route (id[0]/id[1]) rather than programEnums.Details:
+    // Source ProgramPK/StageName from the route (id[0]/id[1]) rather than programEnums.Details:
     // the /Program/ProgramDetails response's Details object doesn't currently carry ProgramPK/StageName,
     // so those were coming through as "undefined" in the query string and AddProject's dropdown-match
-    // (componentDropdowns.Programs.find by ProgramId+StageName) never found the program.
-    const [programId, stageName] = id ?? [];
-    if (programId && stageName) {
-      navigate(`/projects/addproject?programId=${programId}&stageName=${stageName}`);
+    // (componentDropdowns.Programs.find by ProgramPK+StageName) never found the program.
+    // Note: id[0] is the route's ProgramPK segment (see Program.tsx's handleViewDetails(program.ProgramPK, ...)),
+    // not the human-readable ProgramId — passing it as ProgramPK keeps this consistent with the match downstream.
+    const [programPK, stageName] = id ?? [];
+    if (programPK && stageName) {
+      navigate(`/projects/addproject?programPK=${programPK}&stageName=${stageName}`);
     }
   };
 
@@ -747,6 +747,9 @@ const ProgramDetail: React.FC = () => {
               onGoToPage={pagination.goToPage}
               onNext={pagination.goNext}
               onPrevious={pagination.goPrevious}
+              onFirst={pagination.goFirst}
+              onLast={pagination.goLast}
+              isLoading={pagination.isLoading}
           />
         </div>
       </div>

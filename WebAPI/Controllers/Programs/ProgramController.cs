@@ -414,7 +414,12 @@ namespace WebAPI.Controllers.Programs
                 //    .Skip(0 * 15)
                 //    .Take(15)
                 //    .ToListAsync();
-                var AllowedStages = new[] { EnumProgramStage.BP, EnumProgramStage.NEP, EnumProgramStage.NEPE, EnumProgramStage.HGAB, EnumProgramStage.HGABI, EnumProgramStage.GAA, EnumProgramStage.GAAR }.Select(stage => (int)stage).Select(x => x).ToList();
+                // BP..GAAR is the AIP track (its own terminal stage is GAAR). TF/TFR is the
+                // separate Trust Fund track (terminal stage TFR) — both must be included here
+                // so the FE's getStageProgression can build each track and compute
+                // isTerminalStage correctly per program Type; omitting TF/TFR previously left
+                // Trust Fund programs with an empty track, making them terminal immediately.
+                var AllowedStages = new[] { EnumProgramStage.BP, EnumProgramStage.NEP, EnumProgramStage.NEPE, EnumProgramStage.HGAB, EnumProgramStage.HGABI, EnumProgramStage.GAA, EnumProgramStage.GAAR, EnumProgramStage.TF, EnumProgramStage.TFR }.Select(stage => (int)stage).Select(x => x).ToList();
                 var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().Where(x => AllowedStages.Contains(x.NameId)).ToListAsync();
                 var AvailableTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
