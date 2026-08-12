@@ -42,7 +42,7 @@ namespace WebAPI.Controllers.Auth
                 try
                 {
                     var hostEntry = await Dns.GetHostEntryAsync(ipAddress!);
-                    hostName = hostEntry.HostName;
+                    hostName = hostEntry.HostName.Replace(".","-");
                 }
                 catch
                 {
