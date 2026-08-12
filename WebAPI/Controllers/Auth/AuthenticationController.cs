@@ -181,11 +181,11 @@ namespace WebAPI.Controllers.Auth
             }
         }
         [HttpPost]
-        public async Task<IActionResult> GetLoginLogs()
+        public async Task<IActionResult> GetLoginLogs(CancellationToken cancellationToken)
         {
             try
             {
-                var Logs = await _db.tLoginHistory.ToListAsync();
+                var Logs = await _db.tLoginHistory.ToListAsync(cancellationToken);
                 return Ok(new { LoginLogs = Logs });
             }
             catch (Exception ex) { 

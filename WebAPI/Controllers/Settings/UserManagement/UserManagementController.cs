@@ -117,7 +117,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         {
                             var controllers = await _db.tApiControllers
                                 .Where(x => linkedControllerNames.Contains(x.ControllerName))
-                                .ToListAsync();
+                                .ToListAsync(cancellationToken);
 
                             foreach (var ctrl in controllers)
                                 ctrl.ModuleName = newModule.ModuleName;
@@ -142,7 +142,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         {
                             var views = await _db.tAppViews
                                 .Where(x => linkedRouteNames.Contains(x.RouteName))
-                                .ToListAsync();
+                                .ToListAsync(cancellationToken);
 
                             foreach (var view in views)
                                 view.ModuleName = newModule.ModuleName;
@@ -205,12 +205,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     //var dbControllers = await _db.tApiControllers
                     //    .AsNoTracking()
                     //    .Where(x => controllerNames.Contains(x.ControllerName))
-                    //    .ToListAsync();
+                    //    .ToListAsync(cancellationToken);
 
                     var AllController = await _db.tApiControllers
                         .AsNoTracking()
                         .Where(x => x.ModuleName == dto.ModuleName)
-                        .ToListAsync();
+                        .ToListAsync(cancellationToken);
 
                     foreach (var ctrl in AllController)
                     {
@@ -229,7 +229,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         var NoModulController = await _db.tApiControllers
                             .AsNoTracking()
                             .Where(x => string.IsNullOrEmpty(x.ModuleName))
-                            .ToListAsync();
+                            .ToListAsync(cancellationToken);
                         if(NoModulController.Count > 0)
                         {
                             foreach(var ctrl in NoModulController)
@@ -250,11 +250,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                     //var dbViews = await _db.tPermissionViews
                     //    .Where(x => routeNames.Contains(x.RouteName))
-                    //    .ToListAsync();
+                    //    .ToListAsync(cancellationToken);
                     var AllViews = await _db.tAppViews
                         .AsNoTracking()
                         .Where(x => x.ModuleName == dto.ModuleName)
-                        .ToListAsync();
+                        .ToListAsync(cancellationToken);
 
                     foreach (var view in AllViews)
                     {
@@ -381,7 +381,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 .AsNoTracking()
                 .OrderByDescending(x => x.Id)
                 .Take(10)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
                 var response = new
                 {
                     NumberOfUsers = CountUsers,
@@ -788,7 +788,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             try
             {
                 // 1. Get all existing PermissionViews from DB
-                var existingViews = await _db.tAppViews.ToListAsync();
+                var existingViews = await _db.tAppViews.ToListAsync(cancellationToken);
 
                 var existingPathMap = existingViews
                     .ToDictionary(x => x.RouteName, x => x, StringComparer.OrdinalIgnoreCase);
@@ -1456,7 +1456,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var existingViewIds = await _db.tAppViews
                         .Where(x => dto.PermissionViewIds.Contains(x.Id))
                         .Select(x => x.Id)
-                        .ToListAsync();
+                        .ToListAsync(cancellationToken);
 
                     var invalidViewIds = dto.PermissionViewIds
                         .Except(existingViewIds)

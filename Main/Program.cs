@@ -33,7 +33,8 @@ Appsetting.PrepareAppsettings(builder.Configuration);
 // SERVICES
 // ==========================================================
 
-builder.Services.PrepareDatabaseConnection();
+builder.Services.PrepareDatabaseConnection(
+    startHangfireServer: !builder.Configuration.GetValue<bool>("Testing:DisableHangfire"));
 
 builder.Services.AddCookieAuthentication();
 
@@ -46,7 +47,10 @@ builder.Services
 
 builder.Services.AddSocketMicroService();
 
-builder.Services.AddDinkToPdf();
+if (!builder.Configuration.GetValue<bool>("Testing:DisablePdfNativeLibrary"))
+{
+    builder.Services.AddDinkToPdf();
+}
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -107,7 +111,10 @@ if (app.Environment.IsDevelopment())
 
     app.AddDevSwaggerUI();
 
-    app.UseHangfireDashboard("/hangfire");
+    if (!builder.Configuration.GetValue<bool>("Testing:DisableHangfire"))
+    {
+        app.UseHangfireDashboard("/hangfire");
+    }
 }
 
 
@@ -179,3 +186,7 @@ app.MapHub<ImportHub>("/hubs/import");
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+// Exposes the top-level entry point to WebApplicationFactory without changing
+// the application's runtime behavior.
+public partial class Program { }

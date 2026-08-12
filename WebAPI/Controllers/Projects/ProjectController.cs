@@ -216,12 +216,11 @@ namespace WebAPI.Controllers.Projects
                     object? Value)>();
 
 
-
                 if (!string.IsNullOrEmpty(dto.Filters.ProgramId))
                     filters.Add(("v.ProgramId LIKE @programId", "@programId", $"%{dto.Filters.ProgramId}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.ProjectId))
-                    filters.Add(("v.ProjectId = @projectId", "@projectId", dto.Filters.ProjectId));
+                    filters.Add(("v.ProjectId LIKE @projectId", "@projectId", $"%{dto.Filters.ProjectId}%"));
 
                 if (_Session.ApplyFilter)
                 {
@@ -1617,7 +1616,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    Project.DetailedDesign = (Project.DetailedDesign == 1) ? null : Project.DetailedDesign;
+                    Project.DetailedDesignDate = (Project.DetailedDesign != 1) ? null : Project.DetailedDesignDate;
                 }
 
                 if (Project.Rank != dto.ProjectDetails?.Rank)
@@ -2489,13 +2488,13 @@ namespace WebAPI.Controllers.Projects
                                     ReferenceId = ProjectId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "EndX",
-                                    NewValue = item.EndX?.ToString()!,
-                                    OldValue = ExistingItem.EndX?.ToString()!,
+                                    AffectedColumn = "StartY",
+                                    NewValue = item.StartY?.ToString()!,
+                                    OldValue = ExistingItem.StartY?.ToString()!,
                                     CreatedBy = UserId,
                                     CreatedDate = CurrentDate
                                 });
-                                ExistingItem.EndX = item.EndX;
+                                ExistingItem.StartY = item.StartY;
                             }
                             if (ExistingItem.EndX != item.EndX)
                             {
@@ -2709,7 +2708,7 @@ namespace WebAPI.Controllers.Projects
 
 
                 #region Update Funding Profile
-                var CurrentFunding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync();
+                var CurrentFunding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync(cancellationToken);
                 if (CurrentFunding.Count > 0)
                 {
                     var CurrentIds = dto.FundingProfile.Where(x => x.Id != 0).Select(x => x.Id).ToHashSet();
@@ -2848,19 +2847,19 @@ namespace WebAPI.Controllers.Projects
                 // TODO: BUGFIX: task timeouts here, computationally expensive
                  if (HasCostUpdate)
                 {
-                    //var parameters = new DynamicParameters();
-                    //parameters.Add("ProgramPK", ProgramFK);
 
-                    //var employees = await Sql.QueryAsync<dynamic>(
-                    //    Appsetting.DbConnections.MYPSDb,
-                    //    "pRecomputeProgramCost",
-                    //    parameters,
-                    //    commandType: CommandType.StoredProcedure,
-                    //    cancellationToken: cancellationToken);
+                    //var totalCount = _db.Database
+                    //.SqlQuery<int>($"EXEC dbo.pRecomputeProgramCost @ProgramPK={ProgramFK}")
+                    //.AsEnumerable()
+                    //.Single();
+                    var computedCost = _db.pRecomputeProgramCost
+                    .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={ProgramFK}")
+                    .AsNoTracking()
+                    .AsEnumerable()
+                    .FirstOrDefault();
 
-                    //int totalCount = parameters.Get<int>("TotalCount");
-                    //ProgramRevision.Cost = totalCount;
-                    //await _db.SaveChangesAsync(cancellationToken);
+                    ProgramRevision.Cost = computedCost?.NewCost ?? 0;
+                    await _db.SaveChangesAsync(cancellationToken);
                 }
 
                 Console.WriteLine(">>>  Call to UpdateProjectDetails > CommitAsync");
