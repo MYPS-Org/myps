@@ -573,6 +573,17 @@ namespace WebAPI.Controllers.Programs
                 bool hasUpdated = false;
                 string ProgramId = dto.ProgramId;
                 DateTime CurrentDate = Functions.CurrentDate();
+
+
+                var currentVersion = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramPK == dto.ProgramId && x.StageName == dto.StageName, cancellationToken);
+                if (currentVersion == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Program Stage Not Found",
+                        Message = "The requested program stage could not be found. The program may no longer exist or you may be viewing an outdated stage. Please return to the Program List and open the program again to view the latest available stage."
+                    });
+                }
                 var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
                 {
                     ProgramId = dto.ProgramId,
@@ -764,7 +775,7 @@ namespace WebAPI.Controllers.Programs
                 string ProgramId = dto.ProgramId;
                 DateTime CurrentDate = Functions.CurrentDate();
 
-                var currentVersion = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId, cancellationToken);
+                var currentVersion = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.ProgramPK == dto.ProgramPK, cancellationToken);
                 if (currentVersion == null)
                 {
                     return new BadRequestObjectResult(new

@@ -95,8 +95,9 @@ namespace WebAPI.Controllers.Programs
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
     }
-    public class UpdateProgramStageDTO 
+    public class UpdateProgramStageDTO
     {
+        public string ProgramPK { get; set; } = string.Empty;
         public string ProgramId { get; set; } = string.Empty;
         public EnumProgramStage Stage { get; set; }
         public string Name { get; set; } = string.Empty;
