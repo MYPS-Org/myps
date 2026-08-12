@@ -269,7 +269,7 @@ const Project: React.FC = () => {
                                 </p>
                             ) : (
                                 <p className="text-sm text-gray-500">
-                                    No projects found
+                                    
                                 </p>
                             )
                         }
