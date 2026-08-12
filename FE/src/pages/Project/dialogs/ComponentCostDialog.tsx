@@ -235,25 +235,42 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     }));
   };
 
-  const handleChangeComponentId = (value: string) => {
+  const handleComponentTypeSelect = (value: string) => {
+    if (value === '') {
+      handleChange('ComponentType', '');
+      handleChange('ComponentId', '');
+      return;
+    }
+
     const selectedComponent = componentTypes.find(type => type.ComponentName === value);
-    
+
     if (!selectedComponent) {
       return;
     }
 
     let generatedId = selectedComponent.ComponentId || '';
-    
-    // Only add number increment if the component type is "Civil Works"
+
+    // Only Civil Works may have multiple entries, via the incrementing "+n" suffix
+    // (e.g. "CW1", "CW2"). Every other component type (ROW, DR, EAO, EXC, SAV, CWD, ...)
+    // is single-use per project — block re-adding one that's already present.
     if (value.toLowerCase() === 'civil works') {
-      // Count how many existing componentCosts have the same ComponentType
-      console.log('Selected component:', componentCosts);
       const matchingCount = componentCosts.filter(item => item.ComponentType === value && !item.IsDeleted).length;
-      
-      // Create the new ID: "DR-1", "DR-2", etc.
       generatedId = `${selectedComponent.ComponentId}${matchingCount + 1}`;
+    } else {
+      const isDuplicate = componentCosts.some(
+        item => item.ComponentType === value && !item.IsDeleted && !(mode === 'edit' && item === editingCost)
+      );
+
+      if (isDuplicate) {
+        showToast({
+          type: 'error',
+          message: `A "${value}" component has already been added. Only Civil Works allows multiple entries.`
+        });
+        return;
+      }
     }
-    // ✅ Save into formData so it's actually submitted
+
+    handleChange('ComponentType', value);
     handleChange('ComponentId', generatedId);
   }
 
@@ -449,11 +466,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <select 
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={formData.ComponentType}
-                        onChange={(e) => { 
-                            const value = e.target.value; 
-                            handleChange('ComponentType', value);
-                            handleChangeComponentId(value);
-                        }}
+                        onChange={(e) => handleComponentTypeSelect(e.target.value)}
                         required
                     >   
                     <option value="">Select Component Type</option>
