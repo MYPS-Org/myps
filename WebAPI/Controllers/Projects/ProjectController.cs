@@ -1597,7 +1597,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    Project.FeasibilityDate = (Project.Feasibility != 1) ? null : Project.FeasibilityDate;
+                    Project.FeasibilityDate = (Project.Feasibility != 1) ? null : dto.ProjectDetails!.FeasibilityDate;
                 }
                 if (Project.DetailedDesign != dto.ProjectDetails?.DetailedDesign)
                 {
@@ -1620,7 +1620,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     });
                     Project.DetailedDesign = dto.ProjectDetails!.DetailedDesign;
-                    Project.DetailedDesignDate = (Project.DetailedDesign != 1) ? null : Project.DetailedDesignDate;
+                    Project.DetailedDesignDate = (Project.DetailedDesign != 1) ? null : dto.ProjectDetails!.DetailedDesignDate;
                 }
                 if (Project.DetailedDesignDate != dto.ProjectDetails?.DetailedDesignDate)
                 {
@@ -1766,7 +1766,6 @@ namespace WebAPI.Controllers.Projects
                 var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0 && !x.IsDeleted).ToList();
                 List<ProjectComponentCost> NewCostToAdd = new List<ProjectComponentCost>();
 
-                var MajorWorkItems = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => ComponentCostIds.Contains(x.ComponentCostFK)).ToListAsync(cancellationToken);
 
                 if (NewComponentCostData.Count > 0)
                 {
@@ -1873,7 +1872,7 @@ namespace WebAPI.Controllers.Projects
                 #endregion
 
                 #region Update Component Cost Per Year
-                var ComponentCostYear = await _db.tProjectComponentCostPerYear.AsNoTracking().Where(x => ComponentCostIds.Contains(x.ComponentCostFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+                var ComponentCostYear = await _db.tProjectComponentCostPerYear.Where(x => ComponentCostIds.Contains(x.ComponentCostFK) && !x.IsDeleted).ToListAsync(cancellationToken);
                 if (ComponentCostYear.Count() > 0)
                 {
                     HasCostUpdate = true;
@@ -1986,7 +1985,7 @@ namespace WebAPI.Controllers.Projects
                 #endregion
 
                 #region Update Major Item of Works
-                var MajorItemOfWorks = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => ComponentCostIds.Contains(x.ComponentCostFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+                var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => ComponentCostIds.Contains(x.ComponentCostFK) && !x.IsDeleted).ToListAsync(cancellationToken);
                 HashSet<int> WorkItemFKs = MajorItemOfWorks.Select(x => x.Id).ToHashSet();
                 if (MajorItemOfWorks.Count > 0)
                 {
@@ -2410,7 +2409,7 @@ namespace WebAPI.Controllers.Projects
                 #endregion
 
                 #region Update Major Work Locations
-                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => WorkItemFKs.Contains(x.WorkItemFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.Where(x => WorkItemFKs.Contains(x.WorkItemFK) && !x.IsDeleted).ToListAsync(cancellationToken);
                 if (MajorWorkLocations.Count > 0)
                 {
                     HashSet<int> currentMajorItemIds = MajorWorkLocations.Select(x => x.Id).ToHashSet();

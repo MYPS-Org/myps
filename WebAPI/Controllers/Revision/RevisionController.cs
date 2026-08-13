@@ -34,7 +34,7 @@ namespace WebAPI.Controllers.Revision
     public class RevisionController : CoreController
     {
         public RevisionController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto, CancellationToken cancellationToken)
         {
