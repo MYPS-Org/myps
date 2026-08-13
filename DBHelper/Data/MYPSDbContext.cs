@@ -2,6 +2,7 @@
 using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Functions.Revision;
+using DBHelper.Models.Procedures;
 using DBHelper.Models.Table.Infra;
 using DBHelper.Models.Table.Lookups;
 using DBHelper.Models.Table.Lookups.Project;
@@ -104,6 +105,10 @@ namespace DBHelper.Data
 
         #region Raw SQL
         public virtual DbSet<PaginationCount> PaginationCounts { get; set; }
+        #endregion
+
+        #region Stored Procedures
+        public virtual DbSet<RecomputeProgramCost> pRecomputeProgramCost { get; set; }
         #endregion
 
         #endregion

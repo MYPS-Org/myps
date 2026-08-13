@@ -6,19 +6,11 @@ namespace DBHelper.Models.Functions.Project
 {
     public class ProjectMajorWorkItem
     {
-        [Key]
-        public int Id { get; set; }
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(200)]
-        public string ProjectFK { get; set; } = string.Empty;
-        [MaxLength(200)]
-        public string? ProjectId { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string StageName { get; set; } = string.Empty;
+        [Key]
+        public int Id { get; set; }
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
@@ -35,5 +27,15 @@ namespace DBHelper.Models.Functions.Project
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string ProjectFK { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? ProjectId { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
     }
 }

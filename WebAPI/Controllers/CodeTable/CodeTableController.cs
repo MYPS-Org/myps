@@ -35,36 +35,36 @@ namespace WebAPI.Controllers.CodeTable
         public CodeTableController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
         [HttpPost]
-        public async Task<IActionResult> GetAllCodeTables()
+        public async Task<IActionResult> GetAllCodeTables(CancellationToken cancellationToken)
         {
             try
             {
-                var CodeTableLists = await _db.tOptionCodeTables.AsNoTracking().ToListAsync();
+                var CodeTableLists = await _db.tOptionCodeTables.AsNoTracking().ToListAsync(cancellationToken);
 
                 //Program
-                var programStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync();
-                var programStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
-                var programTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
+                var programStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync(cancellationToken);
+                var programStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync(cancellationToken);
+                var programTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync(cancellationToken);
 
                 //Project
-                var projectCategories = await _db.tOptionProjectCategory.AsNoTracking().ToListAsync();
-                var projectThrusts = await _db.tOptionProjectThrustList.AsNoTracking().ToListAsync();
-                var projectAgencies = await _db.tOptionProjectAgency.AsNoTracking().ToListAsync();
-                var projectOrigins = await _db.tOptionProjectOrigin.AsNoTracking().ToListAsync();
+                var projectCategories = await _db.tOptionProjectCategory.AsNoTracking().ToListAsync(cancellationToken);
+                var projectThrusts = await _db.tOptionProjectThrustList.AsNoTracking().ToListAsync(cancellationToken);
+                var projectAgencies = await _db.tOptionProjectAgency.AsNoTracking().ToListAsync(cancellationToken);
+                var projectOrigins = await _db.tOptionProjectOrigin.AsNoTracking().ToListAsync(cancellationToken);
 
-                var Agreements = await _db.tOptionFundingAgreement.AsNoTracking().ToListAsync();
-                var Sources = await _db.tOptionFundingSource.AsNoTracking().ToListAsync();
-                var scopeOfWorks = await _db.tOptionScopeOfWork.AsNoTracking().ToListAsync();
-                var infraTypes = await _db.tOptionInfraType.AsNoTracking().ToListAsync();
-                var projectComponents = await _db.tOptionProjectComponentType.AsNoTracking().ToListAsync();
+                var Agreements = await _db.tOptionFundingAgreement.AsNoTracking().ToListAsync(cancellationToken);
+                var Sources = await _db.tOptionFundingSource.AsNoTracking().ToListAsync(cancellationToken);
+                var scopeOfWorks = await _db.tOptionScopeOfWork.AsNoTracking().ToListAsync(cancellationToken);
+                var infraTypes = await _db.tOptionInfraType.AsNoTracking().ToListAsync(cancellationToken);
+                var projectComponents = await _db.tOptionProjectComponentType.AsNoTracking().ToListAsync(cancellationToken);
 
                 //Revision
-                var revisionHeaders = await _db.tOptionRevisionHeader.AsNoTracking().ToListAsync();
-                var revisionCategories = await _db.tOptionRevisionCategory.AsNoTracking().ToListAsync();
-                var reasons = await _db.tOptionRevisionReasons.AsNoTracking().ToListAsync();
-                var revisionRules = await _db.vRevisionRules.AsNoTracking().ToListAsync();
-                var revisionDocuments = await _db.tOptionRevisionDocuments.AsNoTracking().ToListAsync();
-                var revisionStatuses = await _db.tOptionRevisionStatus.AsNoTracking().ToListAsync();
+                var revisionHeaders = await _db.tOptionRevisionHeader.AsNoTracking().ToListAsync(cancellationToken);
+                var revisionCategories = await _db.tOptionRevisionCategory.AsNoTracking().ToListAsync(cancellationToken);
+                var reasons = await _db.tOptionRevisionReasons.AsNoTracking().ToListAsync(cancellationToken);
+                var revisionRules = await _db.vRevisionRules.AsNoTracking().ToListAsync(cancellationToken);
+                var revisionDocuments = await _db.tOptionRevisionDocuments.AsNoTracking().ToListAsync(cancellationToken);
+                var revisionStatuses = await _db.tOptionRevisionStatus.AsNoTracking().ToListAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -96,15 +96,15 @@ namespace WebAPI.Controllers.CodeTable
         }
 
         [HttpPost]
-        public async Task<IActionResult> GetAdminAreas()
+        public async Task<IActionResult> GetAdminAreas(CancellationToken cancellationToken)
         {
             try
             {
-                var regions = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var provinces = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var deos = await _db.vAdminDEO.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var regions = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                var provinces = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                var deos = await _db.vAdminDEO.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -185,7 +185,7 @@ namespace WebAPI.Controllers.CodeTable
                         AffectedTable = "tOptionRevisionStatus";
                         break;
                 }
-                var CodeTableLists = await _db.tCodeTableTransactionLog.Where(x => x.AffectedTable == AffectedTable).ToListAsync();
+                var CodeTableLists = await _db.tCodeTableTransactionLog.Where(x => x.AffectedTable == AffectedTable).ToListAsync(cancellationToken);
                 return Ok(new
                 {
                     Logs = CodeTableLists,
@@ -1140,7 +1140,7 @@ namespace WebAPI.Controllers.CodeTable
                         {
                             var validInfraCodes = await _db.tOptionInfraType
                             .Select(x => x.InfraCode)
-                            .ToListAsync();
+                            .ToListAsync(cancellationToken);
                             var nonExistingInfraTypes = data.InfraType
                                 .Where(infra => !validInfraCodes.Contains(infra))
                                 .ToList();
@@ -1629,7 +1629,7 @@ namespace WebAPI.Controllers.CodeTable
                         {
                             var validCategoryIds = await _db.tOptionRevisionCategory
                                 .Select(x => x.CategoryId)
-                                .ToListAsync();
+                                .ToListAsync(cancellationToken);
                             var nonExistingCategoryIds = data.CategoryId
                                 .Where(category => !validCategoryIds.Contains((int)category!))
                                 .ToList();

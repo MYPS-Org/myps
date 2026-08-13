@@ -74,11 +74,11 @@
 //                List<DBHelper.Models.Views.Project.ProjectGroups> permissionLists = await sortedQuery
 //                   .Skip((dto.page - 1) * dto.limit)
 //                   .Take(dto.limit)
-//                   .ToListAsync();
+//                   .ToListAsync(cancellationToken);
 
 //                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
 
-//                var UserGroup = await _db.tGroups.ToListAsync();
+//                var UserGroup = await _db.tGroups.ToListAsync(cancellationToken);
 //                return Ok(new
 //                {
 //                    lists = permissionLists,
@@ -154,7 +154,7 @@
 //                var ExistingProjects = await _db.tProjectsInGroup
 //                    .AsNoTracking()
 //                    .Where(x => x.GroupId == dto.GroupId)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 //                var transactionLogs = new List<TransactionLog>();
 //                DateTime CurrentDate = Functions.CurrentDate();;
 //                transactionLogs.Add(new TransactionLog
@@ -241,7 +241,7 @@
 //            var transaction = await _db.Database.BeginTransactionAsync();
 //            try
 //            {
-//                var CheckName = await _db.vProjectsInGroup.AsNoTracking().Where(x => dto.ProjectId.Contains(x.ProjectId)).ToListAsync();
+//                var CheckName = await _db.vProjectsInGroup.AsNoTracking().Where(x => dto.ProjectId.Contains(x.ProjectId)).ToListAsync(cancellationToken);
 //                if (CheckName.Count > 0)
 //                {
 //                    string joinedProjectIds = string.Join(", ", CheckName.Select(x => x.ProjectId));
@@ -255,7 +255,7 @@
 //                var CheckProjects = await _db.tProjects
 //                    .AsNoTracking()
 //                    .Where(x => dto.ProjectId.Contains(x.ReferenceId))
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 //                var CheckMissingProjects = dto.ProjectId.Except(CheckProjects.Select(x => x.ReferenceId)).ToList();
 //                if (CheckMissingProjects.Count > 0)
 //                {
@@ -354,12 +354,12 @@
 //                {
 //                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
 //                }
-//                var ProjectDetails = await _db.tProjectsInGroup.AsNoTracking().Where(x => x.GroupId == dto.GroupId).Select(x => x.ProjectId).ToListAsync();
+//                var ProjectDetails = await _db.tProjectsInGroup.AsNoTracking().Where(x => x.GroupId == dto.GroupId).Select(x => x.ProjectId).ToListAsync(cancellationToken);
 //                var ProjectList = await _db.vProjectLatestStage
 //                    .AsNoTracking()
 //                    .Where(x => ProjectDetails.Contains(x.ProjectId))
-//                    .ToListAsync();
-//                var UserGroup = await _db.tGroups.ToListAsync();
+//                    .ToListAsync(cancellationToken);
+//                var UserGroup = await _db.tGroups.ToListAsync(cancellationToken);
 //                return Ok(new
 //                {
 //                    GroupDetails = GroupDetail,

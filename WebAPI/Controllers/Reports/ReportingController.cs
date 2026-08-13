@@ -52,12 +52,12 @@
 //                var categories = await _db.tOptionProjectCategory
 //                    .AsNoTracking()
 //                    .OrderBy(x => x.CategoryName)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 //                var regions = await _db.tOptionAdminAreaRegion
 //                    .AsNoTracking()
 //                    .Where(x => x.ParticipantId == _Session.RegCode || !_Session.ApplyFilter)
 //                    .OrderBy(x => x.Name)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 //                if (regions == null)
 //                {
 //                    return new BadRequestObjectResult(new
@@ -72,34 +72,34 @@
 //                var province = await _db.tOptionAdminAreaProvince
 //                    .AsNoTracking()
 //                    .Where(x => RegionIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 
 //                var ProvinceIds = province.Select(p => p.GdbId).ToList();
 //                var legislativeDistricts = await _db.tOptionAdminAreaCongressionalDistrict
 //                    .AsNoTracking()
 //                    .Where(x => ProvinceIds.Contains(x.ProvinceGdbId) || !_Session.ApplyFilter)
 //                    .OrderBy(x => x.Name)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 
 //                var deos = await _db.tOptionAdminAreaDistrictEngineeringOffice
 //                    .AsNoTracking()
 //                    .Where(x => RegionParticipantIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
 //                    .OrderBy(x => x.Name)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 
 //                var DEOParticipantIds = deos.Select(d => d.ParticipantId).ToList();
 //                var implementingOffices = await _db.vAdminImplementingOffice
 //                    .AsNoTracking()
 //                    .Where(x => (DEOParticipantIds.Contains(x.ParticipantId) || x.OrgType == "UPMO") || !_Session.ApplyFilter)
 //                    .OrderBy(x => x.Name)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 
 //                var ioIds = implementingOffices.Select(io => io.ParticipantId).ToList();
 //                var operatingUnits = await _db.vAdminOperatingUnit
 //                    .AsNoTracking()
 //                    .Where(x => ioIds.Contains(x.ParticipantId) || !_Session.ApplyFilter)
 //                    .OrderBy(x => x.Name)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 //                return new OkObjectResult(new
 //                {
 //                    Categories = categories,
@@ -363,7 +363,7 @@
 //                var regions = await _db.tOptionAdminAreaRegion
 //                    .AsNoTracking()
 //                    .Where(x => x.ParticipantId == _Session.RegCode || !_Session.ApplyFilter)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 //                return new OkObjectResult(new
 //                {
 //                    Regions = regions
@@ -538,7 +538,7 @@
 //                var regions = await _db.tOptionAdminAreaRegion
 //                    .AsNoTracking()
 //                    .Where(x => x.ParticipantId == _Session.RegCode || !_Session.ApplyFilter)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 //                return new OkObjectResult(new
 //                {
 //                    Regions = regions
@@ -612,7 +612,7 @@
 //                var stages = await _db.tProjectStages
 //                    .AsNoTracking()
 //                    .Where(s => s.ProgramId == dto.ProgramId && s.StageName == dto.StageName)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 
 //                if (stages.Count < 1)
 //                {
@@ -637,19 +637,19 @@
 //                var fundingProfiles = await _db.tProjectFundingProfile
 //                    .AsNoTracking()
 //                    .Where(f => projectIds.Contains(f.ProjectId) && f.StageName == dto.StageName && !f.IsDeleted)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 
 //                var componentCosts = await _db.tProjectComponentCost
 //                    .AsNoTracking()
 //                    .Where(c => projectIds.Contains(c.ProjectId) && c.StageName == dto.StageName && !c.IsDeleted)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 
 //                var costIds = componentCosts.Select(c => c.CostId).ToList();
 
 //                var componentCostPerYear = await _db.tProjectComponentCostPerYear
 //                    .AsNoTracking()
 //                    .Where(cy => costIds.Contains(cy.ComponentCostId) && cy.StageName == dto.StageName && !cy.IsDeleted)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 
 //                //pExportRawProjectsMajorItems
 
@@ -670,7 +670,7 @@
 //                var majorWorkLocations = await _db.tProjectMajorWorkLocations
 //                    .AsNoTracking()
 //                    .Where(l => majorWorkReferenceIds.Contains(l.ParentId) && l.StageName == dto.StageName && !l.IsDeleted)
-//                    .ToListAsync();
+//                    .ToListAsync(cancellationToken);
 
 //                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 //                using var package = new ExcelPackage();
