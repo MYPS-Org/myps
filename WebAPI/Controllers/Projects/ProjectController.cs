@@ -1581,6 +1581,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     });
                     Project.Feasibility = dto.ProjectDetails!.Feasibility;
+                    Project.FeasibilityDate = (Project.Feasibility != 1) ? null : Project.FeasibilityDate;
                 }
                 if (Project.FeasibilityDate != dto.ProjectDetails?.FeasibilityDate)
                 {
@@ -1596,7 +1597,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    Project.FeasibilityDate = (Project.Feasibility == 1) ? null : Project.FeasibilityDate;
+                    Project.FeasibilityDate = (Project.Feasibility != 1) ? null : Project.FeasibilityDate;
                 }
                 if (Project.DetailedDesign != dto.ProjectDetails?.DetailedDesign)
                 {
@@ -1619,6 +1620,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     });
                     Project.DetailedDesign = dto.ProjectDetails!.DetailedDesign;
+                    Project.DetailedDesignDate = (Project.DetailedDesign != 1) ? null : Project.DetailedDesignDate;
                 }
                 if (Project.DetailedDesignDate != dto.ProjectDetails?.DetailedDesignDate)
                 {
@@ -1658,10 +1660,108 @@ namespace WebAPI.Controllers.Projects
                     _db.tProjectRevisions.Update(Project);
                 }
                 #endregion
-                #region New Component Cost with components relations
-                var CostToBeDeleted = dto.ComponentCosts.Where(x => x.IsDeleted == true && x.Id > 0).Select(x => x.Id).ToHashSet<int>();
+
+
+
                 var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevision.Id && !x.IsDeleted).ToListAsync(cancellationToken);
                 HashSet<int> ComponentCostIds = ComponentCost.Select(x => x.Id).ToHashSet();
+                #region Update Component Cost
+                if (ComponentCost.Count > 0)
+                {
+                    var UpdateComponentCost = dto.ComponentCosts.Where(x => ComponentCostIds.Contains(x.Id)).ToList();
+                    if (UpdateComponentCost.Count > 0)
+                    {
+                        HasCostUpdate = true;
+                        foreach (var item in UpdateComponentCost)
+                        {
+                            var ExistingItem = ComponentCost.FirstOrDefault(x => x.Id == item.Id);
+                            bool ComponentUpdate = false;
+                            if (ExistingItem != null)
+                            {
+                                if (ExistingItem.ComponentType != item.ComponentType)
+                                {
+                                    ComponentUpdate = true;
+                                    var Component = await _db.tOptionProjectComponentType.FirstOrDefaultAsync(x => x.ComponentName == item.ComponentType);
+                                    if (Component == null)
+                                    {
+                                        return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentType}' is not valid.", Title = "Invalid Component" });
+                                    }
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        ReferenceId = TransactionReferenceId,
+                                        TransactionType = EnumTransactionType.Update.ToString(),
+                                        AffectedTable = "tProjectComponentCost",
+                                        AffectedColumn = "ComponentType",
+                                        NewValue = Component.ComponentName,
+                                        OldValue = ExistingItem.ComponentType,
+                                        CreatedBy = UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.ComponentId = item.ComponentId;
+                                    ExistingItem.ComponentType = Component.ComponentName;
+                                }
+                                if (ExistingItem.Description != item.Description)
+                                {
+                                    ComponentUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        ReferenceId = TransactionReferenceId,
+                                        TransactionType = EnumTransactionType.Update.ToString(),
+                                        AffectedTable = "tProjectComponentCost",
+                                        AffectedColumn = "Description",
+                                        NewValue = item.Description ?? "",
+                                        OldValue = ExistingItem.Description ?? "",
+                                        CreatedBy = UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.Description = item.Description ?? "";
+                                }
+                                if (ExistingItem.Total != item.Total)
+                                {
+                                    ComponentUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        ReferenceId = TransactionReferenceId,
+                                        TransactionType = EnumTransactionType.Update.ToString(),
+                                        AffectedTable = "tProjectComponentCost",
+                                        AffectedColumn = "Total",
+                                        NewValue = item.Total.ToString(),
+                                        OldValue = ExistingItem.Total.ToString(),
+                                        CreatedBy = UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.Total = item.Total;
+                                }
+                                if (item.IsDeleted == true)
+                                {
+                                    ComponentUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        ReferenceId = TransactionReferenceId,
+                                        TransactionType = EnumTransactionType.Delete.ToString(),
+                                        AffectedTable = "tProjectComponentCost",
+                                        AffectedColumn = "Row",
+                                        NewValue = "",
+                                        OldValue = JsonConvert.SerializeObject(ExistingItem),
+                                        CreatedBy = UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.IsDeleted = item.IsDeleted;
+                                }
+                                if (ComponentUpdate)
+                                {
+                                    ExistingItem.UpdatedBy = UserId;
+                                    ExistingItem.UpdatedDate = CurrentDate;
+                                    _db.tProjectComponentCost.Update(ExistingItem);
+                                }
+                            }
+                        }
+                    }
+                }
+                #endregion
+
+                #region New Component Cost with components relations
+                var CostToBeDeleted = dto.ComponentCosts.Where(x => x.IsDeleted == true && x.Id > 0).Select(x => x.Id).ToHashSet<int>();
                 HashSet<string> ComponentCostTypeIds = ComponentCost.Select(x => x.ComponentId).ToHashSet();
                 var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0 && !x.IsDeleted).ToList();
                 List<ProjectComponentCost> NewCostToAdd = new List<ProjectComponentCost>();
@@ -1768,101 +1868,6 @@ namespace WebAPI.Controllers.Projects
                                 }))
                             .ToList();
                         await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations, cancellationToken);
-                    }
-                }
-                #endregion
-
-                #region Update Component Cost
-                if (ComponentCost.Count > 0)
-                {
-                    var UpdateComponentCost = dto.ComponentCosts.Where(x => ComponentCostIds.Contains(x.Id)).ToList();
-                    if (UpdateComponentCost.Count > 0)
-                    {
-                        HasCostUpdate = true;
-                        foreach (var item in UpdateComponentCost)
-                        {
-                            var ExistingItem = ComponentCost.FirstOrDefault(x => x.Id == item.Id);
-                            bool ComponentUpdate = false;
-                            if (ExistingItem != null)
-                            {
-                                if (ExistingItem.ComponentType != item.ComponentType)
-                                {
-                                    ComponentUpdate = true;
-                                    var Component = await _db.tOptionProjectComponentType.FirstOrDefaultAsync(x => x.ComponentName == item.ComponentType);
-                                    if (Component == null)
-                                    {
-                                        return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentType}' is not valid.", Title = "Invalid Component" });
-                                    }
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectComponentCost",
-                                        AffectedColumn = "ComponentType",
-                                        NewValue = Component.ComponentName,
-                                        OldValue = ExistingItem.ComponentType,
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.ComponentId = item.ComponentId;
-                                    ExistingItem.ComponentType = Component.ComponentName;
-                                }
-                                if (ExistingItem.Description != item.Description)
-                                {
-                                    ComponentUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectComponentCost",
-                                        AffectedColumn = "Description",
-                                        NewValue = item.Description ?? "",
-                                        OldValue = ExistingItem.Description ?? "",
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.Description = item.Description ?? "";
-                                }
-                                if (ExistingItem.Total != item.Total)
-                                {
-                                    ComponentUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectComponentCost",
-                                        AffectedColumn = "Total",
-                                        NewValue = item.Total.ToString(),
-                                        OldValue = ExistingItem.Total.ToString(),
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.Total = item.Total;
-                                }
-                                if (item.IsDeleted == true)
-                                {
-                                    ComponentUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Delete.ToString(),
-                                        AffectedTable = "tProjectComponentCost",
-                                        AffectedColumn = "Row",
-                                        NewValue = "",
-                                        OldValue = JsonConvert.SerializeObject(ExistingItem),
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.IsDeleted = item.IsDeleted;
-                                }
-                                if (ComponentUpdate)
-                                {
-                                    ExistingItem.UpdatedBy = UserId;
-                                    ExistingItem.UpdatedDate = CurrentDate;
-                                    _db.tProjectComponentCost.Update(ExistingItem);
-                                }
-                            }
-                        }
                     }
                 }
                 #endregion
@@ -2377,8 +2382,6 @@ namespace WebAPI.Controllers.Projects
                 // attached and inserted via the navigation collection in New Component
                 // Cost above; this only handles new work items on an existing Component Cost.
 
-                List<ProjectMajorWorkItem> NewWorkItems = new List<ProjectMajorWorkItem>();
-
                 var newMajorItems = dto.MajorItemOfWorks.Where(x => x.Id == 0 && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
                 Console.WriteLine($">>>  newMajorItems = {newMajorItems.Count}");
                 if (newMajorItems.Count > 0)
@@ -2399,10 +2402,9 @@ namespace WebAPI.Controllers.Projects
                                 CreatedDate = CurrentDate
                             }))
                         .ToList();
-                    Console.WriteLine($">>>  selectedWorkItemsToAdd = {selectedWorkItemsToAdd.Count}");
-                    NewWorkItems.AddRange(selectedWorkItemsToAdd);
-                    await _db.tProjectMajorWorkItem.AddRangeAsync(NewWorkItems, cancellationToken);
+                    await _db.tProjectMajorWorkItem.AddRangeAsync(selectedWorkItemsToAdd, cancellationToken);
                     await _db.SaveChangesAsync(cancellationToken);
+                    MajorItemOfWorks.AddRange(selectedWorkItemsToAdd);
                 }
 
                 #endregion
@@ -2672,12 +2674,11 @@ namespace WebAPI.Controllers.Projects
                     }
                 }
                 #endregion
-
                 #region New Major Work Locations in Existing Work Items
-                var NewWorkLocationsInExistingWorkItem = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && WorkItemFKs.Contains(x.WorkItemFK)).ToList();
+                var NewWorkLocationsInExistingWorkItem = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
                 if (NewWorkLocationsInExistingWorkItem.Count > 0)
                 {
-                    var selectedWorkLocationsToAdd = MajorWorkItems
+                    var selectedWorkLocationsToAdd = MajorItemOfWorks
                     .SelectMany(a =>
                         NewWorkLocationsInExistingWorkItem
                         .Where(x => x.ComponentId == a.ComponentId)
