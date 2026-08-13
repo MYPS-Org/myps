@@ -106,7 +106,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {docs.map((doc, index) => (
+          {docs.filter((doc) => !doc.IsDeleted).map((doc, index) => (
             <TableRow key={`${doc.Id}-${index}-${doc.CreatedDate}`}>
               <TableCell className="w-lg text-center">
                 {doc.FileName && (
