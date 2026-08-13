@@ -6,7 +6,18 @@ import { useParams, useLocation } from 'react-router-dom';
 import ProjectForm from '../projectmodification/components/ProjectForm';
 import { fetchRevisionData } from '../Service';
 import { useAPIIntegration } from '../hooks/useFieldPermissions';
-import type { RevisionProjectPayload, FieldRules } from '../Model';
+import type { RevisionProjectPayload, FieldRules, ApiMessageResult } from '../Model';
+
+// Backend errors that must block the Revision flow with their exact message rather than a
+// generic redirect (see revision-frontend-integration-handoff.md section 19). These cover the
+// published-project gate, blocked revision groups (9/13), LS/wallet rejection, and duplicate
+// in-flight requests — all enforced server-side and surfaced through this one error path.
+const BLOCKING_ERROR_TITLES = new Set([
+    'Project Not Published',
+    'Revision Type Temporarily Blocked',
+    'Revision Reason Requires Confirmation',
+    'Pending Modification Request',
+]);
 
 const ModificationDetails: React.FC = () => {
     const { project } = useParams<{ project: string }>();
@@ -14,6 +25,7 @@ const ModificationDetails: React.FC = () => {
     const id = useMemo(() => project?.split(':'), [project]);
     const [initialData, setInitialData] = useState<RevisionProjectPayload | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
+    const [blockingError, setBlockingError] = useState<ApiMessageResult | null>(null);
     const { setStatusFromAPI, setModificationContext, setFieldRules } = useAPIIntegration();
     const navigate = useNavigate();
     const errorRedirectRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -154,19 +166,47 @@ const ModificationDetails: React.FC = () => {
 
         } catch (error) {
             console.error('Error fetching project details:', error);
-            // Navigate back to project details using URL params instead of /revision
+            const apiError = error as ApiMessageResult;
+
+            if (apiError?.Title && BLOCKING_ERROR_TITLES.has(apiError.Title)) {
+                // Show the backend's exact message as a blocking notice instead of a generic
+                // redirect — this covers the publish gate, blocked revision groups 9/13, and
+                // LS/wallet rejection, all enforced server-side.
+                setBlockingError(apiError);
+                return;
+            }
+
+            // Genuinely unrecoverable errors (e.g. Invalid Project) — redirect back.
             errorRedirectRef.current = setTimeout(() => {
                 navigate(`/projects/project-details/${projectId}:${stageName}`);
             }, 2000);
         } finally {
             setIsLoading(false);
         }
-    }, [selectedRevisionGroupId, selectedCategoryId, selectedReasonId, setStatusFromAPI, setFieldRules]);
-    
+    }, [selectedRevisionGroupId, selectedCategoryId, selectedReasonId, setStatusFromAPI, setFieldRules, navigate]);
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-64">
                 <div className="text-lg text-gray-600">Loading project data...</div>
+            </div>
+        );
+    }
+
+    if (blockingError) {
+        return (
+            <div className="max-w-3xl mx-auto p-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6 space-y-2">
+                    <h3 className="text-lg font-semibold text-red-800">{blockingError.Title}</h3>
+                    <p className="text-sm text-red-700">{blockingError.Message}</p>
+                    <button
+                        type="button"
+                        onClick={() => navigate(id && id.length === 2 ? `/projects/project-details/${id[0]}:${id[1]}` : '/revision')}
+                        className="mt-2 text-sm font-medium text-red-800 underline"
+                    >
+                        Back to Project Details
+                    </button>
+                </div>
             </div>
         );
     }

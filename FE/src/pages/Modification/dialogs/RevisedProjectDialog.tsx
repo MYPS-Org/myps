@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { DateInput } from '../../../components/tailwindui/date-input';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from '../../Project/Model';
+import { EnumRevisionStatus } from '../Model';
 import { submitModificationRequest, updateRevisionRequestStatus } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -40,7 +41,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     revisionCategory,
     revisionReason,
     reasonId,
-    categoryId: _categoryId,
+    categoryId,
     revisionGroupId: _revisionGroupId,
     projectStatus
 }) => {
@@ -72,6 +73,8 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         }
     }, [isOpen]);
 
+    const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB, matches backend's max upload size
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -82,6 +85,15 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                     message: 'Please select a PDF file only.'
                 });
                 e.target.value = ''; // Clear the input
+                return;
+            }
+
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                showToast({
+                    type: 'error',
+                    message: 'File size must not exceed 50 MB.'
+                });
+                e.target.value = '';
                 return;
             }
 
@@ -151,7 +163,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
             // Prepare the payload
             const payload = {
                 RevisionDetails: {
-                    RevisionCategory: revisionCategory || revisionType,
+                    CategoryId: categoryId ?? null,
                     ReasonId:  reasonId || 0,
                     ApprovalDate: approvalDate,
                     ApprovedDocument: {
@@ -201,8 +213,8 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                     return;
                 }
                 await updateRevisionRequestStatus(
-                    transactionId, 
-                    1,
+                    transactionId,
+                    EnumRevisionStatus.Approved,
                     {
                         Name: approvalDocument.Name,
                         Extension: approvalDocument.Extension,
@@ -210,7 +222,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                         DataUrl: approvalDocument.DataUrl
                     },
                     approvalDate
-                ); // 1 = Approved
+                );
                 
                 showToast({
                     type: 'success',

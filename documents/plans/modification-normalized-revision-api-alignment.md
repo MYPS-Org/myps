@@ -1,0 +1,102 @@
+# Plan: Align FE/src/pages/Modification with Normalized Revision API
+
+Status: Implemented
+Created: 2026-08-14
+Source: `C:\Users\User\Downloads\revision-frontend-integration-handoff.md` (the actual spec — `INDEX.md` is just a doc-dump index pointing at it, no other file from that dump is needed for this work)
+
+## Context
+
+The backend Revision domain was recently refactored to a normalized schema (`tRevisionDetails`, `tRevisionApprovals`, `tRevisionDocuments`, the `fRevision*` function family — see commit `e24e0d20 Refactor revision schema to normalized structure`, the tip of this branch). The handoff doc formally specifies the resulting contract: endpoint payload/response shapes, a `EnumRevisionStatus` enum, an `IsApprovedDocument` IO/CO document split, a `Rules.Field` per-field-editable JSON contract, RO/CO approval semantics, a published-project gate, and two temporarily-blocked revision groups (9 = Termination, 13 = Mode-of-Implementation).
+
+Direct inspection of `FE/src/pages/Modification` (current tip of `backend-revision`) shows the module is **already mostly built against this contract** — endpoints, the `Rules.Field`-driven field-permission store, and the IO/CO document split are already live and correct. The gap is smaller and more specific than a full rewrite:
+
+1. A **dead, orphaned client-side rule engine** (`rules/*.ts`, `TestAllowedFields.tsx`) that duplicates what the API now computes, never wired into any live code path.
+2. A **real bug**: `CRUDRules.CanAdd`/`CanDelete` are typed and compared as strings (`!== 'false' && !== '0'`) instead of the booleans the backend contract specifies — currently harmless only because it happens to default-allow.
+3. A **real functional gap**: CO approval (`ApproveModifyDialog.tsx`) never asks for or sends the CO approval document, even though the backend requires one for CO approve (RO approve correctly needs none).
+4. **No client-side handling** of the "Project Not Published" gate or the "Revision Type Temporarily Blocked" / "Revision Reason Requires Confirmation" / "Pending Modification Request" errors — currently a generic 2-second redirect swallows the specific backend message.
+5. **Loose typing / drift**: no `EnumRevisionStatus` (dialogs pass raw magic numbers 1/2/3 that happen to match), no shared `FileUpload`/`ApiMessageResult`/`ApiTransactionResult` types (each Service.ts function inlines its own document/response shape), and the queue's pagination/filter shape predates the cursor-pagination convention already established elsewhere in the FE (`FE/src/types/Pagination.d.ts`).
+
+The goal of this refactor is to close those five gaps — not to rebuild the module from scratch — since the architecture (Jotai field-permission store fed exclusively by `Rules.Field`) already matches what the handoff describes as correct.
+
+## Acceptance Criteria
+
+As a Modification-module developer, I want the Revision API integration to match the documented normalized contract exactly, so that field editability, approval flows, and error handling behave correctly against the current backend and no dead/misleading code remains to confuse future changes.
+
+- [ ] `rules/` folder's dead per-category rule engine and `TestAllowedFields.tsx` are deleted; `Modification.md`/`FILE_REFERENCE.md`/`ARCHITECTURE_DIAGRAMS.md` no longer describe them as live.
+- [ ] `EnumRevisionStatus` (Pending=0, Approved=1, Rejected=2, ForCorrection=3) exists in `Model.d.ts` and replaces every raw numeric status literal in `Service.ts` and the four status-changing dialogs.
+- [ ] `CRUDRules.CanAdd`/`CanDelete` are typed and compared as `boolean`, not `string`; `fieldPermissionStore.ts`'s `canAddItemAtom`/`canDeleteItemAtom` no longer do string comparisons.
+- [ ] `ApproveModifyDialog.tsx` requires and uploads a CO approval PDF when the acting user is CO (`AUC` group), and requires no document when RO (`RPC` group) — mirroring the existing PDF-upload validation pattern in `ResubmitRevisionDialog.tsx` (PDF-only + size check).
+- [ ] `ModificationDetails.tsx` (and `ViewRevision.tsx` where relevant) surface the backend's exact `Title`/`Message` for `Project Not Published`, `Revision Type Temporarily Blocked`, `Revision Reason Requires Confirmation`, and `Pending Modification Request` instead of a generic redirect/toast.
+- [ ] The "Submit Revision Request to RO/CO" action in `ProjectForm.tsx` is hidden for a Project whose `ProjectDetails.IsPublished` is not `true` (field already exists on the shared `ProjectDetails` type).
+- [ ] `Service.ts` functions are fully typed using shared `FileUpload`, `ApiMessageResult`, `ApiTransactionResult` types (added to `Model.d.ts`) instead of ad-hoc inline shapes; dead commented-out code and the stray `console.log` in `updateRevisionRequestStatus` are removed; endpoint path leading-slash usage is consistent.
+- [ ] `RevisionPagination`/`RevisionFilter` are migrated onto the existing cursor-pagination convention (`FE/src/types/Pagination.d.ts`'s `PaginatedRequest<TFilters>`/cursor fields) with filter fields matching the handoff's `RevisionRequestsFilter` (`TransactionId`, `ProjectId`, `RevisionType`, `RevisionStatus`, `CurrentStage`); `ModifcationList.tsx` is updated to send/consume the new shape.
+- [ ] No behavior change to the already-correct parts: `Rules.Field`-driven field editability, IO/CO document split in `RevisionForm.tsx`, RO/CO reject-and-for-correction remarks requirement, resubmit's same-`TransactionId` + required-new-IO-document behavior.
+- [ ] `npx tsc --noEmit` (or the FE's existing typecheck script) passes with no new errors in `FE/src/pages/Modification`.
+
+## Approach
+
+Work module-by-module, smallest-blast-radius first:
+
+**1. Dead code removal.** Delete `rules/RuleManager.ts`, `AllowedFields.ts`, `AdjustmentFields.ts`, `AdditionalFund.ts`, `ChangeInAuthority.ts`, `ModeOfImplementation.ts`, `NIAbandonmentForSavings.ts`, `NIDelisted.ts`, `NIReversion.ts`, `Termination.ts`, `conditions/README.md`'s references to them if any, `TestAllowedFields.tsx`, and the empty `state/modState.ts`. Confirmed unreachable: none of these are imported outside `RuleManager.ts` itself or the unrouted `TestAllowedFields.tsx`. Update the doc files (`Modification.md`, `FILE_REFERENCE.md`, `ARCHITECTURE_DIAGRAMS.md`) to drop the "Case A/B/C client rule engine" sections that no longer apply, since they currently misdescribe the module as having a client-side fallback rule system.
+
+**2. Shared types in `Model.d.ts`.** Add `EnumRevisionStatus`, `FileUpload` (`{ Name, Extension, ContentType, DataUrl }` — replacing the shape duplicated inline in `Service.ts`'s `submitModificationRequest`/`ResubmitRevisionRequest` payload types), `ApiMessageResult { Title, Message }`, `ApiTransactionResult extends ApiMessageResult { TransactionId }`. Change `CRUDRules.CanAdd`/`CanDelete` from `string` to `boolean`. Update `fieldPermissionStore.ts`'s `crudRulesAtom`/`canAddItemAtom`/`canDeleteItemAtom` (currently `!== 'false' && !== '0'`) to plain boolean checks.
+
+**3. `Service.ts` cleanup.** Remove the two commented-out dead blocks (fetchRevDropdownData, the IO/RO endpoint-branching comment). Type every function's payload/response using the new shared types plus `EnumRevisionStatus` for `updateRevisionRequestStatus`'s `status` param. Remove the stray `console.log` payload dump and the `'Rine'` typo'd error label. Normalize endpoint paths to a consistent leading-slash style.
+
+**4. Pagination/filter migration.** Change `RevisionPagination` to extend the existing `PaginatedRequest<TFilters>` (from `FE/src/types/Pagination.d.ts`) instead of redeclaring `limit`/`page`/`SortField`/`sortDirection` ad hoc. Change `RevisionFilter` fields to `TransactionId?`, `ProjectId?`, `RevisionType?`, `RevisionStatus?`, `CurrentStage?` per the handoff's `RevisionRequestsFilter`. Update `ModifcationList.tsx`'s state/request construction and pagination controls (`Paginate()`) to use `Navigation`/`PreviousFilteredId`/`NextFilteredId`/`PageCursorId` instead of the current plain `page` increment — follow the same cursor-nav pattern already used by other paginated list pages in the FE (check a sibling module, e.g. Project's list page, for the reference implementation of cursor controls before writing new ones). **Verify the live `/api/Revision/RevisionRequests` response's actual field names in the running app/devtools before finalizing the `RevisionLists`/queue-row rename** — the handoff's `RevisionQueueItem` sample (`RevisionType`, `RevisionStatus`, `CurrentStage`) doesn't necessarily map 1:1 to the current `RevisionGroupId`/`RegionStatus`/`COStatus` dual-track fields, and guessing wrong here breaks the list at runtime (see Risks).
+
+**5. CO-approval-document fix.** In `ApproveModifyDialog.tsx`, import `useAuth` from `../../../contexts/AuthContext` (same pattern already used in `RevisedProjectDialog.tsx`/`ResubmitRevisionDialog.tsx`), branch on `user?.UserGroupNames.find(x => x === 'AUC')`. When CO: render the same PDF-upload control/validation (`file.type !== 'application/pdf'` check + size check + base64 `DataUrl` conversion) already implemented in `ResubmitRevisionDialog.tsx`, require it before enabling the Approve button, and pass it as `ApprovedDocument` to `updateRevisionRequestStatus`. When RO: keep current no-document behavior. Reuse the existing upload/validation code rather than re-implementing it — extract to a small shared helper only if duplicating it verbatim would exceed ~15 lines (judgment call at implementation time; don't over-abstract for two call sites).
+
+**6. Blocked-type/gate error surfacing.** In `ModificationDetails.tsx`'s `fetchRevisionData` catch block (and the equivalent path in `ViewRevision.tsx` if reachable there), branch on the caught error's `Title` (the shared `ApiMessageResult` shape) for `Project Not Published`, `Revision Type Temporarily Blocked`, `Revision Reason Requires Confirmation`, and `Pending Modification Request` — show the backend's exact message as a blocking in-page notice (not the generic toast-then-redirect), and keep the redirect only for genuinely unrecoverable errors (e.g. `Invalid Project`). This single change also covers group-9/13 blocking and LS/wallet rejection, since those are all enforced server-side and surfaced through the same error path — no separate client-side group/LS gating is needed inside this folder (the Type/Category/Reason selection UI itself lives in the `Project` module, outside this plan's scope).
+
+**7. Publish gate on submit.** In `ProjectForm.tsx`, wrap the "Submit Revision Request to RO/CO" buttons (currently always rendered when in new-revision mode) with a check on `initialData.ProjectDetails.IsPublished` (field already exists per `Project/Model.d.ts:140`). If not published, hide the submit action — the fetch-level error surfacing from step 6 remains the backstop if this is ever bypassed.
+
+## Files / Components Touched
+
+- `FE/src/pages/Modification/Model.d.ts`, `Service.ts` — type/contract changes (steps 2–4)
+- `FE/src/pages/Modification/store/fieldPermissionStore.ts` — boolean CRUD fix (step 2)
+- `FE/src/pages/Modification/views/ModifcationList.tsx` — cursor pagination (step 4)
+- `FE/src/pages/Modification/views/ModificationDetails.tsx`, `views/ViewRevision.tsx` — error surfacing (step 6)
+- `FE/src/pages/Modification/dialogs/ApproveModifyDialog.tsx` — CO document requirement (step 5)
+- `FE/src/pages/Modification/dialogs/RejectModifyDialog.tsx`, `ForReviewModifyDialog.tsx`, `ResubmitRevisionDialog.tsx`, `RevisedProjectDialog.tsx` — swap magic numbers for `EnumRevisionStatus` (step 3)
+- `FE/src/pages/Modification/projectmodification/components/ProjectForm.tsx` — publish gate (step 7)
+- `FE/src/pages/Modification/rules/*`, `TestAllowedFields.tsx`, `state/modState.ts` — deleted (step 1)
+- `FE/src/pages/Modification/Modification.md`, `FILE_REFERENCE.md`, `ARCHITECTURE_DIAGRAMS.md` — doc updates reflecting deletions (step 1, Documentation task)
+
+## Tasks
+
+### Implementation
+- Delete the dead `rules/` engine files and `TestAllowedFields.tsx` and `state/modState.ts`; grep the whole repo (not just `Modification/`) afterward to confirm nothing outside the folder imported them.
+- Add `EnumRevisionStatus`, `FileUpload`, `ApiMessageResult`, `ApiTransactionResult` to `Model.d.ts`; change `CRUDRules.CanAdd`/`CanDelete` to `boolean`.
+- Fix `fieldPermissionStore.ts`'s CRUD boolean comparisons.
+- Clean up `Service.ts`: remove dead comments/console.log/typo, apply shared types, normalize endpoint slashes, use `EnumRevisionStatus` for `updateRevisionRequestStatus`.
+- Migrate `RevisionPagination`/`RevisionFilter` to the cursor-pagination convention; update `ModifcationList.tsx` accordingly, verifying actual field names against a live API response before finalizing.
+- Update `RejectModifyDialog.tsx`, `ForReviewModifyDialog.tsx`, `ResubmitRevisionDialog.tsx`, `RevisedProjectDialog.tsx`, `ApproveModifyDialog.tsx` to use `EnumRevisionStatus` instead of raw numbers.
+- Fix `ApproveModifyDialog.tsx` to require/upload a CO document when the acting user is CO (`AUC`), reusing `ResubmitRevisionDialog.tsx`'s PDF validation pattern.
+- Add blocked-error-message surfacing in `ModificationDetails.tsx` (and `ViewRevision.tsx` if applicable) for `Project Not Published` / `Revision Type Temporarily Blocked` / `Revision Reason Requires Confirmation` / `Pending Modification Request`.
+- Gate the new-revision submit buttons in `ProjectForm.tsx` on `ProjectDetails.IsPublished`.
+- Run `tsc --noEmit` (or FE's typecheck script) and fix any resulting errors from the type changes.
+
+### Documentation
+- Update `Modification.md`, `FILE_REFERENCE.md`, `ARCHITECTURE_DIAGRAMS.md` to remove references to the deleted Case A/B/C rule engine and reflect that field editability is exclusively API-driven.
+- Add a short note to `Modification.md`'s Known Issues (or equivalent) recording the RO/CO field-naming inconsistency (`RegionStatus` etc. vs. the backend's RO/CO terminology) as a known, deliberately-deferred rename pending verification against live API field names (see Risks).
+
+## Risks / Open Questions / Assumptions
+
+- **Response field names not fully specified.** The handoff document itself leaves several response fields as `unknown` (e.g. `ReviseProjectResponse.Header/Category/Reason`, `ViewReviseProjectResponse.Docs/ProgramDetails/TransactionLogs`, and it never spells out `RevisionDetail`'s exact shape) and gives only an illustrative `RevisionQueueItem` sample. This plan deliberately does **not** rename `RegionStatus`/`COStatus`/`RegionApprover`/etc. to RO/CO-prefixed names or restructure `RevisionDetails`/`RevisionLists` beyond the pagination/filter fields explicitly given in the handoff, because guessing at unspecified backend field names risks silently breaking the queue/detail views. Recommend verifying actual live response shapes (devtools network tab or a quick Postman call) before any further renames, as a fast follow-up.
+- **LS/wallet and group 9/13 gating is treated as backend-enforced-only** within this folder, since the Type/Category/Reason selection dropdowns live in the `Project` module, not `Modification`. If the user wants Modification to also defensively disable/hide options for these cases (redundant client-side gating, per handoff 2.5's "render disabled/read-only with a message" guidance), that requires touching the `Project` module and is out of this plan's scope — flag for a follow-up plan if desired.
+- **`ViewRevision.tsx`'s exact error-handling needs may differ from `ModificationDetails.tsx`'s** (approving/viewing an existing transaction vs. starting a new one) — step 6 will confirm during implementation which specific errors are reachable from each view and adjust the message-surfacing logic per view rather than copy-pasting identically.
+- **CO approval document size validation**: `ResubmitRevisionDialog.tsx`'s existing PDF check was not confirmed by research to include a 50 MB size check (only a `file.type !== 'application/pdf'` check was found). If missing there too, add it in both places while touching this code, consistent with the handoff's `File Size Exceeded` error-handling entry.
+- Existing stub/mock dialogs (`AddProjectDialog.tsx`, `ModifiyProjectDialog.tsx`, `NonImplementableDialog.tsx`) are known non-functional placeholders unrelated to the normalized-API contract change; left untouched by this plan.
+
+## Completion Log
+Date: 2026-08-14
+- Implementation: All 10 implementation tasks done. Deleted the dead `rules/` engine (10 files), `TestAllowedFields.tsx`, and empty `state/modState.ts`. Added `EnumRevisionStatus`, `FileUpload`, `ApiMessageResult`, `ApiTransactionResult` to `Model.d.ts`; fixed `CRUDRules.CanAdd`/`CanDelete` from string to boolean (and the store's string-comparison bug). Cleaned up `Service.ts` (removed dead code/console.log/typo, applied shared types). Migrated `RevisionPagination`/`RevisionFilter` onto the existing `PaginatedRequest<TFilters>` cursor convention and rewired `ModifcationList.tsx` onto the shared `usePagination` hook + `PaginationBar` component (matching `Project.tsx`/`Program.tsx`). Replaced magic status numbers with `EnumRevisionStatus` across all 5 status-changing dialogs. Fixed `ApproveModifyDialog.tsx` to require/upload a CO PDF for `AUC` users (RO stays document-free), reusing the existing PDF+size validation pattern. Added blocking-error surfacing (`Project Not Published`, `Revision Type Temporarily Blocked`, `Revision Reason Requires Confirmation`, `Pending Modification Request`) in `ModificationDetails.tsx`, and a lighter exact-message fallback panel in `ViewRevision.tsx`. Gated the "Submit Revision Request to RO/CO" actions on `ProjectDetails.IsPublished` in `getRevisionActions()`/`RevisionActionButtons.tsx`.
+- Documentation: Updated `Modification.md` (folder structure, Service.ts table, cursor pagination section, status codes, CRUD boolean fix, Rules System section rewritten to reflect the deletion, dialog table, five new Known Issues entries), `FILE_REFERENCE.md`, and `ARCHITECTURE_DIAGRAMS.md` (both marked as historical logs with a banner noting the deleted rule engine and non-existent debug panel).
+Deviations / flags:
+- `EnumRevisionStatus` was implemented as a `const object + typeof` pattern instead of a real TS `enum` — this repo's `tsconfig.app.json` sets `erasableSyntaxOnly: true`, which rejects real enums (they emit non-erasable runtime code). Confirmed via `tsc -b` before finalizing.
+- Found and fixed a real wiring bug while touching the submit payloads: `RevisedProjectDialog.tsx`/`ResubmitRevisionDialog.tsx` received a `categoryId` prop from `ProjectForm.tsx` but discarded it, sending a `RevisionCategory: string` field the backend DTO doesn't define instead of the `CategoryId: number` field it does. Fixed to send `CategoryId` from the prop, matching `RevisionDetailsDTO` in the handoff.
+- Added a 50 MB file-size check to `RevisedProjectDialog.tsx`/`ResubmitRevisionDialog.tsx`'s PDF upload (previously only validated file type), per the plan's flagged risk and the handoff's `File Size Exceeded` error entry.
+- Per the plan's explicit risk note, did **not** rename `RegionStatus`/`COStatus`/etc. to RO/CO-prefixed names or restructure `RevisionDetails`/`RevisionLists` — the handoff leaves several response fields as `unknown`/unverified against the live backend; documented as a follow-up in `Modification.md`'s Known Issues.
+- `npx tsc -b --force` run before and after all changes (diffed): 131 pre-existing errors remain, all in files this plan never touched (`ComponentCostDialog.tsx`, `MajorItemOfWorksForm.tsx`, `useMajorItemOfWorks.ts`, etc. — pre-existing `ComponentCost`/`MajorItemOfWork`/`MajorItemLocations` field-name drift between `Project/Model.d.ts` and runtime usage, out of scope per the plan). Zero new errors introduced; one pre-existing error was incidentally removed along with the deleted `TestAllowedFields.tsx`.
+Files changed: 12 deleted (`rules/*.ts` ×10, `TestAllowedFields.tsx`, `state/modState.ts`), 16 modified (`Model.d.ts`, `Service.ts`, `store/fieldPermissionStore.ts`, `views/ModifcationList.tsx`, `views/ModificationDetails.tsx`, `views/ViewRevision.tsx`, `dialogs/ApproveModifyDialog.tsx`, `dialogs/RejectModifyDialog.tsx`, `dialogs/ForReviewModifyDialog.tsx`, `dialogs/ResubmitRevisionDialog.tsx`, `dialogs/RevisedProjectDialog.tsx`, `components/actionButtons/RevisionActionButtons.tsx`, `components/actionButtons/revisionActions.ts`, `Modification.md`, `FILE_REFERENCE.md`, `ARCHITECTURE_DIAGRAMS.md`)

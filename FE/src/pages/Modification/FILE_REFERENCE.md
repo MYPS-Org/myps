@@ -1,5 +1,12 @@
 # Jotai Implementation - Complete File Reference
 
+> **Historical implementation log — not fully current.** `rules/RuleManager.ts`, `rules/AllowedFields.ts`,
+> `rules/AdjustmentFields.ts` and the rest of the `rules/` folder documented below were dead code (never
+> wired into `fieldRulesAtom`/`useFieldPermissions`) and have been deleted. `FieldPermissionDebugPanel.tsx`
+> referenced throughout this file does not exist in the current tree. Field editability in production is,
+> and always was, driven exclusively by the API's `Rules.Field` JSON via `fieldRulesAtom` — see
+> `../Modification.md`'s "Rules System" section for the current state.
+
 ## 📁 File Structure
 
 ```

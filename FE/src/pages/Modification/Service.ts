@@ -1,48 +1,27 @@
 import { httpClient } from "../../services/httpClient";
 import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from "../Project/Model.d";
-import type { RevisionLists, RevisionPagination, RevisionProjectPayload } from "./Model";
+import type { ApiMessageResult, ApiTransactionResult, EnumRevisionStatus, FileUpload, RevisionLists, RevisionPagination, RevisionProjectPayload } from "./Model";
 
-// export const fetchRevDropdownData = async () => {
-//     try {
-//         const response = await httpClient.post<{ RevisionTypes: OptionRevisionHeader[], Categories: OptionRevisionCategory[], Reasons: OptionRevisionReasons[] }>('/Revision/RevisionCategories');
-//         return response;
-//     } catch (error) {
-//         console.error('Error fetching modification dropdown data:', error);
-//         throw error;
-//     }
-// }
+interface RevisionDetailsRequest {
+    CategoryId?: number | null;
+    ReasonId: number;
+    ApprovalDate: string;
+    ApprovedDocument: FileUpload;
+}
 
-export const submitModificationRequest = async (
-    payload: {
-        RevisionDetails: {
-            ReasonId: number;
-            ApprovalDate: string;
-            ApprovedDocument: {
-                Name: string;
-                Extension: string;
-                ContentType: string;
-                DataUrl: string;
-            };
-        }
-        ProjectDetails: ProjectDetails;
-        ComponentCosts: ComponentCost[];
-        ComponentCostPerYear: ComponentCostPerYear[];
-        MajorItemOfWorks: MajorItemOfWork[];
-        MajorItemLocations: MajorItemLocations[];
-        FundingProfile: FundingProfile[];
-    },
-    // userRole?: string
-) => {
+interface RequestRevisionPayload {
+    RevisionDetails: RevisionDetailsRequest;
+    ProjectDetails: ProjectDetails;
+    ComponentCosts: ComponentCost[];
+    ComponentCostPerYear: ComponentCostPerYear[];
+    MajorItemOfWorks: MajorItemOfWork[];
+    MajorItemLocations: MajorItemLocations[];
+    FundingProfile: FundingProfile[];
+}
+
+export const submitModificationRequest = async (payload: RequestRevisionPayload) => {
     try {
-        // Determine endpoint based on user role
-        // IO = Implementing Office, RO = Regional Office
-        // const isIO = userRole?.toLowerCase().includes('implementing') || userRole?.toLowerCase().includes('io');
-        // const endpoint = isIO ? '/IORevision/RequestRevision/' : '/RORevision/RequestRevision/';
-        
-        // const response = await httpClient.post(endpoint, payload, {
-        //     preloaderMessage: 'Requesting revision...'
-        // });
-        const response = await httpClient.post<{TransactionId: string}>(`Revision/RequestRevision`, payload, {
+        const response = await httpClient.post<ApiTransactionResult>('/Revision/RequestRevision', payload, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;
@@ -52,7 +31,13 @@ export const submitModificationRequest = async (
     }
 };
 
-export const updateRevisionRequestStatus = async (transactionId: string, status: number, ApprovedDocument?: any, ApprovalDate?: string, remarks?: string) => {
+export const updateRevisionRequestStatus = async (
+    transactionId: string,
+    status: EnumRevisionStatus,
+    ApprovedDocument?: FileUpload,
+    ApprovalDate?: string,
+    remarks?: string
+) => {
     try {
         const payload = {
             TransactionId: transactionId,
@@ -61,16 +46,13 @@ export const updateRevisionRequestStatus = async (transactionId: string, status:
             ApprovalDate: ApprovalDate,
             Remarks: remarks
         };
-        
-        console.log('=== Payload being sent ===');
-        console.log(JSON.stringify(payload, null, 2));
-        
-        const response = await httpClient.post(`/Revision/UpdateRevisionStatus/`, payload, {
+
+        const response = await httpClient.post<ApiMessageResult>('/Revision/UpdateRevisionStatus', payload, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;
     } catch (ErrorResponse) {
-        console.error('Error requesting revision:', ErrorResponse);
+        console.error('Error updating revision status:', ErrorResponse);
         throw ErrorResponse;
     }
 };
@@ -85,19 +67,19 @@ export const getLabelField = async (payload: { categoryDesc: any; reasonId: any;
     }
 };
 
-export const fetchRevisionData = async ( ProjectId: string, RevisionHeader: number, RevisionCategory: number, RevisionReason: number ) => {
+export const fetchRevisionData = async (ProjectId: string, RevisionHeader: number, RevisionCategory: number, RevisionReason: number) => {
     try {
-        const response = await httpClient.post(`/Revision/ReviseProject/`, { ProjectId, RevisionHeader, RevisionCategory, RevisionReason });
+        const response = await httpClient.post<RevisionProjectPayload>('/Revision/ReviseProject', { ProjectId, RevisionHeader, RevisionCategory, RevisionReason });
         return response;
     } catch (error) {
-        console.error('Rine', error);
+        console.error('Error fetching revision data:', error);
         throw error;
     }
 }
 
 export const fetchModificationList = async (data: RevisionPagination) => {
     try {
-        const response = await httpClient.post<PaginationResponse<RevisionLists>>(`/Revision/RevisionRequests/`, data);
+        const response = await httpClient.post<PaginationResponse<RevisionLists>>('/Revision/RevisionRequests', data);
         return response;
     } catch (error) {
         console.error('Error fetching modification list:', error);
@@ -107,7 +89,7 @@ export const fetchModificationList = async (data: RevisionPagination) => {
 
 export const fetchReviseProjectDetails = async (transactionId: string) => {
     try {
-        const response = await httpClient.post<RevisionProjectPayload>(`/Revision/ViewReviseProject/`, { TransactionId: transactionId });
+        const response = await httpClient.post<RevisionProjectPayload>('/Revision/ViewReviseProject', { TransactionId: transactionId });
         return response;
     } catch (error) {
         console.error('Error fetching revise project details:', error);
@@ -115,35 +97,14 @@ export const fetchReviseProjectDetails = async (transactionId: string) => {
     }
 }
 
-export const ResubmitRevisionRequest = async (
-    payload: {
-        TransactionId: string;
-        RevisionDetails: {
-            ReasonId: number;
-            ApprovalDate: string;
-            ApprovedDocument: {
-                Name: string;
-                Extension: string;
-                ContentType: string;
-                DataUrl: string;
-            };
-        },
-        ProjectDetails: ProjectDetails;
-        ComponentCosts: ComponentCost[];
-        ComponentCostPerYear: ComponentCostPerYear[];
-        MajorItemOfWorks: MajorItemOfWork[];
-        MajorItemLocations: MajorItemLocations[];
-        FundingProfile: FundingProfile[];
-    },
-    // userRole?: string
-) => {
+export const ResubmitRevisionRequest = async (payload: RequestRevisionPayload & { TransactionId: string }) => {
     try {
-        const response = await httpClient.post<{TransactionId: string}>(`Revision/ResubmitRevision`, payload, {
+        const response = await httpClient.post<ApiTransactionResult>('/Revision/ResubmitRevision', payload, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;
     } catch (ErrorResponse) {
-        console.error('Error requesting revision:', ErrorResponse);
+        console.error('Error resubmitting revision:', ErrorResponse);
         throw ErrorResponse;
     }
 };
