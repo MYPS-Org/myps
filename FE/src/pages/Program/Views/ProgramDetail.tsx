@@ -237,9 +237,9 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
-  const handleAddExistingProject = () => {
-    setIsBatchRestoreDialogOpen(true);
-  };
+  // const handleAddExistingProject = () => {
+  //   setIsBatchRestoreDialogOpen(true);
+  // };
 
   const handleBatchRestoreSubmit = async (programId: string, projectIds: string) => {
     try {
@@ -480,6 +480,7 @@ const ProgramDetail: React.FC = () => {
                   value={programEnums?.Details.Type}
                   onChange={(e) => handleChange('Type', Number(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  disabled
                 >
                   {programEnums?.Dropdowns.Types.map((type) => (
                     <option key={type.Id} value={type.Id}>
@@ -650,11 +651,11 @@ const ProgramDetail: React.FC = () => {
                 Add Project
               </Button>
             )}
-            {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 &&  !isTerminalStage && (
+            {/* {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 &&  !isTerminalStage && (
               <Button color="blue" onClick={handleAddExistingProject}>
                 Add Existing Project
               </Button>
-            )}
+            )} */}
             <BatchActionsDropdown
               programId={programEnums?.Details.ProgramPK ?? ''}
               programName={programEnums?.Details.Name ?? ''}

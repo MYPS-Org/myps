@@ -97,10 +97,14 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         console.log('Add document response:', response);
 
         if (response) {
+            // Mirror the backend's split of "Code:Name" (ProjectController.UploadSupportingDocs)
+            // so the row displays correctly before the next refetch.
+            const [docTypeFK, docTypeName] = formData.DocumentType.split(':');
             const newDoc: ProjectSupportingDocs = {
             Id: 0, // Will be set by server
             ProjectId: projectId,
-            DocumentType: formData.DocumentType,
+            DocumentType: docTypeName || formData.DocumentType,
+            DocTypeFK: docTypeFK || '',
             Description: formData.Description,
             FileName: formData.File?.Name || '',
             FileExtension: formData.File?.Extension || '',

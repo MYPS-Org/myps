@@ -4,21 +4,6 @@ import { CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon } from 
 import { useModal } from './ModalContext'
 
 
-/*
-
-  const handleDelete = async () => {
-    const result = await showModal({
-      icon: 'error',
-      Title: 'Delete Item',
-      Message: 'Are you sure you want to delete this item?',
-      button: ['Delete', 'Cancel'],
-	  type: 'confirm' // optional, defaults to 'confirm' if not provided. types are 'confirm' and 'alert'
-    })
-    return result;
-  }
-    const res = await handleDelete();
-	// will return true of false
-*/
 const GlobalModal: React.FC = () => {
   	const { open, data, confirm, cancel } = useModal()
 	const getIcon = (type: 'error' | 'info' | 'success') => {

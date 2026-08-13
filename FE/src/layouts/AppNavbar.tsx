@@ -1,7 +1,7 @@
 "use client"
 import { useState } from 'react'
 import { Navbar, NavbarItem, NavbarSection, NavbarSpacer } from '../components/tailwindui/navbar'
-import { InboxIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
+import { /*InboxIcon,*/ MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 import GlobalSearchDialog from '../pages/GlobalSearch/GlobalSearchDialog'
 // import ThemeToggle from '../components/ThemeToggle'
 
@@ -22,9 +22,9 @@ export default function NavBar() {
           <NavbarItem aria-label="Search" onClick={() => setIsSearchOpen(true)}>
             <MagnifyingGlassIcon />
           </NavbarItem>
-          <NavbarItem href="/inbox" aria-label="Inbox">
+          {/* <NavbarItem href="/inbox" aria-label="Inbox">
             <InboxIcon />
-          </NavbarItem>
+          </NavbarItem> */}
         </NavbarSection>
       </Navbar>
 
