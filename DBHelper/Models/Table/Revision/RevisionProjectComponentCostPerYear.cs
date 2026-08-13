@@ -14,11 +14,7 @@ namespace DBHelper.Models.Table.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string TransactionId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(20)]
-        public string ComponentId { get; set; } = string.Empty;
+        public int RevisionComponentCostFK { get; set; }
         [Required]
         [Column(TypeName = "decimal(18,5)")]
         public decimal Amount { get; set; }
@@ -31,5 +27,11 @@ namespace DBHelper.Models.Table.Revision
         [Required]
         public bool IsDeleted { get; set; } = false;
         public DateTime? DateOfApproval { get; set; }
+
+        [NotMapped]
+        public string ComponentId { get; set; } = string.Empty;
+
+        [NotMapped]
+        public string TransactionId { get; set; } = string.Empty;
     }
 }

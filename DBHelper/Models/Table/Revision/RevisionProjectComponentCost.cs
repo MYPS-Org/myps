@@ -13,9 +13,8 @@ namespace DBHelper.Models.Table.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
         // FK -> dbo.tRevisionDetails(Id)
-        public string TransactionId { get; set; } = string.Empty;
+        public int RevisionDetailFK { get; set; }
         [Required]
         [MaxLength(20)]
         // FK -> dbo.tOptionProjectComponentType(ComponentId)
@@ -29,5 +28,8 @@ namespace DBHelper.Models.Table.Revision
         public decimal Total { get; set; }
         [Required]
         public bool IsDeleted { get; set; } = false;
+
+        [NotMapped]
+        public string TransactionId { get; set; } = string.Empty;
     }
 }

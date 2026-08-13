@@ -26,6 +26,7 @@ using System.Xml;
 using WebAPI.Controllers.Login;
 using WebAPI.Controllers.Programs;
 using WebAPI.MicroService;
+using WebAPI.Services.Revision;
 using static Helpers.ProjectHelper;
 namespace WebAPI.Controllers.Revision
 {
@@ -33,7 +34,17 @@ namespace WebAPI.Controllers.Revision
     [Route("api/[controller]/[action]")]
     public class RevisionController : CoreController
     {
-        public RevisionController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
+        private readonly IRevisionPcmaPublisher _revisionPcmaPublisher;
+
+        public RevisionController(
+            MYPSDbContext db,
+            IHubContext<SignalRHub> hub,
+            PCMADbContext pcma,
+            IMYPSExceptionHandler exceptionHandler,
+            IRevisionPcmaPublisher revisionPcmaPublisher) : base(db, hub, pcma, exceptionHandler)
+        {
+            _revisionPcmaPublisher = revisionPcmaPublisher;
+        }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto, CancellationToken cancellationToken)
@@ -55,16 +66,17 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (!string.IsNullOrWhiteSpace(dto.Filters.ProjectId))
                 {
+                    var projectId = dto.Filters.ProjectId.Trim();
                     filters.Add((
-                        "v.TransactionId = @TransactionId",
-                        "@TransactionId",
-                        dto.Filters.TransactionId));
+                        projectId.Length > 4 ? "v.ProjectId LIKE @ProjectId" : "v.ProjectId = @ProjectId",
+                        "@ProjectId",
+                        projectId.Length > 4 ? $"{projectId}%" : projectId));
                 }
                 if (!string.IsNullOrWhiteSpace(dto.Filters.RevisionType))
                 {
                     filters.Add((
                         "v.RevisionType = @RevisionType",
-                        "@RevisionStatus",
+                        "@RevisionType",
                         dto.Filters.RevisionType));
                 }
                 if (!string.IsNullOrWhiteSpace(dto.Filters.RevisionStatus))
@@ -147,17 +159,36 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
                 }
-                if (_Session.ApplyFilter && Project.Region == _Session.RegCode)
+                if (_Session.ApplyFilter && Project.Region != _Session.RegCode)
                 {
                     return new BadRequestObjectResult(new { Message = "You don't have permission to view this project.", Title = "Permission Denied" });
                 }
-                //int? RevisedNumber = Project;
-                var RevisionDetails = await _db.vRevisionLists.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId, cancellationToken);
+                var RevisionDetails = await _db.fRevisionDetail
+                    .FromSqlInterpolated($"SELECT * FROM fRevisionDetail({dto.TransactionId})")
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
                 if (RevisionDetails == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision details not found.", Title = "Invalid Revision" });
                 }
-                string ProjectRevisionStatus = (RevisionDetails.RegionStatus == EnumRevisionStatus.ForCorrection) ? RevisionDetails.RegionStatusName : RevisionDetails.COStatusName;
+                var RevisionRoot = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId, cancellationToken);
+                if (RevisionRoot == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision details not found.", Title = "Invalid Revision" });
+                }
+                var ApprovalStatus = await _db.fRevisionApprovalStatus
+                    .FromSqlInterpolated($"SELECT * FROM fRevisionApprovalStatus({RevisionRoot.Id})")
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (ApprovalStatus == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision approval status not found.", Title = "Invalid Revision" });
+                }
+                var StatusForDisplay = ApprovalStatus.ROStatus == EnumRevisionStatus.ForCorrection ? ApprovalStatus.ROStatus : ApprovalStatus.COStatus;
+                string ProjectRevisionStatus = await _db.tOptionRevisionStatus.AsNoTracking()
+                    .Where(x => x.Enum == StatusForDisplay)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync(cancellationToken) ?? StatusForDisplay.ToString();
 
                 #region Validate PCMA Status
                 var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
@@ -195,14 +226,14 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 #region Project Packaged Status Validation
                 string PackedStatus =
-                    (ComponentCost.FirstOrDefault(x => x.IsPackaged == true) != null) ?
+                    ComponentCost.Any(x => x.IsPackaged != true) ?
                     "Not Packaged" :
                     "Packaged";
                 #endregion
-                DBHelper.Models.Views.RevisionRules SelectedRules = new();
-                if (RevisionDetails.CreatedBy == _Session.UserId && (RevisionDetails.RegionStatus == EnumRevisionStatus.ForCorrection || RevisionDetails.COStatus == EnumRevisionStatus.ForCorrection))
+                DBHelper.Models.Table.RevisionRules? SelectedRules = null;
+                if (RevisionDetails.RevisionCreatedBy == _Session.UserId && (ApprovalStatus.ROStatus == EnumRevisionStatus.ForCorrection || ApprovalStatus.COStatus == EnumRevisionStatus.ForCorrection))
                 {
-                    SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.RevisionGroupId == RevisionDetails.RevisionGroupId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus);
+                    SelectedRules = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.IsActive && x.ReasonId == RevisionRoot.ReasonId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus, cancellationToken);
                 }
                 #endregion
 
@@ -210,7 +241,7 @@ namespace WebAPI.Controllers.Revision
                 var SelectedType = new OptionRevisionHeader();
                 var SelectedCategory = new OptionRevisionCategory();
                 var SelectedReason = new OptionRevisionReasons();
-                SelectedType = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionDetails.RevisionGroupId);
+                SelectedType = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionRoot.RevisionGroupId);
                 if (SelectedType == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision Type not found.", Title = "Invalid Revision Type" });
@@ -223,13 +254,13 @@ namespace WebAPI.Controllers.Revision
                 //        return new BadRequestObjectResult(new { Message = "Revision Category not found!", Title = "Invalid Revision Category" });
                 //    }
                 //}
-                SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.RevisionGroupId == RevisionDetails.RevisionGroupId);
+                SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == RevisionRoot.ReasonId && x.RevisionGroupId == RevisionRoot.RevisionGroupId);
                 if (SelectedReason == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision Reason not found.", Title = "Invalid Revision Reason" });
                 }
-                var RevisionDoc = await _db.tRevisionDocuments.AsNoTracking().Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
-                var ForCorrections = await _db.tRevisionForCorrectionDetails.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
+                var RevisionDoc = await _db.tRevisionDocuments.AsNoTracking().Where(x => x.RevisionDetailFK == RevisionRoot.Id).ToListAsync(cancellationToken);
+                var ForCorrections = await _db.tRevisionForCorrectionDetails.Where(x => x.RevisionDetailFK == RevisionRoot.Id).ToListAsync(cancellationToken);
                 #endregion
 
                 #region Program Validation
@@ -272,7 +303,7 @@ namespace WebAPI.Controllers.Revision
                 #endregion
 
                 #region TransactionLogs
-                var Logs = await _db.tRevisionTransactionLog.AsNoTracking().Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
+                var Logs = await _db.tTransactionLog.AsNoTracking().Where(x => x.ReferenceId == dto.TransactionId).ToListAsync(cancellationToken);
                 #endregion
 
                 #region Dropdowns
@@ -377,8 +408,24 @@ namespace WebAPI.Controllers.Revision
             try
             {
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
+                var projectRevision = await _db.tProjectRevisions.AsNoTracking()
+                    .Where(x => x.ProjectId == dto.ProjectId && !x.IsDeleted)
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (projectRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
+                }
+                var projectStage = await _db.tProjectStages.AsNoTracking()
+                    .Where(x => x.ProjectFK == projectRevision.ProjectFK && x.RevisionId == projectRevision.Id && x.StageName == "GAA-R")
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (projectStage == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
+                }
                 var Project = await _db.fProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {dto.ProjectId} AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
+                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({projectRevision.ProjectFK}, {projectStage.StageId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {dto.ProjectId} AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync(cancellationToken);
                 if (Project == null)
@@ -400,13 +447,13 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
 
-                var HasPendingModification = await _db.vRevisionLists
-                    .FromSqlInterpolated($"SELECT * FROM vRevisionLists v WHERE v.TransactionId LIKE {dto.ProjectId + "-%"} AND v.COStatus != {EnumRevisionStatus.Approved}")
+                var HasPendingModification = await _db.fRevisionQueue
+                    .FromSqlInterpolated($"SELECT * FROM fRevisionQueue({"IO"}) v WHERE v.TransactionId LIKE {dto.ProjectId + "-%"}")
                     .AsNoTracking()
                     .FirstOrDefaultAsync(cancellationToken);
-                if (HasPendingModification != null && (HasPendingModification.RegionStatus == EnumRevisionStatus.Pending || HasPendingModification.COStatus == EnumRevisionStatus.Pending))
+                if (HasPendingModification != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                    return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionType} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 #region Validate PCMA Status
                 if (ComponentCost == null)
@@ -442,12 +489,19 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 #region Project Packaged Status Validation
                 string PackedStatus =
-                    (ComponentCost.FirstOrDefault(x => x.IsPackaged == true) != null) ?
+                    ComponentCost.Any(x => x.IsPackaged != true) ?
                     "Not Packaged" :
                     "Packaged";
                 #endregion
 
-                var SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionReason && x.RevisionGroupId == dto.RevisionHeader && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus, cancellationToken);
+                var MatchingRules = await _db.tRevisionRules.AsNoTracking()
+                    .Where(x => x.IsActive && x.ReasonId == dto.RevisionReason && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus)
+                    .ToListAsync(cancellationToken);
+                if (MatchingRules.Count != 1)
+                {
+                    return new BadRequestObjectResult(new { Message = MatchingRules.Count == 0 ? $"Revision rule does not exist for PCMA_Status: {ConStatus} Package_Status: {PackedStatus}." : $"Multiple active revision rules exist for PCMA_Status: {ConStatus} Package_Status: {PackedStatus}. Please contact Administrator.", Title = "Invalid Revision Rule" });
+                }
+                var SelectedRules = MatchingRules.Single();
                 #endregion
 
                 #region Validate Selected Revision Details
@@ -471,6 +525,10 @@ namespace WebAPI.Controllers.Revision
                 if (SelectedReason == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision Reason not found.", Title = "Invalid Revision Reason" });
+                }
+                if (SelectedReason.RevisionGroupId != dto.RevisionHeader)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision reason does not match the selected revision type.", Title = "Invalid Revision Reason" });
                 }
                 #endregion
 
@@ -609,6 +667,7 @@ namespace WebAPI.Controllers.Revision
         public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
+            string? uploadedIoDocumentResourcePath = null;
             try
             {
                 if (_Session.UserGroupNames.Count() == 0)
@@ -663,6 +722,14 @@ namespace WebAPI.Controllers.Revision
                 var ProjectParent = ValidateProjectId.Data.Project;
                 var ProjectRevisions = ValidateProjectId.Data.ProjectRevision;
                 var ProjectStage = ValidateProjectId.Data.ProjectStage;
+                if (!ProjectParent.IsPublished)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Project '{ProjectParent.ProjectPK}' is not yet published to PCMA. Only published Projects can request a Formal Revision.",
+                        Title = "Project Not Published"
+                    });
+                }
 
                 var ValidateProgram = await _db.ValidateProgramId(new ProgramHelperParams
                 {
@@ -678,16 +745,37 @@ namespace WebAPI.Controllers.Revision
                 var ProgramRevision = ValidateProgram.Data.ProgramRevision;
                 var ProgramStage = ValidateProgram.Data.ProgramStage;
 
-
-                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus);
-                if (RevisionRules == null)
+                var RevisionReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.IsActive, cancellationToken);
+                if (RevisionReason == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}.", Title = "Invalid Revision Type" });
+                    return new BadRequestObjectResult(new { Message = "Revision reason does not exist or is inactive.", Title = "Invalid Revision Reason" });
                 }
-                var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionRules.RevisionGroupId);
+                var MatchingRevisionRules = await _db.tRevisionRules.AsNoTracking()
+                    .Where(x => x.IsActive && x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus)
+                    .ToListAsync(cancellationToken);
+                if (MatchingRevisionRules.Count != 1)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = MatchingRevisionRules.Count == 0
+                            ? $"Revision rule does not exist for PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}."
+                            : $"Multiple active revision rules exist for PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}. Please contact Administrator.",
+                        Title = "Invalid Revision Rule"
+                    });
+                }
+                var RevisionRules = MatchingRevisionRules.Single();
+                var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionReason.RevisionGroupId && x.IsActive, cancellationToken);
                 if (RevisionCategory == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason.", Title = "Invalid Revision Category" });
+                }
+                if (RevisionCategory.RevisionGroupId == 9)
+                {
+                    return new BadRequestObjectResult(new { Message = "Termination revisions are not yet supported by the normalized schema because the former component-status evidence table is no longer available.", Title = "Revision Type Temporarily Blocked" });
+                }
+                if (RevisionCategory.RevisionGroupId == 13)
+                {
+                    return new BadRequestObjectResult(new { Message = "Mode-of-Implementation continuation revisions require the exact continuation ReasonId before normalized processing can safely create successor project identity.", Title = "Revision Reason Requires Confirmation" });
                 }
                 var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
                 if (DocumentNaming == null)
@@ -695,18 +783,18 @@ namespace WebAPI.Controllers.Revision
                     await transaction.RollbackAsync(cancellationToken);
                     return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason. Please contact Administrator.", Title = "Missing Document Naming" });
                 }
-                var HasPendingModification = await _db.vRevisionLists
-                    .FromSqlInterpolated($"SELECT * FROM vRevisionLists WHERE TransactionId LIKE {dto.ProjectDetails.ProjectId + "%"} AND COStatus != {EnumRevisionStatus.Approved}")
+                var HasPendingModification = await _db.fOpenRevision
+                    .FromSqlInterpolated($"SELECT * FROM fOpenRevision({ProjectFK})")
                     .AsNoTracking()
                     .FirstOrDefaultAsync(cancellationToken);
-                if (HasPendingModification != null && (HasPendingModification.COStatus == EnumRevisionStatus.Pending || HasPendingModification.RegionStatus == EnumRevisionStatus.Pending))
+                if (HasPendingModification != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                    return new BadRequestObjectResult(new { Message = $"There is an open revision request for this project. Transaction ID: {HasPendingModification.TransactionId}. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
                 if (jsonRules == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionRules.Reason}. Please contact admin.", Title = "No Rules Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionReason.Reason}. Please contact admin.", Title = "No Rules Exists" });
                 }
                 ProjectParent.IsRevised = true;
                 ProjectParent.PCMARevisionCount = ProjectParent.PCMARevisionCount + 1;
@@ -840,7 +928,6 @@ namespace WebAPI.Controllers.Revision
                 .Where(p => (bool?)p.GetValue(jsonRules.ProjectDetailsRules) == true)
                 .Select(p => p.Name)
                 .ToList();
-                ProjectRevision.ProjectId = (RevisionRules.RevisionGroupId == 13) ? $"{ProjectRevision.ProjectId}-A" : ProjectRevision.ProjectId;
                 if (ProjectRevisions != null)
                 {
                     var UpdateAndGenerateLogs = ProjectDetailsRules.UpdateRevisionData(User, TransactionId, "tRevisionProjects", CurrentDate, NewProjectRevision, ProjectRevisions);
@@ -1069,7 +1156,7 @@ namespace WebAPI.Controllers.Revision
                 .ToList();
                 if (ComponentCostYear.Count > 0)
                 {
-                    bool CanDelete = jsonRules.ComponentCostRules.CRUD.CanDelete;
+                    bool CanDelete = jsonRules.ComponentCostYearRules.CRUD.CanDelete;
                     foreach (var component in UpdateComponentCostYear)
                     {
                         var ComponentId = component.Id;
@@ -1077,7 +1164,7 @@ namespace WebAPI.Controllers.Revision
 
                         if (SelectedComponent != null)
                         {
-                            if (ComponentCostRules.Count > 0)
+                            if (ComponentCostPerYearRules.Count > 0)
                             {
                                 var UpdateAndGenerateLogs = ComponentCostPerYearRules.UpdateRevisionData(User, TransactionId, "tRevisionProjectComponentCostPerYear", CurrentDate, component, SelectedComponent);
                                 Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
@@ -1086,6 +1173,7 @@ namespace WebAPI.Controllers.Revision
                                 {
                                     TransactionId = TransactionId,
                                     ComponentId = SelectedComponent.ComponentId,
+                                    Year = SelectedComponent.Year,
                                     Amount = (decimal)SelectedComponent.Amount!,
                                     StartDate = (DateTime)SelectedComponent.StartDate,
                                     EndDate = (DateTime)SelectedComponent.EndDate,
@@ -1130,6 +1218,7 @@ namespace WebAPI.Controllers.Revision
                     {
                         TransactionId = TransactionId,
                         ComponentId = x.ComponentId,
+                        Year = x.Year,
                         Amount = (decimal)x.Amount!,
                         StartDate = (DateTime)x.StartDate,
                         EndDate = (DateTime)x.EndDate,
@@ -1244,15 +1333,15 @@ namespace WebAPI.Controllers.Revision
                 var UpdateMajorWorkLocations = dto.MajorItemLocations.Where(x => x.Id != 0);
                 if (MajorWorkLocations.Count > 0)
                 {
-                    bool CanDelete = jsonRules.MajorItemOfWorkRules.CRUD.CanDelete;
+                    bool CanDelete = jsonRules.MajorItemLocationRules.CRUD.CanDelete;
                     foreach (var location in UpdateMajorWorkLocations)
                     {
                         var UpdateMajorWorkLocation = MajorWorkLocations.FirstOrDefault(x => x.Id == location.Id);
                         if (UpdateMajorWorkLocation != null)
                         {
-                            if (MajorWorkItemRules.Count > 0)
+                            if (MajorItemLocationsRules.Count > 0)
                             {
-                                var UpdateAndGenerateLogs = MajorWorkItemRules.UpdateRevisionData(User, TransactionId, "tRevisionProjectMajorWorkLocations", CurrentDate, location, UpdateMajorWorkLocation);
+                                var UpdateAndGenerateLogs = MajorItemLocationsRules.UpdateRevisionData(User, TransactionId, "tRevisionProjectMajorWorkLocations", CurrentDate, location, UpdateMajorWorkLocation);
                                 Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
                                 UpdateMajorWorkLocation = UpdateAndGenerateLogs.Data;
                             }
@@ -1341,160 +1430,74 @@ namespace WebAPI.Controllers.Revision
                 //}
                 #endregion
 
-                await _db.tRevisionDetails.AddAsync(new RevisionDetails
-                {
-                    ProgramFK = (ProjectStage.ProgramId + "-" + ProjectParent.PCMARevisionCount),
-                    ProgramId = ProjectStage.ProgramId,
-                    TransactionId = TransactionId,
-                    RevisionGroupId = RevisionCategory.RevisionGroupId,
-                    CategoryId = dto.RevisionDetails.CategoryId,
-                    ReasonId = RevisionRules.ReasonId,
-                    IODocApprovalDate = dto.RevisionDetails.ApprovalDate,
-                    RegionStatus = (isROUser || isCOUser) ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
-                    RegionApprover = isROUser ? _Session.UserId : null,
-                    RegionApprovedDate = isROUser ? CurrentDate : null,
-                    COStatus = isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
-                    COApprover = null,
-                    COApprovedDate = null,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate
-                });
                 string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
-                string Folder = isCOUser ? Appsetting.Resources.Revision.CentralOffice : Appsetting.Resources.Revision.ImplementingOffice;
+                string Folder = Appsetting.Resources.Revision.ImplementingOffice;
                 string FilePath = Path.Combine(Folder, DocumentName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                 if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
                 }
+                uploadedIoDocumentResourcePath = ResourcePath;
+                var NewRevisionDetails = new RevisionDetails
+                {
+                    ProgramId = ProjectStage.ProgramId,
+                    TransactionId = TransactionId,
+                    ProjectFK = ProjectFK,
+                    ProjectRevisionFK = ProjectRevisions.Id,
+                    RevisionGroupId = RevisionCategory.RevisionGroupId,
+                    CategoryId = dto.RevisionDetails.CategoryId,
+                    ReasonId = RevisionRules.ReasonId,
+                    IODocApprovalDate = dto.RevisionDetails.ApprovalDate,
+                    IODocPath = FilePath,
+                    IsCertified = true,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = CurrentDate
+                };
+                await _db.tRevisionDetails.AddAsync(NewRevisionDetails);
+                await _db.SaveChangesAsync(cancellationToken);
+                NewRevisionProject.IsActive = false;
+                var RevisionDetailFK = NewRevisionDetails.Id;
                 await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                 {
-                    TransactionId = TransactionId,
+                    RevisionDetailFK = RevisionDetailFK,
                     DocumentPath = FilePath,
                     DocumentName = DocumentName,
-                    IsApprovedDocument = isCOUser ? true : false
+                    IsApprovedDocument = false
                 });
-                if (isCOUser)
+                await _db.tRevisionApprovals.AddRangeAsync(new[]
                 {
-                    //Termination
-                    if (RevisionRules.RevisionGroupId == 9)
+                    new RevisionApprovals
                     {
-                        var entities = NewComponent
-                        .Where(x => !x.IsDeleted)
-                        .Select(x => new RevisionDetailsComponentsStatus
-                        {
-                            TransactionId = TransactionId,
-                            ComponentId = x.ComponentId,
-                            ConstructionStatusCode = 252,
-                            ConstructionStatusName = dto.RevisionDetails.ConstructionStatus,
-                            IsPackaged = dto.RevisionDetails.PackageStatus == "Packaged"
-                        })
-                        .ToList();
-
-                        await _db.tRevisionDetailsComponentsStatus.AddRangeAsync(entities);
-                    }
-                    //Mode of Implementation
-                    else if (RevisionRules.RevisionGroupId == 13)
+                        RevisionDetailFK = RevisionDetailFK,
+                        Level = "RO",
+                        Status = isROUser || isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
+                        Approver = isROUser || isCOUser ? _Session.UserId : null,
+                        ApprovedDate = isROUser || isCOUser ? CurrentDate : null,
+                        LastUpdatedDate = CurrentDate
+                    },
+                    new RevisionApprovals
                     {
-                        string NewProjectId = $"{ProjectId}-A";
-                        var AddFromProjectHeader = new DBHelper.Models.Table.Project.Projects
-                        {
-                            ProjectPK = ProjectFK,
-                            ProgramFK = ProjectParent.ProjectPK,
-                            ProgramId = ProjectParent.ProgramId,
-                            ExternalId = ProjectParent.ExternalId,
-                            MYId = ProjectParent.MYId,
-                            ProjectType = ProjectParent.ProjectType,
-                            ProjectGroupFK = ProjectParent.ProjectGroupFK,
-                            ParentWalletId = ProjectParent.ParentWalletId,
-                            WalletDrawFrozen = ProjectParent.WalletDrawFrozen,
-                            IsPublished = ProjectParent.IsPublished,
-                            IsRevised = ProjectParent.IsRevised,
-                            IsPublishable = ProjectParent.IsPublishable,
-                            PCMARevisionCount = ProjectParent.PCMARevisionCount,
-                            LockedBy = ProjectParent.LockedBy,
-                            LockedDate = ProjectParent.LockedDate,
-
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        };
-                        _db.tProjects.Add(AddFromProjectHeader);
-                        ProjectRevision.ProjectId = NewProjectId;
-                        ProjectRevision.Id = 0;
-                        var AddNewProjectRevision = new DBHelper.Models.Table.Project.ProjectRevisions()
-                        {
-
-                            ProjectFK = ProjectRevisions.ProjectFK,
-                            ProjectId = ProjectRevision.ProjectId,
-                            ProgramFK = ProjectRevision.ProgramFK,
-                            ProgramId = ProjectRevision.ProgramId,
-                            AlternateId = ProjectRevision.AlternateId,
-                            MYCAApprovalDate = ProjectRevision.MYCAApprovalDate,
-                            Description = ProjectRevision.Description,
-                            Region = ProjectRevision.Region,
-                            Province = ProjectRevision.Province,
-                            City = ProjectRevision.City,
-                            LegislativeDistrict = ProjectRevision.LegislativeDistrict,
-                            DEO = ProjectRevision.DEO,
-                            OperatingUnit = ProjectRevision.OperatingUnit,
-                            ImplementingOffice = ProjectRevision.ImplementingOffice,
-                            IslandCode = ProjectRevision.IslandCode,
-                            Category = ProjectRevision.Category,
-                            Thrust = ProjectRevision.Thrust,
-                            Origin = ProjectRevision.Origin,
-                            Agency = ProjectRevision.Agency,
-                            ImplementationMode = ProjectRevision.ImplementationMode,
-                            EmergencyMode = ProjectRevision.EmergencyMode,
-                            RegionWide = ProjectRevision.RegionWide,
-                            Feasibility = ProjectRevision.Feasibility,
-                            FeasibilityDate = ProjectRevision.FeasibilityDate,
-                            DetailedDesign = ProjectRevision.DetailedDesign,
-                            DetailedDesignDate = ProjectRevision.DetailedDesignDate,
-                            RowAvailable = ProjectRevision.RowAvailable,
-                            Tier = ProjectRevision.Tier,
-                            Rank = ProjectRevision.Rank,
-                            CreatedBy = User,
-                            CreatedDate = CurrentDate,
-                            IsDeleted = false
-                        };
-
-
-                        _db.tProjectRevisions.AddRange(AddNewProjectRevision);
-                        await _db.SaveChangesAsync(cancellationToken);
-                        var AddProjectStage = new DBHelper.Models.Table.Project.ProjectStages
-                        {
-                            ProjectFK = ProjectRevision.ProjectFK,
-                            ProgramFK = ProjectRevision.ProgramFK,
-                            ProgramId = ProjectRevision.ProgramId,
-                            RevisionId = AddNewProjectRevision.Id,
-                            StageId = EnumProgramStage.GAAR,
-                            StageName = ProjectStage.StageName,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        };
-                        _db.tProjectStages.Add(AddProjectStage);
-                        //NewFundingProfile.ForEach(x =>
-                        //{
-                        //    x.ProjectId = NewProjectId;
-                        //});
-                        //NewComponent.ForEach(x =>
-                        //{
-                        //    x.ProjectId = NewProjectId;
-                        //});
-                        //NewMajorWorkItem.ForEach(x =>
-                        //{
-                        //    x.ProjectId = NewProjectId;
-                        //});
+                        RevisionDetailFK = RevisionDetailFK,
+                        Level = "CO",
+                        Status = isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
+                        Approver = isCOUser ? _Session.UserId : null,
+                        ApprovedDate = isCOUser ? CurrentDate : null,
+                        LastUpdatedDate = CurrentDate
                     }
-                }
+                });
+                await _db.tRevisionProjectSnapshot.AddAsync(ToRevisionProjectSnapshot(RevisionDetailFK, ProjectRevision));
+                ApplyRevisionRootForeignKeys(RevisionDetailFK, NewFundingProfile, NewComponent, NewMajorWorkItem);
                 _db.tProjects.Update(ProjectParent);
                 await _db.tRevisionProjects.AddAsync(NewRevisionProject);
                 await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
                 await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
-                await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
                 await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
+                await _db.SaveChangesAsync(cancellationToken);
+                ApplyRevisionChildForeignKeys(NewComponent, NewComponentPerYear, NewMajorWorkItem, NewMajorWorkLocations);
+                await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
                 await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
-                await _db.tRevisionTransactionLog.AddRangeAsync(Logs);
+                await _db.tTransactionLog.AddRangeAsync(Logs.Select(ToTransactionLog));
                 var ExistingProjectRevisions = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.IsActive == true && x.ProjectId == dto.ProjectDetails.ProjectId);
                 if (ExistingProjectRevisions != null)
                 {
@@ -1503,6 +1506,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
+                uploadedIoDocumentResourcePath = null;
                 #region Commented Email Notification
                 //        string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
                 //        string Body = $@"
@@ -1716,6 +1720,10 @@ namespace WebAPI.Controllers.Revision
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
+                if (uploadedIoDocumentResourcePath != null && System.IO.File.Exists(uploadedIoDocumentResourcePath))
+                {
+                    System.IO.File.Delete(uploadedIoDocumentResourcePath);
+                }
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -1725,13 +1733,23 @@ namespace WebAPI.Controllers.Revision
         public async Task<IActionResult> UpdateRevisionStatus([FromBody] UpdateRevisionStatusDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
+            string? uploadedApprovalDocumentResourcePath = null;
+            bool transactionCommitted = false;
             try
             {
                 DateTime CurrentDate = Functions.CurrentDate(); ;
-                var RevisionDetails = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus != EnumRevisionStatus.Rejected || x.COStatus != EnumRevisionStatus.Rejected));
+                var RevisionDetails = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId, cancellationToken);
                 if (RevisionDetails == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision Transaction ID {dto.TransactionId} does not exist in revision requests", Title = "Transaction ID not found" });
+                }
+                var ExistingStatus = await _db.fRevisionApprovalStatus
+                    .FromSqlInterpolated($"SELECT * FROM fRevisionApprovalStatus({RevisionDetails.Id})")
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (ExistingStatus?.IsDisapproved == 1)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Revision Transaction ID {dto.TransactionId} is already rejected and cannot be updated.", Title = "Revision Already Rejected" });
                 }
                 if (_Session.UserGroupNames.Count() == 0)
                 {
@@ -1759,20 +1777,24 @@ namespace WebAPI.Controllers.Revision
                 {
                     if (isROUser)
                     {
-                        RevisionDetails.RegionStatus = dto.Status;
-                        RevisionDetails.RegionApprover = _Session.UserId;
-                        RevisionDetails.RegionApprovedDate = CurrentDate;
+                        var RegionApproval = await _db.tRevisionApprovals.FirstOrDefaultAsync(x => x.RevisionDetailFK == RevisionDetails.Id && x.Level == "RO", cancellationToken);
+                        if (RegionApproval == null)
+                        {
+                            RegionApproval = new RevisionApprovals { RevisionDetailFK = RevisionDetails.Id, Level = "RO" };
+                            await _db.tRevisionApprovals.AddAsync(RegionApproval, cancellationToken);
+                        }
+                        RegionApproval.Status = dto.Status;
+                        RegionApproval.Approver = dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected ? _Session.UserId : RegionApproval.Approver;
+                        RegionApproval.ApprovedDate = dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected ? CurrentDate : RegionApproval.ApprovedDate;
+                        RegionApproval.LastUpdatedDate = CurrentDate;
                     }
                     else
                     {
-                        RevisionDetails.RegionStatus = (dto.Status == EnumRevisionStatus.Approved) ? dto.Status : RevisionDetails.RegionStatus;
-                        RevisionDetails.COStatus = dto.Status;
-                        RevisionDetails.COApprover = _Session.UserId;
-                        RevisionDetails.COApprovedDate = CurrentDate;
-                        SelectedProjectRevision.IsActive = true;
-                        if (OldRevisionProjects != null)
+                        var CentralApproval = await _db.tRevisionApprovals.FirstOrDefaultAsync(x => x.RevisionDetailFK == RevisionDetails.Id && x.Level == "CO", cancellationToken);
+                        if (CentralApproval == null)
                         {
-                            OldRevisionProjects.IsActive = false;
+                            CentralApproval = new RevisionApprovals { RevisionDetailFK = RevisionDetails.Id, Level = "CO" };
+                            await _db.tRevisionApprovals.AddAsync(CentralApproval, cancellationToken);
                         }
                         if (dto.Status == EnumRevisionStatus.Approved)
                         {
@@ -1785,88 +1807,23 @@ namespace WebAPI.Controllers.Revision
                             {
                                 return new BadRequestObjectResult(new { Message = "Approved document is required when approving revision request", Title = "Approved Document Required" });
                             }
+                            if (dto.Document.IsPdfCorrupted())
+                            {
+                                return new BadRequestObjectResult(new { Message = "Approved document file is corrupted or not a valid PDF.", Title = "Invalid File" });
+                            }
+                            if (!dto.Document.ValidateFileSize(50))
+                            {
+                                return new BadRequestObjectResult(new { Message = "Approved document file size exceeds the maximum limit of 50 MB.", Title = "File Size Exceeded" });
+                            }
                             if (RevisionDetails.RevisionGroupId == 9)
                             {
-                                var entities = await _db.fPendingProjectComponentCost.FromSqlInterpolated($@"
-                                    SELECT *
-                                    FROM fPendingProjectComponentCost({SelectedProjectRevision.TransactionId}) fp
-                                    WHERE fp.IsDeleted = 0").ToListAsync(cancellationToken);
-                                var status = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({SelectedProjectRevision.ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
-
-                                await _db.tRevisionDetailsComponentsStatus.AddRangeAsync(entities.Select(x => new RevisionDetailsComponentsStatus
-                                {
-                                    TransactionId = dto.TransactionId,
-                                    ComponentId = x.ComponentId,
-                                    ConstructionStatusCode = 252,
-                                    ConstructionStatusName = "Terminated",
-                                    IsPackaged = status.FirstOrDefault(a => a.ComponentId == x.ComponentId)?.IsPackaged == true
-                                }));
+                                return new BadRequestObjectResult(new { Message = "Termination revisions are not yet supported by the normalized schema because the former component-status evidence table is no longer available.", Title = "Revision Type Temporarily Blocked" });
                             }
                             if (RevisionDetails.RevisionGroupId == 13)
                             {
-                                var ProjectDetails = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
-                                if (ProjectDetails == null)
-                                {
-                                    return new BadRequestObjectResult(new { Message = $"Project details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project details not found" });
-                                }
-                                string NewProjectId = $"{ProjectDetails.ProjectFK}-A";
-                                ProjectDetails.ProjectFK = NewProjectId;
-                                var FundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
-                                if (FundingProfile == null)
-                                {
-                                    return new BadRequestObjectResult(new { Message = $"Revision funding profile not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision funding profile not found" });
-                                }
-                                var ComponentCost = await _db.tRevisionProjectComponentCost.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
-                                if (ComponentCost == null)
-                                {
-                                    return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision component cost not found" });
-                                }
-                                var MajorWorkItems = await _db.tRevisionProjectMajorWorkItem.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
-                                if (MajorWorkItems == null)
-                                {
-                                    return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work item not found" });
-                                }
-                                var MajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
-                                if (MajorWorkLocations == null)
-                                {
-                                    return new BadRequestObjectResult(new { Message = $"Revision major work location not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work location not found" });
-                                }
-                                var getProgramId = await _db.tProjects.FirstOrDefaultAsync(x => x.ProjectPK == $"B{ProjectDetails.ProjectFK}");
-                                if (getProgramId == null)
-                                {
-                                    return new BadRequestObjectResult(new { Message = $"Program details not found for the given project reference ID,\n\n<b>Project Reference ID:</b> <i><u>B{ProjectDetails.ProjectId}</u></i> ", Title = "Program details not found" });
-                                }
-                                var AddFromProjectHeader = new DBHelper.Models.Table.Project.Projects
-                                {
-                                    ProjectPK = ProjectDetails.ProjectFK + "-A",
-                                    ProgramFK = getProgramId.ProgramFK,
-                                    ProgramId = getProgramId.ProgramId,
-                                    ExternalId = ProjectDetails.ExternalId,
-                                    MYId = ProjectDetails.MYId,
-                                    ProjectType = getProgramId.ProjectType,
-                                    ProjectGroupFK = getProgramId.ProjectGroupFK,
-                                    ParentWalletId = getProgramId.ParentWalletId,
-                                    WalletDrawFrozen = getProgramId.WalletDrawFrozen,
-                                    IsPublished = false,
-                                    IsRevised = true,
-                                    IsPublishable = false,
-                                    PCMARevisionCount = getProgramId.PCMARevisionCount,
-                                    CreatedBy = _Session.UserId,
-                                    CreatedDate = CurrentDate,
-                                };
-                                _db.tRevisionProjects.Update(ProjectDetails);
-                                _db.tRevisionProjectFundingProfile.UpdateRange(FundingProfile);
-                                _db.tRevisionProjectComponentCost.UpdateRange(ComponentCost);
-                                _db.tRevisionProjectMajorWorkItem.UpdateRange(MajorWorkItems);
-                                _db.tRevisionProjectMajorWorkLocations.UpdateRange(MajorWorkLocations);
-                                _db.tProjects.Add(AddFromProjectHeader);
+                                return new BadRequestObjectResult(new { Message = "Continuation revisions are not yet supported by the normalized schema because the exact continuation ReasonId and project-fork rules are not yet confirmed.", Title = "Revision Type Temporarily Blocked" });
                             }
-                            var ExistingProjectRevisions = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.IsActive == true && x.ProjectId == SelectedProjectRevision.ProjectId);
-                            if (ExistingProjectRevisions != null)
-                            {
-                                ExistingProjectRevisions.IsActive = false;
-                                _db.tRevisionProjects.Update(ExistingProjectRevisions);
-                            }
+
                             string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
                             string FilePath = Path.Combine(Appsetting.Resources.Revision.CentralOffice, DocumentName);
                             string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
@@ -1874,14 +1831,65 @@ namespace WebAPI.Controllers.Revision
                             {
                                 return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
                             }
+                            uploadedApprovalDocumentResourcePath = ResourcePath;
+
+                            SelectedProjectRevision.IsActive = true;
+                            if (OldRevisionProjects != null)
+                            {
+                                OldRevisionProjects.IsActive = false;
+                            }
+
                             await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                             {
-                                TransactionId = dto.TransactionId,
+                                RevisionDetailFK = RevisionDetails.Id,
                                 DocumentPath = FilePath,
                                 DocumentName = DocumentName,
                                 IsApprovedDocument = true
-                            });
+                            }, cancellationToken);
+
+                            CentralApproval.Status = dto.Status;
+                            CentralApproval.Approver = _Session.UserId;
+                            CentralApproval.ApprovedDate = CurrentDate;
+                            CentralApproval.LastUpdatedDate = CurrentDate;
+
+                            _db.tRevisionProjects.Update(SelectedProjectRevision);
+                            if (OldRevisionProjects != null)
+                            {
+                                _db.tRevisionProjects.Update(OldRevisionProjects);
+                            }
+                            _db.tRevisionDetails.Update(RevisionDetails);
+
+                            await _db.SaveChangesAsync(cancellationToken);
+
+                            var pcmaResponse = await _revisionPcmaPublisher.PublishRevisionAsync(
+                                RevisionDetails.ProgramId,
+                                _Session.Name,
+                                cancellationToken);
+
+                            if (!pcmaResponse.Success)
+                            {
+                                await transaction.RollbackAsync(cancellationToken);
+                                if (System.IO.File.Exists(ResourcePath))
+                                {
+                                    System.IO.File.Delete(ResourcePath);
+                                    uploadedApprovalDocumentResourcePath = null;
+                                }
+
+                                return new BadRequestObjectResult(new
+                                {
+                                    Message = $"Failed to publish approved revision to PCMA. Reason: {pcmaResponse.Message}",
+                                    Title = "PCMA Publish Failed"
+                                });
+                            }
+
+                            await transaction.CommitAsync(cancellationToken);
+                            transactionCommitted = true;
+                            return Ok(new { Message = $"Revision Updated by {_Session.UserGroupNames}", Title = "Updated Successfully" });
                         }
+                        CentralApproval.Status = dto.Status;
+                        CentralApproval.Approver = dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected ? _Session.UserId : CentralApproval.Approver;
+                        CentralApproval.ApprovedDate = dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected ? CurrentDate : CentralApproval.ApprovedDate;
+                        CentralApproval.LastUpdatedDate = CurrentDate;
                     }
 
                     _db.tRevisionProjects.Update(SelectedProjectRevision);
@@ -1896,34 +1904,41 @@ namespace WebAPI.Controllers.Revision
                     {
                         await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
                         {
-                            TransactionId = dto.TransactionId,
+                            RevisionDetailFK = RevisionDetails.Id,
+                            ReturnedBy = "RO",
+                            ReturnedTo = "IO",
                             CorrectionReason = dto.Remarks,
-                            ForCorrectionDate = CurrentDate,
-                            IsCentralOffice = false
+                            ForCorrectionDate = CurrentDate
                         });
-                        RevisionDetails.RegionStatus = EnumRevisionStatus.ForCorrection;
                     }
                     else
                     {
                         await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
                         {
-                            TransactionId = dto.TransactionId,
+                            RevisionDetailFK = RevisionDetails.Id,
+                            ReturnedBy = "CO",
+                            ReturnedTo = "RO",
                             CorrectionReason = dto.Remarks,
-                            ForCorrectionDate = CurrentDate,
-                            IsCentralOffice = true
+                            ForCorrectionDate = CurrentDate
                         });
-                        RevisionDetails.COStatus = EnumRevisionStatus.ForCorrection;
                     }
                 }
                 _db.tRevisionDetails.Update(RevisionDetails);
                 #endregion
                 await _db.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
+                transactionCommitted = true;
                 return Ok(new { Message = $"Revision Updated by {_Session.UserGroupNames}", Title = "Updated Successfully" });
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
+                if (!transactionCommitted
+                    && uploadedApprovalDocumentResourcePath != null
+                    && System.IO.File.Exists(uploadedApprovalDocumentResourcePath))
+                {
+                    System.IO.File.Delete(uploadedApprovalDocumentResourcePath);
+                }
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -1933,6 +1948,7 @@ namespace WebAPI.Controllers.Revision
         public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
+            string? uploadedIoDocumentResourcePath = null;
             try
             {
                 if (_Session.UserGroupNames.Count() == 0)
@@ -1955,8 +1971,16 @@ namespace WebAPI.Controllers.Revision
                 DateTime CurrentDate = Functions.CurrentDate();
                 List<RevisionTransactionLog> Logs = new List<RevisionTransactionLog>();
                 #region Validating Created Revision Project Data
-                var ExistingRevision = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus == EnumRevisionStatus.ForCorrection || x.COStatus == EnumRevisionStatus.ForCorrection));
+                var ExistingRevision = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId, cancellationToken);
                 if (ExistingRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"For Correction revision status does not exist in revision requests,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Transaction ID not found" });
+                }
+                var ExistingStatus = await _db.fRevisionApprovalStatus
+                    .FromSqlInterpolated($"SELECT * FROM fRevisionApprovalStatus({ExistingRevision.Id})")
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (ExistingStatus == null || (ExistingStatus.ROStatus != EnumRevisionStatus.ForCorrection && ExistingStatus.COStatus != EnumRevisionStatus.ForCorrection))
                 {
                     return new BadRequestObjectResult(new { Message = $"For Correction revision status does not exist in revision requests,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Transaction ID not found" });
                 }
@@ -1965,27 +1989,29 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision project details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Project not found" });
                 }
-                var ExistingFundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
+                var ExistingFundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.RevisionDetailFK == ExistingRevision.Id).ToListAsync(cancellationToken);
                 if (ExistingFundingProfile == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision funding profile not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Funding Profile not found" });
                 }
-                var ExistingComponent = await _db.tRevisionProjectComponentCost.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
+                var ExistingComponent = await _db.tRevisionProjectComponentCost.Where(x => x.RevisionDetailFK == ExistingRevision.Id).ToListAsync(cancellationToken);
                 if (ExistingComponent == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost not found" });
                 }
-                var ExistingComponentYear = await _db.tRevisionProjectComponentCostPerYear.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
+                var ExistingComponentIds = ExistingComponent.Select(x => x.Id).ToList();
+                var ExistingComponentYear = await _db.tRevisionProjectComponentCostPerYear.Where(x => ExistingComponentIds.Contains(x.RevisionComponentCostFK)).ToListAsync(cancellationToken);
                 if (ExistingComponentYear == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision component cost per year not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost Per Year not found" });
                 }
-                var ExistingMajorWorkItem = await _db.tRevisionProjectMajorWorkItem.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
+                var ExistingMajorWorkItem = await _db.tRevisionProjectMajorWorkItem.Where(x => x.RevisionDetailFK == ExistingRevision.Id).ToListAsync(cancellationToken);
                 if (ExistingMajorWorkItem == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Item not found" });
                 }
-                var ExistingMajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
+                var ExistingMajorWorkItemIds = ExistingMajorWorkItem.Select(x => x.Id).ToList();
+                var ExistingMajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => ExistingMajorWorkItemIds.Contains(x.RevisionWorkItemFK)).ToListAsync(cancellationToken);
                 if (ExistingMajorWorkLocations == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision major work locations not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Locations not found" });
@@ -2010,17 +2036,47 @@ namespace WebAPI.Controllers.Revision
                 var ProjectParent = ValidateProjectId.Data.Project;
                 var ProjectRevisions = ValidateProjectId.Data.ProjectRevision;
                 var ProjectStage = ValidateProjectId.Data.ProjectStage;
+                if (!ProjectParent.IsPublished)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Project '{ProjectParent.ProjectPK}' is not yet published to PCMA. Only published Projects can request a Formal Revision.",
+                        Title = "Project Not Published"
+                    });
+                }
                 #endregion
 
-                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus);
-                if (RevisionRules == null)
+                var RevisionReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.IsActive, cancellationToken);
+                if (RevisionReason == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}.", Title = "Invalid Revision Type" });
+                    return new BadRequestObjectResult(new { Message = "Revision reason does not exist or is inactive.", Title = "Invalid Revision Reason" });
                 }
-                var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionRules.RevisionGroupId);
+                var MatchingRevisionRules = await _db.tRevisionRules.AsNoTracking()
+                    .Where(x => x.IsActive && x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus)
+                    .ToListAsync(cancellationToken);
+                if (MatchingRevisionRules.Count != 1)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = MatchingRevisionRules.Count == 0
+                            ? $"Revision rule does not exist for PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}."
+                            : $"Multiple active revision rules exist for PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}. Please contact Administrator.",
+                        Title = "Invalid Revision Rule"
+                    });
+                }
+                var RevisionRules = MatchingRevisionRules.Single();
+                var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionReason.RevisionGroupId && x.IsActive, cancellationToken);
                 if (RevisionCategory == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason.", Title = "Invalid Revision Category" });
+                }
+                if (RevisionCategory.RevisionGroupId == 9)
+                {
+                    return new BadRequestObjectResult(new { Message = "Termination revisions are not yet supported by the normalized schema because the former component-status evidence table is no longer available.", Title = "Revision Type Temporarily Blocked" });
+                }
+                if (RevisionCategory.RevisionGroupId == 13)
+                {
+                    return new BadRequestObjectResult(new { Message = "Mode-of-Implementation continuation revisions require the exact continuation ReasonId before normalized processing can safely create successor project identity.", Title = "Revision Reason Requires Confirmation" });
                 }
                 var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
                 if (DocumentNaming == null)
@@ -2028,21 +2084,18 @@ namespace WebAPI.Controllers.Revision
                     await transaction.RollbackAsync(cancellationToken);
                     return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator.", Title = "Missing Document Naming" });
                 }
-                var HasPendingModification = await _db.vRevisionLists
-                    .FromSqlInterpolated($"SELECT * FROM vRevisionLists WHERE TransactionId LIKE {dto.ProjectDetails.ProjectId + "%"} AND COStatus != {EnumRevisionStatus.Approved}")
+                var HasPendingModification = await _db.fOpenRevision
+                    .FromSqlInterpolated($"SELECT * FROM fOpenRevision({ProjectParent.ProjectPK})")
                     .AsNoTracking()
                     .FirstOrDefaultAsync(cancellationToken);
-                if (HasPendingModification != null)
+                if (HasPendingModification != null && HasPendingModification.TransactionId != dto.TransactionId)
                 {
-                    if (HasPendingModification.RegionStatus == EnumRevisionStatus.Pending || (HasPendingModification.COStatus == EnumRevisionStatus.Pending && HasPendingModification.RegionStatus != EnumRevisionStatus.ForCorrection))
-                    {
-                        return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
-                    }
+                    return new BadRequestObjectResult(new { Message = $"There is another open revision request for this project. Transaction ID: {HasPendingModification.TransactionId}. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
                 if (jsonRules == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionRules.Reason}. Please contact Administrator.", Title = "No Rules Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionReason.Reason}. Please contact Administrator.", Title = "No Rules Exists" });
                 }
                 string RevisionTransactionId = $"{dto.ProjectDetails.ProjectId}-{DocumentNaming.SecondSegmentName}";
                 #endregion
@@ -3125,9 +3178,14 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
                 #endregion
-                ExistingRevision.RegionStatus = (ExistingRevision.RegionStatus == EnumRevisionStatus.ForCorrection) ? EnumRevisionStatus.Pending : ExistingRevision.RegionStatus;
-                ExistingRevision.COStatus = (ExistingRevision.COStatus == EnumRevisionStatus.ForCorrection) ? EnumRevisionStatus.Pending : ExistingRevision.COStatus;
+                var ResubmitApprovals = await _db.tRevisionApprovals.Where(x => x.RevisionDetailFK == ExistingRevision.Id && x.Status == EnumRevisionStatus.ForCorrection).ToListAsync(cancellationToken);
+                ResubmitApprovals.ForEach(x =>
+                {
+                    x.Status = EnumRevisionStatus.Pending;
+                    x.LastUpdatedDate = CurrentDate;
+                });
                 _db.tRevisionDetails.Update(ExistingRevision);
+                _db.tRevisionApprovals.UpdateRange(ResubmitApprovals);
                 _db.tRevisionProjects.Update(ExistingRevisionProject);
                 _db.tRevisionProjectFundingProfile.UpdateRange(ExistingFundingProfile);
                 _db.tRevisionProjectComponentCost.UpdateRange(ExistingComponent);
@@ -3140,11 +3198,11 @@ namespace WebAPI.Controllers.Revision
                 await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(SaveNewComponentCostPerYear);
                 await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(SaveNewMajorWorkItem);
                 await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(SaveNewMajorWorkLocations);
-                await _db.tRevisionTransactionLog.AddRangeAsync(Logs);
+                await _db.tTransactionLog.AddRangeAsync(Logs.Select(ToTransactionLog));
 
 
                 string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
-                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.TransactionId == dto.TransactionId && DocumentName.Contains(x.DocumentName)).Count() + 1;
+                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.RevisionDetailFK == ExistingRevision.Id && DocumentName.Contains(x.DocumentName)).Count() + 1;
                 string NewDocName = $"{DocumentName}-{NewUploadedDocument}.{dto.RevisionDetails.ApprovedDocument.Extension}";
                 string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, NewDocName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
@@ -3152,15 +3210,17 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
                 }
+                uploadedIoDocumentResourcePath = ResourcePath;
                 await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                 {
-                    TransactionId = dto.TransactionId,
+                    RevisionDetailFK = ExistingRevision.Id,
                     DocumentPath = FilePath,
                     DocumentName = NewDocName,
                     IsApprovedDocument = false
                 });
                 await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
+                uploadedIoDocumentResourcePath = null;
                 return Ok(
                     new
                     {
@@ -3173,8 +3233,112 @@ namespace WebAPI.Controllers.Revision
             catch (DbUpdateException ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
+                if (uploadedIoDocumentResourcePath != null && System.IO.File.Exists(uploadedIoDocumentResourcePath))
+                {
+                    System.IO.File.Delete(uploadedIoDocumentResourcePath);
+                }
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                if (uploadedIoDocumentResourcePath != null && System.IO.File.Exists(uploadedIoDocumentResourcePath))
+                {
+                    System.IO.File.Delete(uploadedIoDocumentResourcePath);
+                }
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+        }
+
+        private static RevisionProjectSnapshot ToRevisionProjectSnapshot(int revisionDetailFK, ProjectDetails projectRevision)
+        {
+            return new RevisionProjectSnapshot
+            {
+                RevisionDetailFK = revisionDetailFK,
+                ProjectId = projectRevision.ProjectId,
+                AlternateId = projectRevision.AlternateId,
+                MYCAApprovalDate = projectRevision.MYCAApprovalDate,
+                Description = projectRevision.Description,
+                Region = projectRevision.Region,
+                Province = projectRevision.Province,
+                City = projectRevision.City,
+                LegislativeDistrict = projectRevision.LegislativeDistrict,
+                DEO = projectRevision.DEO,
+                OperatingUnit = projectRevision.OperatingUnit,
+                ImplementingOffice = projectRevision.ImplementingOffice,
+                IslandCode = projectRevision.IslandCode,
+                Category = projectRevision.Category,
+                Thrust = projectRevision.Thrust,
+                Origin = projectRevision.Origin,
+                Agency = projectRevision.Agency,
+                ImplementationMode = projectRevision.ImplementationMode,
+                EmergencyMode = projectRevision.EmergencyMode,
+                RegionWide = projectRevision.RegionWide,
+                Feasibility = projectRevision.Feasibility,
+                FeasibilityDate = projectRevision.FeasibilityDate,
+                DetailedDesign = projectRevision.DetailedDesign,
+                DetailedDesignDate = projectRevision.DetailedDesignDate,
+                RowAvailable = projectRevision.RowAvailable,
+                Tier = projectRevision.Tier,
+                Rank = projectRevision.Rank,
+                IsDeleted = false
+            };
+        }
+
+        private static void ApplyRevisionRootForeignKeys(
+            int revisionDetailFK,
+            List<RevisionProjectFundingProfile> fundingProfiles,
+            List<DBHelper.Models.Table.Revision.RevisionProjectComponentCost> componentCosts,
+            List<RevisionProjectMajorWorkItem> majorWorkItems)
+        {
+            fundingProfiles.ForEach(x => x.RevisionDetailFK = revisionDetailFK);
+            componentCosts.ForEach(x => x.RevisionDetailFK = revisionDetailFK);
+            majorWorkItems.ForEach(x => x.RevisionDetailFK = revisionDetailFK);
+        }
+
+        private static void ApplyRevisionChildForeignKeys(
+            List<DBHelper.Models.Table.Revision.RevisionProjectComponentCost> componentCosts,
+            List<RevisionProjectComponentCostPerYear> componentCostYears,
+            List<RevisionProjectMajorWorkItem> majorWorkItems,
+            List<RevisionProjectMajorWorkLocations> majorWorkLocations)
+        {
+            var componentCostKeys = componentCosts
+                .GroupBy(x => x.ComponentId)
+                .ToDictionary(x => x.Key, x => x.First().Id);
+            componentCostYears.ForEach(x =>
+            {
+                if (componentCostKeys.TryGetValue(x.ComponentId, out var revisionComponentCostFK))
+                {
+                    x.RevisionComponentCostFK = revisionComponentCostFK;
+                }
+            });
+
+            var workItemKeys = majorWorkItems
+                .GroupBy(x => x.ComponentId)
+                .ToDictionary(x => x.Key, x => x.First().Id);
+            majorWorkLocations.ForEach(x =>
+            {
+                if (workItemKeys.TryGetValue(x.ComponentId, out var revisionWorkItemFK))
+                {
+                    x.RevisionWorkItemFK = revisionWorkItemFK;
+                }
+            });
+        }
+
+        private static TransactionLog ToTransactionLog(RevisionTransactionLog log)
+        {
+            return new TransactionLog
+            {
+                ReferenceId = !string.IsNullOrWhiteSpace(log.ReferenceId) ? log.ReferenceId : log.TransactionId,
+                TransactionType = log.TypeOfTransaction,
+                AffectedTable = log.AffectedTable,
+                AffectedColumn = log.AffectedColumn,
+                OldValue = log.OldValue,
+                NewValue = log.NewValue,
+                CreatedBy = log.CreatedBy,
+                Hostname = Environment.MachineName,
+                CreatedDate = log.CreatedDate
+            };
         }
     }
 }

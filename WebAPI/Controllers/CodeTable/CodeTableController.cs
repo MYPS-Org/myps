@@ -62,7 +62,22 @@ namespace WebAPI.Controllers.CodeTable
                 var revisionHeaders = await _db.tOptionRevisionHeader.AsNoTracking().ToListAsync(cancellationToken);
                 var revisionCategories = await _db.tOptionRevisionCategory.AsNoTracking().ToListAsync(cancellationToken);
                 var reasons = await _db.tOptionRevisionReasons.AsNoTracking().ToListAsync(cancellationToken);
-                var revisionRules = await _db.vRevisionRules.AsNoTracking().ToListAsync(cancellationToken);
+                var revisionRules = await (
+                    from rule in _db.tRevisionRules.AsNoTracking()
+                    join reason in _db.tOptionRevisionReasons.AsNoTracking()
+                        on rule.ReasonId equals reason.ReasonId
+                    where rule.IsActive
+                    select new DBHelper.Models.Views.RevisionRules
+                    {
+                        Id = rule.Id,
+                        Reason = reason.Reason,
+                        RevisionGroupId = reason.RevisionGroupId,
+                        ReasonId = rule.ReasonId,
+                        PCMA_Status = rule.PCMA_Status,
+                        Package_Status = rule.Package_Status,
+                        Field = rule.Field
+                    })
+                    .ToListAsync(cancellationToken);
                 var revisionDocuments = await _db.tOptionRevisionDocuments.AsNoTracking().ToListAsync(cancellationToken);
                 var revisionStatuses = await _db.tOptionRevisionStatus.AsNoTracking().ToListAsync(cancellationToken);
 
@@ -1890,7 +1905,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Status has been selected, please select a revision status."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.RegionStatus == data.Enum || x.COStatus == data.Enum);
+                    var CheckIfAlreadyUse = await _db.tRevisionApprovals.AsNoTracking().FirstOrDefaultAsync(x => x.Status == data.Enum);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new

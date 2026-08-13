@@ -629,7 +629,7 @@ namespace Helpers
                     )
                     {
                         obj[propertyName] =
-                            "***REDACTED***";
+                            "[REDACTED]";
 
                         continue;
                     }

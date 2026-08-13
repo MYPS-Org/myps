@@ -13,8 +13,7 @@ namespace DBHelper.Models.Table.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string TransactionId { get; set; } = string.Empty;
+        public int RevisionDetailFK { get; set; }
         [Required]
         [MaxLength(100)]
         public string SourceOrg { get; set; } = string.Empty;
@@ -28,5 +27,9 @@ namespace DBHelper.Models.Table.Revision
         public double Percentage { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
+        public bool? IsWalletDraw { get; set; }
+
+        [NotMapped]
+        public string TransactionId { get; set; } = string.Empty;
     }
 }

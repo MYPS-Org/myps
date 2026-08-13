@@ -13,13 +13,17 @@ namespace DBHelper.Models.Table.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string TransactionId { get; set; } = string.Empty;
+        public int RevisionDetailFK { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string ReturnedBy { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(10)]
+        public string ReturnedTo { get; set; } = string.Empty;
         [Required]
         [MaxLength(500)]
         public string CorrectionReason { get; set; } = string.Empty;
         [Required]
         public DateTime ForCorrectionDate { get; set; }
-        public bool IsCentralOffice { get; set; } = false;
     }
 }

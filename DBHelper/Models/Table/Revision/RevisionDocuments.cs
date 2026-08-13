@@ -7,8 +7,7 @@ namespace DBHelper.Models.Table.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string TransactionId { get; set; } = string.Empty;
+        public int RevisionDetailFK { get; set; }
         [Required]
         [MaxLength(200)]
         public string DocumentName { get; set; } = string.Empty;
