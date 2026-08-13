@@ -13,6 +13,7 @@ namespace DBHelper.Models.Functions.Project
         public string ProjectFK { get; set; } = string.Empty;
         [MaxLength(200)]
         public string? ProjectId { get; set; }
+        public int? ProjectRevisionFK { get; set; }
         [Required]
         [MaxLength(100)]
         public string SourceOrg { get; set; } = string.Empty;
