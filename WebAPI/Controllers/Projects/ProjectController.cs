@@ -519,6 +519,16 @@ namespace WebAPI.Controllers.Projects
                 var CurrentProgramVersion = await _db.vProjectLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId && x.StageName == ProjectStage.StageName, cancellationToken);
                 var Program = await _db.fProgramDetailsInProject.FromSqlInterpolated($"SELECT * FROM fProgramDetailsInProject({ProgramFK},{StageId})").AsNoTracking().FirstOrDefaultAsync(cancellationToken);
                 var ProgramLatest = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramPK == ProgramFK);
+                if(ProgramLatest == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message =
+                            "The program record appears to be orphaned and its current data could not be resolved. " +
+                            "Please contact the administrator to verify the program data.",
+                        Title = "Orphaned Program Data"
+                    });
+                }
                 #region Funding Profile
                 var Funding = await _db.fProjectFundingProfile.FromSqlInterpolated($"SELECT * FROM fProjectFundingProfile({ProjectFK},{StageId})").AsNoTracking().ToListAsync(cancellationToken);
                 #endregion
@@ -547,6 +557,7 @@ namespace WebAPI.Controllers.Projects
                 return Ok(new
                 {
                     IsActive = (CurrentProgramVersion == null) ? false : (ProgramLatest.Status == "Approved") ? false : true,
+                    IsModify = (ProjectParent.IsPublished && ProgramLatest.Status == "Approved" && ProgramLatest.StageId == EnumProgramStage.GAAR) ? true : false,
                     ProgramDetails = Program,
                     ProjectDetails = ProjectRevisions,
                     FundingProfile = Funding,

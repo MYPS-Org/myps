@@ -303,6 +303,7 @@ namespace DBHelper.Data
             modelBuilder.Entity<Models.Views.AdminAreas.AdminOfficeRegion>().HasNoKey().ToView("vAdminOfficeRegion");
             modelBuilder.Entity<UserVisibleProjects>().HasNoKey().ToView("fUserVisibleProjects");
             modelBuilder.Entity<UserVisiblePrograms>().HasNoKey().ToView("fUserVisiblePrograms");
+            modelBuilder.Entity<RevisionApprovalStatus>().HasNoKey().ToView("fRevisionApprovalStatus");
             modelBuilder.Entity<PaginationCount>().HasNoKey().ToView("PaginationCount");
             modelBuilder.Entity<Models.Views.Lumpsum.LSWalletBalance>().HasNoKey().ToView("vLSWalletBalance");
             // Wallet Component Cost → Costs Per Year

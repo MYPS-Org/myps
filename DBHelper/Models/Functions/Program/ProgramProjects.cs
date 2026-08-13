@@ -56,6 +56,8 @@ namespace DBHelper.Models.Functions.Program
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;
+        public bool IsPublishable { get; set; } = false;
+        public bool IsPublished { get; set; } = false;
         [Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(200)]
