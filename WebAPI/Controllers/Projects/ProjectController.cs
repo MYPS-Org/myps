@@ -1206,6 +1206,7 @@ namespace WebAPI.Controllers.Projects
 
                 #endregion
                 string TransactionReferenceId = $"{ProjectId}-{StageName}";
+                
                 #region Update Project Details
                 var Project = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Id == ProjectRevision.Id, cancellationToken) ?? new ProjectRevisions();
 
@@ -1661,1216 +1662,2435 @@ namespace WebAPI.Controllers.Projects
                 }
                 #endregion
 
+                // ============================================================================
+                // LOCAL HELPERS
+                // ============================================================================
 
-
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevision.Id && !x.IsDeleted).ToListAsync(cancellationToken);
-                HashSet<int> ComponentCostIds = ComponentCost.Select(x => x.Id).ToHashSet();
-                #region Update Component Cost
-                if (ComponentCost.Count > 0)
+                void AddUpdateLog(
+                    string table,
+                    string column,
+                    object? oldValue,
+                    object? newValue)
                 {
-                    var UpdateComponentCost = dto.ComponentCosts.Where(x => ComponentCostIds.Contains(x.Id)).ToList();
-                    if (UpdateComponentCost.Count > 0)
+                    transactionLogs.Add(new TransactionLog
                     {
-                        HasCostUpdate = true;
-                        foreach (var item in UpdateComponentCost)
-                        {
-                            var ExistingItem = ComponentCost.FirstOrDefault(x => x.Id == item.Id);
-                            bool ComponentUpdate = false;
-                            if (ExistingItem != null)
-                            {
-                                if (ExistingItem.ComponentType != item.ComponentType)
-                                {
-                                    ComponentUpdate = true;
-                                    var Component = await _db.tOptionProjectComponentType.FirstOrDefaultAsync(x => x.ComponentName == item.ComponentType);
-                                    if (Component == null)
-                                    {
-                                        return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentType}' is not valid.", Title = "Invalid Component" });
-                                    }
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectComponentCost",
-                                        AffectedColumn = "ComponentType",
-                                        NewValue = Component.ComponentName,
-                                        OldValue = ExistingItem.ComponentType,
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.ComponentId = item.ComponentId;
-                                    ExistingItem.ComponentType = Component.ComponentName;
-                                }
-                                if (ExistingItem.Description != item.Description)
-                                {
-                                    ComponentUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectComponentCost",
-                                        AffectedColumn = "Description",
-                                        NewValue = item.Description ?? "",
-                                        OldValue = ExistingItem.Description ?? "",
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.Description = item.Description ?? "";
-                                }
-                                if (ExistingItem.Total != item.Total)
-                                {
-                                    ComponentUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectComponentCost",
-                                        AffectedColumn = "Total",
-                                        NewValue = item.Total.ToString(),
-                                        OldValue = ExistingItem.Total.ToString(),
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.Total = item.Total;
-                                }
-                                if (item.IsDeleted == true)
-                                {
-                                    ComponentUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Delete.ToString(),
-                                        AffectedTable = "tProjectComponentCost",
-                                        AffectedColumn = "Row",
-                                        NewValue = "",
-                                        OldValue = JsonConvert.SerializeObject(ExistingItem),
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.IsDeleted = item.IsDeleted;
-                                }
-                                if (ComponentUpdate)
-                                {
-                                    ExistingItem.UpdatedBy = UserId;
-                                    ExistingItem.UpdatedDate = CurrentDate;
-                                    _db.tProjectComponentCost.Update(ExistingItem);
-                                }
-                            }
-                        }
-                    }
-                }
-                #endregion
-
-                #region New Component Cost with components relations
-                var CostToBeDeleted = dto.ComponentCosts.Where(x => x.IsDeleted == true && x.Id > 0).Select(x => x.Id).ToHashSet<int>();
-                HashSet<string> ComponentCostTypeIds = ComponentCost.Select(x => x.ComponentId).ToHashSet();
-                var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0 && !x.IsDeleted).ToList();
-                List<ProjectComponentCost> NewCostToAdd = new List<ProjectComponentCost>();
-
-
-                if (NewComponentCostData.Count > 0)
-                {
-                    HasCostUpdate = true;
-                    var NewComponentCost = NewComponentCostData.Select(x => new ProjectComponentCost
-                    {
-                        ProjectRevisionFK = ProjectRevision.Id,
-                        ComponentId = x.ComponentId,
-                        ComponentType = x.ComponentType,
-                        Description = x.Description,
-                        Total = x.Total,
-                        CreatedBy = UserId,
-                        CreatedDate = CurrentDate
-                    }).ToList();
-                    NewCostToAdd.AddRange(NewComponentCost);
-                    await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd, cancellationToken);
-                    await _db.SaveChangesAsync(cancellationToken);
-
-
-                    HashSet<string> ComponentIds = NewComponentCostData.Select(x => x.ComponentId).ToHashSet();
-
-                    var NewCostYears = dto.ComponentCostPerYear.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId));
-                    if (NewCostYears.Count() > 0)
-                    {
-                        var NewComponentCostPerYear = NewCostToAdd
-                            .SelectMany(a =>
-                                NewCostYears
-                                .Where(x => x.ComponentId == a.ComponentId)
-                                .Select(x => new ProjectComponentCostPerYear
-                                {
-                                    ComponentCostFK = a.Id,
-                                    ComponentId = x.ComponentId,
-                                    Amount = x.Amount,
-                                    Year = x.Year,
-                                    UACS = x.UACS,
-                                    StartDate = x.StartDate,
-                                    EndDate = x.EndDate,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                }))
-                            .ToList();
-                        await _db.tProjectComponentCostPerYear.AddRangeAsync(NewComponentCostPerYear, cancellationToken);
-                    }
-
-                    // Gated on this block's own collection (was incorrectly gated on NewCostYears.Count() > 0),
-                    // so new work items are no longer silently skipped when there are no new cost-per-year rows.
-                    var NewWorkItem = dto.MajorItemOfWorks.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId)).ToList();
-                    List<ProjectMajorWorkItem> NewMajorWorkItem = new List<ProjectMajorWorkItem>();
-                    if (NewWorkItem.Count > 0)
-                    {
-                        NewMajorWorkItem = NewCostToAdd
-                            .SelectMany(a =>
-                                NewWorkItem
-                                .Where(x => x.ComponentId == a.ComponentId)
-                                .Select(item => new ProjectMajorWorkItem
-                                {
-                                    ComponentCostFK = a.Id,
-                                    ComponentId = item.ComponentId,
-                                    YearOfWork = item.YearOfWork,
-                                    WorkTypeFK = item.WorkTypeFK,
-                                    InfraTypeFK = item.InfraTypeFK,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                }))
-                            .ToList();
-                        await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem, cancellationToken);
-                        await _db.SaveChangesAsync(cancellationToken);
-                    }
-
-                    // Gated on this block's own collection (was incorrectly gated on NewCostYears.Count() > 0),
-                    // so new work locations are no longer silently skipped when there are no new cost-per-year rows.
-                    var NewWorkLocation = dto.MajorItemLocations.Where(x => x.Id == 0 && ComponentIds.Contains(x.ComponentId)).ToList();
-                    if (NewWorkLocation.Count > 0)
-                    {
-                        var NewMajorWorkLocations = NewMajorWorkItem
-                            .SelectMany(a =>
-                                NewWorkLocation
-                                .Where(x => x.ComponentId == a.ComponentId)
-                                .Select(loc => new ProjectMajorWorkLocations
-                                {
-                                    WorkItemFK = a.Id,
-                                    ComponentId = loc.ComponentId,
-                                    InfraId = loc.InfraId,
-                                    DetailedScope = loc.DetailedScope,
-                                    TargetUnitId = loc.TargetUnitId,
-                                    TargetUnit = loc.TargetUnit,
-                                    StartX = loc.StartX,
-                                    StartY = loc.StartY,
-                                    EndX = loc.EndX,
-                                    EndY = loc.EndY,
-                                    PhysicalTarget = loc.PhysicalTarget,
-                                    StartStationLimit = loc.StartStationLimit,
-                                    EndStationLimit = loc.EndStationLimit,
-                                    StartChainage = loc.StartChainage,
-                                    EndChainage = loc.EndChainage,
-                                    Length = loc.Length,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                }))
-                            .ToList();
-                        await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations, cancellationToken);
-                    }
-                }
-                #endregion
-
-                #region Update Component Cost Per Year
-                var ComponentCostYear = await _db.tProjectComponentCostPerYear.Where(x => ComponentCostIds.Contains(x.ComponentCostFK) && !x.IsDeleted).ToListAsync(cancellationToken);
-                if (ComponentCostYear.Count() > 0)
-                {
-                    HasCostUpdate = true;
-                    bool ComponentYearUpdate = false;
-                    foreach (var Year in ComponentCostYear)
-                    {
-                        var CostYearToBeUpdated = dto.ComponentCostPerYear.FirstOrDefault(x => x.Id == Year.Id);
-                        if (CostYearToBeUpdated != null)
-                        {
-                            if (Year.Amount != CostYearToBeUpdated.Amount)
-                            {
-                                ComponentYearUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectComponentCostPerYear",
-                                    AffectedColumn = "Amount",
-                                    NewValue = CostYearToBeUpdated.Amount.ToString()!,
-                                    OldValue = Year.Amount.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                Year.Amount = CostYearToBeUpdated.Amount;
-                            }
-                            if (Year.StartDate != CostYearToBeUpdated.StartDate)
-                            {
-                                ComponentYearUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectComponentCostPerYear",
-                                    AffectedColumn = "StartDate",
-                                    NewValue = CostYearToBeUpdated.StartDate?.ToString("mm/dd/yyyy") ?? "",
-                                    OldValue = Year.StartDate?.ToString("mm/dd/yyyy") ?? "",
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                Year.StartDate = CostYearToBeUpdated.StartDate;
-                            }
-                            if (Year.EndDate != CostYearToBeUpdated.EndDate)
-                            {
-                                ComponentYearUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectComponentCostPerYear",
-                                    AffectedColumn = "EndDate",
-                                    NewValue = CostYearToBeUpdated.EndDate?.ToString("mm/dd/yyyy") ?? "",
-                                    OldValue = Year.EndDate?.ToString("mm/dd/yyyy") ?? "",
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                Year.EndDate = CostYearToBeUpdated.EndDate;
-                            }
-                            if (Year.IsDeleted != CostYearToBeUpdated.IsDeleted)
-                            {
-                                ComponentYearUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Delete.ToString(),
-                                    AffectedTable = "tProjectComponentCostPerYear",
-                                    AffectedColumn = "Row",
-                                    NewValue = "",
-                                    OldValue = JsonConvert.SerializeObject(Year),
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                Year.IsDeleted = CostYearToBeUpdated.IsDeleted;
-                            }
-                            if (ComponentYearUpdate)
-                            {
-                                Year.UpdatedBy = UserId;
-                                Year.UpdatedDate = CurrentDate;
-                                _db.tProjectComponentCostPerYear.Update(Year);
-                            }
-                        }
-                    }
-                }
-                #endregion
-
-                #region New Component Cost Per Year
-                // Entries for brand-new components (ComponentClientId) are already
-                // attached and inserted above; only existing-component entries land here.
-                var NewComponentCostYearData = dto.ComponentCostPerYear.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostIds.Contains(x.ComponentCostFK)).ToList();
-                if (NewComponentCostYearData.Count > 0)
-                {
-                    var NewCostYearToAdd = ComponentCost
-                        .SelectMany(a =>
-                            NewComponentCostYearData
-                            .Where(x => x.ComponentId == a.ComponentId)
-                            .Select(year => new ProjectComponentCostPerYear
-                            {
-                                ComponentCostFK = a.Id,
-                                ComponentId = year.ComponentId,
-                                Amount = year.Amount,
-                                Year = year.Year,
-                                UACS = year.UACS,
-                                StartDate = year.StartDate,
-                                EndDate = year.EndDate,
-                                CreatedBy = UserId,
-                                CreatedDate = CurrentDate
-                            }))
-                        .ToList();
-                    await _db.tProjectComponentCostPerYear.AddRangeAsync(NewCostYearToAdd, cancellationToken);
-                }
-                #endregion
-
-                #region Update Major Item of Works
-                var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => ComponentCostIds.Contains(x.ComponentCostFK) && !x.IsDeleted).ToListAsync(cancellationToken);
-                HashSet<int> WorkItemFKs = MajorItemOfWorks.Select(x => x.Id).ToHashSet();
-                if (MajorItemOfWorks.Count > 0)
-                {
-                    var currentMajorItemIds = new HashSet<int>(MajorItemOfWorks.Select(x => x.Id));
-                    var UpdateMajorItems = dto.MajorItemOfWorks.Where(x => currentMajorItemIds.Contains(x.Id)).ToList();
-                    if (UpdateMajorItems.Count > 0)
-                    {
-                        var UpdatedWorkItemIds = UpdateMajorItems.Select(x => x.Id).ToHashSet();
-                        var UpdatedWorkLocations = dto.MajorItemLocations.Where(x => UpdatedWorkItemIds.Contains(x.WorkItemFK)).ToList();
-                        foreach (var item in UpdateMajorItems)
-                        {
-                            var ExistingItem = MajorItemOfWorks.FirstOrDefault(x => x.Id == item.Id);
-                            if (ExistingItem != null)
-                            {
-                                bool hasUpdate = false;
-                                if (ExistingItem.YearOfWork != item.YearOfWork)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectMajorWorkItem",
-                                        AffectedColumn = "YearOfWork",
-                                        NewValue = item.YearOfWork.ToString(),
-                                        OldValue = ExistingItem.YearOfWork.ToString(),
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.YearOfWork = item.YearOfWork;
-                                }
-                                if (ExistingItem.WorkTypeFK != item.WorkTypeFK)
-                                {
-                                    hasUpdate = true;
-                                    var WorkTypeEnum = await _db.tOptionScopeOfWork.FirstOrDefaultAsync(x => x.Enum == item.WorkTypeFK);
-                                    if (WorkTypeEnum == null)
-                                    {
-                                        return new BadRequestObjectResult(new { Message = $"Selected Work Type '{item.WorkTypeFK}' is not valid.", Title = "Invalid Work Type" });
-                                    }
-                                    var oldWorkType = await _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == ExistingItem.WorkTypeFK);
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectMajorWorkItem",
-                                        AffectedColumn = "WorkTypeFK",
-                                        NewValue = WorkTypeEnum.Description,
-                                        OldValue = oldWorkType?.Description ?? "",
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.WorkTypeFK = item.WorkTypeFK;
-                                }
-                                if (ExistingItem.InfraTypeFK != item.InfraTypeFK)
-                                {
-                                    hasUpdate = true;
-                                    var Infra = await _db.tOptionInfraType.FirstOrDefaultAsync(x => x.InfraCode == item.InfraTypeFK);
-                                    if (Infra == null)
-                                    {
-                                        return new BadRequestObjectResult(new { Message = $"Selected Infrastructure Type '{item.InfraTypeFK}' is not valid.", Title = "Invalid Infrastructure Type" });
-                                    }
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectMajorWorkItem",
-                                        AffectedColumn = "InfraTypeFK",
-                                        NewValue = Infra.InfraName,
-                                        OldValue = ExistingItem.InfraTypeFK,
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.InfraTypeFK = item.InfraTypeFK;
-                                }
-                                if (item.IsDeleted == true)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Delete.ToString(),
-                                        AffectedTable = "tProjectMajorWorkItem",
-                                        AffectedColumn = "Row",
-                                        NewValue = "",
-                                        OldValue = JsonConvert.SerializeObject(ExistingItem),
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.IsDeleted = item.IsDeleted;
-                                }
-                                if (hasUpdate)
-                                {
-                                    ExistingItem.UpdatedBy = UserId;
-                                    ExistingItem.UpdatedDate = CurrentDate;
-                                    _db.tProjectMajorWorkItem.Update(ExistingItem);
-                                }
-                            }
-                        }
-                        #region Update Locations for Updated Major Items
-                        var CurrentLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.WorkItemFK) && !x.IsDeleted).ToListAsync(cancellationToken);
-                        HashSet<int> CurrentLocationIds = CurrentLocations.Select(x => x.Id).ToHashSet();
-                        var UpdateLocations = UpdatedWorkLocations.Where(x => x.Id > 0 && CurrentLocationIds.Contains(x.Id)).ToList();
-                        if (UpdateLocations.Count > 0)
-                        {
-                            foreach (var loc in UpdateLocations)
-                            {
-                                var ExistingLoc = CurrentLocations.FirstOrDefault(x => x.Id == loc.Id);
-                                if (ExistingLoc != null)
-                                {
-                                    bool hasLocUpdate = false;
-                                    if (ExistingLoc.InfraId != loc.InfraId)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "InfraId",
-                                            NewValue = loc.InfraId,
-                                            OldValue = ExistingLoc.InfraId,
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.InfraId = loc.InfraId;
-                                    }
-                                    if (ExistingLoc.DetailedScope != loc.DetailedScope)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "DetailedScope",
-                                            NewValue = loc.DetailedScope ?? "",
-                                            OldValue = ExistingLoc.DetailedScope ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.DetailedScope = loc.DetailedScope;
-                                    }
-                                    if (ExistingLoc.TargetUnit != loc.TargetUnit)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "TargetUnit",
-                                            NewValue = loc.TargetUnit ?? "",
-                                            OldValue = ExistingLoc.TargetUnit ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.TargetUnit = loc.TargetUnit;
-                                    }
-                                    if (ExistingLoc.TargetUnitId != loc.TargetUnitId)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "TargetUnitId",
-                                            NewValue = loc.TargetUnitId.ToString(),
-                                            OldValue = ExistingLoc.TargetUnitId.ToString(),
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.TargetUnitId = loc.TargetUnitId;
-                                    }
-                                    if (ExistingLoc.StartX != loc.StartX)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "StartX",
-                                            NewValue = loc.StartX.ToString() ?? "",
-                                            OldValue = ExistingLoc.StartX.ToString() ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.StartX = loc.StartX;
-                                    }
-                                    if (ExistingLoc.StartY != loc.StartY)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "StartY",
-                                            NewValue = loc.StartY.ToString() ?? "",
-                                            OldValue = ExistingLoc.StartY.ToString() ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.StartY = loc.StartY;
-                                    }
-                                    if (ExistingLoc.EndX != loc.EndX)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "EndX",
-                                            NewValue = loc.EndX.ToString() ?? "",
-                                            OldValue = ExistingLoc.EndX.ToString() ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.EndX = loc.EndX;
-                                    }
-                                    if (ExistingLoc.EndY != loc.EndY)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "EndY",
-                                            NewValue = loc.EndY.ToString() ?? "",
-                                            OldValue = ExistingLoc.EndY.ToString() ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.EndY = loc.EndY;
-                                    }
-                                    if (ExistingLoc.PhysicalTarget != loc.PhysicalTarget)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "PhysicalTarget",
-                                            NewValue = loc.PhysicalTarget.ToString(),
-                                            OldValue = ExistingLoc.PhysicalTarget.ToString(),
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.PhysicalTarget = loc.PhysicalTarget;
-                                    }
-                                    if (ExistingLoc.StartStationLimit != loc.StartStationLimit)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "StartStationLimit",
-                                            NewValue = loc.StartStationLimit ?? "",
-                                            OldValue = ExistingLoc.StartStationLimit ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.StartStationLimit = loc.StartStationLimit;
-                                    }
-                                    if (ExistingLoc.EndStationLimit != loc.EndStationLimit)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "EndStationLimit",
-                                            NewValue = loc.EndStationLimit ?? "",
-                                            OldValue = ExistingLoc.EndStationLimit ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.EndStationLimit = loc.EndStationLimit;
-                                    }
-                                    if (ExistingLoc.EndChainage != loc.EndChainage)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "EndChainage",
-                                            NewValue = loc.EndChainage.ToString() ?? "",
-                                            OldValue = ExistingLoc.EndChainage.ToString() ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.EndChainage = loc.EndChainage;
-                                    }
-                                    if (ExistingLoc.StartChainage != loc.StartChainage)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "StartChainage",
-                                            NewValue = loc.StartChainage.ToString() ?? "",
-                                            OldValue = ExistingLoc.StartChainage.ToString() ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.StartChainage = loc.StartChainage;
-                                    }
-                                    if (ExistingLoc.Length != loc.Length)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Update.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "Length",
-                                            NewValue = loc.Length.ToString() ?? "",
-                                            OldValue = ExistingLoc.Length.ToString() ?? "",
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.Length = loc.Length;
-                                    }
-                                    if (loc.IsDeleted == true)
-                                    {
-                                        hasLocUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            ReferenceId = TransactionReferenceId,
-                                            TransactionType = EnumTransactionType.Delete.ToString(),
-                                            AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "Row",
-                                            NewValue = "",
-                                            OldValue = JsonConvert.SerializeObject(ExistingLoc),
-                                            CreatedBy = UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        ExistingLoc.IsDeleted = loc.IsDeleted;
-                                    }
-                                    if (hasLocUpdate)
-                                    {
-                                        ExistingLoc.UpdatedBy = UserId;
-                                        ExistingLoc.UpdatedDate = CurrentDate;
-                                        _db.tProjectMajorWorkLocations.Update(ExistingLoc);
-                                    }
-                                }
-                            }
-                        }
-                        #endregion
-                        #region New Locations for Updated Major Items
-                        var NewLocationsForUpdatedItems = UpdatedWorkLocations.Where(x => x.Id == 0 && x.WorkItemFK > 0).ToList();
-                        if (NewLocationsForUpdatedItems.Count > 0)
-                        {
-                            await _db.tProjectMajorWorkLocations.AddRangeAsync(NewLocationsForUpdatedItems.Select(item => new ProjectMajorWorkLocations
-                            {
-                                WorkItemFK = item.WorkItemFK,
-                                InfraId = item.InfraId,
-                                DetailedScope = item.DetailedScope,
-                                TargetUnitId = item.TargetUnitId,
-                                TargetUnit = item.TargetUnit,
-                                StartX = item.StartX,
-                                StartY = item.StartY,
-                                EndX = item.EndX,
-                                EndY = item.EndY,
-                                PhysicalTarget = item.PhysicalTarget,
-                                StartStationLimit = item.StartStationLimit,
-                                EndStationLimit = item.EndStationLimit,
-                                StartChainage = item.StartChainage,
-                                EndChainage = item.EndChainage,
-                                Length = item.Length,
-                                CreatedBy = UserId,
-                                CreatedDate = CurrentDate
-                            }), cancellationToken);
-                        }
-                        #endregion
-                    }
-                }
-                #endregion
-
-                #region New Major Item of Works
-                // Brand-new components' work items (and their locations) are already
-                // attached and inserted via the navigation collection in New Component
-                // Cost above; this only handles new work items on an existing Component Cost.
-
-                var newMajorItems = dto.MajorItemOfWorks.Where(x => x.Id == 0 && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
-                Console.WriteLine($">>>  newMajorItems = {newMajorItems.Count}");
-                if (newMajorItems.Count > 0)
-                {
-                    // var selectedWorkItemsToAdd = NewCostToAdd
-                    var selectedWorkItemsToAdd = ComponentCost // Use existing Component Costs of this project
-                        .SelectMany(a =>
-                            newMajorItems
-                            .Where(x => x.ComponentId == a.ComponentId)
-                            .Select(item => new ProjectMajorWorkItem
-                            {
-                                ComponentCostFK = a.Id,
-                                ComponentId = item.ComponentId,
-                                YearOfWork = item.YearOfWork,
-                                WorkTypeFK = item.WorkTypeFK,
-                                InfraTypeFK = item.InfraTypeFK,
-                                CreatedBy = UserId,
-                                CreatedDate = CurrentDate
-                            }))
-                        .ToList();
-                    await _db.tProjectMajorWorkItem.AddRangeAsync(selectedWorkItemsToAdd, cancellationToken);
-                    await _db.SaveChangesAsync(cancellationToken);
-                    MajorItemOfWorks.AddRange(selectedWorkItemsToAdd);
-                }
-
-                #endregion
-
-                #region Update Major Work Locations
-                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.Where(x => WorkItemFKs.Contains(x.WorkItemFK) && !x.IsDeleted).ToListAsync(cancellationToken);
-                if (MajorWorkLocations.Count > 0)
-                {
-                    HashSet<int> currentMajorItemIds = MajorWorkLocations.Select(x => x.Id).ToHashSet();
-                    var UpdateMajorItems = dto.MajorItemLocations.Where(x => currentMajorItemIds.Contains(x.Id)).ToList();
-                    bool hasUpdate = false;
-                    foreach (var item in UpdateMajorItems)
-                    {
-                        var ExistingItem = MajorWorkLocations.FirstOrDefault(x => x.Id == item.Id);
-                        if (ExistingItem != null)
-                        {
-                            if (ExistingItem.InfraId != item.InfraId)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "InfraId",
-                                    NewValue = item.InfraId,
-                                    OldValue = ExistingItem.InfraId,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.InfraId = item.InfraId;
-                            }
-                            if (ExistingItem.DetailedScope != item.DetailedScope)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "DetailedScope",
-                                    NewValue = item.DetailedScope,
-                                    OldValue = ExistingItem.DetailedScope,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.DetailedScope = item.DetailedScope;
-                            }
-                            if (ExistingItem.TargetUnitId != item.TargetUnitId)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "TargetUnitId",
-                                    NewValue = item.TargetUnitId.ToString()!,
-                                    OldValue = ExistingItem.TargetUnitId.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.TargetUnitId = item.TargetUnitId;
-                            }
-                            if (ExistingItem.TargetUnit != item.TargetUnit)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "TargetUnit",
-                                    NewValue = item.TargetUnit,
-                                    OldValue = ExistingItem.TargetUnit,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.TargetUnit = item.TargetUnit;
-                            }
-                            if (ExistingItem.StartX != item.StartX)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "StartX",
-                                    NewValue = item.StartX?.ToString()!,
-                                    OldValue = ExistingItem.StartX?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.StartX = item.StartX;
-                            }
-                            if (ExistingItem.StartY != item.StartY)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "StartY",
-                                    NewValue = item.StartY?.ToString()!,
-                                    OldValue = ExistingItem.StartY?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.StartY = item.StartY;
-                            }
-                            if (ExistingItem.EndX != item.EndX)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "EndX",
-                                    NewValue = item.EndX?.ToString()!,
-                                    OldValue = ExistingItem.EndX?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.EndX = item.EndX;
-                            }
-                            if (ExistingItem.EndY != item.EndY)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "EndY",
-                                    NewValue = item.EndY?.ToString()!,
-                                    OldValue = ExistingItem.EndY?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.EndY = item.EndY;
-                            }
-                            if (ExistingItem.PhysicalTarget != item.PhysicalTarget)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "PhysicalTarget",
-                                    NewValue = item.PhysicalTarget.ToString()!,
-                                    OldValue = ExistingItem.PhysicalTarget?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.PhysicalTarget = item.PhysicalTarget;
-                            }
-                            if (ExistingItem.StartStationLimit != item.StartStationLimit)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "StartStationLimit",
-                                    NewValue = item.StartStationLimit?.ToString()!,
-                                    OldValue = ExistingItem.StartStationLimit?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.StartStationLimit = item.StartStationLimit;
-                            }
-                            if (ExistingItem.EndStationLimit != item.EndStationLimit)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "EndStationLimit",
-                                    NewValue = item.EndStationLimit?.ToString()!,
-                                    OldValue = ExistingItem.EndStationLimit?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.EndStationLimit = item.EndStationLimit;
-                            }
-                            if (ExistingItem.StartChainage != item.StartChainage)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "StartChainage",
-                                    NewValue = item.StartChainage?.ToString()!,
-                                    OldValue = ExistingItem.StartChainage?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.StartChainage = item.StartChainage;
-                            }
-                            if (ExistingItem.EndChainage != item.EndChainage)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "EndChainage",
-                                    NewValue = item.EndChainage?.ToString()!,
-                                    OldValue = ExistingItem.EndChainage?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.EndChainage = item.EndChainage;
-                            }
-                            if (ExistingItem.Length != item.Length)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Update.ToString(),
-                                    AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "Length",
-                                    NewValue = item.Length?.ToString()!,
-                                    OldValue = ExistingItem.Length?.ToString()!,
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.Length = item.Length;
-                            }
-                            if(ExistingItem.IsDeleted != item.IsDeleted)
-                            {
-                                hasUpdate = true;
-                                transactionLogs.Add(new TransactionLog
-                                {
-                                    ReferenceId = TransactionReferenceId,
-                                    TransactionType = EnumTransactionType.Delete.ToString(),
-                                    AffectedTable = "tProjectMajorWorkItem",
-                                    AffectedColumn = "Row",
-                                    NewValue = "",
-                                    OldValue = JsonConvert.SerializeObject(ExistingItem),
-                                    CreatedBy = UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                                ExistingItem.IsDeleted = item.IsDeleted;
-                            }
-                            if (hasUpdate)
-                            {
-                                ExistingItem.UpdatedBy = UserId;
-                                ExistingItem.UpdatedDate = CurrentDate;
-                            }
-                        }
-                    }
-                    if (hasUpdate)
-                    {
-                        _db.tProjectMajorWorkLocations.UpdateRange(MajorWorkLocations);
-                    }
-                }
-                #endregion
-                #region New Major Work Locations in Existing Work Items
-                var NewWorkLocationsInExistingWorkItem = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
-                if (NewWorkLocationsInExistingWorkItem.Count > 0)
-                {
-                    var selectedWorkLocationsToAdd = MajorItemOfWorks
-                    .SelectMany(a =>
-                        NewWorkLocationsInExistingWorkItem
-                        .Where(x => x.ComponentId == a.ComponentId)
-                        .Select(item => new ProjectMajorWorkLocations
-                        {
-                            WorkItemFK = a.Id,
-                            ComponentId = item.ComponentId,
-                            InfraId = item.InfraId,
-                            DetailedScope = item.DetailedScope,
-                            TargetUnitId = item.TargetUnitId,
-                            TargetUnit = item.TargetUnit,
-                            StartX = item.StartX,
-                            StartY = item.StartY,
-                            EndX = item.EndX,
-                            EndY = item.EndY,
-                            PhysicalTarget = item.PhysicalTarget,
-                            StartStationLimit = item.StartStationLimit,
-                            EndStationLimit = item.EndStationLimit,
-                            StartChainage = item.StartChainage,
-                            EndChainage = item.EndChainage,
-                            Length = item.Length,
-                            CreatedBy = UserId,
-                            CreatedDate = CurrentDate
-                        }))
-                    .ToList();
-                    await _db.tProjectMajorWorkLocations.AddRangeAsync(selectedWorkLocationsToAdd, cancellationToken);
-                }
-                #endregion
-
-
-                #region Update Funding Profile
-                var CurrentFunding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync(cancellationToken);
-                if (CurrentFunding.Count > 0)
-                {
-                    var CurrentIds = dto.FundingProfile.Where(x => x.Id != 0).Select(x => x.Id).ToHashSet();
-                    var DeleteFunding = CurrentFunding
-                        .Where(x => !CurrentIds.Contains(x.Id))
-                        .ToList();
-                    if (DeleteFunding.Count > 0)
-                    {
-                        _db.tProjectFundingProfile.RemoveRange(DeleteFunding);
-                    }
-                    var UpdateFunding = dto.FundingProfile.Where(x => x.Id != 0).ToList();
-                    if (UpdateFunding.Count > 0)
-                    {
-                        foreach (var item in UpdateFunding)
-                        {
-                            var ExistingItem = CurrentFunding.FirstOrDefault(x => x.Id == item.Id);
-                            if (ExistingItem != null)
-                            {
-                                bool FundingUpdate = false;
-                                if (ExistingItem.SourceOrg != item.SourceOrg)
-                                {
-                                    FundingUpdate = true;
-                                    var CurrentSource = await _db.tOptionFundingSource.FirstOrDefaultAsync(x => x.Organization == ExistingItem.SourceOrg);
-                                    var NewSource = await _db.tOptionFundingSource.FirstOrDefaultAsync(x => x.Organization == item.SourceOrg);
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectFundingProfile",
-                                        AffectedColumn = "Source",
-                                        NewValue = NewSource!.Name,
-                                        OldValue = CurrentSource!.Name,
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.SourceOrg = item.SourceOrg;
-                                }
-                                if (ExistingItem.AgreementCode != item.AgreementCode)
-                                {
-                                    FundingUpdate = true;
-                                    var CurrentAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Code == ExistingItem.AgreementCode);
-                                    var NewAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Code == item.AgreementCode);
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectFundingProfile",
-                                        AffectedColumn = "Agreement",
-                                        NewValue = NewAgreement!.Name,
-                                        OldValue = CurrentAgreement!.Name,
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.AgreementCode = item.AgreementCode;
-                                }
-                                if (ExistingItem.Amount != item.Amount)
-                                {
-                                    FundingUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectFundingProfile",
-                                        AffectedColumn = "Amount",
-                                        NewValue = item.Amount.ToString(),
-                                        OldValue = ExistingItem.Amount.ToString(),
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.Amount = item.Amount;
-                                }
-                                if (ExistingItem.Percentage != item.Percentage)
-                                {
-                                    FundingUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Update.ToString(),
-                                        AffectedTable = "tProjectFundingProfile",
-                                        AffectedColumn = "Percentage",
-                                        NewValue = item.Percentage.ToString(),
-                                        OldValue = ExistingItem.Percentage.ToString(),
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.Percentage = item.Percentage;
-                                }
-                                if (item.IsDeleted == true)
-                                {
-                                    FundingUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        ReferenceId = TransactionReferenceId,
-                                        TransactionType = EnumTransactionType.Delete.ToString(),
-                                        AffectedTable = "tProjectFundingProfile",
-                                        AffectedColumn = "Row",
-                                        NewValue = "",
-                                        OldValue = JsonConvert.SerializeObject(ExistingItem),
-                                        CreatedBy = UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.IsDeleted = item.IsDeleted;
-                                }
-                                if (FundingUpdate)
-                                {
-                                    ExistingItem.UpdatedBy = UserId;
-                                    ExistingItem.UpdatedDate = CurrentDate;
-                                    _db.tProjectFundingProfile.Update(ExistingItem);
-                                }
-                            }
-                        }
-                    }
-                }
-                var NewFunding = dto.FundingProfile.Where(x => x.Id == 0).ToList();
-                if (NewFunding.Count > 0)
-                {
-                    var addFunding = dto.FundingProfile.Select(x => new ProjectFundingProfile
-                    {
-                        ProjectRevisionFK = ProjectRevisionFK!,
-                        SourceOrg = x.SourceOrg,
-                        AgreementCode = x.AgreementCode,
-                        Amount = x.Amount,
-                        Percentage = x.Percentage,
-                        IsWalletDraw = false,
+                        ReferenceId = TransactionReferenceId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
+                        AffectedTable = table,
+                        AffectedColumn = column,
+                        OldValue = oldValue?.ToString() ?? "",
+                        NewValue = newValue?.ToString() ?? "",
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    await _db.tProjectFundingProfile.AddRangeAsync(addFunding);
                 }
-                #endregion
-                await _db.tTransactionLog.AddRangeAsync(transactionLogs);
-                Console.WriteLine(">>>  Call to UpdateProjectDetails > SaveChangesAsync");
-                await _db.SaveChangesAsync(cancellationToken);
-                Console.WriteLine(">>>!  Finished UpdateProjectDetails > SaveChangesAsync");
 
-                // TODO: BUGFIX: task timeouts here, computationally expensive
-                 if (HasCostUpdate)
+
+                // ============================================================================
+                // SAFE SERIALIZATION FOR AUDIT / DELETE LOG
+                // ============================================================================
+
+                string SerializeEntityForAudit(object? entity)
                 {
+                    if (entity == null)
+                        return "{}";
 
-                    //var totalCount = _db.Database
-                    //.SqlQuery<int>($"EXEC dbo.pRecomputeProgramCost @ProgramPK={ProgramFK}")
-                    //.AsEnumerable()
-                    //.Single();
-                    var computedCost = _db.pRecomputeProgramCost
-                    .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={ProgramFK}")
-                    .AsNoTracking()
-                    .AsEnumerable()
-                    .FirstOrDefault();
+                    try
+                    {
+                        /*
+                         * Serialize ONLY mapped EF scalar properties.
+                         *
+                         * This intentionally excludes navigation properties such as:
+                         *
+                         * ProjectComponentCostPerYear
+                         *      -> ComponentCost
+                         *          -> CostsPerYear
+                         *              -> ProjectComponentCostPerYear
+                         *
+                         * which caused:
+                         *
+                         * Self referencing loop detected...
+                         * Path 'ComponentCost.CostsPerYear'
+                         */
 
-                    ProgramRevision.Cost = computedCost?.NewCost ?? 0;
-                    await _db.SaveChangesAsync(cancellationToken);
+                        var entry = _db.Entry(entity);
+
+                        var values = entry.Properties
+                            .ToDictionary(
+                                property => property.Metadata.Name,
+                                property => property.CurrentValue
+                            );
+
+                        return JsonConvert.SerializeObject(values);
+                    }
+                    catch
+                    {
+                        /*
+                         * Defensive fallback in case the supplied object
+                         * isn't recognized as an EF entity.
+                         */
+                        return JsonConvert.SerializeObject(
+                            entity,
+                            new JsonSerializerSettings
+                            {
+                                ReferenceLoopHandling =
+                                    ReferenceLoopHandling.Ignore
+                            });
+                    }
                 }
 
-                Console.WriteLine(">>>  Call to UpdateProjectDetails > CommitAsync");
-                await transaction.CommitAsync(cancellationToken);
-                Console.WriteLine(">>>!  Finished UpdateProjectDetails > CommitAsync");
+
+                // ============================================================================
+                // DELETE LOG
+                // ============================================================================
+
+                void AddDeleteLog(
+                    string table,
+                    object existingEntity)
+                {
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        ReferenceId = TransactionReferenceId,
+                        TransactionType = EnumTransactionType.Delete.ToString(),
+                        AffectedTable = table,
+                        AffectedColumn = "Row",
+                        NewValue = "",
+
+                        // IMPORTANT:
+                        // Do NOT directly serialize existingEntity.
+                        OldValue = SerializeEntityForAudit(existingEntity),
+
+                        CreatedBy = UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+
+
+                // ============================================================================
+                // COMPONENT COST
+                // ============================================================================
+
+                var ComponentCost = await _db.tProjectComponentCost
+                    .Where(x =>
+                        x.ProjectRevisionFK == ProjectRevision.Id &&
+                        !x.IsDeleted)
+                    .ToListAsync(cancellationToken);
+
+
+                var ExistingComponentCostIds = ComponentCost
+                    .Select(x => x.Id)
+                    .ToHashSet();
+
+
+                // ============================================================================
+                // UPDATE EXISTING COMPONENT COST
+                // ============================================================================
+
+                #region Update Component Cost
+
+                var UpdateComponentCost = dto.ComponentCosts
+                    .Where(x =>
+                        x.Id > 0 &&
+                        ExistingComponentCostIds.Contains(x.Id))
+                    .ToList();
+
+
+                foreach (var item in UpdateComponentCost)
+                {
+                    var ExistingItem = ComponentCost
+                        .FirstOrDefault(x => x.Id == item.Id);
+
+
+                    if (ExistingItem == null)
+                        continue;
+
+
+                    bool ComponentUpdate = false;
+
+
+                    // ------------------------------------------------------------------------
+                    // Component Type
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.ComponentType != item.ComponentType)
+                    {
+                        var Component = await _db.tOptionProjectComponentType
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(
+                                x => x.ComponentName == item.ComponentType,
+                                cancellationToken);
+
+
+                        if (Component == null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Message =
+                                    $"Selected Component '{item.ComponentType}' is not valid.",
+
+                                Title =
+                                    "Invalid Component"
+                            });
+                        }
+
+
+                        AddUpdateLog(
+                            "tProjectComponentCost",
+                            "ComponentType",
+                            ExistingItem.ComponentType,
+                            Component.ComponentName);
+
+
+                        ExistingItem.ComponentType =
+                            Component.ComponentName;
+
+
+                        ComponentUpdate = true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Component ID
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.ComponentId != item.ComponentId)
+                    {
+                        AddUpdateLog(
+                            "tProjectComponentCost",
+                            "ComponentId",
+                            ExistingItem.ComponentId,
+                            item.ComponentId);
+
+
+                        ExistingItem.ComponentId =
+                            item.ComponentId;
+
+
+                        ComponentUpdate = true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Description
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.Description != item.Description)
+                    {
+                        AddUpdateLog(
+                            "tProjectComponentCost",
+                            "Description",
+                            ExistingItem.Description,
+                            item.Description);
+
+
+                        ExistingItem.Description =
+                            item.Description ?? "";
+
+
+                        ComponentUpdate = true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Total
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.Total != item.Total)
+                    {
+                        AddUpdateLog(
+                            "tProjectComponentCost",
+                            "Total",
+                            ExistingItem.Total,
+                            item.Total);
+
+
+                        ExistingItem.Total =
+                            item.Total;
+
+
+                        ComponentUpdate = true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Delete
+                    // ------------------------------------------------------------------------
+
+                    if (!ExistingItem.IsDeleted &&
+                        item.IsDeleted)
+                    {
+                        AddDeleteLog(
+                            "tProjectComponentCost",
+                            ExistingItem);
+
+
+                        ExistingItem.IsDeleted =
+                            true;
+
+
+                        ComponentUpdate = true;
+                    }
+
+
+                    if (ComponentUpdate)
+                    {
+                        HasCostUpdate =
+                            true;
+
+
+                        ExistingItem.UpdatedBy =
+                            UserId;
+
+
+                        ExistingItem.UpdatedDate =
+                            CurrentDate;
+                    }
+                }
+
+                #endregion
+
+
+                // ============================================================================
+                // NEW COMPONENT COST
+                // ============================================================================
+
+                #region New Component Cost
+
+                var NewComponentCostData = dto.ComponentCosts
+                    .Where(x =>
+                        x.Id == 0 &&
+                        !x.IsDeleted)
+                    .ToList();
+
+
+                var NewCostToAdd =
+                    new List<ProjectComponentCost>();
+
+
+                foreach (var item in NewComponentCostData)
+                {
+                    if (string.IsNullOrWhiteSpace(item.ComponentId))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message =
+                                "Component ID is required.",
+
+                            Title =
+                                "Invalid Component"
+                        });
+                    }
+
+
+                    var ComponentType = await _db.tOptionProjectComponentType
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(
+                            x => x.ComponentName == item.ComponentType,
+                            cancellationToken);
+
+
+                    if (ComponentType == null)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message =
+                                $"Selected Component '{item.ComponentType}' is not valid.",
+
+                            Title =
+                                "Invalid Component"
+                        });
+                    }
+
+
+                    var NewComponent =
+                        new ProjectComponentCost
+                        {
+                            ProjectRevisionFK =
+                                ProjectRevision.Id,
+
+                            ComponentId =
+                                item.ComponentId,
+
+                            ComponentType =
+                                ComponentType.ComponentName,
+
+                            Description =
+                                item.Description,
+
+                            Total =
+                                item.Total,
+
+                            CreatedBy =
+                                UserId,
+
+                            CreatedDate =
+                                CurrentDate,
+
+                            IsDeleted =
+                                false
+                        };
+
+
+                    NewCostToAdd.Add(
+                        NewComponent);
+                }
+
+
+                if (NewCostToAdd.Count > 0)
+                {
+                    HasCostUpdate =
+                        true;
+
+
+                    await _db.tProjectComponentCost
+                        .AddRangeAsync(
+                            NewCostToAdd,
+                            cancellationToken);
+
+
+                    // ------------------------------------------------------------------------
+                    // Required:
+                    //
+                    // Cost Per Year and Major Work Item need the generated ComponentCost.Id.
+                    // ------------------------------------------------------------------------
+
+                    await _db.SaveChangesAsync(
+                        cancellationToken);
+                }
+
+                #endregion
+
+
+                // ============================================================================
+                // ALL COMPONENTS
+                // ============================================================================
+
+                var AllComponents = ComponentCost
+                    .Concat(NewCostToAdd)
+                    .ToList();
+
+
+                var ActiveComponents = AllComponents
+                    .Where(x => !x.IsDeleted)
+                    .ToList();
+
+
+                var ActiveComponentCostIds = ActiveComponents
+                    .Select(x => x.Id)
+                    .ToHashSet();
+
+
+                // ============================================================================
+                // VALIDATE COMPONENT IDS
+                // ============================================================================
+
+                if (ActiveComponents.Any(
+                    x => string.IsNullOrWhiteSpace(x.ComponentId)))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message =
+                            "One or more Components do not have a valid Component ID.",
+
+                        Title =
+                            "Invalid Component"
+                    });
+                }
+
+
+                var DuplicateComponentIds = ActiveComponents
+                    .GroupBy(
+                        x => x.ComponentId,
+                        StringComparer.OrdinalIgnoreCase)
+                    .Where(x => x.Count() > 1)
+                    .Select(x => x.Key)
+                    .ToList();
+
+
+                if (DuplicateComponentIds.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message =
+                            $"Duplicate Component ID(s) found: " +
+                            $"{string.Join(", ", DuplicateComponentIds)}.",
+
+                        Title =
+                            "Duplicate Component"
+                    });
+                }
+
+
+                var ComponentById = ActiveComponents
+                    .ToDictionary(
+                        x => x.ComponentId,
+                        x => x,
+                        StringComparer.OrdinalIgnoreCase);
+
+
+                // ============================================================================
+                // COMPONENT COST PER YEAR - EXISTING
+                // ============================================================================
+
+                #region Update Component Cost Per Year
+
+                /*
+                 * Load using ORIGINAL component IDs so records underneath a Component
+                 * being deleted in this same request can still be processed correctly.
+                 */
+
+                var ComponentCostYear =
+                    await _db.tProjectComponentCostPerYear
+                        .Where(x =>
+                            ExistingComponentCostIds.Contains(x.ComponentCostFK) &&
+                            !x.IsDeleted)
+                        .ToListAsync(cancellationToken);
+
+
+                var ExistingComponentCostYearIds = ComponentCostYear
+                    .Select(x => x.Id)
+                    .ToHashSet();
+
+
+                // ============================================================================
+                // VALIDATE COST PER YEAR OWNERSHIP
+                // ============================================================================
+
+                var InvalidCostYearIds = dto.ComponentCostPerYear
+                    .Where(x =>
+                        x.Id > 0 &&
+                        !ExistingComponentCostYearIds.Contains(x.Id))
+                    .Select(x => x.Id)
+                    .ToList();
+
+
+                if (InvalidCostYearIds.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message =
+                            "One or more Component Cost Per Year records " +
+                            "do not belong to the selected Project.",
+
+                        Title =
+                            "Invalid Component Cost Per Year"
+                    });
+                }
+
+
+                // ============================================================================
+                // UPDATE COST PER YEAR
+                // ============================================================================
+
+                foreach (var Year in ComponentCostYear)
+                {
+                    var CostYearToBeUpdated =
+                        dto.ComponentCostPerYear
+                            .FirstOrDefault(x => x.Id == Year.Id);
+
+
+                    if (CostYearToBeUpdated == null)
+                        continue;
+
+
+                    bool ComponentYearUpdate =
+                        false;
+
+
+                    // ------------------------------------------------------------------------
+                    // Sync ComponentId with parent
+                    // ------------------------------------------------------------------------
+
+                    var ParentComponent = AllComponents
+                        .FirstOrDefault(x =>
+                            x.Id == Year.ComponentCostFK);
+
+
+                    if (ParentComponent != null &&
+                        Year.ComponentId != ParentComponent.ComponentId)
+                    {
+                        AddUpdateLog(
+                            "tProjectComponentCostPerYear",
+                            "ComponentId",
+                            Year.ComponentId,
+                            ParentComponent.ComponentId);
+
+
+                        Year.ComponentId =
+                            ParentComponent.ComponentId;
+
+
+                        ComponentYearUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Amount
+                    // ------------------------------------------------------------------------
+
+                    if (Year.Amount != CostYearToBeUpdated.Amount)
+                    {
+                        AddUpdateLog(
+                            "tProjectComponentCostPerYear",
+                            "Amount",
+                            Year.Amount,
+                            CostYearToBeUpdated.Amount);
+
+
+                        Year.Amount =
+                            CostYearToBeUpdated.Amount;
+
+
+                        ComponentYearUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Year
+                    // ------------------------------------------------------------------------
+
+                    if (Year.Year != CostYearToBeUpdated.Year)
+                    {
+                        AddUpdateLog(
+                            "tProjectComponentCostPerYear",
+                            "Year",
+                            Year.Year,
+                            CostYearToBeUpdated.Year);
+
+
+                        Year.Year =
+                            CostYearToBeUpdated.Year;
+
+
+                        ComponentYearUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // UACS
+                    // ------------------------------------------------------------------------
+
+                    if (Year.UACS != CostYearToBeUpdated.UACS)
+                    {
+                        AddUpdateLog(
+                            "tProjectComponentCostPerYear",
+                            "UACS",
+                            Year.UACS,
+                            CostYearToBeUpdated.UACS);
+
+
+                        Year.UACS =
+                            CostYearToBeUpdated.UACS;
+
+
+                        ComponentYearUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Start Date
+                    // ------------------------------------------------------------------------
+
+                    if (Year.StartDate !=
+                        CostYearToBeUpdated.StartDate)
+                    {
+                        AddUpdateLog(
+                            "tProjectComponentCostPerYear",
+                            "StartDate",
+
+                            Year.StartDate?
+                                .ToString("MM/dd/yyyy"),
+
+                            CostYearToBeUpdated.StartDate?
+                                .ToString("MM/dd/yyyy"));
+
+
+                        Year.StartDate =
+                            CostYearToBeUpdated.StartDate;
+
+
+                        ComponentYearUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // End Date
+                    // ------------------------------------------------------------------------
+
+                    if (Year.EndDate !=
+                        CostYearToBeUpdated.EndDate)
+                    {
+                        AddUpdateLog(
+                            "tProjectComponentCostPerYear",
+                            "EndDate",
+
+                            Year.EndDate?
+                                .ToString("MM/dd/yyyy"),
+
+                            CostYearToBeUpdated.EndDate?
+                                .ToString("MM/dd/yyyy"));
+
+
+                        Year.EndDate =
+                            CostYearToBeUpdated.EndDate;
+
+
+                        ComponentYearUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Delete
+                    // ------------------------------------------------------------------------
+
+                    if (Year.IsDeleted !=
+                        CostYearToBeUpdated.IsDeleted)
+                    {
+                        if (CostYearToBeUpdated.IsDeleted)
+                        {
+                            /*
+                             * This now safely logs scalar properties only.
+                             *
+                             * ComponentCost navigation property is NOT serialized,
+                             * therefore ComponentCost.CostsPerYear cannot create
+                             * a self-referencing loop.
+                             */
+
+                            AddDeleteLog(
+                                "tProjectComponentCostPerYear",
+                                Year);
+                        }
+
+
+                        Year.IsDeleted =
+                            CostYearToBeUpdated.IsDeleted;
+
+
+                        ComponentYearUpdate =
+                            true;
+                    }
+
+
+                    if (ComponentYearUpdate)
+                    {
+                        HasCostUpdate =
+                            true;
+
+
+                        Year.UpdatedBy =
+                            UserId;
+
+
+                        Year.UpdatedDate =
+                            CurrentDate;
+                    }
+                }
+
+                #endregion
+
+
+                // ============================================================================
+                // NEW COMPONENT COST PER YEAR
+                // ============================================================================
+
+                #region New Component Cost Per Year
+
+                var NewComponentCostYearData =
+                    dto.ComponentCostPerYear
+                        .Where(x =>
+                            x.Id == 0 &&
+                            !x.IsDeleted)
+                        .ToList();
+
+
+                var NewCostYearToAdd =
+                    new List<ProjectComponentCostPerYear>();
+
+
+                foreach (var year in NewComponentCostYearData)
+                {
+                    ProjectComponentCost? ParentComponent =
+                        null;
+
+
+                    // ------------------------------------------------------------------------
+                    // Existing component: use real FK first.
+                    // ------------------------------------------------------------------------
+
+                    if (year.ComponentCostFK > 0)
+                    {
+                        ParentComponent = ActiveComponents
+                            .FirstOrDefault(x =>
+                                x.Id == year.ComponentCostFK);
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Newly-created component: resolve using ComponentId.
+                    // ------------------------------------------------------------------------
+
+                    if (ParentComponent == null &&
+                        !string.IsNullOrWhiteSpace(year.ComponentId))
+                    {
+                        ComponentById.TryGetValue(
+                            year.ComponentId,
+                            out ParentComponent);
+                    }
+
+
+                    if (ParentComponent == null)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message =
+                                $"Unable to locate Component " +
+                                $"'{year.ComponentId}' for Cost Per Year.",
+
+                            Title =
+                                "Invalid Component"
+                        });
+                    }
+
+
+                    NewCostYearToAdd.Add(
+                        new ProjectComponentCostPerYear
+                        {
+                            ComponentCostFK =
+                                ParentComponent.Id,
+
+                            ComponentId =
+                                ParentComponent.ComponentId,
+
+                            Amount =
+                                year.Amount,
+
+                            Year =
+                                year.Year,
+
+                            UACS =
+                                year.UACS,
+
+                            StartDate =
+                                year.StartDate,
+
+                            EndDate =
+                                year.EndDate,
+
+                            CreatedBy =
+                                UserId,
+
+                            CreatedDate =
+                                CurrentDate,
+
+                            IsDeleted =
+                                false
+                        });
+                }
+
+
+                if (NewCostYearToAdd.Count > 0)
+                {
+                    HasCostUpdate =
+                        true;
+
+
+                    await _db.tProjectComponentCostPerYear
+                        .AddRangeAsync(
+                            NewCostYearToAdd,
+                            cancellationToken);
+                }
+
+                #endregion
+
+
+                // ============================================================================
+                // MAJOR ITEM OF WORKS - EXISTING
+                // ============================================================================
+
+                var MajorItemOfWorks =
+                    await _db.tProjectMajorWorkItem
+                        .Where(x =>
+                            ExistingComponentCostIds.Contains(x.ComponentCostFK) &&
+                            !x.IsDeleted)
+                        .ToListAsync(cancellationToken);
+
+
+                var ExistingWorkItemIds = MajorItemOfWorks
+                    .Select(x => x.Id)
+                    .ToHashSet();
+
+
+                // ============================================================================
+                // VALIDATE EXISTING WORK ITEM OWNERSHIP
+                // ============================================================================
+
+                var InvalidWorkItemIds = dto.MajorItemOfWorks
+                    .Where(x =>
+                        x.Id > 0 &&
+                        !ExistingWorkItemIds.Contains(x.Id))
+                    .Select(x => x.Id)
+                    .ToList();
+
+
+                if (InvalidWorkItemIds.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message =
+                            "One or more Major Item of Works do not belong " +
+                            "to the selected Project.",
+
+                        Title =
+                            "Invalid Major Item of Work"
+                    });
+                }
+
+
+                // ============================================================================
+                // UPDATE MAJOR ITEM OF WORKS
+                // ============================================================================
+
+                #region Update Major Item of Works
+
+                var UpdateMajorItems = dto.MajorItemOfWorks
+                    .Where(x =>
+                        x.Id > 0 &&
+                        ExistingWorkItemIds.Contains(x.Id))
+                    .ToList();
+
+
+                foreach (var item in UpdateMajorItems)
+                {
+                    var ExistingItem = MajorItemOfWorks
+                        .FirstOrDefault(x =>
+                            x.Id == item.Id);
+
+
+                    if (ExistingItem == null)
+                        continue;
+
+
+                    bool hasUpdate =
+                        false;
+
+
+                    // ------------------------------------------------------------------------
+                    // Synchronize ComponentId with actual Component parent
+                    // ------------------------------------------------------------------------
+
+                    var ParentComponent = AllComponents
+                        .FirstOrDefault(x =>
+                            x.Id == ExistingItem.ComponentCostFK);
+
+
+                    if (ParentComponent != null &&
+                        ExistingItem.ComponentId !=
+                        ParentComponent.ComponentId)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkItem",
+                            "ComponentId",
+                            ExistingItem.ComponentId,
+                            ParentComponent.ComponentId);
+
+
+                        ExistingItem.ComponentId =
+                            ParentComponent.ComponentId;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Year of Work
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.YearOfWork !=
+                        item.YearOfWork)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkItem",
+                            "YearOfWork",
+                            ExistingItem.YearOfWork,
+                            item.YearOfWork);
+
+
+                        ExistingItem.YearOfWork =
+                            item.YearOfWork;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Work Type
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.WorkTypeFK !=
+                        item.WorkTypeFK)
+                    {
+                        var NewWorkType =
+                            await _db.tOptionScopeOfWork
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    x => x.Enum == item.WorkTypeFK,
+                                    cancellationToken);
+
+
+                        if (NewWorkType == null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Message =
+                                    $"Selected Work Type '{item.WorkTypeFK}' is not valid.",
+
+                                Title =
+                                    "Invalid Work Type"
+                            });
+                        }
+
+
+                        var OldWorkType =
+                            await _db.tOptionScopeOfWork
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    x => x.Enum == ExistingItem.WorkTypeFK,
+                                    cancellationToken);
+
+
+                        AddUpdateLog(
+                            "tProjectMajorWorkItem",
+                            "WorkTypeFK",
+
+                            OldWorkType?.Description ??
+                            ExistingItem.WorkTypeFK.ToString(),
+
+                            NewWorkType.Description);
+
+
+                        ExistingItem.WorkTypeFK =
+                            item.WorkTypeFK;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Infrastructure Type
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.InfraTypeFK !=
+                        item.InfraTypeFK)
+                    {
+                        var Infra =
+                            await _db.tOptionInfraType
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    x => x.InfraCode == item.InfraTypeFK,
+                                    cancellationToken);
+
+
+                        if (Infra == null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Message =
+                                    $"Selected Infrastructure Type " +
+                                    $"'{item.InfraTypeFK}' is not valid.",
+
+                                Title =
+                                    "Invalid Infrastructure Type"
+                            });
+                        }
+
+
+                        AddUpdateLog(
+                            "tProjectMajorWorkItem",
+                            "InfraTypeFK",
+                            ExistingItem.InfraTypeFK,
+                            Infra.InfraName);
+
+
+                        ExistingItem.InfraTypeFK =
+                            item.InfraTypeFK;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Delete
+                    // ------------------------------------------------------------------------
+
+                    if (!ExistingItem.IsDeleted &&
+                        item.IsDeleted)
+                    {
+                        AddDeleteLog(
+                            "tProjectMajorWorkItem",
+                            ExistingItem);
+
+
+                        ExistingItem.IsDeleted =
+                            true;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    if (hasUpdate)
+                    {
+                        ExistingItem.UpdatedBy =
+                            UserId;
+
+
+                        ExistingItem.UpdatedDate =
+                            CurrentDate;
+                    }
+                }
+
+                #endregion
+
+
+                // ============================================================================
+                // NEW MAJOR ITEM OF WORKS
+                //
+                // Handles:
+                // - new work items under existing Components
+                // - new work items under newly-created Components
+                // ============================================================================
+
+                #region New Major Item of Works
+
+                var NewMajorItemData = dto.MajorItemOfWorks
+                    .Where(x =>
+                        x.Id == 0 &&
+                        !x.IsDeleted)
+                    .ToList();
+
+
+                // ============================================================================
+                // IMPORTANT NO-CLIENT-ID VALIDATION
+                // ============================================================================
+
+                var NewLocationComponentIdsWithoutWorkItemFK =
+                    dto.MajorItemLocations
+                        .Where(x =>
+                            x.Id == 0 &&
+                            !x.IsDeleted &&
+                            x.WorkItemFK == 0)
+                        .Select(x => x.ComponentId)
+                        .ToHashSet();
+
+
+                var AmbiguousNewWorkItems =
+                    NewMajorItemData
+                        .GroupBy(x => x.ComponentId)
+                        .Where(x =>
+                            x.Count() > 1 &&
+                            NewLocationComponentIdsWithoutWorkItemFK.Contains(x.Key))
+                        .Select(x => x.Key)
+                        .ToList();
+
+
+                if (AmbiguousNewWorkItems.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message =
+                            $"Unable to determine the Major Item of Work for new " +
+                            $"Location(s). Multiple new Work Items exist for Component(s): " +
+                            $"{string.Join(", ", AmbiguousNewWorkItems)}.",
+
+                        Title =
+                            "Ambiguous Major Item of Work"
+                    });
+                }
+
+
+                var NewMajorWorkItems =
+                    new List<ProjectMajorWorkItem>();
+
+
+                foreach (var item in NewMajorItemData)
+                {
+                    if (string.IsNullOrWhiteSpace(item.ComponentId))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message =
+                                "Component ID is required for a new Major Item of Work.",
+
+                            Title =
+                                "Invalid Major Item of Work"
+                        });
+                    }
+
+
+                    if (!ComponentById.TryGetValue(
+                        item.ComponentId,
+                        out var ParentComponent))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message =
+                                $"Unable to locate Component '{item.ComponentId}' " +
+                                $"for the new Major Item of Work.",
+
+                            Title =
+                                "Invalid Component"
+                        });
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Validate Work Type
+                    // ------------------------------------------------------------------------
+
+                    var WorkType =
+                        await _db.tOptionScopeOfWork
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(
+                                x => x.Enum == item.WorkTypeFK,
+                                cancellationToken);
+
+
+                    if (WorkType == null)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message =
+                                $"Selected Work Type '{item.WorkTypeFK}' is not valid.",
+
+                            Title =
+                                "Invalid Work Type"
+                        });
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Validate Infrastructure Type
+                    // ------------------------------------------------------------------------
+
+                    var Infra =
+                        await _db.tOptionInfraType
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(
+                                x => x.InfraCode == item.InfraTypeFK,
+                                cancellationToken);
+
+
+                    if (Infra == null)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message =
+                                $"Selected Infrastructure Type " +
+                                $"'{item.InfraTypeFK}' is not valid.",
+
+                            Title =
+                                "Invalid Infrastructure Type"
+                        });
+                    }
+
+
+                    NewMajorWorkItems.Add(
+                        new ProjectMajorWorkItem
+                        {
+                            ComponentCostFK =
+                                ParentComponent.Id,
+
+                            ComponentId =
+                                ParentComponent.ComponentId,
+
+                            YearOfWork =
+                                item.YearOfWork,
+
+                            WorkTypeFK =
+                                item.WorkTypeFK,
+
+                            InfraTypeFK =
+                                item.InfraTypeFK,
+
+                            CreatedBy =
+                                UserId,
+
+                            CreatedDate =
+                                CurrentDate,
+
+                            IsDeleted =
+                                false
+                        });
+                }
+
+
+                if (NewMajorWorkItems.Count > 0)
+                {
+                    await _db.tProjectMajorWorkItem
+                        .AddRangeAsync(
+                            NewMajorWorkItems,
+                            cancellationToken);
+
+
+                    // Locations need generated ProjectMajorWorkItem.Id.
+                    await _db.SaveChangesAsync(
+                        cancellationToken);
+                }
+
+                #endregion
+
+
+                // ============================================================================
+                // ACTIVE WORK ITEMS
+                // ============================================================================
+
+                var ActiveExistingWorkItems =
+                    MajorItemOfWorks
+                        .Where(x => !x.IsDeleted)
+                        .ToList();
+
+
+                var AllActiveWorkItems =
+                    ActiveExistingWorkItems
+                        .Concat(NewMajorWorkItems)
+                        .ToList();
+
+
+                var ActiveWorkItemIds =
+                    AllActiveWorkItems
+                        .Select(x => x.Id)
+                        .ToHashSet();
+
+
+                var ActiveWorkItemById =
+                    AllActiveWorkItems
+                        .ToDictionary(
+                            x => x.Id,
+                            x => x);
+
+
+                // ============================================================================
+                // NEW WORK ITEM LOOKUP BY COMPONENT ID
+                // ============================================================================
+
+                var NewWorkItemByComponentId =
+                    NewMajorWorkItems
+                        .GroupBy(x => x.ComponentId)
+                        .Where(x => x.Count() == 1)
+                        .ToDictionary(
+                            x => x.Key,
+                            x => x.Single(),
+                            StringComparer.OrdinalIgnoreCase);
+
+
+                // ============================================================================
+                // EXISTING MAJOR WORK LOCATIONS
+                // ============================================================================
+
+                var MajorWorkLocations =
+                    await _db.tProjectMajorWorkLocations
+                        .Where(x =>
+                            ExistingWorkItemIds.Contains(x.WorkItemFK) &&
+                            !x.IsDeleted)
+                        .ToListAsync(cancellationToken);
+
+
+                var ExistingLocationIds =
+                    MajorWorkLocations
+                        .Select(x => x.Id)
+                        .ToHashSet();
+
+
+                // ============================================================================
+                // VALIDATE EXISTING LOCATION OWNERSHIP
+                // ============================================================================
+
+                var InvalidLocationIds =
+                    dto.MajorItemLocations
+                        .Where(x =>
+                            x.Id > 0 &&
+                            !ExistingLocationIds.Contains(x.Id))
+                        .Select(x => x.Id)
+                        .ToList();
+
+
+                if (InvalidLocationIds.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message =
+                            "One or more Major Work Locations do not belong " +
+                            "to the selected Project.",
+
+                        Title =
+                            "Invalid Major Work Location"
+                    });
+                }
+
+
+                // ============================================================================
+                // UPDATE MAJOR WORK LOCATIONS
+                // ============================================================================
+
+                #region Update Major Work Locations
+
+                var UpdateMajorLocations =
+                    dto.MajorItemLocations
+                        .Where(x =>
+                            x.Id > 0 &&
+                            ExistingLocationIds.Contains(x.Id))
+                        .ToList();
+
+
+                foreach (var item in UpdateMajorLocations)
+                {
+                    var ExistingItem =
+                        MajorWorkLocations
+                            .FirstOrDefault(x =>
+                                x.Id == item.Id);
+
+
+                    if (ExistingItem == null)
+                        continue;
+
+
+                    bool hasUpdate =
+                        false;
+
+
+                    // ------------------------------------------------------------------------
+                    // Sync ComponentId from WorkItem
+                    // ------------------------------------------------------------------------
+
+                    var ParentWorkItem =
+                        MajorItemOfWorks
+                            .FirstOrDefault(x =>
+                                x.Id == ExistingItem.WorkItemFK);
+
+
+                    if (ParentWorkItem != null &&
+                        ExistingItem.ComponentId !=
+                        ParentWorkItem.ComponentId)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "ComponentId",
+                            ExistingItem.ComponentId,
+                            ParentWorkItem.ComponentId);
+
+
+                        ExistingItem.ComponentId =
+                            ParentWorkItem.ComponentId;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // InfraId
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.InfraId != item.InfraId)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "InfraId",
+                            ExistingItem.InfraId,
+                            item.InfraId);
+
+
+                        ExistingItem.InfraId =
+                            item.InfraId;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // DetailedScope
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.DetailedScope != item.DetailedScope)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "DetailedScope",
+                            ExistingItem.DetailedScope,
+                            item.DetailedScope);
+
+
+                        ExistingItem.DetailedScope =
+                            item.DetailedScope;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // TargetUnitId
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.TargetUnitId != item.TargetUnitId)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "TargetUnitId",
+                            ExistingItem.TargetUnitId,
+                            item.TargetUnitId);
+
+
+                        ExistingItem.TargetUnitId =
+                            item.TargetUnitId;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // TargetUnit
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.TargetUnit != item.TargetUnit)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "TargetUnit",
+                            ExistingItem.TargetUnit,
+                            item.TargetUnit);
+
+
+                        ExistingItem.TargetUnit =
+                            item.TargetUnit;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // StartX
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.StartX != item.StartX)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "StartX",
+                            ExistingItem.StartX,
+                            item.StartX);
+
+
+                        ExistingItem.StartX =
+                            item.StartX;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // StartY
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.StartY != item.StartY)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "StartY",
+                            ExistingItem.StartY,
+                            item.StartY);
+
+
+                        ExistingItem.StartY =
+                            item.StartY;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // EndX
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.EndX != item.EndX)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "EndX",
+                            ExistingItem.EndX,
+                            item.EndX);
+
+
+                        ExistingItem.EndX =
+                            item.EndX;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // EndY
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.EndY != item.EndY)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "EndY",
+                            ExistingItem.EndY,
+                            item.EndY);
+
+
+                        ExistingItem.EndY =
+                            item.EndY;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // PhysicalTarget
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.PhysicalTarget != item.PhysicalTarget)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "PhysicalTarget",
+                            ExistingItem.PhysicalTarget,
+                            item.PhysicalTarget);
+
+
+                        ExistingItem.PhysicalTarget =
+                            item.PhysicalTarget;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // StartStationLimit
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.StartStationLimit !=
+                        item.StartStationLimit)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "StartStationLimit",
+                            ExistingItem.StartStationLimit,
+                            item.StartStationLimit);
+
+
+                        ExistingItem.StartStationLimit =
+                            item.StartStationLimit;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // EndStationLimit
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.EndStationLimit !=
+                        item.EndStationLimit)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "EndStationLimit",
+                            ExistingItem.EndStationLimit,
+                            item.EndStationLimit);
+
+
+                        ExistingItem.EndStationLimit =
+                            item.EndStationLimit;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // StartChainage
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.StartChainage != item.StartChainage)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "StartChainage",
+                            ExistingItem.StartChainage,
+                            item.StartChainage);
+
+
+                        ExistingItem.StartChainage =
+                            item.StartChainage;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // EndChainage
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.EndChainage != item.EndChainage)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "EndChainage",
+                            ExistingItem.EndChainage,
+                            item.EndChainage);
+
+
+                        ExistingItem.EndChainage =
+                            item.EndChainage;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Length
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.Length != item.Length)
+                    {
+                        AddUpdateLog(
+                            "tProjectMajorWorkLocations",
+                            "Length",
+                            ExistingItem.Length,
+                            item.Length);
+
+
+                        ExistingItem.Length =
+                            item.Length;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Delete
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.IsDeleted != item.IsDeleted)
+                    {
+                        if (item.IsDeleted)
+                        {
+                            AddDeleteLog(
+                                "tProjectMajorWorkLocations",
+                                ExistingItem);
+                        }
+
+
+                        ExistingItem.IsDeleted =
+                            item.IsDeleted;
+
+
+                        hasUpdate =
+                            true;
+                    }
+
+
+                    if (hasUpdate)
+                    {
+                        ExistingItem.UpdatedBy =
+                            UserId;
+
+
+                        ExistingItem.UpdatedDate =
+                            CurrentDate;
+                    }
+                }
+
+                #endregion
+
+
+                // ============================================================================
+                // NEW MAJOR WORK LOCATIONS
+                // ============================================================================
+
+                #region New Major Work Locations
+
+                var NewMajorWorkLocationData =
+                    dto.MajorItemLocations
+                        .Where(x =>
+                            x.Id == 0 &&
+                            !x.IsDeleted)
+                        .ToList();
+
+
+                var NewMajorWorkLocations =
+                    new List<ProjectMajorWorkLocations>();
+
+
+                foreach (var item in NewMajorWorkLocationData)
+                {
+                    ProjectMajorWorkItem? ParentWorkItem =
+                        null;
+
+
+                    // ------------------------------------------------------------------------
+                    // Existing Work Item
+                    // ------------------------------------------------------------------------
+
+                    if (item.WorkItemFK > 0)
+                    {
+                        ActiveWorkItemById.TryGetValue(
+                            item.WorkItemFK,
+                            out ParentWorkItem);
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // New Work Item
+                    // ------------------------------------------------------------------------
+
+                    if (ParentWorkItem == null &&
+                        item.WorkItemFK == 0 &&
+                        !string.IsNullOrWhiteSpace(item.ComponentId))
+                    {
+                        NewWorkItemByComponentId.TryGetValue(
+                            item.ComponentId,
+                            out ParentWorkItem);
+                    }
+
+
+                    if (ParentWorkItem == null)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message =
+                                $"Unable to determine the Major Item of Work " +
+                                $"for Location under Component '{item.ComponentId}'.",
+
+                            Title =
+                                "Invalid Major Work Location"
+                        });
+                    }
+
+
+                    NewMajorWorkLocations.Add(
+                        new ProjectMajorWorkLocations
+                        {
+                            WorkItemFK =
+                                ParentWorkItem.Id,
+
+                            ComponentId =
+                                ParentWorkItem.ComponentId,
+
+                            InfraId =
+                                item.InfraId,
+
+                            DetailedScope =
+                                item.DetailedScope,
+
+                            TargetUnitId =
+                                item.TargetUnitId,
+
+                            TargetUnit =
+                                item.TargetUnit,
+
+                            StartX =
+                                item.StartX,
+
+                            StartY =
+                                item.StartY,
+
+                            EndX =
+                                item.EndX,
+
+                            EndY =
+                                item.EndY,
+
+                            PhysicalTarget =
+                                item.PhysicalTarget,
+
+                            StartStationLimit =
+                                item.StartStationLimit,
+
+                            EndStationLimit =
+                                item.EndStationLimit,
+
+                            StartChainage =
+                                item.StartChainage,
+
+                            EndChainage =
+                                item.EndChainage,
+
+                            Length =
+                                item.Length,
+
+                            CreatedBy =
+                                UserId,
+
+                            CreatedDate =
+                                CurrentDate,
+
+                            IsDeleted =
+                                false
+                        });
+                }
+
+
+                if (NewMajorWorkLocations.Count > 0)
+                {
+                    await _db.tProjectMajorWorkLocations
+                        .AddRangeAsync(
+                            NewMajorWorkLocations,
+                            cancellationToken);
+                }
+
+                #endregion
+
+
+                // ============================================================================
+                // FUNDING PROFILE
+                // ============================================================================
+
+                #region Update / Delete / New Funding Profile
+
+                var CurrentFunding =
+                    await _db.tProjectFundingProfile
+                        .Where(x =>
+                            x.ProjectRevisionFK == ProjectRevision.Id &&
+                            !x.IsDeleted)
+                        .ToListAsync(cancellationToken);
+
+
+                var CurrentFundingIds =
+                    CurrentFunding
+                        .Select(x => x.Id)
+                        .ToHashSet();
+
+
+                var SubmittedExistingFundingIds =
+                    dto.FundingProfile
+                        .Where(x => x.Id > 0)
+                        .Select(x => x.Id)
+                        .ToHashSet();
+
+
+                // ============================================================================
+                // VALIDATE FUNDING OWNERSHIP
+                // ============================================================================
+
+                var InvalidFundingIds =
+                    SubmittedExistingFundingIds
+                        .Where(x =>
+                            !CurrentFundingIds.Contains(x))
+                        .ToList();
+
+
+                if (InvalidFundingIds.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message =
+                            "One or more Funding Profile records do not belong " +
+                            "to the selected Project.",
+
+                        Title =
+                            "Invalid Funding Profile"
+                    });
+                }
+
+
+                // ============================================================================
+                // FUNDING REMOVED FROM DTO
+                // ============================================================================
+
+                var FundingRemovedFromRequest =
+                    CurrentFunding
+                        .Where(x =>
+                            !SubmittedExistingFundingIds.Contains(x.Id))
+                        .ToList();
+
+
+                foreach (var ExistingItem in FundingRemovedFromRequest)
+                {
+                    AddDeleteLog(
+                        "tProjectFundingProfile",
+                        ExistingItem);
+
+
+                    ExistingItem.IsDeleted =
+                        true;
+
+
+                    ExistingItem.UpdatedBy =
+                        UserId;
+
+
+                    ExistingItem.UpdatedDate =
+                        CurrentDate;
+
+
+                    HasCostUpdate =
+                        true;
+                }
+
+
+                // ============================================================================
+                // UPDATE EXISTING FUNDING
+                // ============================================================================
+
+                var UpdateFunding =
+                    dto.FundingProfile
+                        .Where(x =>
+                            x.Id > 0 &&
+                            CurrentFundingIds.Contains(x.Id))
+                        .ToList();
+
+
+                foreach (var item in UpdateFunding)
+                {
+                    var ExistingItem =
+                        CurrentFunding
+                            .FirstOrDefault(x =>
+                                x.Id == item.Id);
+
+
+                    if (ExistingItem == null)
+                        continue;
+
+
+                    bool FundingUpdate =
+                        false;
+
+
+                    // ------------------------------------------------------------------------
+                    // Funding Source
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.SourceOrg != item.SourceOrg)
+                    {
+                        var CurrentSource =
+                            await _db.tOptionFundingSource
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    x => x.Organization == ExistingItem.SourceOrg,
+                                    cancellationToken);
+
+
+                        var NewSource =
+                            await _db.tOptionFundingSource
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    x => x.Organization == item.SourceOrg,
+                                    cancellationToken);
+
+
+                        if (NewSource == null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Message =
+                                    $"Selected Funding Source '{item.SourceOrg}' is not valid.",
+
+                                Title =
+                                    "Invalid Funding Source"
+                            });
+                        }
+
+
+                        AddUpdateLog(
+                            "tProjectFundingProfile",
+                            "Source",
+                            CurrentSource?.Name ?? ExistingItem.SourceOrg,
+                            NewSource.Name);
+
+
+                        ExistingItem.SourceOrg =
+                            item.SourceOrg;
+
+
+                        FundingUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Agreement
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.AgreementCode !=
+                        item.AgreementCode)
+                    {
+                        var CurrentAgreement =
+                            await _db.tOptionFundingAgreement
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    x => x.Code == ExistingItem.AgreementCode,
+                                    cancellationToken);
+
+
+                        var NewAgreement =
+                            await _db.tOptionFundingAgreement
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    x => x.Code == item.AgreementCode,
+                                    cancellationToken);
+
+
+                        if (NewAgreement == null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Message =
+                                    $"Selected Funding Agreement " +
+                                    $"'{item.AgreementCode}' is not valid.",
+
+                                Title =
+                                    "Invalid Funding Agreement"
+                            });
+                        }
+
+
+                        AddUpdateLog(
+                            "tProjectFundingProfile",
+                            "Agreement",
+                            CurrentAgreement?.Name ?? ExistingItem.AgreementCode,
+                            NewAgreement.Name);
+
+
+                        ExistingItem.AgreementCode =
+                            item.AgreementCode;
+
+
+                        FundingUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Amount
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.Amount != item.Amount)
+                    {
+                        AddUpdateLog(
+                            "tProjectFundingProfile",
+                            "Amount",
+                            ExistingItem.Amount,
+                            item.Amount);
+
+
+                        ExistingItem.Amount =
+                            item.Amount;
+
+
+                        FundingUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Percentage
+                    // ------------------------------------------------------------------------
+
+                    if (ExistingItem.Percentage != item.Percentage)
+                    {
+                        AddUpdateLog(
+                            "tProjectFundingProfile",
+                            "Percentage",
+                            ExistingItem.Percentage,
+                            item.Percentage);
+
+
+                        ExistingItem.Percentage =
+                            item.Percentage;
+
+
+                        FundingUpdate =
+                            true;
+                    }
+
+
+                    // ------------------------------------------------------------------------
+                    // Explicit Delete
+                    // ------------------------------------------------------------------------
+
+                    if (!ExistingItem.IsDeleted &&
+                        item.IsDeleted)
+                    {
+                        AddDeleteLog(
+                            "tProjectFundingProfile",
+                            ExistingItem);
+
+
+                        ExistingItem.IsDeleted =
+                            true;
+
+
+                        FundingUpdate =
+                            true;
+                    }
+
+
+                    if (FundingUpdate)
+                    {
+                        HasCostUpdate =
+                            true;
+
+
+                        ExistingItem.UpdatedBy =
+                            UserId;
+
+
+                        ExistingItem.UpdatedDate =
+                            CurrentDate;
+                    }
+                }
+
+
+                // ============================================================================
+                // NEW FUNDING PROFILE
+                // ============================================================================
+
+                var NewFunding =
+                    dto.FundingProfile
+                        .Where(x =>
+                            x.Id == 0 &&
+                            !x.IsDeleted)
+                        .ToList();
+
+
+                if (NewFunding.Count > 0)
+                {
+                    var FundingToAdd =
+                        new List<ProjectFundingProfile>();
+
+
+                    foreach (var item in NewFunding)
+                    {
+                        // --------------------------------------------------------------------
+                        // Validate Funding Source
+                        // --------------------------------------------------------------------
+
+                        var FundingSource =
+                            await _db.tOptionFundingSource
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    x => x.Organization == item.SourceOrg,
+                                    cancellationToken);
+
+
+                        if (FundingSource == null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Message =
+                                    $"Selected Funding Source '{item.SourceOrg}' is not valid.",
+
+                                Title =
+                                    "Invalid Funding Source"
+                            });
+                        }
+
+
+                        // --------------------------------------------------------------------
+                        // Validate Funding Agreement
+                        // --------------------------------------------------------------------
+
+                        var FundingAgreement =
+                            await _db.tOptionFundingAgreement
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(
+                                    x => x.Code == item.AgreementCode,
+                                    cancellationToken);
+
+
+                        if (FundingAgreement == null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Message =
+                                    $"Selected Funding Agreement " +
+                                    $"'{item.AgreementCode}' is not valid.",
+
+                                Title =
+                                    "Invalid Funding Agreement"
+                            });
+                        }
+
+
+                        FundingToAdd.Add(
+                            new ProjectFundingProfile
+                            {
+                                ProjectRevisionFK =
+                                    ProjectRevision.Id,
+
+                                SourceOrg =
+                                    item.SourceOrg,
+
+                                AgreementCode =
+                                    item.AgreementCode,
+
+                                Amount =
+                                    item.Amount,
+
+                                Percentage =
+                                    item.Percentage,
+
+                                IsWalletDraw =
+                                    false,
+
+                                CreatedBy =
+                                    UserId,
+
+                                CreatedDate =
+                                    CurrentDate,
+
+                                IsDeleted =
+                                    false
+                            });
+                    }
+
+
+                    if (FundingToAdd.Count > 0)
+                    {
+                        HasCostUpdate =
+                            true;
+
+
+                        await _db.tProjectFundingProfile
+                            .AddRangeAsync(
+                                FundingToAdd,
+                                cancellationToken);
+                    }
+                }
+
+                #endregion
+
+
+                // ============================================================================
+                // TRANSACTION LOG
+                // ============================================================================
+
+                if (transactionLogs.Count > 0)
+                {
+                    await _db.tTransactionLog
+                        .AddRangeAsync(
+                            transactionLogs,
+                            cancellationToken);
+                }
+
+
+                // ============================================================================
+                // SAVE ALL PROJECT DETAIL CHANGES
+                // ============================================================================
+
+                Console.WriteLine(
+                    ">>> Call to UpdateProjectDetails > SaveChangesAsync");
+
+
+                await _db.SaveChangesAsync(
+                    cancellationToken);
+
+
+                Console.WriteLine(
+                    ">>>! Finished UpdateProjectDetails > SaveChangesAsync");
+
+
+                // ============================================================================
+                // RECOMPUTE PROGRAM COST
+                // ============================================================================
+
+                if (HasCostUpdate)
+                {
+                    var ComputedCostResults =
+                        await _db.pRecomputeProgramCost
+                            .FromSqlInterpolated(
+                                $"EXEC dbo.pRecomputeProgramCost @ProgramPK={ProgramFK}")
+                            .AsNoTracking()
+                            .ToListAsync(cancellationToken);
+
+
+                    var ComputedCost =
+                        ComputedCostResults.FirstOrDefault();
+
+
+                    ProgramRevision.Cost =
+                        ComputedCost?.NewCost ?? 0;
+
+
+                    await _db.SaveChangesAsync(
+                        cancellationToken);
+                }
+
+
+                // ============================================================================
+                // COMMIT TRANSACTION
+                // ============================================================================
+
+                Console.WriteLine(
+                    ">>> Call to UpdateProjectDetails > CommitAsync");
+
+
+                await transaction.CommitAsync(
+                    cancellationToken);
+
+
+                Console.WriteLine(
+                    ">>>! Finished UpdateProjectDetails > CommitAsync");
+
+
+                // ============================================================================
+                // RESPONSE
+                // ============================================================================
 
                 return Ok(new
                 {
-                    Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully.",
-                    Title = "Update Complete"
+                    Message =
+                        $"Project {dto.ProjectDetails!.ProjectId} updated successfully.",
+
+                    Title =
+                        "Update Complete"
                 });
 
             }
