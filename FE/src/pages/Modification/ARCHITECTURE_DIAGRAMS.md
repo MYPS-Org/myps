@@ -1,5 +1,11 @@
 # Jotai Architecture - Visual Guide
 
+> **Historical diagram set — not fully current.** The diagrams below show a `RuleManager`/rule-files
+> layer and a `FieldPermissionDebugPanel` feeding into the field-permission store as a client-side
+> fallback/dev tool. That `rules/` folder and the debug panel were dead code (no reachable import path
+> into `fieldRulesAtom`) and have been deleted. Field editability comes exclusively from the API's
+> `Rules.Field` JSON — see `../Modification.md`'s "Rules System" section for the current architecture.
+
 ## 🏗️ System Architecture
 
 ```

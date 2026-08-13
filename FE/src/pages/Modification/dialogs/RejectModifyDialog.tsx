@@ -5,6 +5,7 @@ import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import type { ProjectDetails } from '../../Project/Model';
+import { EnumRevisionStatus } from '../Model';
 import { updateRevisionRequestStatus } from '../Service';
 import { transactionIdAtom } from '../store/routeContextStore';
 import { useAtomValue } from 'jotai';
@@ -50,7 +51,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
         setIsSubmitting(true);
         
         try {
-            await updateRevisionRequestStatus(transactionId, 2, undefined, undefined, rejectionReason); // 2 = Rejected
+            await updateRevisionRequestStatus(transactionId, EnumRevisionStatus.Rejected, undefined, undefined, rejectionReason);
             await onReject(rejectionReason);
             
             showToast({

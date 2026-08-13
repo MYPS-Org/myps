@@ -1,5 +1,33 @@
 import type { OptionRevisionCategory, OptionRevisionHeader, OptionRevisionReasons, ProjectFormPayload } from "../Project/Model";
 
+// Matches DBHelper.Models.Enums.EnumRevisionStatus (BE serializes enums as ints).
+// Plain const object (not `enum`) — this project's tsconfig sets erasableSyntaxOnly,
+// which disallows real TS enums since they emit non-erasable runtime code.
+export const EnumRevisionStatus = {
+    Pending: 0,
+    Approved: 1,
+    Rejected: 2,
+    ForCorrection: 3,
+} as const;
+export type EnumRevisionStatus = typeof EnumRevisionStatus[keyof typeof EnumRevisionStatus];
+
+// Backend type: FileUpload (DBHelper\Models\Extra\FileUpload.cs)
+export interface FileUpload {
+    Name: string;
+    Extension: string;
+    ContentType: string;
+    DataUrl: string;
+}
+
+export interface ApiMessageResult {
+    Title: string;
+    Message: string;
+}
+
+export interface ApiTransactionResult extends ApiMessageResult {
+    TransactionId: string;
+}
+
 export interface ModificationList {
     Id: number;
     ProjectId: number;
@@ -112,9 +140,9 @@ export interface Rules {
 
 // Parsed structure from Rules.Field JSON
 export interface CRUDRules {
-    Message: string;
-    CanAdd: string;
-    CanDelete: string;
+    Message?: string;
+    CanAdd: boolean;
+    CanDelete: boolean;
 }
 
 export interface FieldRuleSection {
@@ -160,19 +188,13 @@ export interface RevisionLists {
 	CreatedDate?: string;
 }
 
-export interface RevisionPagination extends PaginationParams {
-    filters?: RevisionFilter;
-    limit: number,
-    page: number,
-    SortField: string,
-    sortDirection: number
-}
+// Matches the backend's cursor-pagination convention (see FE/src/types/Pagination.d.ts)
+export type RevisionPagination = PaginatedRequest<RevisionFilter>;
 
 export interface RevisionFilter {
-  TransactionId?: string;
-  ProjectId?: string;
-  RevisionGroupId?: number;
-  ReasonId?: number;
-  RegionApproveStatus?: number;
-  COApproveStatus?: number;
+  TransactionId?: string | null;
+  ProjectId?: string | null;
+  RevisionType?: string | null;
+  RevisionStatus?: string | null;
+  CurrentStage?: string | null;
 }

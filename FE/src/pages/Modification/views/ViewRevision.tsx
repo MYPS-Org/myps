@@ -9,7 +9,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { ArrowLeftIcon } from '@heroicons/react/20/solid';
 import ProjectForm from '../projectmodification/components/ProjectForm';
 import { useAPIIntegration } from '../hooks/useFieldPermissions';
-import type { FieldRules } from '../Model';
+import type { FieldRules, ApiMessageResult } from '../Model';
 import { useSetAtom } from 'jotai';
 import { transactionIdAtom } from '../store/routeContextStore';
 
@@ -19,6 +19,7 @@ const ViewRevision: React.FC = () => {
     const { transactionId } = useParams<{ transactionId: string }>();
     const [isLoading, setIsLoading] = useState(false);
     const [revisionData, setRevisionData] = useState<RevisionProjectPayload | null>(null);
+    const [fetchError, setFetchError] = useState<ApiMessageResult | null>(null);
     const { setStatusFromAPI, setModificationContext, setFieldRules } = useAPIIntegration();
     const setTransactionIdAtom = useSetAtom(transactionIdAtom);
 
@@ -38,6 +39,7 @@ const ViewRevision: React.FC = () => {
         
         const fetchDetails = async () => {
             setIsLoading(true);
+            setFetchError(null);
             try {
                 setIsLoading(true);
                 const response = await fetchReviseProjectDetails(transactionId);
@@ -108,10 +110,9 @@ const ViewRevision: React.FC = () => {
                 setRevisionData(response.Data);
             } catch (error) {
                 console.error('Error fetching revision details:', error);
-                // showToast({
-                //     type: 'error',
-                //     message: 'Failed to fetch revision details'
-                // });
+                // httpClient's interceptor already toasts the backend message; surface the same
+                // Title/Message in the fallback panel below instead of a generic "not found".
+                setFetchError(error as ApiMessageResult);
             } finally {
                 setIsLoading(false);
             }
@@ -149,7 +150,14 @@ const ViewRevision: React.FC = () => {
                             Back to List
                         </Button>
                     </div>
-                    <div className="text-center text-gray-500">No revision data found</div>
+                    {fetchError?.Message ? (
+                        <div className="text-center text-red-700 space-y-1">
+                            {fetchError.Title && <p className="font-semibold">{fetchError.Title}</p>}
+                            <p className="text-sm">{fetchError.Message}</p>
+                        </div>
+                    ) : (
+                        <div className="text-center text-gray-500">No revision data found</div>
+                    )}
                 </div>
             </div>
         );

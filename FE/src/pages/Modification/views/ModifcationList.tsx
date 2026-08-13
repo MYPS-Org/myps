@@ -4,12 +4,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import MagnifyingGlassIcon from '@heroicons/react/24/outline/MagnifyingGlassIcon';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { Button } from '../../../components/tailwindui/button';
-import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination';
+import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 import { XMarkIcon } from '@heroicons/react/20/solid';
 import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
 import { fetchModificationList } from '../Service';
-import type { RevisionPagination, RevisionLists } from '../Model.d';
-import { useToast } from '../../../components/toaster/ToasterContext';
+import type { RevisionFilter, RevisionLists } from '../Model.d';
+import { usePagination } from '../../../hooks/usePagination';
 import { getRevisionNavigationPath, parseTransactionId } from '../utils/revisionNavigation';
 
 
@@ -34,63 +34,22 @@ const ModificationList: React.FC = () => {
     const location = useLocation();
     const state = location.state as RevisionState;
     const { projectId, stageName, revisionTypeId, revisionTypeDescription } = state || {};
-    const { showToast } = useToast();
 
     useEffect(() => {
         if(!state) return;
         console.log('Received state:', state);
     }, [projectId, stageName, revisionTypeId, revisionTypeDescription]);
 
-    const [ isLoading, setIsLoading ] = useState<boolean>(false);
     const [ isAdjustDialogOpen, setIsAdjustDialogOpen ] = useState<boolean>(false);
     const [ searchInput, setSearchInput ] = useState<string>('');
 
     const navigate = useNavigate();
 
-    const [RevisionFilters, setRevisionFilters] = useState<RevisionPagination>({
-        filters: {
-            ProjectId: ''
-        },
-        SortField: '',
-        sortDirection: 1,
-        page: 1,
-        limit: 10
-    });
-
-    const [RevisionData, setRevisionData] = useState<PaginationResponse<RevisionLists>>({
-        total: 0,
-        page: 1,
+    // Shared keyset-pagination hook — matches the pattern used by Project.tsx/Program.tsx.
+    const pagination = usePagination<RevisionFilter, RevisionLists>(fetchModificationList, {
+        initialFilters: { ProjectId: '' },
         limit: 10,
-        totalPages: 0,
-        lists: []
     });
-
-    useEffect(() => {
-        try {
-            fetchRequests();
-        } catch (error) {
-            console.error('Error fetching modification list on mount:', error);
-        }
-        // setProjects(projectData);
-        // setFilteredProjects(projectData);
-    }, []);
-
-    const fetchRequests = async (filters?: RevisionPagination) => {
-        try {
-            setIsLoading(true);
-            const filtersToUse = filters || RevisionFilters;
-            const response = await fetchModificationList(filtersToUse);
-            console.log('API Response:', response.Data);
-            setRevisionData(response.Data);
-        } catch (error) {
-            showToast({
-                type: 'error',
-                message: 'Failed to fetch revision requests.'
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     useEffect(() => {
         if (state && state.revisionTypeId === 6) {
@@ -102,49 +61,19 @@ const ModificationList: React.FC = () => {
         setSearchInput(value);
     }
 
-    const handleSearchSubmit = async () => {
-        const updatedFilters = {
-            ...RevisionFilters,
-            filters: {
-                ...RevisionFilters.filters,
-                ProjectId: searchInput
-            },
-            page: 1
-        };
-        
-        setRevisionFilters(updatedFilters);
-        await fetchRequests(updatedFilters);
+    const handleSearchSubmit = () => {
+        pagination.applyFilters({
+            ...(pagination.currentFilters ?? {}),
+            ProjectId: searchInput,
+        });
     }
 
-    const handleClearSearch = async () => {
+    const handleClearSearch = () => {
         setSearchInput('');
-        const updatedFilters = {
-            ...RevisionFilters,
-            filters: {
-                ...RevisionFilters.filters,
-                ProjectId: ''
-            },
-            page: 1
-        };
-        
-        setRevisionFilters(updatedFilters);
-        await fetchRequests(updatedFilters);
-    }
-
-    const Paginate = async (page: number) => {
-        try {
-            const response = await fetchModificationList({
-                ...RevisionFilters,
-                page: page
-            });
-            setRevisionData(response.Data);
-        } catch (error) {
-            console.error('Error fetching revision requests:', error);
-            showToast({
-                type: 'error',
-                message: 'Failed to fetch revision requests.'
-            });
-        }
+        pagination.applyFilters({
+            ...(pagination.currentFilters ?? {}),
+            ProjectId: '',
+        });
     }
 
     const handleViewDetails = (revision: RevisionLists) => {
@@ -222,20 +151,20 @@ const ModificationList: React.FC = () => {
                                             className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         />
                                     </div>
-                                    <Button 
-                                        color="blue" 
+                                    <Button
+                                        color="blue"
                                         onClick={handleSearchSubmit}
-                                        disabled={isLoading}
+                                        disabled={pagination.isLoading}
                                         className="text-xs px-3 py-1.5"
                                     >
                                         <MagnifyingGlassIcon className="w-4 h-4 mr-1" />
                                         Search
                                     </Button>
-                                    {(searchInput || RevisionFilters.filters?.ProjectId) && (
-                                        <Button 
-                                            color="zinc" 
+                                    {(searchInput || pagination.currentFilters?.ProjectId) && (
+                                        <Button
+                                            color="zinc"
                                             onClick={handleClearSearch}
-                                            disabled={isLoading}
+                                            disabled={pagination.isLoading}
                                             className="text-xs px-3 py-1.5"
                                         >
                                             <XMarkIcon className="w-4 h-4 mr-1" />
@@ -243,9 +172,9 @@ const ModificationList: React.FC = () => {
                                         </Button>
                                     )}
                                 </div>
-                                {/* <Button color="blue" onClick={() => handleAddProject()} disabled={isLoading} className="text-xs px-3 py-1.5">
+                                {/* <Button color="blue" onClick={() => handleAddProject()} disabled={pagination.isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
-                                    {isLoading ? 'Loading...' : 'Add Project'}
+                                    {pagination.isLoading ? 'Loading...' : 'Add Project'}
                                 </Button> */}
                             </div>
                         </div>
@@ -262,14 +191,14 @@ const ModificationList: React.FC = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {RevisionData.lists.length === 0 ? (
+                            {pagination.data.lists.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                                        {isLoading ? 'Loading...' : 'No revision requests found'}
+                                        {pagination.isLoading ? 'Loading...' : 'No revision requests found'}
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                RevisionData.lists.map((revision) => (
+                                pagination.data.lists.map((revision) => (
                                     <TableRow key={revision.Id}>
                                         <TableCell className="font-medium">{revision.RevisionName}</TableCell>
                                         <TableCell>{revision.TransactionId}</TableCell>
@@ -290,12 +219,12 @@ const ModificationList: React.FC = () => {
                                             })()}
                                         </TableCell>
                                         <TableCell>
-                                            <Button 
+                                            <Button
                                                 onClick={() => {
                                                     handleViewDetails(revision);
-                                                }} 
-                                                disabled={isLoading} 
-                                                color="blue" 
+                                                }}
+                                                disabled={pagination.isLoading}
+                                                color="blue"
                                                 className="text-xs px-3 py-1.5"
                                             >
                                                 View
@@ -306,63 +235,24 @@ const ModificationList: React.FC = () => {
                             )}
                         </TableBody>
                     </Table>
-                    <Pagination className="my-6">
-                        {
-                            RevisionData.totalPages > 1 && (
-                                <>
-                                    <PaginationPrevious 
-                                        onClick={async () => {
-                                            Paginate(1);
-                                        }}
-                                        disabled={RevisionData.page <= 1}
-                                    >
-                                        First
-                                    </PaginationPrevious>
-                                    <PaginationList>
-                                        {Array.from({ length: Math.min(7, RevisionData.totalPages) }, (_, index) => {
-                                            const pageNum = Math.max(1, RevisionData.page - 3) + index;
-                                            if (pageNum > RevisionData.totalPages) return null;
-
-                                            if (pageNum === RevisionData.page) {
-                                                return (
-                                                    <PaginationPage
-                                                        key={pageNum}
-                                                        current
-                                                    >
-                                                        {pageNum}
-                                                    </PaginationPage>
-                                                );
-                                            } else {
-                                                return (
-                                                    <PaginationPage
-                                                        key={pageNum}
-                                                        onClick={() => {
-                                                            Paginate(pageNum);
-                                                        }}
-                                                    >
-                                                        {pageNum}
-                                                    </PaginationPage>
-                                                );
-                                            }
-                                        })}
-                                    </PaginationList>
-                                    <PaginationNext 
-                                        onClick={async () => {
-                                            Paginate(RevisionData.totalPages);
-                                        }}
-                                        disabled={RevisionData.page >= RevisionData.totalPages}
-                                    >
-                                        Last
-                                    </PaginationNext>
-                                </>
-                            )
-                        }
-                    </Pagination>
+                    {/* Pagination bar — keyset Next/Previous + plain page-jump First/Last/numbered */}
+                    <PaginationBar
+                        currentPage={pagination.data.page}
+                        totalPages={pagination.data.totalPages}
+                        hasPrevious={pagination.hasPrevious}
+                        hasNext={pagination.hasNext}
+                        onGoToPage={pagination.goToPage}
+                        onNext={pagination.goNext}
+                        onPrevious={pagination.goPrevious}
+                        onFirst={pagination.goFirst}
+                        onLast={pagination.goLast}
+                        isLoading={pagination.isLoading}
+                    />
                     <div className='mb-3.5 text-center'>
                         {
-                            RevisionData.lists.length > 0 ? (
+                            pagination.data.lists.length > 0 ? (
                                 <p className="text-sm text-gray-500">
-                                    Showing {RevisionData.limit * (RevisionData.page - 1) + 1} to {Math.min(RevisionData.limit * RevisionData.page, RevisionData.total)} of {RevisionData.total} revision requests
+                                    Showing {pagination.data.limit * (pagination.data.page - 1) + 1} to {Math.min(pagination.data.limit * pagination.data.page, pagination.data.total)} of {pagination.data.total} revision requests
                                 </p>
                             ) : (
                                 <p className="text-sm text-gray-500">

@@ -338,8 +338,8 @@ export const canAddItemAtom = (section: 'ComponentCostRules' | 'ComponentCostYea
         if (!crud) {
             return true; // Default to allowing add if no rules
         }
-        
-        return crud.CanAdd !== 'false' && crud.CanAdd !== '0';
+
+        return crud.CanAdd === true;
     });
 };
 
@@ -354,7 +354,7 @@ export const canDeleteItemAtom = (section: 'ComponentCostRules' | 'ComponentCost
         if (!crud) {
             return true; // Default to allowing delete if no rules
         }
-        
-        return crud.CanDelete !== 'false' && crud.CanDelete !== '0';
+
+        return crud.CanDelete === true;
     });
 };

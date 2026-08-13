@@ -40,7 +40,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
     revisionCategory,
     revisionReason,
     reasonId,
-    // categoryId,
+    categoryId,
     // revisionGroupId,
     projectStatus
 }) => {
@@ -70,6 +70,8 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
         }
     }, [isOpen]);
 
+    const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB, matches backend's max upload size
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -77,6 +79,15 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                 showToast({
                     type: 'error',
                     message: 'Please select a PDF file only.'
+                });
+                e.target.value = '';
+                return;
+            }
+
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                showToast({
+                    type: 'error',
+                    message: 'File size must not exceed 50 MB.'
                 });
                 e.target.value = '';
                 return;
@@ -142,7 +153,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
             const payload = {
                 TransactionId: transactionId,
                 RevisionDetails: {
-                    RevisionCategory: revisionCategory,
+                    CategoryId: categoryId ?? null,
                     ReasonId: reasonId || 0,
                     ApprovalDate: approvalDate,
                     ApprovedDocument: {
