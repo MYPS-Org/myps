@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System.Data;
+using System.Linq;
 using System.Text.RegularExpressions;
 using static Helpers.ProjectHelper;
 
@@ -216,12 +217,11 @@ namespace WebAPI.Controllers.Projects
                     object? Value)>();
 
 
-
                 if (!string.IsNullOrEmpty(dto.Filters.ProgramId))
                     filters.Add(("v.ProgramId LIKE @programId", "@programId", $"%{dto.Filters.ProgramId}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.ProjectId))
-                    filters.Add(("v.ProjectId = @projectId", "@projectId", dto.Filters.ProjectId));
+                    filters.Add(("v.ProjectId LIKE @projectId", "@projectId", $"%{dto.Filters.ProjectId}%"));
 
                 if (_Session.ApplyFilter)
                 {
@@ -1204,17 +1204,33 @@ namespace WebAPI.Controllers.Projects
                 #endregion
 
                 #endregion
-
+                string TransactionReferenceId = $"{ProjectId}-{StageName}";
                 #region Update Project Details
                 var Project = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Id == ProjectRevision.Id, cancellationToken) ?? new ProjectRevisions();
 
 
+                if (ProjectRevision.MYId != dto.ProjectDetails?.MYId)
+                {
+                    hasUpdated = true;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        ReferenceId = TransactionReferenceId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "MYId",
+                        NewValue = $"Stage: {StageName} Value: {dto.ProjectDetails?.MYId!}",
+                        OldValue = $"Stage: {StageName} Value: {ProjectRevision.MYId!}",
+                        CreatedBy = UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    ProjectRevision.MYId = dto.ProjectDetails!.MYId;
+                }
                 if (Project.AlternateId != dto.ProjectDetails?.AlternateId)
                 {
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "AlternateId",
@@ -1230,7 +1246,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Tier",
@@ -1252,7 +1268,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Category",
@@ -1274,7 +1290,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Thrust",
@@ -1290,7 +1306,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "MYCAApprovalDate",
@@ -1306,7 +1322,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Description",
@@ -1328,7 +1344,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "City",
@@ -1349,7 +1365,7 @@ namespace WebAPI.Controllers.Projects
                     var OldLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.LegislativeDistrict);
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "LegislativeDistrict",
@@ -1372,7 +1388,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "ImplementingOffice",
@@ -1395,7 +1411,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "OperatingUnit",
@@ -1411,7 +1427,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "RegionWide",
@@ -1434,7 +1450,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Thrust",
@@ -1456,7 +1472,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Agency",
@@ -1483,7 +1499,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "ImplementationMode",
@@ -1505,7 +1521,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "EmergencyMode",
@@ -1527,7 +1543,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "RowAvailable",
@@ -1554,7 +1570,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Feasibility",
@@ -1570,7 +1586,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "FeasibilityDate",
@@ -1592,7 +1608,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "DetailedDesign",
@@ -1608,7 +1624,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "DetailedDesignDate",
@@ -1617,7 +1633,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    Project.DetailedDesign = (Project.DetailedDesign == 1) ? null : Project.DetailedDesign;
+                    Project.DetailedDesignDate = (Project.DetailedDesign != 1) ? null : Project.DetailedDesignDate;
                 }
 
                 if (Project.Rank != dto.ProjectDetails?.Rank)
@@ -1625,7 +1641,7 @@ namespace WebAPI.Controllers.Projects
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        ReferenceId = ProjectId,
+                        ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Rank",
@@ -1778,7 +1794,7 @@ namespace WebAPI.Controllers.Projects
                                     }
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectComponentCost",
                                         AffectedColumn = "ComponentType",
@@ -1795,7 +1811,7 @@ namespace WebAPI.Controllers.Projects
                                     ComponentUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectComponentCost",
                                         AffectedColumn = "Description",
@@ -1811,7 +1827,7 @@ namespace WebAPI.Controllers.Projects
                                     ComponentUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectComponentCost",
                                         AffectedColumn = "Total",
@@ -1827,7 +1843,7 @@ namespace WebAPI.Controllers.Projects
                                     ComponentUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Delete.ToString(),
                                         AffectedTable = "tProjectComponentCost",
                                         AffectedColumn = "Row",
@@ -1866,7 +1882,7 @@ namespace WebAPI.Controllers.Projects
                                 ComponentYearUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectComponentCostPerYear",
                                     AffectedColumn = "Amount",
@@ -1882,7 +1898,7 @@ namespace WebAPI.Controllers.Projects
                                 ComponentYearUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectComponentCostPerYear",
                                     AffectedColumn = "StartDate",
@@ -1898,7 +1914,7 @@ namespace WebAPI.Controllers.Projects
                                 ComponentYearUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectComponentCostPerYear",
                                     AffectedColumn = "EndDate",
@@ -1914,7 +1930,7 @@ namespace WebAPI.Controllers.Projects
                                 ComponentYearUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Delete.ToString(),
                                     AffectedTable = "tProjectComponentCostPerYear",
                                     AffectedColumn = "Row",
@@ -1939,7 +1955,7 @@ namespace WebAPI.Controllers.Projects
                 #region New Component Cost Per Year
                 // Entries for brand-new components (ComponentClientId) are already
                 // attached and inserted above; only existing-component entries land here.
-                var NewComponentCostYearData = dto.ComponentCostPerYear.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
+                var NewComponentCostYearData = dto.ComponentCostPerYear.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostIds.Contains(x.ComponentCostFK)).ToList();
                 if (NewComponentCostYearData.Count > 0)
                 {
                     var NewCostYearToAdd = ComponentCost
@@ -1965,6 +1981,7 @@ namespace WebAPI.Controllers.Projects
 
                 #region Update Major Item of Works
                 var MajorItemOfWorks = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => ComponentCostIds.Contains(x.ComponentCostFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+                HashSet<int> WorkItemFKs = MajorItemOfWorks.Select(x => x.Id).ToHashSet();
                 if (MajorItemOfWorks.Count > 0)
                 {
                     var currentMajorItemIds = new HashSet<int>(MajorItemOfWorks.Select(x => x.Id));
@@ -1984,7 +2001,7 @@ namespace WebAPI.Controllers.Projects
                                     hasUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectMajorWorkItem",
                                         AffectedColumn = "YearOfWork",
@@ -2006,7 +2023,7 @@ namespace WebAPI.Controllers.Projects
                                     var oldWorkType = await _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == ExistingItem.WorkTypeFK);
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectMajorWorkItem",
                                         AffectedColumn = "WorkTypeFK",
@@ -2027,7 +2044,7 @@ namespace WebAPI.Controllers.Projects
                                     }
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectMajorWorkItem",
                                         AffectedColumn = "InfraTypeFK",
@@ -2043,7 +2060,7 @@ namespace WebAPI.Controllers.Projects
                                     hasUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Delete.ToString(),
                                         AffectedTable = "tProjectMajorWorkItem",
                                         AffectedColumn = "Row",
@@ -2079,7 +2096,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "InfraId",
@@ -2095,7 +2112,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "DetailedScope",
@@ -2111,7 +2128,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "TargetUnit",
@@ -2127,7 +2144,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "TargetUnitId",
@@ -2143,7 +2160,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "StartX",
@@ -2159,7 +2176,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "StartY",
@@ -2175,7 +2192,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "EndX",
@@ -2191,7 +2208,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "EndY",
@@ -2207,7 +2224,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "PhysicalTarget",
@@ -2223,7 +2240,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "StartStationLimit",
@@ -2239,7 +2256,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "EndStationLimit",
@@ -2255,7 +2272,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "EndChainage",
@@ -2271,7 +2288,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "StartChainage",
@@ -2287,7 +2304,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Update.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "Length",
@@ -2303,7 +2320,7 @@ namespace WebAPI.Controllers.Projects
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            ReferenceId = ProjectId,
+                                            ReferenceId = TransactionReferenceId,
                                             TransactionType = EnumTransactionType.Delete.ToString(),
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "Row",
@@ -2360,7 +2377,8 @@ namespace WebAPI.Controllers.Projects
                 // Cost above; this only handles new work items on an existing Component Cost.
 
                 List<ProjectMajorWorkItem> NewWorkItems = new List<ProjectMajorWorkItem>();
-                var newMajorItems = dto.MajorItemOfWorks.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
+
+                var newMajorItems = dto.MajorItemOfWorks.Where(x => x.Id == 0 && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
                 Console.WriteLine($">>>  newMajorItems = {newMajorItems.Count}");
                 if (newMajorItems.Count > 0)
                 {
@@ -2389,8 +2407,7 @@ namespace WebAPI.Controllers.Projects
                 #endregion
 
                 #region Update Major Work Locations
-                HashSet<int> WorkItemIds = MajorItemOfWorks.Select(x => x.Id).ToHashSet();
-                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => WorkItemIds.Contains(x.WorkItemFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => WorkItemFKs.Contains(x.WorkItemFK) && !x.IsDeleted).ToListAsync(cancellationToken);
                 if (MajorWorkLocations.Count > 0)
                 {
                     HashSet<int> currentMajorItemIds = MajorWorkLocations.Select(x => x.Id).ToHashSet();
@@ -2406,7 +2423,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "InfraId",
@@ -2422,7 +2439,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "DetailedScope",
@@ -2438,7 +2455,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "TargetUnitId",
@@ -2454,7 +2471,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "TargetUnit",
@@ -2470,7 +2487,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "StartX",
@@ -2486,23 +2503,23 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
-                                    AffectedColumn = "EndX",
-                                    NewValue = item.EndX?.ToString()!,
-                                    OldValue = ExistingItem.EndX?.ToString()!,
+                                    AffectedColumn = "StartY",
+                                    NewValue = item.StartY?.ToString()!,
+                                    OldValue = ExistingItem.StartY?.ToString()!,
                                     CreatedBy = UserId,
                                     CreatedDate = CurrentDate
                                 });
-                                ExistingItem.EndX = item.EndX;
+                                ExistingItem.StartY = item.StartY;
                             }
                             if (ExistingItem.EndX != item.EndX)
                             {
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "EndX",
@@ -2518,7 +2535,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "EndY",
@@ -2534,7 +2551,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "PhysicalTarget",
@@ -2550,7 +2567,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "StartStationLimit",
@@ -2566,7 +2583,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "EndStationLimit",
@@ -2582,7 +2599,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "StartChainage",
@@ -2598,7 +2615,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "EndChainage",
@@ -2614,7 +2631,7 @@ namespace WebAPI.Controllers.Projects
                                 hasUpdate = true;
                                 transactionLogs.Add(new TransactionLog
                                 {
-                                    ReferenceId = ProjectId,
+                                    ReferenceId = TransactionReferenceId,
                                     TransactionType = EnumTransactionType.Update.ToString(),
                                     AffectedTable = "tProjectMajorWorkLocations",
                                     AffectedColumn = "Length",
@@ -2624,6 +2641,22 @@ namespace WebAPI.Controllers.Projects
                                     CreatedDate = CurrentDate
                                 });
                                 ExistingItem.Length = item.Length;
+                            }
+                            if(ExistingItem.IsDeleted != item.IsDeleted)
+                            {
+                                hasUpdate = true;
+                                transactionLogs.Add(new TransactionLog
+                                {
+                                    ReferenceId = TransactionReferenceId,
+                                    TransactionType = EnumTransactionType.Delete.ToString(),
+                                    AffectedTable = "tProjectMajorWorkItem",
+                                    AffectedColumn = "Row",
+                                    NewValue = "",
+                                    OldValue = JsonConvert.SerializeObject(ExistingItem),
+                                    CreatedBy = UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                                ExistingItem.IsDeleted = item.IsDeleted;
                             }
                             if (hasUpdate)
                             {
@@ -2639,42 +2672,8 @@ namespace WebAPI.Controllers.Projects
                 }
                 #endregion
 
-                //#region New Major Work Locations in New Work Items
-                //var NewWorkLocations = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
-                //if (NewWorkLocations.Count > 0)
-                //{
-                //    var selectedWorkLocationsToAdd = NewWorkItems
-                //    .SelectMany(a =>
-                //        NewWorkLocations
-                //        .Where(x => x.ComponentId == a.ComponentId)
-                //        .Select(item => new ProjectMajorWorkLocations
-                //        {
-                //            WorkItemFK = a.Id,
-                //            ComponentId = item.ComponentId,
-                //            InfraId = item.InfraId,
-                //            DetailedScope = item.DetailedScope,
-                //            TargetUnitId = item.TargetUnitId,
-                //            TargetUnit = item.TargetUnit,
-                //            StartX = item.StartX,
-                //            StartY = item.StartY,
-                //            EndX = item.EndX,
-                //            EndY = item.EndY,
-                //            PhysicalTarget = item.PhysicalTarget,
-                //            StartStationLimit = item.StartStationLimit,
-                //            EndStationLimit = item.EndStationLimit,
-                //            StartChainage = item.StartChainage,
-                //            EndChainage = item.EndChainage,
-                //            Length = item.Length,
-                //            CreatedBy = UserId,
-                //            CreatedDate = CurrentDate
-                //        }))
-                //    .ToList();
-                //    await _db.tProjectMajorWorkLocations.AddRangeAsync(selectedWorkLocationsToAdd, cancellationToken);
-                //}
-                //#endregion
-
                 #region New Major Work Locations in Existing Work Items
-                var NewWorkLocationsInExistingWorkItem = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && ComponentCostTypeIds.Contains(x.ComponentId)).ToList();
+                var NewWorkLocationsInExistingWorkItem = dto.MajorItemLocations.Where(x => x.Id == 0 && !x.IsDeleted && WorkItemFKs.Contains(x.WorkItemFK)).ToList();
                 if (NewWorkLocationsInExistingWorkItem.Count > 0)
                 {
                     var selectedWorkLocationsToAdd = MajorWorkItems
@@ -2709,7 +2708,7 @@ namespace WebAPI.Controllers.Projects
 
 
                 #region Update Funding Profile
-                var CurrentFunding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync();
+                var CurrentFunding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync(cancellationToken);
                 if (CurrentFunding.Count > 0)
                 {
                     var CurrentIds = dto.FundingProfile.Where(x => x.Id != 0).Select(x => x.Id).ToHashSet();
@@ -2736,7 +2735,7 @@ namespace WebAPI.Controllers.Projects
                                     var NewSource = await _db.tOptionFundingSource.FirstOrDefaultAsync(x => x.Organization == item.SourceOrg);
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectFundingProfile",
                                         AffectedColumn = "Source",
@@ -2754,7 +2753,7 @@ namespace WebAPI.Controllers.Projects
                                     var NewAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Code == item.AgreementCode);
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectFundingProfile",
                                         AffectedColumn = "Agreement",
@@ -2770,7 +2769,7 @@ namespace WebAPI.Controllers.Projects
                                     FundingUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectFundingProfile",
                                         AffectedColumn = "Amount",
@@ -2786,7 +2785,7 @@ namespace WebAPI.Controllers.Projects
                                     FundingUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Update.ToString(),
                                         AffectedTable = "tProjectFundingProfile",
                                         AffectedColumn = "Percentage",
@@ -2802,7 +2801,7 @@ namespace WebAPI.Controllers.Projects
                                     FundingUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        ReferenceId = ProjectId,
+                                        ReferenceId = TransactionReferenceId,
                                         TransactionType = EnumTransactionType.Delete.ToString(),
                                         AffectedTable = "tProjectFundingProfile",
                                         AffectedColumn = "Row",
@@ -2848,19 +2847,19 @@ namespace WebAPI.Controllers.Projects
                 // TODO: BUGFIX: task timeouts here, computationally expensive
                  if (HasCostUpdate)
                 {
-                    //var parameters = new DynamicParameters();
-                    //parameters.Add("ProgramPK", ProgramFK);
 
-                    //var employees = await Sql.QueryAsync<dynamic>(
-                    //    Appsetting.DbConnections.MYPSDb,
-                    //    "pRecomputeProgramCost",
-                    //    parameters,
-                    //    commandType: CommandType.StoredProcedure,
-                    //    cancellationToken: cancellationToken);
+                    //var totalCount = _db.Database
+                    //.SqlQuery<int>($"EXEC dbo.pRecomputeProgramCost @ProgramPK={ProgramFK}")
+                    //.AsEnumerable()
+                    //.Single();
+                    var computedCost = _db.pRecomputeProgramCost
+                    .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={ProgramFK}")
+                    .AsNoTracking()
+                    .AsEnumerable()
+                    .FirstOrDefault();
 
-                    //int totalCount = parameters.Get<int>("TotalCount");
-                    //ProgramRevision.Cost = totalCount;
-                    //await _db.SaveChangesAsync(cancellationToken);
+                    ProgramRevision.Cost = computedCost?.NewCost ?? 0;
+                    await _db.SaveChangesAsync(cancellationToken);
                 }
 
                 Console.WriteLine(">>>  Call to UpdateProjectDetails > CommitAsync");
@@ -2989,9 +2988,10 @@ namespace WebAPI.Controllers.Projects
                 {
                     System.IO.File.Delete(Note.FilePath);
                 }
+                string TransactionReferenceId = $"{ProjectId}-{StageName}";
                 await _db.tTransactionLog.AddAsync(new TransactionLog
                 {
-                    ReferenceId = ProjectId,
+                    ReferenceId = TransactionReferenceId,
                     TransactionType = EnumTransactionType.Delete.ToString(),
                     AffectedTable = "tProjectSupportingDocs",
                     AffectedColumn = "Row",

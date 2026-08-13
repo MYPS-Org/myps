@@ -30,7 +30,7 @@ namespace WebAPI.Controllers.GlobalSearch
         { }
 
         [HttpPost]
-        public async Task<IActionResult> GetSearchCategory()
+        public async Task<IActionResult> GetSearchCategory(CancellationToken cancellationToken)
         {
             try
             {
@@ -44,7 +44,7 @@ namespace WebAPI.Controllers.GlobalSearch
                 ('Roads'),
                 ('UACS');
                  */
-                var Category = await _db.tOptionGlobalSearch.ToListAsync();
+                var Category = await _db.tOptionGlobalSearch.ToListAsync(cancellationToken);
                 return Ok(new { CategoryList = Category });
             }
             catch (Exception ex)
@@ -448,7 +448,7 @@ namespace WebAPI.Controllers.GlobalSearch
                             Title = "Invalid Search"
                         });
                     }
-                    var Bridges = await _db.tFutureBridge.Where(x => x.BridgeId.Contains(dto.SearchFor) || x.Name.Contains(dto.SearchFor)).ToListAsync();
+                    var Bridges = await _db.tFutureBridge.Where(x => x.BridgeId.Contains(dto.SearchFor) || x.Name.Contains(dto.SearchFor)).ToListAsync(cancellationToken);
                     return Ok(new { Data = Bridges, Title = $"{Bridges.Count} bridge/s found." });
                 }
                 if (dto.Category == "Road Sections")
@@ -461,7 +461,7 @@ namespace WebAPI.Controllers.GlobalSearch
                             Title = "Invalid Search"
                         });
                     }
-                    var RoadSections = await _db.tFutureRoadSections.Where(x => x.RoadSectionId.Contains(dto.SearchFor) || x.RoadId.Contains(dto.SearchFor)).ToListAsync();
+                    var RoadSections = await _db.tFutureRoadSections.Where(x => x.RoadSectionId.Contains(dto.SearchFor) || x.RoadId.Contains(dto.SearchFor)).ToListAsync(cancellationToken);
                     return Ok(new { Data = RoadSections, Title = $"{RoadSections.Count} road section/s found." });
                 }
                 if (dto.Category == "Roads")
@@ -474,7 +474,7 @@ namespace WebAPI.Controllers.GlobalSearch
                             Title = "Invalid Search"
                         });
                     }
-                    var Roads = await _db.tFutureRoads.Where(x => x.RoadId.Contains(dto.SearchFor) || x.Name.Contains(dto.SearchFor)).ToListAsync();
+                    var Roads = await _db.tFutureRoads.Where(x => x.RoadId.Contains(dto.SearchFor) || x.Name.Contains(dto.SearchFor)).ToListAsync(cancellationToken);
                     return Ok(new { Data = Roads, Title = $"{Roads.Count} road/s found." });
                 }
                 return new BadRequestObjectResult(new { Message = $"Search for category '{dto.Category}' is not implemented yet.", Title = "Not Implemented" });

@@ -63,7 +63,7 @@
     </Content>
   </ItemGroup>
 
-	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+	<Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(SkipFrontendBuild)' != 'true'">
 		<!-- <Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;   call &quot;$(ProjectDir)React-PreBuild.bat&quot;&#xD;&#xA;)" /> -->
 		<!-- <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Release&quot; (call &quot;$(ProjectDir)React-PreBuild.bat&quot;) else (call &quot;$(ProjectDir)React-PreBuild.$(ConfigurationName).bat&quot;)" /> -->
 		<Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;   call &quot;$(ProjectDir)React-PreBuild.bat&quot;&#xD;&#xA;)" />

@@ -3,6 +3,7 @@ using DBHelper.Models.Table;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -80,6 +81,7 @@ namespace WebAPI.Controllers.Programs
     {
         public int Id { get; set; }
         public string ProgramId { get; set; } = string.Empty;
+        public string ProgramPK { get; set; } = string.Empty;
         public int RevisionNumber { get; set; }
         public string Name { get; set; } = string.Empty;
         public EnumProgramStage StageId { get; set; }
@@ -95,12 +97,67 @@ namespace WebAPI.Controllers.Programs
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
     }
-    public class UpdateProgramStageDTO 
+    public class UpdateProgramStageDTO
     {
+        public string ProgramPK { get; set; } = string.Empty;
         public string ProgramId { get; set; } = string.Empty;
         public EnumProgramStage Stage { get; set; }
         public string Name { get; set; } = string.Empty;
     }
+    public class RelatedComponentCost
+    {
+        [Key]
+        public int Id { get; set; }
+        [Required]
+        // FK -> dbo.tProjectRevisions(Id)
+        public int ProjectRevisionFK { get; set; }
+        public int OldProjectRevisionFK { get; set; }
+        public int OldComponentCostId { get; set; }
+        [Required]
+        [MaxLength(100)]
+        // FK -> dbo.tOptionProjectComponentType(ComponentId)
+        public string ComponentType { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        [Required]
+        [Column(TypeName = "decimal(18,5)")]
+        public decimal Total { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
+    }
+    public class RelatedMajorWorkItem
+    {
+        [Key]
+        public int Id { get; set; }
+        [Required]
+        // FK -> dbo.tProjectComponentCost(Id)
+        public int ComponentCostFK { get; set; }
+        public int OldWorkItemId { get; set; }
+        public int OldComponentCostFK { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
+        public int YearOfWork { get; set; }
+        [Required]
+        // FK -> dbo.tOptionScopeOfWork(Enum)
+        public int WorkTypeFK { get; set; }
+        [Required]
+        [MaxLength(10)]
+        // FK -> dbo.tOptionInfraType(InfraCode)
+        public string InfraTypeFK { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
+    }
+
     public class BatchUnpublishTaggingDTO
     {
         [Required]

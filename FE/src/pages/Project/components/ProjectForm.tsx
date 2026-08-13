@@ -947,11 +947,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${initialData.ProgramDetails.StageName}`);
       }
 
-    } catch (error) {
-      showToast({
-          type: 'error',
-          message: 'Failed to fetch projects.'
-      });
+    } catch {
+      // httpClient interceptor already showed the API error toast
     } finally {
       setUpdateAllProject(false);
     }
