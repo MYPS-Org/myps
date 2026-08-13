@@ -249,6 +249,7 @@ export interface FileEntity {
 export interface FundingProfile {
 	Id: number;
 	Source: string;
+	ProjectRevisionFK: string;
 	ProjectFK: string;
 	ProjectId?: string;
 	StageName: string;
@@ -267,6 +268,7 @@ export interface FundingProfile {
 export interface ComponentCost {
 	Id: number;
 	Source: string;
+	ProjectRevisionFK: string;
 	ProjectFK: string;
 	ProjectId: string;
 	StageName?: string;
@@ -288,6 +290,7 @@ export interface ComponentCost {
 export interface ComponentCostPerYear {
 	Id: number;
 	Source: string;
+	ComponentCostFK: string;
 	ProjectFK: string;
 	ProjectId: string;
 	StageName?: string;
@@ -313,6 +316,7 @@ export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 export interface MajorItemOfWork {
 	Id: number;
 	Source: string;
+	ComponentCostFK: string;
 	ProjectFK: string;
 	ProjectId?: string;
 	StageName: string;
@@ -330,6 +334,7 @@ export interface MajorItemOfWork {
 }
 export interface MajorItemLocations {
 	Id: number;
+	WorkItemFK: number;
 	Source: string;
 	ProjectFK: string;
 	ProjectId?: string;

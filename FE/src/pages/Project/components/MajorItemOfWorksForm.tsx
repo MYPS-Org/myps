@@ -151,6 +151,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         StageName: programDetails?.StageName || '',
         ProjectId: projectId,
         ProjectFK: projectId, // Use generated temp ID for linking work locations
+        ComponentCostFK: majorItemData.ComponentId,
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
         WorkTypeFK: majorItemData.WorkTypeFK,
@@ -175,6 +176,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       // Update existing major item
       const updatedItem: MajorItemOfWorksWithDropdown = {
         ...majorItems[editingMajorItemIndex],
+        ComponentCostFK: majorItemData.ComponentId,
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
         WorkTypeFK: majorItemData.WorkTypeFK,
