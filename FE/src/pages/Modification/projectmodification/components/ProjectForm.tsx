@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formValidation, type FormValidationError } from '../../../../utils/FormValidation';
+import { toDateInputValue } from '../../../../utils/GlobalFunctions';
 import { projectDetailsRules } from '../../../Project/rules/projectDetailsRules';
 
 import type { 
@@ -534,7 +535,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',
-      CreatedDate: new Date().toISOString().split('T')[0],
+      CreatedDate: toDateInputValue(new Date()),
       IsDeleted: false,
     };
     setFundingProfiles(prev => [...prev, newProfile]);
