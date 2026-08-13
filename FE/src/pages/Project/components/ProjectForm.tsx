@@ -463,13 +463,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // #region Major Items of Work
   const handleAddMajorItem = (ComponentId: string) => {
     // Generate a unique temporary ReferenceId for linking WorkLocations
-    
+    // Real ComponentCost.Id for the selected component; 0 when it can't be found
+    // (e.g. the parent component is itself brand-new), which the backend correlates
+    // by ComponentId instead.
+    const componentCostId = componentCosts.find(c => c.ComponentId === ComponentId)?.Id ?? 0;
+
     const newItem: MajorItemOfWorksWithDropdown = {
       Id: 0, // Temporary ID
       Source: projectDetails.Source || 'Base',
       ProjectFK: projectDetails.ProjectFK,
       ProjectId: '',
       StageName: projectDetails.StageName,
+      ComponentCostFK: componentCostId,
       ComponentId: ComponentId, // Use the provided ComponentId
       YearOfWork: 0,
       WorkTypeFK: 0,
@@ -550,8 +555,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
 // #region Funding Profiles
   const handleAddFundingProfile = () => {
+    // The backend always re-derives ProjectRevisionFK server-side from the project's
+    // current revision on save — it never trusts the client value. We just carry through
+    // whatever value the backend already gave us on an existing row.
+    const defaultProjectRevisionFK =
+      fundingProfiles.find(f => f.ProjectRevisionFK)?.ProjectRevisionFK ||
+      componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK ||
+      0;
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
+      ProjectRevisionFK: defaultProjectRevisionFK,
       ProjectFK: projectDetails.ProjectFK || '',
       ProjectId: projectDetails.ProjectId || '',
       StageName: initialData?.ProgramDetails?.StageName || '',
@@ -833,6 +846,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ProjectFK: initialData?.ProjectDetails.ProjectFK || '',
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
           StageName: initialData?.ProgramDetails.StageName || '',
+          ComponentCostFK: item.ComponentCostFK,
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
           WorkTypeFK: item.WorkTypeFK,
@@ -849,6 +863,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           item.MajorItemLocations.forEach(location => {
             const workLocationPayload: MajorItemLocations = {
               ...location,
+              WorkItemFK: item.Id, // Link to MajorItem via Id
               ComponentId: item.ComponentId // Link to MajorItem via ComponentId
             };
             workLocationsForPayload.push(workLocationPayload);
@@ -885,6 +900,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ProjectFK: projectDetails.ProjectFK,
           ProjectId: projectDetails.ProjectId,
           StageName: projectDetails.StageName,
+          ComponentCostFK: costPerYear.ComponentCostFK,
           ComponentId: costPerYear.ComponentId,
           Amount: costPerYear.Amount,
           Year: costPerYear.Year,

@@ -120,8 +120,13 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
         const stageName = selectedStage ? selectedStage.Name : '';
         const yearStart = field === 'YearStart' ? value : newFormData.YearStart;
         newFormData.Name = stageName + ' ' + yearStart;
-        // Auto-skip logic for stages 5-11
-        if (field === 'Stage' && selectedStage && selectedStage.NameId >= 5 && selectedStage.NameId <= 11) {
+        // Auto-skip logic: NEP through GAA-R (NameId 2-7), plus TF-R (NameId 13).
+        // RBP, RDIP, PIP, and TF are not auto-skipped.
+        if (
+          field === 'Stage' &&
+          selectedStage &&
+          ((selectedStage.NameId >= 2 && selectedStage.NameId <= 7) || selectedStage.NameId === 13)
+        ) {
           newFormData.IsSkipped = true;
           setSkipped(true);
         } else if (field === 'Stage') {
