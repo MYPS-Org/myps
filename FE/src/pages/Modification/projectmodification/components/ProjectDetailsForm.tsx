@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../../../Project/Model.d";
 import type { FormValidationError } from "../../../../utils/FormValidation";
 import type { FieldRules } from '../../Model';
-import { getDisabledClass, formatDropdownOptions } from '../../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, toDateInputValue } from '../../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../../components/ui/SearchableDropdown';
 import { EditableField } from '../../../../components/ui/EditableField';
 import { DateInput } from '../../../../components/tailwindui/date-input';
@@ -472,7 +472,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <EditableField field='MYCAApprovalDate' isFieldEditable={isFieldEditable}>
                                     {(editable) => (
                                         <DateInput
-                                            value={projectDetails?.MYCAApprovalDate ? new Date(projectDetails?.MYCAApprovalDate).toISOString().split('T')[0] : ''}
+                                            value={toDateInputValue(projectDetails?.MYCAApprovalDate)}
                                             onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                             className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!isFieldEditable('MYCAApprovalDate'))} rounded-md truncate`}
                                             disabled={!editable}
@@ -886,7 +886,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <EditableField field="FeasibilityDate" isFieldEditable={isFieldEditable}>
                                     {(editable) => (
                                     <DateInput
-                                        value={projectDetails?.FeasibilityDate ? new Date(projectDetails?.FeasibilityDate).toISOString().split('T')[0] : ''}
+                                        value={toDateInputValue(projectDetails?.FeasibilityDate)}
                                         onChange={(e) => handleInputChange('FeasibilityDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                         className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.Feasibility === 1) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(!editable)} rounded-md truncate`}
                                         disabled={!(projectDetails?.Feasibility === 1) || !editable}
@@ -927,7 +927,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <EditableField field="DetailedDesignDate" isFieldEditable={isFieldEditable}>
                                     {(editable) => (
                                     <DateInput
-                                        value={projectDetails?.DetailedDesignDate ? new Date(projectDetails?.DetailedDesignDate).toISOString().split('T')[0] : ''}
+                                        value={toDateInputValue(projectDetails?.DetailedDesignDate)}
                                         onChange={(e) => handleInputChange('DetailedDesignDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                         className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.DetailedDesign) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(!editable)} rounded-md truncate`}
                                         disabled={!(projectDetails?.DetailedDesign) || !editable}
