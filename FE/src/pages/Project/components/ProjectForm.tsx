@@ -463,14 +463,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // #region Major Items of Work
   const handleAddMajorItem = (ComponentId: string) => {
     // Generate a unique temporary ReferenceId for linking WorkLocations
-    
+    // Real ComponentCost.Id for the selected component; 0 when it can't be found
+    // (e.g. the parent component is itself brand-new), which the backend correlates
+    // by ComponentId instead.
+    const componentCostId = componentCosts.find(c => c.ComponentId === ComponentId)?.Id ?? 0;
+
     const newItem: MajorItemOfWorksWithDropdown = {
       Id: 0, // Temporary ID
       Source: projectDetails.Source || 'Base',
       ProjectFK: projectDetails.ProjectFK,
       ProjectId: '',
       StageName: projectDetails.StageName,
-      ComponentCostFK: ComponentId, // Use the provided ComponentId
+      ComponentCostFK: componentCostId,
       ComponentId: ComponentId, // Use the provided ComponentId
       YearOfWork: 0,
       WorkTypeFK: 0,

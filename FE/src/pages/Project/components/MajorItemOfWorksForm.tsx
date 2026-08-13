@@ -141,9 +141,14 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     InfraTypeFK: string;
     IsDeleted: boolean;
   }) => {
+    // Real ComponentCost.Id for the selected component; 0 when it can't be found
+    // (e.g. the parent component is itself brand-new), which the backend correlates
+    // by ComponentId instead.
+    const componentCostId = componentCosts.find(c => c.ComponentId === majorItemData.ComponentId)?.Id ?? 0;
+
     if (isAddingNewMajorItem) {
       // Generate a unique temporary ReferenceId for linking WorkLocations
-      
+
       // Create new major item
       const newMajorItem: MajorItemOfWorksWithDropdown = {
         Id: 0, // Temporary ID
@@ -151,7 +156,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         StageName: programDetails?.StageName || '',
         ProjectId: projectId,
         ProjectFK: projectId, // Use generated temp ID for linking work locations
-        ComponentCostFK: majorItemData.ComponentId,
+        ComponentCostFK: componentCostId,
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
         WorkTypeFK: majorItemData.WorkTypeFK,
@@ -176,7 +181,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       // Update existing major item
       const updatedItem: MajorItemOfWorksWithDropdown = {
         ...majorItems[editingMajorItemIndex],
-        ComponentCostFK: majorItemData.ComponentId,
+        ComponentCostFK: componentCostId,
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
         WorkTypeFK: majorItemData.WorkTypeFK,

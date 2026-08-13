@@ -128,7 +128,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     const newPerYearCost: ComponentCostPerYear = {
       Id: 0,
       Source: '',
-      ComponentCostFK: formData.ComponentId,
+      // Real ComponentCost.Id when editing an existing component; 0 for a
+      // brand-new component, which the backend correlates by ComponentId instead.
+      ComponentCostFK: formData.Id,
       ProjectFK: '',
       ProjectId: ProjectId,
       ComponentId: formData.ComponentId,
@@ -405,7 +407,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         const perYearCosts = componentCostPerYear
           .map(cost => ({
             ...cost,
-            ComponentCostFK: formData.ComponentId,
+            ComponentCostFK: formData.Id,
             ComponentId: formData.ComponentId,
             CreatedBy: cost.CreatedBy || user?.UserId || '',
             UpdatedBy: user?.UserId || '',

@@ -290,7 +290,7 @@ export interface ComponentCost {
 export interface ComponentCostPerYear {
 	Id: number;
 	Source: string;
-	ComponentCostFK: string;
+	ComponentCostFK: number; // FK -> ComponentCost.Id
 	ProjectFK: string;
 	ProjectId: string;
 	StageName?: string;
@@ -316,7 +316,7 @@ export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 export interface MajorItemOfWork {
 	Id: number;
 	Source: string;
-	ComponentCostFK: string;
+	ComponentCostFK: number; // FK -> ComponentCost.Id
 	ProjectFK: string;
 	ProjectId?: string;
 	StageName: string;
