@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
+import { toDateInputValue } from '../../../utils/GlobalFunctions';
 import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
@@ -537,7 +538,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     const defaultProjectRevisionFK =
       fundingProfiles.find(f => f.ProjectRevisionFK)?.ProjectRevisionFK ||
       componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK ||
-      '';
+      0;
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
       ProjectRevisionFK: defaultProjectRevisionFK,
@@ -550,7 +551,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Percentage: 0,
       Amount: 0,
       CreatedBy: user?.UserId || '',
-      CreatedDate: new Date().toISOString().split('T')[0],
+      CreatedDate: toDateInputValue(new Date()),
       IsDeleted: false
     };
     setFundingProfiles(prev => [...prev, newProfile]);

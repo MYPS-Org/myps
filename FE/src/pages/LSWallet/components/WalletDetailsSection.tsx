@@ -27,7 +27,7 @@ import React from 'react';
 import type { LSWallet } from '../Model.d';
 import type { ProjectEnums } from '../../Project/Model.d';
 import { useLocationFilters } from '../../Project/filteringLocations';
-import { getDisabledClass, formatDropdownOptions } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, toDateInputValue } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { DateInput } from '../../../components/tailwindui/date-input';
 
@@ -137,10 +137,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
 
   // ── Utility ──
 
-  const formatDateValue = (dateStr?: string | null): string => {
-    if (!dateStr) return '';
-    try { return new Date(dateStr).toISOString().split('T')[0]; } catch { return ''; }
-  };
+  const formatDateValue = (dateStr?: string | null): string => toDateInputValue(dateStr);
 
   // NOTE: Program selection (handleProgramChange) has moved to WalletProgramDetailsSection.
   // ProgramId / ProgramName / TypeName / YearStart / CurrentStage are all set there.

@@ -1,3 +1,18 @@
+// Formats a date as local YYYY-MM-DD for <input type="date"> values.
+// Using toISOString() here would convert to UTC first, which rolls the date
+// back a day in timezones ahead of UTC (e.g. PHT, UTC+8) for date-time
+// strings without a timezone offset (parsed as local time per spec).
+export const toDateInputValue = (value?: string | Date | null): string => {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 String.prototype.StringToDate = function (): string {
   const date = new Date(this.toString());
   if (isNaN(date.getTime())) return 'Invalid Date';

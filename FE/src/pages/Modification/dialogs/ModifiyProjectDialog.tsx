@@ -3,6 +3,7 @@ import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { DateInput } from '../../../components/tailwindui/date-input';
+import { toDateInputValue } from '../../../utils/GlobalFunctions';
 
 interface AdjustProjectDialogProps {
     isOpen: boolean;
@@ -24,7 +25,7 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
 
 
     const project = {
-        date: new Date().toISOString().split('T')[0], // Default to today's date in YYYY-MM-DD format
+        date: toDateInputValue(new Date()), // Default to today's date in YYYY-MM-DD format
         revisionType: revisionTypeDescription,
     };
 

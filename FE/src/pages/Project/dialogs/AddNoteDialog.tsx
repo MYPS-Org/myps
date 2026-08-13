@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { AddNotes, ProjectSupportingDocs, DropdownSupportingDocs } from '../Model.d';
 import { addDoc } from '../Service';
+import { toDateInputValue } from '../../../utils/GlobalFunctions';
 
 interface AddNoteDialogProps {
   isOpen: boolean;
@@ -110,7 +111,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
             FileExtension: formData.File?.Extension || '',
             FilePath: formData.File?.DataUrl || '',
             CreatedBy: '', // Adjust if needed
-            CreatedDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+            CreatedDate: toDateInputValue(new Date()), // Format as YYYY-MM-DD
             };
 
             console.log('Creating new document object:', newDoc);
