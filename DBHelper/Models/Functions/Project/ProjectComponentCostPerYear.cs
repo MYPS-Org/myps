@@ -22,6 +22,7 @@ namespace DBHelper.Models.Functions.Project
         public string? UACS { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        public DateTime? DateOfApproval { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
@@ -32,12 +33,5 @@ namespace DBHelper.Models.Functions.Project
         public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
-        public DateTime? DateOfApproval { get; set; }
-        [MaxLength(50)]
-        public string? DataImportProgramId { get; set; }
-        [MaxLength(50)]
-        public string? DataImportProjectId { get; set; }
-        [MaxLength(50)]
-        public string? DataImportComponentId { get; set; }
     }
 }

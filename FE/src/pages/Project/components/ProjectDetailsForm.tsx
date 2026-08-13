@@ -333,7 +333,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 ))}
                             </select>
                             </div>
-                            {programDetails?.StageId === 3 && (
+                            {programDetails?.StageName === 'RBP' && (
                             <div className="flex flex-row gap-5 items-center">
                                 <label
                                 className={`w-1/3 text-sm font-medium ${

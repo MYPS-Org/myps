@@ -1,3 +1,9 @@
+export interface BatchActionResponse {
+	Message: string;
+	Title: string;
+	UpdatedCount: number;
+	MissingProjectIds: string[];
+}
 export interface ProgramModel {
 	Id: number;
 	Stage: number;

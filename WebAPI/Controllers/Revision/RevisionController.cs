@@ -34,7 +34,7 @@ namespace WebAPI.Controllers.Revision
     public class RevisionController : CoreController
     {
         public RevisionController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto, CancellationToken cancellationToken)
         {
@@ -131,6 +131,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -369,6 +370,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ReviseProject([FromBody] ReviseProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -602,6 +604,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto, CancellationToken cancellationToken)
         {
@@ -1717,6 +1720,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateRevisionStatus([FromBody] UpdateRevisionStatusDTO dto, CancellationToken cancellationToken)
         {
@@ -1924,6 +1928,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto, CancellationToken cancellationToken)
         {
