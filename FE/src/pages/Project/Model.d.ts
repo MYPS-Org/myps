@@ -376,6 +376,7 @@ export interface ProjectSupportingDocs {
 	DocumentType: string;
 	DocTypeFK: string;
 	ProjectId: string;
+	StageName?: string;
 	FileName: string;
 	FileExtension: string;
 	FilePath: string;

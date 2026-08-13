@@ -396,7 +396,7 @@ const ProgramDetail: React.FC = () => {
 
   const handleConfirmPublish = async() => {
     try {
-      await publishToPCMA(programEnums?.Details.ProgramPK);
+      await publishToPCMA(programEnums?.Details.ProgramId);
       showToast({
         type: 'success',
         message: 'Program published to PCMA successfully.',

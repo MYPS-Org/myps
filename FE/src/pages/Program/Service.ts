@@ -2,7 +2,7 @@
 import { httpClient } from '../../services/httpClient';
 import type { ImportProjectDTO } from '../Project/Model';
 
-import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse } from './Model';
+import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, BatchActionResponse } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -186,7 +186,7 @@ export const downloadAIPReport = async (params: AIPReportParams) => {
 
 export const batchDeleteProjects = async (data: { ProgramId: string; ProjectIds: string  }) => {
     try {
-        const request = await httpClient.post('/Program/BatchDelete', data, {
+        const request = await httpClient.post<BatchActionResponse>('/Program/BatchDelete', data, {
             preloaderMessage: 'Deleting projects...'
         });
         return request;
@@ -197,7 +197,7 @@ export const batchDeleteProjects = async (data: { ProgramId: string; ProjectIds:
 }
 export const batchAllowPublishing = async (data: { ProgramId: string; ProjectIds: string  }) => {
     try {
-        const request = await httpClient.post('/Program/BatchAllowPublish', data, {
+        const request = await httpClient.post<BatchActionResponse>('/Program/BatchAllowPublish', data, {
             preloaderMessage: 'Allowing publishing of projects...'
         });
         return request;
@@ -208,7 +208,7 @@ export const batchAllowPublishing = async (data: { ProgramId: string; ProjectIds
 }
 export const batchRestrictPublishing = async (data: { ProgramId: string; ProjectIds: string }) => {
     try {
-        const request = await httpClient.post('/Program/BatchRestrictPublish', data, {
+        const request = await httpClient.post<BatchActionResponse>('/Program/BatchRestrictPublish', data, {
             preloaderMessage: 'Restricting publishing of projects...'
         });
         return request;

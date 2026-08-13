@@ -22,7 +22,7 @@ interface MajorItemOfWorksFormProps {
   componentCosts: ComponentCost[];
   infraData?: InfraData;
   programDetails?: ProgramLatest;
-  onAdd: (ComponentId: string) => void;
+  onAdd: (newItem: MajorItemOfWorksWithDropdown) => void;
   onEdit: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete: (index: number) => void;
   dropDowns?: ScopeOfWorkEnum[];
@@ -169,14 +169,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         IsDeleted: majorItemData.IsDeleted,
       };
       
-      // Use the parent's onAdd method first, then update the last item
-      onAdd(majorItemData.ComponentId);
-      
-      // We need to wait for the parent to update the majorItems array, then update it
-      setTimeout(() => {
-        const lastIndex = majorItems.length; // This will be the index of the new item
-        onEdit(lastIndex, newMajorItem);
-      }, 10);
+      // Pass the fully-built item straight to the parent in one atomic update.
+      // (Previously this called onAdd(ComponentId) then guessed the new item's
+      // index via setTimeout to onEdit it — a race that could overwrite the
+      // wrong item when the parent's re-render didn't land within 10ms.)
+      onAdd(newMajorItem);
     } else if (editingMajorItemIndex !== null) {
       // Update existing major item
       const updatedItem: MajorItemOfWorksWithDropdown = {

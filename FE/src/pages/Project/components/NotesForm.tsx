@@ -53,9 +53,14 @@ const NotesForm: React.FC<NotesFormProps> = ({
   };
 
   const handleDeleteDoc = async (doc: ProjectSupportingDocs) => {
-    console.log('Deleting document:', doc);
+    const payload: ProjectSupportingDocs = {
+      ...doc,
+      ProjectId: initialData?.ProjectDetails?.ProjectId || doc.ProjectId,
+      StageName: initialData?.ProjectDetails?.StageName || '',
+    };
+    console.log('Deleting document:', payload);
     try {
-      const deletedDoc = await deleteDoc(doc); // Pass as array
+      const deletedDoc = await deleteDoc(payload);
       if (deletedDoc) {
         onDelete(doc);
         showToast({
