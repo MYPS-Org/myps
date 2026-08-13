@@ -14,7 +14,7 @@ import {
     MagnifyingGlassIcon,
     XMarkIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
-import { useToast } from '../../../components/toaster/ToasterContext'; // Adjust the import path as necessary
+// import { useToast } from '../../../components/toaster/ToasterContext'; // Adjust the import path as necessary
 
 const Project: React.FC = () => {
     const navigate = useNavigate();
@@ -22,7 +22,7 @@ const Project: React.FC = () => {
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
     const [revisionLists, setRevisionLists] = useState<Record<string, ProjectRevisionList>>({}); // Store revisions per project ID
     //toaster here
-    const { showToast } = useToast();
+    // const { showToast } = useToast();
 
     // Shared pagination hook — replaces the hand-rolled ProjectData/ProjectFilters/isLoading
     // state and the Paginate() function, matching the Program page pattern.
@@ -79,10 +79,10 @@ const Project: React.FC = () => {
             }
         } catch (error) {
             console.error('Error toggling project details:', error);
-            showToast({
-                type: 'error',
-                message: 'Failed to fetch project stages.'
-            });
+            // showToast({
+            //     type: 'error',
+            //     message: 'Failed to fetch project stages.'
+            // });
         }
     };
 
