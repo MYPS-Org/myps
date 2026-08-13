@@ -35,6 +35,7 @@ namespace DBHelper.Models.Table
     }
     public class FieldComponentCostYear
     {
+        public bool UACS { get; set; } = false;
         public bool Year { get; set; } = false;
         public bool Amount { get; set; } = false;
         public bool StartDate { get; set; } = false;
@@ -54,8 +55,8 @@ namespace DBHelper.Models.Table
     }
     public class FieldFundingProfile
     {
-        public bool Source { get; set; } = false;
-        public bool Agreement { get; set; } = false;
+        public bool SourceOrg { get; set; } = false;
+        public bool AgreementCode { get; set; } = false;
         public bool Amount { get; set; } = false;
         public bool Percentage { get; set; } = false;
     }
@@ -75,8 +76,8 @@ namespace DBHelper.Models.Table
     {
         public bool ComponentId { get; set; } = false;
         public bool YearOfWork { get; set; } = false;
-        public bool WorkTypeId { get; set; } = false;
-        public bool InfraType { get; set; } = false;
+        public bool WorkTypeFK { get; set; } = false;
+        public bool InfraTypeFK { get; set; } = false;
     }
     public class CRUDMajorItemOfWork
     {
@@ -116,7 +117,6 @@ namespace DBHelper.Models.Table
 
     public class RuleProjectDetails
     {
-        public bool UACS { get; set; } = false;
         public bool MYCAApprovalDate { get; set; } = false;
         public bool Description { get; set; } = false;
         public bool Category { get; set; } = false;

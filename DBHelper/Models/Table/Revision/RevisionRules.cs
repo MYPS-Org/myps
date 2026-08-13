@@ -16,12 +16,13 @@ namespace DBHelper.Models.Table
         [Required]
         public int ReasonId { get; set; }
         [Required]
-        [MaxLength(20)]
+        [MaxLength(50)]
         public string PCMA_Status { get; set; } = string.Empty;
         [Required]
-        [MaxLength(20)]
+        [MaxLength(50)]
         public string Package_Status { get; set; } = string.Empty;
         [Required]
+        [MaxLength(1500)]
         public string Field { get; set; } = string.Empty;
     }
 }

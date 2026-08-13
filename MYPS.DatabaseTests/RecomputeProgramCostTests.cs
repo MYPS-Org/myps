@@ -96,7 +96,7 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
                 (N'PROJECT-LS', N'PROGRAM-1', 102, 2),
                 (N'PROJECT-OLD', N'PROGRAM-1', 103, 1);
             INSERT dbo.tProjectFundingProfile(ProjectRevisionFK, Amount, IsDeleted) VALUES
-                (101, 100), (102, 900), (103, 50);
+                (101, 100, 0), (102, 900, 0), (103, 50, 0);
             """;
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync();

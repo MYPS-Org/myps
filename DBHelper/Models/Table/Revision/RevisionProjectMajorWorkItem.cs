@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,9 +13,8 @@ namespace DBHelper.Models.Table.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
         // FK -> dbo.tRevisionDetails(Id)
-        public string TransactionId { get; set; } = string.Empty;
+        public int RevisionDetailFK { get; set; }
         [Required]
         [MaxLength(20)]
         public string ComponentId { get; set; } = string.Empty;
@@ -29,5 +29,8 @@ namespace DBHelper.Models.Table.Revision
         public string InfraTypeFK { get; set; } = string.Empty;
         [Required]
         public bool IsDeleted { get; set; } = false;
+
+        [NotMapped]
+        public string TransactionId { get; set; } = string.Empty;
     }
 }

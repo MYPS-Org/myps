@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using System.Runtime.Loader;
 using Hangfire;
+using WebAPI.Services.Revision;
 
 namespace Main
 {
@@ -55,6 +56,7 @@ namespace Main
         {
             Services.AddHttpContextAccessor();
             Services.AddScoped<IMYPSExceptionHandler, ExceptionHandler>();
+            Services.AddScoped<IRevisionPcmaPublisher, RevisionPcmaPublisher>();
             Services.AddDistributedMemoryCache();
             Services.AddAuthentication(options =>
             {

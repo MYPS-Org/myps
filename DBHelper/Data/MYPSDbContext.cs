@@ -202,6 +202,10 @@ namespace DBHelper.Data
         #endregion
         #region Functions
         public DbSet<RevisionQueue> fRevisionQueue { get; set; }
+        public DbSet<RevisionDetail> fRevisionDetail { get; set; }
+        public DbSet<RevisionApprovalStatus> fRevisionApprovalStatus { get; set; }
+        public DbSet<OpenRevision> fOpenRevision { get; set; }
+        public DbSet<RevisionRuleFor> fRevisionRuleFor { get; set; }
         public DbSet<RevisionProjectDetails> fRevisionProjectDetails { get; set; }
         public DbSet<PendingProjectComponentCost> fPendingProjectComponentCost { get; set; }
         #endregion
@@ -217,16 +221,16 @@ namespace DBHelper.Data
 
         #region Tables
         public DbSet<RevisionDetails> tRevisionDetails { get; set; }
+        public DbSet<RevisionApprovals> tRevisionApprovals { get; set; }
         public DbSet<RevisionDocuments> tRevisionDocuments { get; set; }
         public DbSet<RevisionForCorrectionDetails> tRevisionForCorrectionDetails { get; set; }
         public DbSet<Models.Table.RevisionRules> tRevisionRules { get; set; }
-        public DbSet<RevisionTransactionLog> tRevisionTransactionLog { get; set; }
         public DbSet<RevisionProjects> tRevisionProjects { get; set; }
+        public DbSet<RevisionProjectSnapshot> tRevisionProjectSnapshot { get; set; }
         public DbSet<RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }
         public DbSet<RevisionProjectComponentCost> tRevisionProjectComponentCost { get; set; }
         public DbSet<RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
         public DbSet<RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
-        public DbSet<RevisionDetailsComponentsStatus> tRevisionDetailsComponentsStatus { get; set; }
         public DbSet<RevisionProjectComponentCostPerYear> tRevisionProjectComponentCostPerYear { get; set; }
         #endregion
 
@@ -288,8 +292,6 @@ namespace DBHelper.Data
         public DbSet<Models.Views.UserViewPermission> vUserViewPermission { get; set; }
         public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }
         public DbSet<Models.Views.APIPermissions> vAPIPermissions { get; set; }
-        public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
-        public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
         #endregion
 
         #endregion
