@@ -74,6 +74,16 @@ namespace WebAPI.Controllers.MockUps
                     Appsetting.DbConnections.MYPSDb,
                     "EXEC pPublishProgram @ProgramId = @ProgramId", param
                 ).FirstOrDefault();
+                if(check < 1)
+                {
+                    return new BadRequestObjectResult(
+                        new
+                        {
+                            Message = $"Failed to publish program. Reason: {PCMARespose.Message}",
+                            Title = "Publish Failed"
+                        }
+                    );
+                }
                 return Ok(new
                 {
                     Message = "Program publish successfully.",

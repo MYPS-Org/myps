@@ -611,12 +611,23 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
-                dto.ProgramId = "P_CO-PS-800_07152024_143901";
-                dto.StageName = "GAA-R";
-                var stages = await _db.tProjectStages
-                    .AsNoTracking()
-                    .Where(s => s.ProgramId == dto.ProgramId && s.StageName == dto.StageName)
-                    .ToListAsync(cancellationToken);
+                var stageName = dto.StageName.Replace("-", "");
+
+                if (!Enum.TryParse<EnumProgramStage>(
+                        stageName,
+                        true,
+                        out var SelectedStage))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Invalid program stage '{dto.StageName}'.",
+                        Title = "Invalid Program Stage"
+                    });
+                }
+                // Numeric value
+                int selectedStageValue = (int)SelectedStage;
+
+                var stages = await _db.fProgramProjects.FromSqlInterpolated($"SELECT * FROM fProgramProjects({dto.ProgramId}, {selectedStageValue})").AsNoTracking().ToListAsync(cancellationToken);
 
                 if (stages.Count < 1)
                 {
