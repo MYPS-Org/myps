@@ -562,7 +562,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     const defaultProjectRevisionFK =
       fundingProfiles.find(f => f.ProjectRevisionFK)?.ProjectRevisionFK ||
       componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK ||
-      '';
+      0;
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
       ProjectRevisionFK: defaultProjectRevisionFK,
