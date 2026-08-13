@@ -249,7 +249,7 @@ export interface FileEntity {
 export interface FundingProfile {
 	Id: number;
 	Source: string;
-	ProjectRevisionFK: string;
+	ProjectRevisionFK: number;
 	ProjectFK: string;
 	ProjectId?: string;
 	StageName: string;
@@ -268,7 +268,7 @@ export interface FundingProfile {
 export interface ComponentCost {
 	Id: number;
 	Source: string;
-	ProjectRevisionFK: string;
+	ProjectRevisionFK: number;
 	ProjectFK: string;
 	ProjectId: string;
 	StageName?: string;

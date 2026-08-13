@@ -53,7 +53,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   // current revision) on save — it never trusts the value we send. We just need to
   // carry through whatever value the backend already gave us on existing rows so new
   // rows aren't missing the field.
-  const defaultProjectRevisionFK = componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK || '';
+  const defaultProjectRevisionFK = componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK || 0;
   const [formData, setFormData] = useState<ComponentCost>({
     Id: 0,
     Source: '',
