@@ -6,11 +6,12 @@ namespace DBHelper.Models.Functions.Project
 {
     public class ProjectMajorWorkItem
     {
+        [Key]
+        public int Id { get; set; }
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;
-        [Key]
-        public int Id { get; set; }
+        public int? ComponentCostFK { get; set; }
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;

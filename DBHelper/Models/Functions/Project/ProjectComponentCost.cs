@@ -15,6 +15,8 @@ namespace DBHelper.Models.Functions.Project
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
+        public int ProjectRevisionFK { get; set; }
+        [Required]
         [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
         [MaxLength(200)]
