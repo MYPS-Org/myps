@@ -539,7 +539,8 @@ namespace WebAPI.Controllers.Projects
                 #endregion
 
                 #region Transaction Logs
-                var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).ToListAsync(cancellationToken);
+                string ReferenceId = $"{dto.ProjectId}-{dto.StageName}";
+                var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.ReferenceId == ReferenceId).ToListAsync(cancellationToken);
                 #endregion
 
 
