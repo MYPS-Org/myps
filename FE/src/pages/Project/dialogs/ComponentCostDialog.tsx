@@ -49,9 +49,15 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  // The backend always re-derives ProjectRevisionFK server-side (from the project's
+  // current revision) on save — it never trusts the value we send. We just need to
+  // carry through whatever value the backend already gave us on existing rows so new
+  // rows aren't missing the field.
+  const defaultProjectRevisionFK = componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK || '';
   const [formData, setFormData] = useState<ComponentCost>({
     Id: 0,
     Source: '',
+    ProjectRevisionFK: defaultProjectRevisionFK,
     ProjectFK: '',
     ProjectId: ProjectId,
     ComponentType: '',
@@ -122,6 +128,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     const newPerYearCost: ComponentCostPerYear = {
       Id: 0,
       Source: '',
+      // Real ComponentCost.Id when editing an existing component; 0 for a
+      // brand-new component, which the backend correlates by ComponentId instead.
+      ComponentCostFK: formData.Id,
       ProjectFK: '',
       ProjectId: ProjectId,
       ComponentId: formData.ComponentId,
@@ -169,6 +178,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setFormData({
         Id: editingCost.Id ?? 0,
         Source: editingCost.Source ?? '',
+        ProjectRevisionFK: editingCost.ProjectRevisionFK ?? defaultProjectRevisionFK,
         ProjectFK: editingCost.ProjectFK ?? '',
         ProjectId: editingCost.ProjectId ?? ProjectId,
         ComponentType: editingCost.ComponentType ?? '',
@@ -193,6 +203,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setFormData({
         Id: 0,
         Source: '',
+        ProjectRevisionFK: defaultProjectRevisionFK,
         ProjectFK: '',
         ProjectId: ProjectId,
         ComponentType: '',
@@ -376,6 +387,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         const componentCostData: ComponentCost = {
           Id: formData.Id,
           Source: formData.Source,
+          ProjectRevisionFK: formData.ProjectRevisionFK,
           ProjectFK: formData.ProjectFK,
           ProjectId: formData.ProjectId,
           ComponentType: formData.ComponentType,
@@ -395,6 +407,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         const perYearCosts = componentCostPerYear
           .map(cost => ({
             ...cost,
+            ComponentCostFK: formData.Id,
             ComponentId: formData.ComponentId,
             CreatedBy: cost.CreatedBy || user?.UserId || '',
             UpdatedBy: user?.UserId || '',
@@ -417,6 +430,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         setFormData({
             Id: 0,
             Source: '',
+            ProjectRevisionFK: defaultProjectRevisionFK,
             ProjectFK: '',
             ProjectId: '',
             ComponentType: '',
