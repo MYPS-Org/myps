@@ -128,126 +128,172 @@ namespace Helpers
             public int YearStart { get; set; }
             public int Count { get; set; } = 1;
         }
-        public static async Task<string> GenerateProjectId(this MYPSDbContext db, GenerateProjectIDParams request, CancellationToken cancellationToken)
-        {
-            ArgumentNullException.ThrowIfNull(db);
-            ArgumentNullException.ThrowIfNull(request);
+        //public static async Task<string> GenerateProjectId(this MYPSDbContext db, GenerateProjectIDParams request, CancellationToken cancellationToken)
+        //{
+        //    ArgumentNullException.ThrowIfNull(db);
+        //    ArgumentNullException.ThrowIfNull(request);
 
+        //    string FirstSegment = request.StageName.GenerateProjec1stSegment();
+        //    string SecondSegment = request.YearStart.GenerateProjec2ndSegment();
+        //    if (request.CategoryId <= 0)
+        //    {
+        //        throw new ArgumentOutOfRangeException(
+        //            nameof(request.CategoryId),
+        //            "Category ID must be greater than zero.");
+        //    }
+
+        //    if (string.IsNullOrWhiteSpace(FirstSegment))
+        //    {
+        //        throw new ArgumentException(
+        //            "Suffix is required.",
+        //            nameof(FirstSegment));
+        //    }
+
+        //    if (string.IsNullOrWhiteSpace(request.IslandCode))
+        //    {
+        //        throw new ArgumentException(
+        //            "Island code is required.",
+        //            nameof(request.IslandCode));
+        //    }
+
+        //    if (request.YearStart <= 0)
+        //    {
+        //        throw new ArgumentOutOfRangeException(
+        //            nameof(request.YearStart),
+        //            "Year start must be greater than zero.");
+        //    }
+
+        //    var parameters = new DynamicParameters();
+
+        //    parameters.Add(
+        //        "@CategoryId",
+        //        request.CategoryId,
+        //        DbType.Int32,
+        //        ParameterDirection.Input);
+
+        //    parameters.Add(
+        //        "@Suffix",
+        //        FirstSegment.Trim(),
+        //        DbType.String,
+        //        ParameterDirection.Input);
+
+        //    parameters.Add(
+        //        "@IslandCode",
+        //        request.IslandCode.Trim(),
+        //        DbType.String,
+        //        ParameterDirection.Input);
+
+        //    parameters.Add(
+        //        "@YearStart",
+        //        request.YearStart,
+        //        DbType.Int32,
+        //        ParameterDirection.Input);
+
+        //    // This method generates one ID only.
+        //    parameters.Add(
+        //        "@Count",
+        //        1,
+        //        DbType.Int32,
+        //        ParameterDirection.Input);
+
+        //    parameters.Add(
+        //        "@RangeStart",
+        //        dbType: DbType.Int32,
+        //        direction: ParameterDirection.Output);
+
+        //    parameters.Add(
+        //        "@RangeEnd",
+        //        dbType: DbType.Int32,
+        //        direction: ParameterDirection.Output);
+
+        //    var connection = db.Database.GetDbConnection();
+        //    var shouldCloseConnection = connection.State != ConnectionState.Open;
+
+        //    try
+        //    {
+        //        if (shouldCloseConnection)
+        //        {
+        //            await connection.OpenAsync(cancellationToken);
+        //        }
+
+        //        var transaction = db.Database.CurrentTransaction?
+        //            .GetDbTransaction();
+
+        //        var command = new CommandDefinition(
+        //            commandText: "dbo.pReserveProjectIdBlock",
+        //            parameters: parameters,
+        //            transaction: transaction,
+        //            commandTimeout: 120,
+        //            commandType: CommandType.StoredProcedure,
+        //            cancellationToken: cancellationToken);
+
+        //        await connection.ExecuteAsync(command);
+
+        //        var rangeStart = parameters.Get<int>("@RangeStart");
+        //        var rangeEnd = parameters.Get<int>("@RangeEnd");
+
+        //        if (rangeStart <= 0 || rangeEnd < rangeStart)
+        //        {
+        //            throw new InvalidOperationException(
+        //                "The project ID reservation procedure returned an invalid range.");
+        //        }
+
+        //        // Confirm that this is the intended permanent project ID format.
+        //        return $"{FirstSegment}{SecondSegment}{rangeStart:D5}{request.IslandCode}";
+        //    }
+        //    finally
+        //    {
+        //        if (shouldCloseConnection)
+        //        {
+        //            await connection.CloseAsync();
+        //        }
+        //    }
+        //}
+        public static async Task<string> GenerateProjectID(this MYPSDbContext _db, GenerateProjectIDParams request, CancellationToken cancellationToken)
+        {
             string FirstSegment = request.StageName.GenerateProjec1stSegment();
             string SecondSegment = request.YearStart.GenerateProjec2ndSegment();
-            if (request.CategoryId <= 0)
+
+            //var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
+            //    .Where(x => x.Category == Category.CategoryId
+            //        && x.ProjectSuffix == FirstSegment
+            //        && x.IslandCode == IslandCode
+            //        && x.YearStart == ProgramDetails.YearStart)
+            //    .OrderByDescending(x => x.MaxId)
+            //    .FirstOrDefault();
+            //int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
+
+
+            //int nextId = Math.Max(maxExisting + 1, Category.Minimum);
+            //string ThirdSegment = nextId.ToString("D5");
+
+
+            var param = new Dictionary<string, object>
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(request.CategoryId),
-                    "Category ID must be greater than zero.");
-            }
+                { "@ProjectSuffix", FirstSegment },
+                { "@CategoryId", request.CategoryId },
+                { "@YearStart", request.YearStart },
+                { "@IslandCode", request.IslandCode }
+            };
+            var results = await _db.Database
+            .SqlQuery<string>($@"EXEC dbo.pGenerateThirdSegment 
+                @ProjectSuffix = {FirstSegment}, 
+                @CategoryId = {request.CategoryId}, 
+                @YearStart = {request.YearStart}, 
+                @IslandCode = {request.IslandCode}")
+            .ToListAsync(cancellationToken);
 
-            if (string.IsNullOrWhiteSpace(FirstSegment))
-            {
-                throw new ArgumentException(
-                    "Suffix is required.",
-                    nameof(FirstSegment));
-            }
+            string ThirdSegment = results.Single();
 
-            if (string.IsNullOrWhiteSpace(request.IslandCode))
-            {
-                throw new ArgumentException(
-                    "Island code is required.",
-                    nameof(request.IslandCode));
-            }
+            //string ThirdSegment = await Sql.NormalQuery<string>(
+            //    Appsetting.DbConnections.MYPSDb,
+            //    "EXEC pGenerateThirdSegment @ProjectSuffix, @CategoryId, @YearStart, @IslandCode",
+            //    param
+            //).FirstOrDefaultAsync() ?? string.Empty;
 
-            if (request.YearStart <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(request.YearStart),
-                    "Year start must be greater than zero.");
-            }
 
-            var parameters = new DynamicParameters();
 
-            parameters.Add(
-                "@CategoryId",
-                request.CategoryId,
-                DbType.Int32,
-                ParameterDirection.Input);
-
-            parameters.Add(
-                "@Suffix",
-                FirstSegment.Trim(),
-                DbType.String,
-                ParameterDirection.Input);
-
-            parameters.Add(
-                "@IslandCode",
-                request.IslandCode.Trim(),
-                DbType.String,
-                ParameterDirection.Input);
-
-            parameters.Add(
-                "@YearStart",
-                request.YearStart,
-                DbType.Int32,
-                ParameterDirection.Input);
-
-            // This method generates one ID only.
-            parameters.Add(
-                "@Count",
-                1,
-                DbType.Int32,
-                ParameterDirection.Input);
-
-            parameters.Add(
-                "@RangeStart",
-                dbType: DbType.Int32,
-                direction: ParameterDirection.Output);
-
-            parameters.Add(
-                "@RangeEnd",
-                dbType: DbType.Int32,
-                direction: ParameterDirection.Output);
-
-            var connection = db.Database.GetDbConnection();
-            var shouldCloseConnection = connection.State != ConnectionState.Open;
-
-            try
-            {
-                if (shouldCloseConnection)
-                {
-                    await connection.OpenAsync(cancellationToken);
-                }
-
-                var transaction = db.Database.CurrentTransaction?
-                    .GetDbTransaction();
-
-                var command = new CommandDefinition(
-                    commandText: "dbo.pReserveProjectIdBlock",
-                    parameters: parameters,
-                    transaction: transaction,
-                    commandTimeout: 120,
-                    commandType: CommandType.StoredProcedure,
-                    cancellationToken: cancellationToken);
-
-                await connection.ExecuteAsync(command);
-
-                var rangeStart = parameters.Get<int>("@RangeStart");
-                var rangeEnd = parameters.Get<int>("@RangeEnd");
-
-                if (rangeStart <= 0 || rangeEnd < rangeStart)
-                {
-                    throw new InvalidOperationException(
-                        "The project ID reservation procedure returned an invalid range.");
-                }
-
-                // Confirm that this is the intended permanent project ID format.
-                return $"{FirstSegment}{SecondSegment}{rangeStart:D5}{request.IslandCode}";
-            }
-            finally
-            {
-                if (shouldCloseConnection)
-                {
-                    await connection.CloseAsync();
-                }
-            }
+            return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{request.IslandCode}".Replace("-", "");
         }
         public static string GenerateProjec1stSegment(this string StageName)
         {

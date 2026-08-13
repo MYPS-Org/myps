@@ -365,7 +365,7 @@ namespace WebAPI.Controllers.Projects
                     IslandCode = FourthSegment,
                     YearStart = ProgramParent.StartYear
                 };
-                string ProjectPK = await _db.GenerateProjectId(p, cancellationToken);
+                string ProjectPK = await _db.GenerateProjectID(p, cancellationToken);//_db.GenerateProjectId(p, cancellationToken);
                 #endregion
                 string ProgramFK = ProgramParent.ProgramPK;
                 string ProgramId = ProgramRevision.ProgramId;
@@ -516,9 +516,9 @@ namespace WebAPI.Controllers.Projects
                 string ProgramFK = ProjectParent.ProgramFK;
                 EnumProgramStage StageId = ProjectStage.StageId;
 
-                var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramFK, cancellationToken);
+                var CurrentProgramVersion = await _db.vProjectLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId && x.StageName == ProjectStage.StageName, cancellationToken);
                 var Program = await _db.fProgramDetailsInProject.FromSqlInterpolated($"SELECT * FROM fProgramDetailsInProject({ProgramFK},{StageId})").AsNoTracking().FirstOrDefaultAsync(cancellationToken);
-
+                var ProgramLatest = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramPK == ProgramFK);
                 #region Funding Profile
                 var Funding = await _db.fProjectFundingProfile.FromSqlInterpolated($"SELECT * FROM fProjectFundingProfile({ProjectFK},{StageId})").AsNoTracking().ToListAsync(cancellationToken);
                 #endregion
@@ -546,7 +546,7 @@ namespace WebAPI.Controllers.Projects
 
                 return Ok(new
                 {
-                    IsActive = (CurrentProgramVersion == null) ? false : true,
+                    IsActive = (CurrentProgramVersion == null) ? false : (ProgramLatest.Status == "Approved") ? false : true,
                     ProgramDetails = Program,
                     ProjectDetails = ProjectRevisions,
                     FundingProfile = Funding,
@@ -1581,7 +1581,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     });
                     Project.Feasibility = dto.ProjectDetails!.Feasibility;
-                    Project.FeasibilityDate = (Project.Feasibility != 1) ? null : Project.FeasibilityDate;
+                    Project.FeasibilityDate = (Project.Feasibility != 1) ? null : dto.ProjectDetails!.FeasibilityDate;
                 }
                 if (Project.FeasibilityDate != dto.ProjectDetails?.FeasibilityDate)
                 {
@@ -1636,7 +1636,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    Project.DetailedDesignDate = (Project.DetailedDesign != 1) ? null : Project.DetailedDesignDate;
+                    Project.DetailedDesignDate = (Project.DetailedDesign != 1) ? null : dto.ProjectDetails!.DetailedDesignDate;
                 }
 
                 if (Project.Rank != dto.ProjectDetails?.Rank)
