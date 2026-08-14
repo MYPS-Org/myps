@@ -183,7 +183,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="fixed z-10 inset-0 overflow-y-auto">
+    <Dialog open={isOpen} onClose={handleClose} className="fixed z-10 inset-0 overflow-y-auto">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
       {/* Full-screen container */}

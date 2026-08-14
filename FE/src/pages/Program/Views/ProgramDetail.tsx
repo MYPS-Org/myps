@@ -89,7 +89,7 @@ const ProgramDetail: React.FC = () => {
         PageCursorId: params.PageCursorId ?? 0,
         ProgramId: programPKRef.current,
         StageName: id?.[1] ?? '',
-        StageDisplayName: programEnums?.Details.StageName ?? '',
+        StageDisplayName: programEnums?.Details.StageDisplayName ?? '',
       });
       return response;
     },
