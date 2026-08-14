@@ -113,8 +113,8 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
                   </TableCell>
                   <TableCell className="font-medium">{road.RoadSectionId}</TableCell>
                   <TableCell>{road.RoadId}</TableCell>
-                  <TableCell>{road.DEO}</TableCell>
-                  <TableCell>{road.RoadLength}</TableCell>
+                  {/* <TableCell>{road.DEO}</TableCell>
+                  <TableCell>{road.RoadLength}</TableCell> */}
                   <TableCell>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       road.NetworkStatusId === 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'

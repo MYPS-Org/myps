@@ -591,7 +591,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='grid grid-cols-2 gap-5'>
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Region Wide:</label>
+                                <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Regionwide:</label>
                                 <select 
                                     value={projectDetails?.RegionWide} 
                                     onChange={(e) => handleInputChange('RegionWide', e.target.value ? parseInt(e.target.value) : undefined)}

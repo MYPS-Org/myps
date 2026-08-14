@@ -26,6 +26,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
     StageName: stageName || '',
     ProjectId: projectId,
     DocumentType: '',
+    DocTypeName: '', 
     Description: '',
     File: {
       Name: '',
@@ -44,6 +45,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         StageName: stageName || '',
         ProjectId: projectId,
         DocumentType: '',
+        DocTypeName: '',
         Description: '',
         File: {
           Name: '',
@@ -100,12 +102,13 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         if (response) {
             // Mirror the backend's split of "Code:Name" (ProjectController.UploadSupportingDocs)
             // so the row displays correctly before the next refetch.
-            const [docTypeFK, docTypeName] = formData.DocumentType.split(':');
+            const [docTypeFK] = formData.DocumentType.split(':');
             const newDoc: ProjectSupportingDocs = {
             Id: 0, // Will be set by server
             ProjectId: projectId,
-            DocumentType: docTypeName || formData.DocumentType,
+            DocumentType: formData.DocTypeName || formData.DocumentType,
             Code: docTypeFK || '',
+            Name: formData.DocTypeName || '',
             DocTypeFK: docTypeFK || '',
             Description: formData.Description,
             FileName: formData.File?.Name || '',
@@ -122,6 +125,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
               StageName: '',
               ProjectId: projectId,
               DocumentType: '',
+              DocTypeName: '',
               Description: '',
               File: {
                 Name: '',
@@ -161,9 +165,19 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
             </button>
           </div>
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            <select 
-              value={formData.DocumentType} 
-              onChange={e => handleChange('DocumentType', e.target.value)} 
+            <select
+              value={formData.DocumentType}
+              onChange={e => {
+                const selectedValue = e.target.value;
+                const selectedOption = dropDownOptions?.find(
+                  (option: DropdownSupportingDocs) => option.Code + ':' + option.Name === selectedValue
+                );
+                setFormData(prev => ({
+                  ...prev,
+                  DocumentType: selectedValue,
+                  DocTypeName: selectedOption?.Name || '',
+                }));
+              }}
               className="w-full border rounded p-2">
                 <option value="" disabled>Select Document Type</option>
                 {dropDownOptions?.map((option: DropdownSupportingDocs) => (

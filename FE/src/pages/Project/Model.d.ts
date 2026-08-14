@@ -236,6 +236,7 @@ export interface InfraData {
 export interface AddNotes {
 	StageName: string;
 	DocumentType: string;
+	DocTypeName: string;
 	ProjectId: string,
 	Description: string,
 	File: FileEntity
@@ -376,6 +377,7 @@ export interface ProjectSupportingDocs {
 	Id: number;
 	DocumentType: string;
 	Code: string;
+	Name: string;
 	DocTypeFK: string;
 	ProjectId: string;
 	StageName?: string;

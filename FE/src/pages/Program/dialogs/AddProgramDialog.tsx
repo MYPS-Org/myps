@@ -117,7 +117,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
         }
 
         const selectedStage = Stage.find(stage => stage.NameId === (field === 'Stage' ? value : newFormData.Stage));
-        const stageName = selectedStage ? selectedStage.Name : '';
+        const stageName = selectedStage ? (selectedStage.DisplayName || selectedStage.Name) : '';
         const yearStart = field === 'YearStart' ? value : newFormData.YearStart;
         newFormData.Name = stageName + ' ' + yearStart;
         // Auto-skip logic: NEP through GAA-R (NameId 2-7), plus TF-R (NameId 13).

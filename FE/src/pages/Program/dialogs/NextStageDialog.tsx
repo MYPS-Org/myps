@@ -73,11 +73,11 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     const generateSuggestedName = () => {
         if (isSkip) {
             if (skipStage && formData.StartYear) {
-                return `${skipStage.Name} ${formData.StartYear}`;
+                return `${skipStage.DisplayName || skipStage.Name} ${formData.StartYear}`;
             }
         } else {
             if (nextStage && formData.StartYear) {
-                return `${nextStage.Name} ${formData.StartYear}`;
+                return `${nextStage.DisplayName || nextStage.Name} ${formData.StartYear}`;
             }
         }
         return parsedName.baseName;

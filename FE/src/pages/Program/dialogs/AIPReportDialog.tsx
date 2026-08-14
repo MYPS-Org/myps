@@ -53,7 +53,7 @@ const RDIP_REPORT_TYPES: ReportTypeOption[] = [
  */
 function getAvailableReportTypes(stageId: number): ReportTypeOption[] {
   const types: ReportTypeOption[] = [];
-  if (stageId <= 4 || stageId === 7 || stageId >= 10) types.push(...AIP_REPORT_TYPES);
+  if (stageId <= 4 || stageId === 7 || stageId === 6 || stageId >= 10) types.push(...AIP_REPORT_TYPES);
   if (stageId === 3 || stageId === 7) types.push(...RBP_REPORT_TYPES);
   if (stageId <= 2 || stageId === 7) types.push(...RDIP_REPORT_TYPES);
   return types;
