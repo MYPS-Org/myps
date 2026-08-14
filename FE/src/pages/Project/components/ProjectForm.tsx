@@ -105,6 +105,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     ProgramId: '',
     StageId: 0,
     StageName: '',
+    StageDisplayName: '',
     Name: '',
     Status: undefined,
     Type: '',
@@ -1031,7 +1032,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </Button> 
                 </>
               )}
-              {mode === 'edit' && initialData?.ProgramDetails?.StageName === 'GAA-R' && Number(initialData?.ProgramDetails?.Status) === 1 && (
+              {mode === 'edit' && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.ProjectDetails?.IsPublished && (
                 <Menu as="div" className="relative inline-block text-left">
                   <MenuButton
                     as={Button}

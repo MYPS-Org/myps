@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      target: 'es2020',
+      target: 'es2022',
       outDir: '../Main/wwwroot/',
     },	
     server: {

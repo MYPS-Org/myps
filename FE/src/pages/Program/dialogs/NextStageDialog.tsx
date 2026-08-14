@@ -60,7 +60,10 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
         Name: parsedName.baseName,
         AddedName: parsedName.additionalName,
         Stage: isSkip ? skipStageId : nextStageId,
-        StageName: isSkip ? skipStage?.Name || '' : nextStage?.Name || '',
+        // Display only (never sent in the submit payload — see handleSubmit's payload object
+        // below, which only carries Stage/Name/ProgramId/ProgramPK). Prefer DisplayName, fall
+        // back to Name until the backend populates it.
+        StageName: isSkip ? (skipStage?.DisplayName || skipStage?.Name || '') : (nextStage?.DisplayName || nextStage?.Name || ''),
         StartYear: program?.StartYear || new Date().getFullYear()
     });
 
@@ -134,7 +137,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
             Name: resetParsedName.baseName,
             AddedName: resetParsedName.additionalName,
             Stage: isSkip ? skipStageId : nextStageId,
-            StageName: isSkip ? skipStage?.Name || '' : nextStage?.Name || '',
+            StageName: isSkip ? (skipStage?.DisplayName || skipStage?.Name || '') : (nextStage?.DisplayName || nextStage?.Name || ''),
             StartYear: program?.StartYear || new Date().getFullYear()
         });
         onClose();
@@ -178,7 +181,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                                 </label>
                                 <input
                                     type="text"
-                                    value={program.StageName}
+                                    value={program.StageDisplayName || program.StageName}
                                     disabled
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
                                 />

@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import maplibregl from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url';
 import { BASEMAPS, DEFAULT_BASEMAP, METRO_MANILA_CENTER, DEFAULT_ZOOM, type BasemapId } from './mapStyle';
+
+// maplibre-gl's default worker is built at runtime by string-concatenating two of its
+// own module factories and blob-URL-ing the result (see maplibre-gl's dist/maplibre-gl.js).
+// That trick only works if those factories stay standalone — but our production minifier
+// hoists/dedupes helpers those factories reference out to the surrounding chunk's module
+// scope, so the extracted worker string ends up calling a helper that was never included
+// in it (e.g. "ReferenceError: <mangled-name> is not defined" inside the worker), which
+// silently kills all GeoJSON/vector-tile rendering while raster basemap tiles (no worker
+// needed) keep working. Point at maplibre's prebuilt CSP worker bundle instead — a real,
+// separately-built static asset that's never toString()-extracted from our own bundle.
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 export interface UseMapLibreMapResult {
   containerRef: RefObject<HTMLDivElement | null>;

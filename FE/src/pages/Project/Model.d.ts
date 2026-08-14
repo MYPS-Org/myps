@@ -104,6 +104,7 @@ export interface ProjectDetails {
 	LastUpdatedBy?: string;
 	LastUpdatedDate?: string;
 	Source: string;
+	IsPublished?: boolean;
 }
 export interface ProjectLists {
 	Id: number;
@@ -666,6 +667,7 @@ export interface DtoProjectDetails {
   regionWide: string;
   tier: string;
   rank?: number | null;
+  
 }
 
 export interface DtoFundingProfile {

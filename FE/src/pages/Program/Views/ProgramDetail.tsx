@@ -23,7 +23,7 @@ import { PaginationBar } from '@/components/tailwindui/PaginationBar';
 
 // NameIds (matching DBHelper's EnumProgramStage) excluded from the main BP→GAAR
 // progression track so GAAR is treated as terminal by "Proceed to Next Stage".
-const MAIN_PROGRESSION_EXCLUDED_STAGE_IDS = [2, 4]; // RBP, RDIP, PIP
+const MAIN_PROGRESSION_EXCLUDED_STAGE_IDS = [8, 9, 11]; // RBP, RDIP, PIP
 
 // Mock projects data for the table
 const ProgramDetail: React.FC = () => {
@@ -44,6 +44,7 @@ const ProgramDetail: React.FC = () => {
         Name: '',
         StageId: 0,
         StageName: '',
+        StageDisplayName: '',
         IsSkipped: false,
         IsPublished: false,
         IsDeleted: false,
@@ -88,6 +89,7 @@ const ProgramDetail: React.FC = () => {
         PageCursorId: params.PageCursorId ?? 0,
         ProgramId: programPKRef.current,
         StageName: id?.[1] ?? '',
+        StageDisplayName: programEnums?.Details.StageName ?? '',
       });
       return response;
     },
@@ -113,6 +115,7 @@ const ProgramDetail: React.FC = () => {
         Name: '',
         StageId: 0,
         StageName: '',
+        StageDisplayName: '',
         IsSkipped: false,
         IsPublished: false,
         IsDeleted: false,
@@ -202,8 +205,10 @@ const ProgramDetail: React.FC = () => {
         response.Data.Details.StageId,
         response.Data.Details.Type
       );
-      setNextStageName(nextStage ? nextStage.Name : '');
-      setSkipStageName(skipStage ? skipStage.Name : null);
+      // Display label only — Name/NameId (not DisplayName) is what gets sent as the
+      // payload for the actual stage transition (see handleNextStageSubmit, NextStageDialog).
+      setNextStageName(nextStage ? nextStage.DisplayName || nextStage.Name : '');
+      setSkipStageName(skipStage ? skipStage.DisplayName || skipStage.Name : null);
       setIsTerminalStage(reachedTerminalStage);
     } catch (error) {
       console.error('Error fetching program details:', error);
@@ -598,7 +603,7 @@ const ProgramDetail: React.FC = () => {
               )}
               {programEnums.IsActive &&
                 programEnums.Details &&
-                programEnums?.Details?.StageId === 5 && (
+                (programEnums?.Details?.StageId === 2 || programEnums?.Details?.StageId === 4) && (
                   <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(true)}>
                     Proceed to {skipStageName}
                   </Button>

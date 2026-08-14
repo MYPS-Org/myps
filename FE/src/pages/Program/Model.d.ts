@@ -40,6 +40,7 @@ export interface ProgramLatest {
 	ProgramId: string;
 	StageId: number;
 	StageName: string;
+	StageDisplayName: string;
 	Name: string;
 	Status?: string;
 	Type?: string;
@@ -60,6 +61,7 @@ export interface ProgramDetails {
 	ProgramId: string;
 	StageId: number;
 	StageName: string;
+	StageDisplayName: string;
 	RevisionId: number;
 	Name: string;
 	Status: number;
@@ -90,6 +92,7 @@ export interface ProgramDetailsWithStages {
 	Name: string;
 	StageId: number;
 	StageName: string;
+	StageDisplayName: string;
 	Description?: string;
 	IsSkipped: boolean;
 	SkipReason: string;
@@ -122,6 +125,9 @@ export interface TableEnum {
 	Id: number;
 	NameId: number;
 	Name: string;
+	/** Human-readable label for the stage/option. Not yet populated by the backend —
+	 * declared ahead of time so consumers are ready once that lands; fall back to Name until then. */
+	DisplayName?: string;
 	Description?: string;
 }
 
@@ -149,6 +155,7 @@ export interface ShowProjectsInProgramRequest {
 	PageCursorId: number;
 	ProgramId: string;
 	StageName: string;
+	StageDisplayName: string;
 }
 
 export interface ProgramProjectsPaginationResponse extends PaginationResponse<ProgramProjects> {

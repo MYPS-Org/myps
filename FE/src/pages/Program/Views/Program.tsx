@@ -280,7 +280,7 @@ const Program: React.FC = () => {
                                 <TableBody>
                                     {stageLists[program.ProgramPK || '']?.Stages?.map((stage) => (
                                         <TableRow key={stage.Id}>
-                                            <TableCell className="font-medium text-sm text-center">{stage.StageName}</TableCell>
+                                            <TableCell className="font-medium text-sm text-center">{stage.StageDisplayName}</TableCell>
                                             <TableCell className="text-sm text-gray-600 text-center">{stage.ProgramType}</TableCell>
                                             <TableCell className="text-sm text-gray-600 text-center">{stage.StartYear}</TableCell>
                                             <TableCell className="text-sm font-medium text-center">
