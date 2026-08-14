@@ -160,17 +160,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Id: 0,
       ProjectFK: '',
       ProjectType: '',
+      ProgramFK: '',
       ProgramId: '',
       ProgramName: '',
       StageName: '',
       ProjectId: '',
       AlternateId: '',
-      ExternalId: '',
       MYId: '',
-      UACS: '',
       MYCAApprovalDate: '',
       IslandCode: '',
-      RevisionId: 0,
       Description: '',
       Category: 0,
       Thrust: 0,
@@ -189,9 +187,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       RowAvailable: 0,
       RegionWide: 0,
       Tier: 1,
+      CreatedBy: '',
       CreatedDate: '',
-      RevisionCreatedBy: '',
-      RevisionCreatedDate: '',
       Source: '',
     }
   );
@@ -453,10 +450,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // Cascade delete: Delete all related major items (which will cascade to their locations)
     relatedMajorItems.forEach((item) => {
       const actualIndex = majorItems.findIndex(
-        mi => mi.ComponentId === item.ComponentId && 
-              mi.WorkTypeId === item.WorkTypeId && 
+        mi => mi.ComponentId === item.ComponentId &&
+              mi.WorkTypeFK === item.WorkTypeFK &&
               mi.YearOfWork === item.YearOfWork &&
-              mi.ReferenceId === item.ReferenceId
+              mi.Id === item.Id
       );
       if (actualIndex !== -1) {
         deleteMajorItem(actualIndex);
@@ -473,6 +470,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     if (excessComponentData) {
       const excComponent = addExcessComponent({
         projectId: projectDetails.ProjectId || '',
+        projectFK: projectDetails.ProjectFK || '',
+        source: projectDetails.Source || '',
         stageName: initialData?.ProgramDetails?.StageName || '',
         amount: excessComponentData.excessAmount,
         description: 'Excess',
@@ -526,12 +525,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // #region Funding Profiles
   const handleAddFundingProfile = () => {
+    // The backend always re-derives ProjectRevisionFK server-side from the project's
+    // current revision on save — it never trusts the client value. We just carry through
+    // whatever value the backend already gave us on an existing row.
+    const defaultProjectRevisionFK =
+      fundingProfiles.find(f => f.ProjectRevisionFK)?.ProjectRevisionFK ||
+      componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK ||
+      0;
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
+      ProjectRevisionFK: defaultProjectRevisionFK,
+      ProjectFK: projectDetails.ProjectFK || '',
       ProjectId: projectDetails.ProjectId || '',
       StageName: initialData?.ProgramDetails?.StageName || '',
-      Source: '',
-      Agreement: '',
+      Source: projectDetails.Source || 'Base',
+      SourceOrg: '',
+      AgreementCode: '',
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',
@@ -1136,22 +1145,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         componentsCostPerYear={componentCostPerYear}
         majorItemOfWorks={majorItems.map(item => ({
           Id: item.Id,
+          Source: item.Source,
+          ComponentCostFK: item.ComponentCostFK,
+          ProjectFK: item.ProjectFK,
           ProjectId: item.ProjectId,
-          ReferenceId: item.ProjectId + "-" + item.ComponentId + "-" + initialData?.ProgramDetails.StageName,
-          StageName: initialData?.ProgramDetails.StageName,
+          StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
-          WorkTypeId: item.WorkTypeId,
-          InfraType: item.InfraType,
+          WorkTypeFK: item.WorkTypeFK,
+          InfraTypeFK: item.InfraTypeFK,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
           CreatedBy: item.CreatedBy,
           IsDeleted: item.IsDeleted || false
         }))}
-        majorItemLocations={majorItems.flatMap(item => 
+        majorItemLocations={majorItems.flatMap(item =>
           (item.MajorItemLocations || []).map(location => ({
             ...location,
-            ParentId: item.ProjectId + "-" + item.ComponentId + "-" + initialData?.ProgramDetails.StageName,
+            WorkItemFK: item.Id,
             ProjectId: item.ProjectId || '',
             StageName: initialData?.ProgramDetails.StageName || ''
           }))
@@ -1173,22 +1184,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         componentsCostPerYear={componentCostPerYear}
         majorItemOfWorks={majorItems.map(item => ({
           Id: item.Id,
+          Source: item.Source,
+          ComponentCostFK: item.ComponentCostFK,
+          ProjectFK: item.ProjectFK,
           ProjectId: item.ProjectId,
-          ReferenceId: item.ReferenceId,
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
-          WorkTypeId: item.WorkTypeId,
-          InfraType: item.InfraType,
+          WorkTypeFK: item.WorkTypeFK,
+          InfraTypeFK: item.InfraTypeFK,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
           CreatedBy: item.CreatedBy,
           IsDeleted: item.IsDeleted || false
         }))}
-        majorItemLocations={majorItems.flatMap(item => 
+        majorItemLocations={majorItems.flatMap(item =>
           (item.MajorItemLocations || []).map(location => ({
             ...location,
-            ParentId: item.ComponentId,
+            WorkItemFK: item.Id,
             ProjectId: item.ProjectId || '',
             StageName: initialData?.ProgramDetails.StageName || ''
           }))

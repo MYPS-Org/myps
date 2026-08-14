@@ -251,7 +251,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
             componentCosts.map((cost, index) => {
               if (cost.IsDeleted) return null;
               return (
-              <TableRow key={cost.CostId || `cost-${index}`}>
+              <TableRow key={cost.Id || `cost-${index}`}>
                 <TableCell className="font-medium">{cost.ComponentId}</TableCell>
                 <TableCell>{cost.ComponentType}</TableCell>
                 <TableCell>
@@ -263,7 +263,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                 <TableCell>{cost.CreatedBy || '-'}</TableCell>
                 <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                 <TableCell>{cost.ConstructionStatusName}</TableCell>
-                <TableCell>{cost.PackedStatusName}</TableCell>
+                <TableCell>{cost.IsPackaged}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
                     <button
@@ -295,7 +295,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         onClose={handleCloseModal}
         onSave={handleSaveCost}
         editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
-        editingCostPerYear={editingIndex !== null ? componentCostPerYear.filter(cost => cost.ComponentCostId === componentCosts[editingIndex]?.CostId) : undefined}
+        editingCostPerYear={editingIndex !== null ? componentCostPerYear.filter(cost => cost.ComponentCostFK === componentCosts[editingIndex]?.Id) : undefined}
         mode={modalMode}
         componentTypes={initialData?.Dropdowns?.ComponentTypes}
         componentCosts={componentCosts}

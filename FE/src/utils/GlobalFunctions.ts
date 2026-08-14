@@ -24,6 +24,17 @@ String.prototype.StringToDate = function (): string {
   });
 };
 
+// Unique negative placeholder Id for records staged client-side before the
+// backend assigns a real (positive) Id. Negative/zero Id means "unsaved" —
+// callers that previously checked `Id === 0` should check `Id <= 0` instead,
+// since a session can stage multiple unsaved rows that must stay distinguishable
+// (e.g. for FK-style linking between a parent and its not-yet-saved children).
+let _tempIdCounter = 0;
+export const generateTempId = (): number => {
+  _tempIdCounter += 1;
+  return -(Date.now() * 1000 + _tempIdCounter);
+};
+
 export const handleNumberFocus = (e: React.FocusEvent<HTMLInputElement>) => {
   // Clear the field if it contains 0
   if (e.target.value === '0') {

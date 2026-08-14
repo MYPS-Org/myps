@@ -16,7 +16,7 @@ import type {
 } from '../../../Project/Model.d';
 import type { ProgramLatest } from '../../../Program/Model.d';
 import type { FieldRules } from '../../Model';
-import { getDisabledClass } from '../../../../utils/GlobalFunctions';
+import { getDisabledClass, generateTempId } from '../../../../utils/GlobalFunctions';
 import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
 import { useMajorItemLocations } from '../../hooks/useMajorItemLocations';
 
@@ -85,10 +85,10 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     // console.log('MajorItemOfWorksForm: items prop changed:', items);
     // console.log('Available dropDowns:', dropDowns);
     items.forEach((item/*, index*/) => {
-      // console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
-      if (item.InfraType) {
-        /*const filtered = */dropDowns?.filter(x => x.InfraType.includes(item.InfraType));
-        // console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
+      // console.log(`Item ${index} - WorkTypeFK:`, item.WorkTypeFK, 'InfraTypeFK:', item.InfraTypeFK, 'DropdownData length:', item.DropdownData?.length);
+      if (item.InfraTypeFK) {
+        /*const filtered = */dropDowns?.filter(x => x.InfraType.includes(item.InfraTypeFK));
+        // console.log(`Filtered dropdowns for InfraType '${item.InfraTypeFK}':`, filtered);
       }
     });
   }, [items, dropDowns]);
@@ -158,15 +158,18 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   const handleConfirmCopyMajorItem = (newComponentId: string) => {
     if (!majorItemToCopy) return;
 
-    // Generate a unique temporary ReferenceId for the copied major item
-    const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Real ComponentCost.Id for the selected component; 0 when it can't be found.
+    const componentCostId = componentCosts.find(c => c.ComponentId === newComponentId)?.Id ?? 0;
+    // Unique temp Id so the copied item stays distinguishable from any other
+    // unsaved major item — work locations link back to it via WorkItemFK.
+    const newItemId = generateTempId();
 
     // Create a copy of the major item with the new component ID (without locations initially)
     const copiedMajorItem: MajorItemOfWorksWithDropdown = {
       ...majorItemToCopy,
-      Id: 0, // New item, so reset ID
+      Id: newItemId, // New item, so reset ID
       ComponentId: newComponentId, // Use the selected component
-      ReferenceId: tempReferenceId, // New reference ID for linking
+      ComponentCostFK: componentCostId,
       MajorItemLocations: [], // Will be added separately via atoms
       CreatedBy: '', // Will be set on save
       IsDeleted: false,
@@ -180,11 +183,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     locationsToAdd.forEach(location => {
       const copiedLocation: MajorItemLocations = {
         ...location,
-        Id: 0, // Reset ID for new location
-        ParentId: tempReferenceId, // Link to new major item
+        Id: generateTempId(), // Reset ID for new location
+        WorkItemFK: newItemId, // Link to new major item
         IsDeleted: false,
       };
-      
+
       // Add each location via the hook
       addWorkLocation(copiedLocation);
     });
@@ -200,19 +203,24 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     WorkTypeId: number;
     InfraType: string;
   }) => {
+    // Real ComponentCost.Id for the selected component; 0 when it can't be found
+    // (e.g. the parent component is itself brand-new), which the backend correlates
+    // by ComponentId instead.
+    const componentCostId = componentCosts.find(c => c.ComponentId === majorItemData.ComponentId)?.Id ?? 0;
+
     if (isAddingNewMajorItem) {
-      // Generate a unique temporary ReferenceId for linking WorkLocations
-      const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
       // Create new major item
       const newMajorItem: MajorItemOfWorksWithDropdown = {
-        Id: 0, // Temporary ID
+        Id: generateTempId(), // Temporary Id
+        Source: '',
+        ComponentCostFK: componentCostId,
+        ProjectFK: projectId,
         ProjectId: projectId,
-        ReferenceId: tempReferenceId, // Use generated temp ID
+        StageName: programDetails?.StageName || '',
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
-        WorkTypeId: majorItemData.WorkTypeId,
-        InfraType: majorItemData.InfraType,
+        WorkTypeFK: majorItemData.WorkTypeId,
+        InfraTypeFK: majorItemData.InfraType,
         TargetUnitId: majorItemData.WorkTypeId, // Same as WorkTypeId for now
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         CreatedBy: '',
@@ -220,7 +228,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         MajorItemLocations: [], // Initialize empty work locations array
         IsDeleted: false,
       };
-      
+
       // Call unified add handler with complete item
       callAdd(newMajorItem);
     } else if (editingMajorItemIndex !== null) {
@@ -228,9 +236,10 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const updatedItem: MajorItemOfWorksWithDropdown = {
         ...items[editingMajorItemIndex],
         ComponentId: majorItemData.ComponentId,
+        ComponentCostFK: componentCostId,
         YearOfWork: majorItemData.YearOfWork,
-        WorkTypeId: majorItemData.WorkTypeId,
-        InfraType: majorItemData.InfraType,
+        WorkTypeFK: majorItemData.WorkTypeId,
+        InfraTypeFK: majorItemData.InfraType,
         TargetUnitId: majorItemData.WorkTypeId,
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         DropdownData: dropDowns?.filter(x => x.InfraType.includes(majorItemData.InfraType)) || [],
@@ -275,15 +284,13 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   const handleEditWorkLocation = (majorItemIndex: number, workLocationIndex: number, workLocation: MajorItemLocations) => {
-    const parentId = items[majorItemIndex].ReferenceId;
-    if (!parentId) return;
-    editWorkLocation(parentId, workLocationIndex, workLocation);
+    const workItemId = items[majorItemIndex].Id;
+    editWorkLocation(workItemId, workLocationIndex, workLocation);
   };
 
   const handleDeleteWorkLocation = (majorItemIndex: number, workLocationIndex: number) => {
-    const parentId = items[majorItemIndex].ReferenceId;
-    if (!parentId) return;
-    deleteWorkLocation(parentId, workLocationIndex);
+    const workItemId = items[majorItemIndex].Id;
+    deleteWorkLocation(workItemId, workLocationIndex);
   };
 
   const getMinMaxAmounts = (workTypeId: number) => {
@@ -357,17 +364,17 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      {getWorkTypeDescription(item.WorkTypeId)}
+                      {getWorkTypeDescription(item.WorkTypeFK)}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{getInfraName(item.InfraType)}</div>
+                    <div className="text-sm">{getInfraName(item.InfraTypeFK)}</div>
                   </TableCell>
                   {/* <TableCell>
                     Unit cost here
                   </TableCell> */}
                   <TableCell>
-                    <div className="text-sm">{getTargetUnitName(item.WorkTypeId)}</div>
+                    <div className="text-sm">{getTargetUnitName(item.WorkTypeFK)}</div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-gray-600">
@@ -411,20 +418,20 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     <TableCell colSpan={8} className="p-4">
                       <WorkLocationTable
                         majorItemOfWorks={item}
-                        workLocations={getLocationsByParentId(item.ReferenceId)}
+                        workLocations={getLocationsByParentId(item.Id)}
                         onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}
-                        onEdit={(workLocationIndex, workLocation) => 
+                        onEdit={(workLocationIndex, workLocation) =>
                           handleEditWorkLocation(index, workLocationIndex, workLocation)
                         }
                         onDelete={(workLocationIndex) => handleDeleteWorkLocation(index, workLocationIndex)}
                         programDetails={programDetails}
                         infraData={infraData}
-                        infraType={item.InfraType}
-                        workTypeId={item.WorkTypeId}
+                        infraType={item.InfraTypeFK}
+                        workTypeId={item.WorkTypeFK}
                         targetUnit={item.TargetUnit}
-                        maxAmount={getMinMaxAmounts(item.WorkTypeId).max}
-                        minAmount={getMinMaxAmounts(item.WorkTypeId).min}
-                        parentId={item.ReferenceId}
+                        maxAmount={getMinMaxAmounts(item.WorkTypeFK).max}
+                        minAmount={getMinMaxAmounts(item.WorkTypeFK).min}
+                        parentId={item.Id}
                         dropDowns={dropDowns}
                         disabled={false}
                         fieldRules={fieldRules}
@@ -456,8 +463,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         initialData={editingMajorItemIndex !== null ? {
           ComponentId: items[editingMajorItemIndex].ComponentId,
           YearOfWork: items[editingMajorItemIndex].YearOfWork,
-          WorkTypeId: items[editingMajorItemIndex].WorkTypeId,
-          InfraType: items[editingMajorItemIndex].InfraType,
+          WorkTypeId: items[editingMajorItemIndex].WorkTypeFK,
+          InfraType: items[editingMajorItemIndex].InfraTypeFK,
         } : undefined}
         existingMajorItems={items.map(item => ({ ComponentId: item.ComponentId }))}
         programDetails={programDetails}
@@ -472,7 +479,14 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           setMajorItemToDelete(null);
         }}
         onConfirmDelete={handleConfirmDeleteMajorItem}
-        majorItem={majorItemToDelete}
+        majorItem={majorItemToDelete ? {
+          ComponentId: majorItemToDelete.ComponentId,
+          WorkTypeId: majorItemToDelete.WorkTypeFK,
+          YearOfWork: majorItemToDelete.YearOfWork,
+          InfraType: majorItemToDelete.InfraTypeFK,
+          TargetUnit: majorItemToDelete.TargetUnit,
+          MajorItemLocations: majorItemToDelete.MajorItemLocations,
+        } : null}
         deleteIndex={deletingMajorItemIndex}
       />
 

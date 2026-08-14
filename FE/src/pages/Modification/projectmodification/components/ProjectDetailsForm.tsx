@@ -357,38 +357,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className='grid grid-cols-3 gap-5'>
 
-                        <div className='w-full flex flex-col text-left gap-2'>
-                            <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>External ID:</label>
-                                <EditableField field="ExternalId" isFieldEditable={isFieldEditable}>
-                                    {(editable) => (
-                                    <input 
-                                        type="text"
-                                        value={projectDetails?.ExternalId || ''}
-                                        onChange={(e) => handleInputChange('ExternalId', e.target.value)}
-                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.ExternalId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
-                                        disabled={!editable}
-                                    />
-                                    )}
-                                </EditableField>
-                            </div>
-                        </div>
-                        <div className='w-full flex flex-col text-left gap-2'>
-                            <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.UACS ? 'text-red-500' : 'text-gray-600'}`}>OA Project Code (UACS):</label>
-                                <EditableField field="UACS" isFieldEditable={isFieldEditable}>
-                                    {(editable) => (
-                                    <input 
-                                        type="text" 
-                                        value={projectDetails?.UACS || ''}
-                                        onChange={(e) => handleInputChange('UACS', e.target.value)}
-                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.UACS ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
-                                        disabled={!editable}
-                                    />
-                                    )}
-                                </EditableField>
-                            </div>
-                        </div>
+                        {/* ExternalId and UACS were removed from ProjectDetails — see Project/components/ProjectDetailsForm.tsx */}
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className='flex flex-row gap-5 items-center'>
