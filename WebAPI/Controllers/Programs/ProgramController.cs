@@ -4,6 +4,7 @@ using DBHelper.Models.Enums;
 using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Table;
+using DBHelper.Models.Table.Program;
 using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views.Program;
 using DBHelper.Models.Views.Project;
@@ -14,6 +15,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.CodeAnalysis;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using System.ComponentModel;
 using System.Security.Claims;
 using WebAPI.MicroService;
@@ -745,6 +747,16 @@ namespace WebAPI.Controllers.Programs
                     //    CreatedBy = _Session.UserId,
                     //    CreatedDate = CurrentDate,
                     //});
+                    if (ProgramStage.StageId == EnumProgramStage.GAAR && dto.Status == EnumProgramStatus.Approved)
+                    {
+                        var syncPublishableProjects = (
+                            await _db.Database
+                                .SqlQuery<int>(
+                                    $"EXEC dbo.pRecomputeProjectPublishable @ProgramFK = {ProgramParent.ProgramPK}"
+                                )
+                                .ToListAsync()
+                        ).FirstOrDefault();
+                    }
                     await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                     await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
@@ -1344,16 +1356,6 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         };
                         await _db.tProgramStages.AddAsync(newStage);
-                        if(dto.Stage == EnumProgramStage.GAAR)
-                        {
-                            var syncPublishableProjects = (
-                                await _db.Database
-                                    .SqlQuery<int>(
-                                        $"EXEC dbo.pRecomputeProjectPublishable @ProgramFK = {ProgramParent.ProgramPK}"
-                                    )
-                                    .ToListAsync()
-                            ).FirstOrDefault();
-                        }
                         #endregion
                         #endregion
                         await _db.SaveChangesAsync(cancellationToken);
@@ -1478,6 +1480,8 @@ namespace WebAPI.Controllers.Programs
                 var projectRevisions = await _db.vProjectLatest
                     .AsNoTracking()
                     .Where(x =>
+                        x.ProgramId == dto.ProgramId &&
+                        x.StageName == programDetails.StageName &&
                         x.ProjectId != null &&
                         requestedProjectIds.Contains(x.ProjectId))
                     .Select(x => new
@@ -1563,6 +1567,10 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
+                // ====================================================================
+                // VALIDATE REQUEST
+                // ====================================================================
+
                 if (dto == null)
                 {
                     return new BadRequestObjectResult(new
@@ -1571,6 +1579,7 @@ namespace WebAPI.Controllers.Programs
                         Title = "Invalid Request"
                     });
                 }
+
 
                 if (string.IsNullOrWhiteSpace(dto.ProgramId))
                 {
@@ -1581,6 +1590,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
+
                 if (string.IsNullOrWhiteSpace(dto.ProjectIds))
                 {
                     return new BadRequestObjectResult(new
@@ -1590,11 +1600,17 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
+
+                // ====================================================================
+                // GET CURRENT PROGRAM
+                // ====================================================================
+
                 var programDetails = await _db.vProgramLatest
                     .AsNoTracking()
                     .FirstOrDefaultAsync(
                         x => x.ProgramId == dto.ProgramId,
                         cancellationToken);
+
 
                 if (programDetails == null)
                 {
@@ -1603,17 +1619,25 @@ namespace WebAPI.Controllers.Programs
                         Message =
                             $"Program ID '{dto.ProgramId}' does not exist in the Programs table. " +
                             "Please contact the administrator.",
+
                         Title = "Program Not Found"
                     });
                 }
 
+
+                // ====================================================================
+                // VALIDATE PROGRAM / USER / STAGE
+                // ====================================================================
+
                 var validationResult = await _db.ValidateProgramId(
-                new ProgramHelperParams
-                {
-                    ProgramId = dto.ProgramId,
-                    StageName = programDetails.StageName,
-                    _Session = _Session
-                }, cancellationToken);
+                    new ProgramHelperParams
+                    {
+                        ProgramId = dto.ProgramId,
+                        StageName = programDetails.StageName,
+                        _Session = _Session
+                    },
+                    cancellationToken);
+
 
                 if (!validationResult.IsValid)
                 {
@@ -1624,17 +1648,31 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
+
+                // ====================================================================
+                // PARSE PROJECT IDS
+                // ====================================================================
+
                 char[] delimiters =
                 {
-                    ';', ',', ' ', '\n', '\r', '\t'
-                };
+            ';',
+            ',',
+            ' ',
+            '\n',
+            '\r',
+            '\t'
+        };
+
 
                 var requestedProjectIds = dto.ProjectIds
-                    .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
+                    .Split(
+                        delimiters,
+                        StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
+
 
                 if (requestedProjectIds.Length == 0)
                 {
@@ -1645,16 +1683,31 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
-                /*
-                 * Retrieve the matching projects together with their current
-                 * IsPublishable status.
-                 */
+
+                // ====================================================================
+                // GET MATCHING PROJECTS
+                //
+                // IMPORTANT:
+                //
+                // We validate Program + current Stage HERE before passing ProjectIds
+                // to pAllowProjectPublishing.
+                //
+                // This prevents a ProjectId supplied in the request from being sent to
+                // the SP unless it belongs to the Program / Stage being processed.
+                // ====================================================================
+
                 var matchedProjects = await (
                     from revision in _db.vProjectLatest.AsNoTracking()
+
                     join project in _db.tProjects.AsNoTracking()
                         on revision.ProjectPK equals project.ProjectPK
-                    where revision.ProjectId != null
-                          && requestedProjectIds.Contains(revision.ProjectId)
+
+                    where
+                        revision.ProgramId == dto.ProgramId
+                        && revision.StageName == programDetails.StageName
+                        && revision.ProjectId != null
+                        && requestedProjectIds.Contains(revision.ProjectId)
+
                     select new
                     {
                         ProjectId = revision.ProjectId,
@@ -1663,14 +1716,33 @@ namespace WebAPI.Controllers.Programs
                     })
                     .ToListAsync(cancellationToken);
 
+
+                // ====================================================================
+                // PROJECT IDS THAT ACTUALLY EXIST
+                // ====================================================================
+
                 var existingProjectIds = matchedProjects
-                    .Where(x => !string.IsNullOrWhiteSpace(x.ProjectId))
+                    .Where(x =>
+                        !string.IsNullOrWhiteSpace(x.ProjectId))
                     .Select(x => x.ProjectId!)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+
+                // ====================================================================
+                // PROJECT IDS THAT WERE NOT FOUND
+                // ====================================================================
+
                 var missingProjectIds = requestedProjectIds
-                    .Where(id => !existingProjectIds.Contains(id))
+                    .Where(id =>
+                        !existingProjectIds.Contains(id))
                     .ToArray();
+
+
+                // ====================================================================
+                // PROJECTS ALREADY PUBLISHABLE
+                //
+                // No need to send these to pAllowProjectPublishing.
+                // ====================================================================
 
                 var alreadyAllowedProjectIds = matchedProjects
                     .Where(x => x.IsPublishable)
@@ -1678,85 +1750,359 @@ namespace WebAPI.Controllers.Programs
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
 
-                var restrictedProjectPks = matchedProjects
-                    .Where(x => !x.IsPublishable)
-                    .Select(x => x.ProjectPK)
+
+                // ====================================================================
+                // PROJECTS THAT ARE CURRENTLY RESTRICTED
+                //
+                // IMPORTANT:
+                //
+                // pAllowProjectPublishing accepts PROJECT IDS, not ProjectPK values.
+                // ====================================================================
+
+                var restrictedProjectIds = matchedProjects
+                    .Where(x =>
+                        !x.IsPublishable
+                        && !string.IsNullOrWhiteSpace(x.ProjectId))
+                    .Select(x => x.ProjectId!)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
+
+
+                // ====================================================================
+                // NOTHING MATCHED
+                // ====================================================================
 
                 if (matchedProjects.Count == 0)
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "None of the supplied project IDs were found.",
-                        Title = "Projects Not Found",
-                        UpdatedCount = 0,
-                        MissingProjectIds = missingProjectIds
+                        Message =
+                            "None of the supplied project IDs were found.",
+
+                        Title =
+                            "Projects Not Found",
+
+                        UpdatedCount =
+                            0,
+
+                        MissingProjectIds =
+                            missingProjectIds
                     });
                 }
 
-                if (restrictedProjectPks.Length == 0)
+
+                // ====================================================================
+                // EVERYTHING ALREADY ALLOWED
+                // ====================================================================
+
+                if (restrictedProjectIds.Length == 0)
                 {
                     return Ok(new
                     {
                         Message =
                             "No changes were required because all matching projects " +
                             "are already allowed for automatic publication to PCMA.",
-                        Title = "No Changes Required",
-                        UpdatedCount = 0,
-                        MissingProjectIds = missingProjectIds,
-                        AlreadyAllowedProjectIds = alreadyAllowedProjectIds
+
+                        Title =
+                            "No Changes Required",
+
+                        UpdatedCount =
+                            0,
+
+                        MissingProjectIds =
+                            missingProjectIds,
+
+                        AlreadyAllowedProjectIds =
+                            alreadyAllowedProjectIds
                     });
                 }
 
-                var updatedCount = await _db.tProjects
+
+                // ====================================================================
+                // REMEMBER WHICH PROJECTS WERE RESTRICTED BEFORE SP EXECUTION
+                // ====================================================================
+
+                var beforeStatuses = matchedProjects
                     .Where(x =>
-                        restrictedProjectPks.Contains(x.ProjectPK) &&
-                        !x.IsPublishable)
-                    .ExecuteUpdateAsync(
-                        setters => setters.SetProperty(
-                            project => project.IsPublishable,
-                            true),
+                        !x.IsPublishable
+                        && !string.IsNullOrWhiteSpace(x.ProjectId))
+                    .ToDictionary(
+                        x => x.ProjectPK,
+                        x => x.ProjectId!,
+                        StringComparer.OrdinalIgnoreCase);
+
+
+                // ====================================================================
+                // SERIALIZE PROJECT IDS TO JSON
+                //
+                // pAllowProjectPublishing expects:
+                //
+                // [
+                //     "P00000123LZ",
+                //     "P00000124LZ",
+                //     "P00000125LZ"
+                // ]
+                //
+                // JsonConvert is already being used elsewhere in your controller.
+                // ====================================================================
+
+                var projectIdsJson =
+                    JsonConvert.SerializeObject(
+                        restrictedProjectIds);
+
+
+                Console.WriteLine(
+                    $">>> pAllowProjectPublishing ProjectIds = {projectIdsJson}");
+
+
+                // ====================================================================
+                // TRANSACTION
+                // ====================================================================
+
+                await using var transaction =
+                    await _db.Database.BeginTransactionAsync(
                         cancellationToken);
+
+
+                // ====================================================================
+                // CALL pAllowProjectPublishing
+                //
+                // IMPORTANT:
+                //
+                // We do NOT use:
+                //
+                // SqlQuery<int>()
+                //
+                // because pAllowProjectPublishing returns multiple result sets:
+                //
+                // 1. Summary
+                // 2. Detailed project validation
+                //
+                // For this endpoint we do not need to consume those result sets.
+                // We re-query tProjects afterward to determine exactly which projects
+                // became publishable.
+                //
+                // ExecuteSqlInterpolatedAsync also parameterizes projectIdsJson.
+                // ====================================================================
+
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+            EXEC dbo.pAllowProjectPublishing
+                @ProjectIds = {projectIdsJson}
+            """,
+                    cancellationToken);
+
+
+                // ====================================================================
+                // RE-QUERY AFTER SP
+                //
+                // AsNoTracking ensures we get the current database IsPublishable value.
+                // ====================================================================
+
+                var recomputedProjects = await (
+                    from revision in _db.vProjectLatest.AsNoTracking()
+
+                    join project in _db.tProjects.AsNoTracking()
+                        on revision.ProjectPK equals project.ProjectPK
+
+                    where
+                        revision.ProgramId == dto.ProgramId
+                        && revision.StageName == programDetails.StageName
+                        && revision.ProjectId != null
+                        && requestedProjectIds.Contains(revision.ProjectId)
+
+                    select new
+                    {
+                        ProjectId = revision.ProjectId,
+                        ProjectPK = project.ProjectPK,
+                        project.IsPublishable
+                    })
+                    .ToListAsync(cancellationToken);
+
+
+                // ====================================================================
+                // COMMIT
+                // ====================================================================
+
+                await transaction.CommitAsync(
+                    cancellationToken);
+
+
+                // ====================================================================
+                // PROJECTS SUCCESSFULLY RESTORED
+                //
+                // These were:
+                //
+                // BEFORE = IsPublishable false
+                // AFTER  = IsPublishable true
+                // ====================================================================
+
+                var restoredProjectIds = recomputedProjects
+                    .Where(x =>
+                        beforeStatuses.ContainsKey(x.ProjectPK)
+                        && x.IsPublishable)
+                    .Select(x => x.ProjectId!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+
+                // ====================================================================
+                // PROJECTS THAT FAILED pAllowProjectPublishing VALIDATION
+                //
+                // These remain:
+                //
+                // IsPublishable = false
+                // ====================================================================
+
+                var notRestoredProjectIds = recomputedProjects
+                    .Where(x =>
+                        beforeStatuses.ContainsKey(x.ProjectPK)
+                        && !x.IsPublishable)
+                    .Select(x => x.ProjectId!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+
+                var updatedCount =
+                    restoredProjectIds.Length;
+
+
+                // ====================================================================
+                // NONE PASSED VALIDATION
+                // ====================================================================
 
                 if (updatedCount == 0)
                 {
-                    return BadRequest(new
+                    return Ok(new
                     {
                         Message =
-                            "Matching restricted projects were found, but no project record was updated.",
-                        Title = "No Projects Updated",
-                        UpdatedCount = 0
+                            "No selected project became publishable. " +
+                            "Projects that still fail publishability validation " +
+                            "remain excluded from automatic publication to PCMA.",
+
+                        Title =
+                            "No Projects Restored",
+
+                        UpdatedCount =
+                            0,
+
+                        RestoredProjectIds =
+                            restoredProjectIds,
+
+                        NotRestoredProjectIds =
+                            notRestoredProjectIds,
+
+                        MissingProjectIds =
+                            missingProjectIds,
+
+                        AlreadyAllowedProjectIds =
+                            alreadyAllowedProjectIds
                     });
                 }
+
+
+                // ====================================================================
+                // SOME REQUESTED IDS WERE NOT FOUND
+                // ====================================================================
 
                 if (missingProjectIds.Length > 0)
                 {
                     return Ok(new
                     {
                         Message =
-                            $"{updatedCount} project(s) were restored for automatic publication " +
-                            "to PCMA. Some project IDs were not found.",
-                        Title = "Undo Restriction Partially Successful",
-                        UpdatedCount = updatedCount,
-                        MissingProjectIds = missingProjectIds,
-                        AlreadyAllowedProjectIds = alreadyAllowedProjectIds
+                            $"{updatedCount} project(s) were restored for automatic " +
+                            "publication to PCMA. Some project IDs were not found.",
+
+                        Title =
+                            "Undo Restriction Partially Successful",
+
+                        UpdatedCount =
+                            updatedCount,
+
+                        RestoredProjectIds =
+                            restoredProjectIds,
+
+                        NotRestoredProjectIds =
+                            notRestoredProjectIds,
+
+                        MissingProjectIds =
+                            missingProjectIds,
+
+                        AlreadyAllowedProjectIds =
+                            alreadyAllowedProjectIds
                     });
                 }
+
+
+                // ====================================================================
+                // SOME PROJECTS EXISTED BUT FAILED VALIDATION
+                // ====================================================================
+
+                if (notRestoredProjectIds.Length > 0)
+                {
+                    return Ok(new
+                    {
+                        Message =
+                            $"{updatedCount} project(s) were restored for automatic " +
+                            "publication to PCMA. Some projects remain restricted " +
+                            "because they failed publishability validation.",
+
+                        Title =
+                            "Undo Restriction Partially Successful",
+
+                        UpdatedCount =
+                            updatedCount,
+
+                        RestoredProjectIds =
+                            restoredProjectIds,
+
+                        NotRestoredProjectIds =
+                            notRestoredProjectIds,
+
+                        MissingProjectIds =
+                            missingProjectIds,
+
+                        AlreadyAllowedProjectIds =
+                            alreadyAllowedProjectIds
+                    });
+                }
+
+
+                // ====================================================================
+                // SUCCESS
+                // ====================================================================
 
                 return Ok(new
                 {
                     Message =
-                        $"{updatedCount} project(s) were restored for automatic publication to PCMA.",
-                    Title = "Undo Restriction Successful",
-                    UpdatedCount = updatedCount,
-                    MissingProjectIds = Array.Empty<string>(),
-                    AlreadyAllowedProjectIds = alreadyAllowedProjectIds
+                        $"{updatedCount} project(s) were restored for automatic " +
+                        "publication to PCMA.",
+
+                    Title =
+                        "Undo Restriction Successful",
+
+                    UpdatedCount =
+                        updatedCount,
+
+                    RestoredProjectIds =
+                        restoredProjectIds,
+
+                    NotRestoredProjectIds =
+                        Array.Empty<string>(),
+
+                    MissingProjectIds =
+                        Array.Empty<string>(),
+
+                    AlreadyAllowedProjectIds =
+                        alreadyAllowedProjectIds
                 });
             }
             catch (Exception ex)
             {
-                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+                return _exceptionHandler.Handle(
+                    ex,
+                    dto,
+                    _Session.UserId.ToString());
             }
         }
 

@@ -24,9 +24,13 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      // Match optimizeDeps.esbuildOptions.target above — es2020 downlevels native
+      // class fields to __publicField() helper calls, which can split a dep's
+      // helper-defining chunk from its helper-calling chunk (hit with maplibre-gl's
+      // worker bundle: "ReferenceError: <helper> is not defined" at runtime).
       target: 'es2022',
       outDir: '../Main/wwwroot/',
-    },	
+    },
     server: {
       host: "::",
       port: 8080,
