@@ -18,10 +18,6 @@ type Params = {
   stageId?: number;
   createdBy?: string | null;
   currentUserId?: string | null;
-  // Formal Revision can only be requested against a Project already published to PCMA
-  // (revision-frontend-integration-handoff.md section 2.1). Only gates first-time submission —
-  // approve/resubmit act on a revision that necessarily already passed this gate.
-  isPublished?: boolean;
 
   loading: {
     revise?: boolean;
@@ -48,13 +44,12 @@ export const getRevisionActions = ({
   coStatus,
   createdBy,
   currentUserId,
-  isPublished,
   loading,
   actions,
 }: Params): RevisionAction[] => [
   // --- AUC ---
   {
-    show: isEdit && userGroups?.find(g => g === 'AUC') && regionStatus == null && isPublished,
+    show: isEdit && userGroups?.find(g => g === 'AUC') && regionStatus == null,
     color: 'green',
     label: 'Submit Revision Request to CO',
     loading: loading.revise,
@@ -84,7 +79,7 @@ export const getRevisionActions = ({
 
   // --- RPC ---
   {
-    show: isEdit && userGroups?.find(g => g === 'RPC') && regionStatus == null && isPublished,
+    show: isEdit && userGroups?.find(g => g === 'RPC') && regionStatus == null,
     color: 'green',
     label: 'Submit Revision Request to CO',
     loading: loading.revise,
@@ -114,7 +109,7 @@ export const getRevisionActions = ({
 
   // --- DPC ---
   {
-    show: isEdit && userGroups?.find(g => g === 'DPC') && regionStatus == null && isPublished,
+    show: isEdit && userGroups?.find(g => g === 'DPC') && regionStatus == null,
     color: 'green',
     label: 'Submit Revision Request to RO',
     loading: loading.revise,

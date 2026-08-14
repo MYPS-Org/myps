@@ -7,15 +7,13 @@ import DocumentArrowUpIcon from '@heroicons/react/24/outline/DocumentArrowUpIcon
 import DocumentIcon from '@heroicons/react/24/outline/DocumentIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import type { ProjectDetails } from '../../Project/Model';
-import type { FileUpload } from '../Model';
 import { EnumRevisionStatus } from '../Model';
 import { useAtomValue } from 'jotai';
 import { transactionIdAtom } from '../store/routeContextStore';
 import { updateRevisionRequestStatus } from '../Service';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-
-const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB, matches backend's max upload size
+import { usePdfUpload } from '../hooks/usePdfUpload';
 
 interface ApproveModifyDialogProps {
     isOpen: boolean;
@@ -40,45 +38,11 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
     const navigate = useNavigate();
     const { user } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [approvalDocument, setApprovalDocument] = useState<FileUpload | null>(null);
+    const { file: approvalDocument, handleFileChange } = usePdfUpload();
     const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
 
     // CO (AUC) approval requires an approval document; RO (RPC) approval does not.
     const isCentralOffice = !!user?.UserGroupNames.find((x) => x === 'AUC');
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.type !== 'application/pdf') {
-                showToast({
-                    type: 'error',
-                    message: 'Please select a PDF file only.'
-                });
-                e.target.value = '';
-                return;
-            }
-
-            if (file.size > MAX_FILE_SIZE_BYTES) {
-                showToast({
-                    type: 'error',
-                    message: 'File size must not exceed 50 MB.'
-                });
-                e.target.value = '';
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setApprovalDocument({
-                    Name: file.name,
-                    Extension: file.name.split('.').pop() || '',
-                    ContentType: file.type,
-                    DataUrl: reader.result as string,
-                });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 
     const handleApprove = async () => {
         if (isCentralOffice && !approvalDocument) {

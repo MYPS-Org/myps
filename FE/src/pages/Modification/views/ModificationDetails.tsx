@@ -78,6 +78,7 @@ const ModificationDetails: React.FC = () => {
 
     
     const fetchProjectDetails = useCallback(async (projectId: string, stageName: string) => {
+        setBlockingError(null);
         try {
             const response = await fetchRevisionData(
                 projectId,

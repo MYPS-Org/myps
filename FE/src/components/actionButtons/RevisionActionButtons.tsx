@@ -43,7 +43,6 @@ export const RevisionActionButtons = ({
     stageId: initialData?.ProgramDetails?.StageId,
     createdBy: initialData?.RevisionDetails?.CreatedBy,
     currentUserId,
-    isPublished: initialData?.ProjectDetails?.IsPublished,
     loading,
     actions,
   });
