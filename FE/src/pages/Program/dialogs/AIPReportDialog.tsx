@@ -47,15 +47,15 @@ const RDIP_REPORT_TYPES: ReportTypeOption[] = [
 
 /**
  * Returns available report types based on the program's current stage ID.
- *  - AIP / AIP02:                    stageId <= 4 OR stageId >= 10
- *  - RBP / RBPComponents / RBPTier:  stageId === 4
- *  - RDIP:                           stageId >= 2
+ *  - AIP / AIP02:                    stageId <= 4 OR stageId === 7 OR stageId >= 10
+ *  - RBP / RBPComponents / RBPTier:  stageId === 3 OR stageId === 7
+ *  - RDIP:                           stageId <= 2 OR stageId === 7
  */
 function getAvailableReportTypes(stageId: number): ReportTypeOption[] {
   const types: ReportTypeOption[] = [];
-  if (stageId <= 4 || stageId >= 10) types.push(...AIP_REPORT_TYPES);
-  if (stageId === 3) types.push(...RBP_REPORT_TYPES);
-  if (stageId <= 2) types.push(...RDIP_REPORT_TYPES);
+  if (stageId <= 4 || stageId === 7 || stageId >= 10) types.push(...AIP_REPORT_TYPES);
+  if (stageId === 3 || stageId === 7) types.push(...RBP_REPORT_TYPES);
+  if (stageId <= 2 || stageId === 7) types.push(...RDIP_REPORT_TYPES);
   return types;
 }
 

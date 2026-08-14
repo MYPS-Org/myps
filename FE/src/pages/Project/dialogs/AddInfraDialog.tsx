@@ -93,8 +93,8 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
                 <TableHeader>Select</TableHeader>
                 <TableHeader>Section ID</TableHeader>
                 <TableHeader>Road ID</TableHeader>
-                <TableHeader>DEO</TableHeader>
-                <TableHeader>Length (m)</TableHeader>
+                {/* <TableHeader>DEO</TableHeader> */}
+                {/* <TableHeader>Length (m)</TableHeader> */}
                 <TableHeader>Network Status</TableHeader>
               </TableRow>
             </TableHead>

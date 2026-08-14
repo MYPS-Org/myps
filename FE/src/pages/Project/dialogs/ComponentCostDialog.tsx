@@ -545,7 +545,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     onChange={(e) => handleChange('Description', e.target.value)}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter description..."
+                    placeholder="Auto Generated Description upon saving major item location"
                     disabled
                     />
                 </div>
