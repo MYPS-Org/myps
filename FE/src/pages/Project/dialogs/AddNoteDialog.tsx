@@ -105,6 +105,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
             Id: 0, // Will be set by server
             ProjectId: projectId,
             DocumentType: docTypeName || formData.DocumentType,
+            Code: docTypeFK || '',
             DocTypeFK: docTypeFK || '',
             Description: formData.Description,
             FileName: formData.File?.Name || '',
@@ -176,7 +177,6 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
               onChange={e => handleChange('Description', e.target.value)}
               placeholder="Note description"
               className="w-full border rounded p-2"
-              required
             />
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">

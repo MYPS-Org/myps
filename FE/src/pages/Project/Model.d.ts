@@ -375,6 +375,7 @@ export interface ProjectNote {
 export interface ProjectSupportingDocs {
 	Id: number;
 	DocumentType: string;
+	Code: string;
 	DocTypeFK: string;
 	ProjectId: string;
 	StageName?: string;
