@@ -8,7 +8,7 @@ import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 import { XMarkIcon } from '@heroicons/react/20/solid';
 import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
 import { fetchModificationList } from '../Service';
-import type { RevisionFilter, RevisionLists } from '../Model.d';
+import type { RevisionFilter, RevisionLists } from '../Model';
 import { usePagination } from '../../../hooks/usePagination';
 import { getRevisionNavigationPath, parseTransactionId } from '../utils/revisionNavigation';
 

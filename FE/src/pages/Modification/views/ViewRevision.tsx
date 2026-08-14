@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchReviseProjectDetails } from '../Service';
-import type { RevisionProjectPayload } from '../Model.d';
+import type { RevisionProjectPayload } from '../Model';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { Button } from '../../../components/tailwindui/button';
 import { ArrowLeftIcon } from '@heroicons/react/20/solid';
