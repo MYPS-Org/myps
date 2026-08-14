@@ -131,9 +131,23 @@ namespace WebAPI.Controllers.Revision
                 //dto.OperatingUnitName = "";
                 //dto.LegislativeDistrictName = "";
 
-                var programDetailsQuery = _db.fProgramStages
-                .AsNoTracking()
-                .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
+                var stageName = dto.StageName.Replace("-", "");
+
+                if (!Enum.TryParse<EnumProgramStage>(
+                        stageName,
+                        true,
+                        out var SelectedStage))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Invalid program stage '{dto.StageName}'.",
+                        Title = "Invalid Program Stage"
+                    });
+                }
+                // Numeric value
+                int selectedStageValue = (int)SelectedStage;
+                var programDetailsQuery = _db.fProgramDetails.FromSqlInterpolated($"SELECT * FROM fProgramDetails({dto.ProgramId}, {selectedStageValue})")
+                .AsNoTracking();
 
                 if (_Session.ApplyFilter)
                 {
@@ -285,10 +299,23 @@ namespace WebAPI.Controllers.Revision
                 //dto.ImplementingOfficeName = "";
                 //dto.OperatingUnitName = "";
                 //dto.LegislativeDistrictName = "";
-                var ProgramDetails = _db.fProgramStages
-                .AsNoTracking()
-                .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
+                var stageName = dto.StageName.Replace("-", "");
 
+                if (!Enum.TryParse<EnumProgramStage>(
+                        stageName,
+                        true,
+                        out var SelectedStage))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Invalid program stage '{dto.StageName}'.",
+                        Title = "Invalid Program Stage"
+                    });
+                }
+                // Numeric value
+                int selectedStageValue = (int)SelectedStage;
+                var ProgramDetails = _db.fProgramDetails.FromSqlInterpolated($"SELECT * FROM fProgramDetails({dto.ProgramId}, {selectedStageValue})")
+                .AsNoTracking();
                 if (_Session.ApplyFilter)
                 {
                     ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
