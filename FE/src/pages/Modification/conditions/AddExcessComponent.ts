@@ -1,8 +1,12 @@
 import type { ComponentCost } from '../../Project/Model';
+import { generateTempId } from '../../../utils/GlobalFunctions';
 
 const addExcessComponent = (
     params: {
         projectId: string;
+        projectFK?: string;
+        projectRevisionFK?: number;
+        source?: string;
         stageName: string;
         amount: number;
         description?: string;
@@ -11,8 +15,10 @@ const addExcessComponent = (
 ): ComponentCost => {
     const now = new Date().toISOString();
     return {
-        Id: 0,
-        CostId: '',
+        Id: generateTempId(),
+        Source: params.source ?? '',
+        ProjectRevisionFK: params.projectRevisionFK ?? 0,
+        ProjectFK: params.projectFK ?? '',
         ProjectId: params.projectId,
         StageName: params.stageName,
         ComponentType: 'Excess',

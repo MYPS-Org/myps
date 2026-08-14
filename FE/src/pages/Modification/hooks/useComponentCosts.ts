@@ -40,11 +40,9 @@ export function useComponentCosts() {
   const update = useCallback((componentId: string, updated: ComponentCost, costPerYear?: ComponentCostPerYear[]) => {
     setCosts(prev => prev.map(c => c.ComponentId === componentId ? updated : c));
     if (costPerYear !== undefined) {
-      // Use the CostId from the updated cost to filter per-year entries,
-      // because ComponentCostPerYear.ComponentCostId links to ComponentCost.CostId (not ComponentId)
-      const costId = updated.CostId || componentId;
+      // ComponentCostPerYear.ComponentCostFK links to ComponentCost.Id (not ComponentId)
       setCostPerYear(prev => [
-        ...prev.filter(c => c.ComponentCostId !== costId),
+        ...prev.filter(c => c.ComponentCostFK !== updated.Id),
         ...costPerYear
       ]);
     }
@@ -82,10 +80,10 @@ export function useComponentCosts() {
       setIsDeleting(true);
 
       const hasDbId = selectedForDelete.Id && selectedForDelete.Id > 0;
-      const costId = selectedForDelete.CostId;
+      const costFK = selectedForDelete.Id;
       const componentId = selectedForDelete.ComponentId;
 
-      // Step 1: Delete ComponentCost itself — hard if Id===0, soft if Id>0
+      // Step 1: Delete ComponentCost itself — hard if Id<=0 (unsaved), soft if Id>0
       if (!hasDbId) {
         setCosts(prev => prev.filter((_, i) => i !== deleteIndex));
       } else {
@@ -94,31 +92,30 @@ export function useComponentCosts() {
         ));
       }
 
-      // Step 2: Cascade to ComponentCostPerYear — hard-delete Id===0, soft-delete Id>0
+      // Step 2: Cascade to ComponentCostPerYear — hard-delete Id<=0, soft-delete Id>0
       setCostPerYear(prev =>
         prev
-          .filter(c => !(c.ComponentCostId === costId && c.Id === 0))
+          .filter(c => !(c.ComponentCostFK === costFK && c.Id <= 0))
           .map(c =>
-            c.ComponentCostId === costId
+            c.ComponentCostFK === costFK
               ? { ...c, IsDeleted: true }
               : c
           )
       );
 
       // Step 3: Cascade to MajorItems and their Locations
-      const relatedRefIds = new Set(
+      const relatedItemIds = new Set(
         currentMajorItems
           .filter(item => item.ComponentId === componentId && !item.IsDeleted)
-          .map(item => item.ReferenceId)
-          .filter(Boolean)
+          .map(item => item.Id)
       );
 
-      // Step 3a: Locations — hard-delete Id===0, soft-delete Id>0
+      // Step 3a: Locations — hard-delete Id<=0, soft-delete Id>0
       setLocationsAtom(prev =>
         prev
-          .filter(loc => !(relatedRefIds.has(loc.ParentId) && loc.Id === 0))
+          .filter(loc => !(relatedItemIds.has(loc.WorkItemFK) && loc.Id <= 0))
           .map(loc =>
-            relatedRefIds.has(loc.ParentId)
+            relatedItemIds.has(loc.WorkItemFK)
               ? { ...loc, IsDeleted: true }
               : loc
           )
@@ -128,10 +125,10 @@ export function useComponentCosts() {
       setMajorItemsAtom(prev => {
         const updated = prev.map(item => {
           if (item.ComponentId !== componentId || item.IsDeleted) return item;
-          if (item.Id === 0) {
+          if (item.Id <= 0) {
             // Hard-delete only if no DB-persisted locations exist for this item
             const hasDbLocations = currentLocations.some(
-              loc => loc.ParentId === item.ReferenceId && loc.Id > 0
+              loc => loc.WorkItemFK === item.Id && loc.Id > 0
             );
             if (!hasDbLocations) return null;
           }

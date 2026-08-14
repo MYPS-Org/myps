@@ -75,7 +75,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
   const isDisabled = Boolean(
     (initialData?.IsActive === false) ||
-    (Number(initialData?.ProgramDetails?.StageId) === 10 && Number(initialData?.ProgramDetails?.Status) === 1)
+    (initialData?.ProgramDetails?.StageName === 'GAA-R' && Number(initialData?.ProgramDetails?.Status) === 1)
   );
 
   // toggle state for Program Details section
@@ -858,6 +858,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
           Source: projectDetails.Source || 'Base',
+          ProjectRevisionFK: cost.ProjectRevisionFK,
           ProjectFK: projectDetails.ProjectFK,
           ProjectId: cost.ProjectId,
           StageName: initialData?.ProgramDetails?.StageName,
@@ -1006,14 +1007,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
           <div className="flex flex-end fixed top-2 right-25 z-50 gap-2 items-center">
-              {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
+              {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageName !== 'GAA-R' && (
                 <>
                   <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
                     {updateUnlockProject ? 'Unlocking...' : 'UnLock Project'}
                   </Button>
                 </>
               )}
-              {mode === 'edit' && initialData?.ProgramDetails?.StageId !== 10 && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
+              {mode === 'edit' && initialData?.ProgramDetails?.StageName !== 'GAA-R' && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
                 <Button
                   color="blue"
                   className="cursor-pointer"
@@ -1030,7 +1031,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </Button> 
                 </>
               )}
-              {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && Number(initialData?.ProgramDetails?.Status) === 1 && (
+              {mode === 'edit' && initialData?.ProgramDetails?.StageName === 'GAA-R' && Number(initialData?.ProgramDetails?.Status) === 1 && (
                 <Menu as="div" className="relative inline-block text-left">
                   <MenuButton
                     as={Button}

@@ -10,6 +10,7 @@ import {
     MajorItemOfWorksWithDropdownAtom,
     ScopeOfWorkEnumAtom
 } from "../atoms/majorItemOfWorks.atom"
+import { generateTempId } from "../../../utils/GlobalFunctions";
 
 export const useMajorItemOfWorks = () => {
     const [, setItems] = useAtom(MajorItemOfWorksAtom);
@@ -36,13 +37,16 @@ export const useMajorItemOfWorks = () => {
 
     const addMajorItem = (item?: MajorItemOfWorksWithDropdown) => {
         const newItem = item ?? {
-            Id: 0,
+            Id: generateTempId(),
+            Source: '',
+            ComponentCostFK: 0,
+            ProjectFK: '',
             ProjectId: '',
-            ReferenceId: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            StageName: '',
             ComponentId: '',
             YearOfWork: 0,
-            WorkTypeId: 0,
-            InfraType: '',
+            WorkTypeFK: 0,
+            InfraTypeFK: '',
             TargetUnitId: 0,
             TargetUnit: '',
             CreatedBy: '',
@@ -51,12 +55,15 @@ export const useMajorItemOfWorks = () => {
 
         setItems(prev => [...prev, {
             Id: newItem.Id,
+            Source: newItem.Source,
+            ComponentCostFK: newItem.ComponentCostFK,
+            ProjectFK: newItem.ProjectFK,
             ProjectId: newItem.ProjectId,
-            ReferenceId: newItem.ReferenceId,
+            StageName: newItem.StageName,
             ComponentId: newItem.ComponentId,
             YearOfWork: newItem.YearOfWork,
-            WorkTypeId: newItem.WorkTypeId,
-            InfraType: newItem.InfraType,
+            WorkTypeFK: newItem.WorkTypeFK,
+            InfraTypeFK: newItem.InfraTypeFK,
             TargetUnitId: newItem.TargetUnitId,
             TargetUnit: newItem.TargetUnit,
             CreatedBy: newItem.CreatedBy,
@@ -73,12 +80,15 @@ export const useMajorItemOfWorks = () => {
             i === index
                 ? {
                     Id: updatedItem.Id,
+                    Source: updatedItem.Source,
+                    ComponentCostFK: updatedItem.ComponentCostFK,
+                    ProjectFK: updatedItem.ProjectFK,
                     ProjectId: updatedItem.ProjectId,
-                    ReferenceId: updatedItem.ReferenceId,
+                    StageName: updatedItem.StageName,
                     ComponentId: updatedItem.ComponentId,
                     YearOfWork: updatedItem.YearOfWork,
-                    WorkTypeId: updatedItem.WorkTypeId,
-                    InfraType: updatedItem.InfraType,
+                    WorkTypeFK: updatedItem.WorkTypeFK,
+                    InfraTypeFK: updatedItem.InfraTypeFK,
                     TargetUnitId: updatedItem.TargetUnitId,
                     TargetUnit: updatedItem.TargetUnit,
                     CreatedBy: updatedItem.CreatedBy,
@@ -96,20 +106,19 @@ export const useMajorItemOfWorks = () => {
         const itemToDelete = prev[index];
         if (!itemToDelete) return prev;
 
-        const refId = itemToDelete.ReferenceId;
-        if (!refId) return prev;
+        const itemId = itemToDelete.Id;
 
         // Check if any DB-persisted locations exist for this item
-        const hasDbLocations = currentLocations.some(l => l.ParentId === refId && l.Id > 0);
+        const hasDbLocations = currentLocations.some(l => l.WorkItemFK === itemId && l.Id > 0);
 
-        // Process locations: hard-delete Id===0, soft-delete Id>0
+        // Process locations: hard-delete Id<=0, soft-delete Id>0
         setLocations(locs =>
           locs
-            .filter(l => !(l.ParentId === refId && l.Id === 0))
-            .map(l => l.ParentId === refId ? { ...l, IsDeleted: true } : l)
+            .filter(l => !(l.WorkItemFK === itemId && l.Id <= 0))
+            .map(l => l.WorkItemFK === itemId ? { ...l, IsDeleted: true } : l)
         );
 
-        if (itemToDelete.Id === 0 && !hasDbLocations) {
+        if (itemToDelete.Id <= 0 && !hasDbLocations) {
           // Fully unsaved — hard delete the item
           return prev.filter((_, i) => i !== index);
         }

@@ -12,6 +12,7 @@ import { useAtomValue } from 'jotai';
 import { componentCostsAtom } from '../atoms/componentCosts.atom';
 import { MajorItemLocationsAtom } from '../atoms/majorItemLocations.atom';
 import '../../../utils/GlobalFunctions';
+import { generateTempId } from '../../../utils/GlobalFunctions';
 import { autoFillComponentDescription } from '../../Project/Service';
 
 interface ComponentCostDialogProps {
@@ -54,10 +55,15 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  // The backend re-derives ProjectRevisionFK server-side on save — we just carry
+  // through whatever value existing rows already have so new rows aren't missing it.
+  const defaultProjectRevisionFK = componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK || 0;
   const [formData, setFormData] = useState<ComponentCost>({
     Id: 0,
+    Source: '',
+    ProjectRevisionFK: defaultProjectRevisionFK,
+    ProjectFK: '',
     ProjectId: ProjectId,
-    CostId: '',
     ComponentType: '',
     ComponentId: '',
     Description: '',
@@ -234,7 +240,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     const baseYear = programDetails?.StartYear || new Date().getFullYear();
     const newPerYearCost: ComponentCostPerYear = {
       Id: 0,
-      ComponentCostId: formData.CostId,
+      Source: '',
+      // Real ComponentCost.Id when editing an existing component; 0 for a
+      // brand-new component, which the backend correlates by ComponentId instead.
+      ComponentCostFK: formData.Id,
+      ProjectFK: '',
+      ProjectId: formData.ProjectId,
+      ComponentId: formData.ComponentId,
       Amount: 0,
       Year: baseYear + nonDeletedCosts.length,
       StartDate: null,
@@ -283,8 +295,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     if (editingCost && mode === 'edit') {
       setFormData({
         Id: editingCost.Id ?? 0,
+        Source: editingCost.Source ?? '',
+        ProjectRevisionFK: editingCost.ProjectRevisionFK ?? defaultProjectRevisionFK,
+        ProjectFK: editingCost.ProjectFK ?? '',
         ProjectId: editingCost.ProjectId ?? ProjectId,
-        CostId: editingCost.CostId ?? editingCost.ComponentId ?? '',
         ComponentType: editingCost.ComponentType ?? '',
         ComponentId: editingCost.ComponentId ?? '',
         Description: editingCost.Description ?? '',
@@ -296,19 +310,22 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         UpdatedBy: editingCost.UpdatedBy ?? '',
         UpdatedDate: editingCost.UpdatedDate ?? new Date().toISOString(),
       });
-      
+
       // Set per-year costs if editing
       if (editingCostPerYear) {
         setComponentCostPerYear(editingCostPerYear.filter(cost => !cost.IsDeleted));
       }
       isInitializedRef.current = true;
     } else if (mode === 'add') {
-      // Reset form for new entry
-      const tempComponentId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Reset form for new entry. Unique (negative) temp Id so this staged cost stays
+      // distinguishable from any other unsaved cost already sitting in componentCostsAtom —
+      // ComponentCostPerYear rows link back to it via ComponentCostFK.
       setFormData({
-        Id: 0,
+        Id: generateTempId(),
+        Source: '',
+        ProjectRevisionFK: defaultProjectRevisionFK,
+        ProjectFK: '',
         ProjectId: ProjectId,
-        CostId: tempComponentId, // Temporary ID for new entries
         ComponentType: '',
         ComponentId: '',
         Description: '',
@@ -392,7 +409,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           }
         }
 
-        if(formData.Total < 0) {
+        if((formData.Total || 0) < 0) {
           const confirmMessage = 'The total cost for this component is negative. Are you sure you want to save?';
           if (!window.confirm(confirmMessage)) {
             return;
@@ -422,8 +439,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         // Create ComponentCost object
         const componentCostData: ComponentCost = {
           Id: formData.Id,
+          Source: formData.Source,
+          ProjectRevisionFK: formData.ProjectRevisionFK,
+          ProjectFK: formData.ProjectFK,
           ProjectId: formData.ProjectId,
-          CostId: formData.CostId,
           ComponentType: formData.ComponentType,
           ComponentId: formData.ComponentId,
           Description: formData.Description,
@@ -441,7 +460,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         const perYearCosts = componentCostPerYear
           .map(cost => ({
             ...cost,
-            ComponentCostId: formData.CostId,
+            ComponentCostFK: formData.Id,
+            ComponentId: formData.ComponentId,
             CreatedBy: cost.CreatedBy || user?.UserId || '',
             UpdatedBy: user?.UserId || '',
             UpdatedDate: new Date().toISOString(),
@@ -460,11 +480,12 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   };
 
     const handleReset = () => {
-        const tempCostId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         setFormData({
-            Id: 0,
+            Id: generateTempId(),
+            Source: '',
+            ProjectRevisionFK: defaultProjectRevisionFK,
+            ProjectFK: '',
             ProjectId: '',
-            CostId: tempCostId,
             ComponentType: '',
             ComponentId: '',
             Description: '',
@@ -734,19 +755,19 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-gray-700">Total Cost:</span>
                             <span className={`text-lg font-semibold ${
-                                remainingBudget !== null && formData.Total > remainingBudget 
-                                    ? 'text-red-600' 
+                                remainingBudget !== null && (formData.Total || 0) > remainingBudget
+                                    ? 'text-red-600'
                                     : 'text-blue-600'
                             }`}>
-                                ₱{formData.Total.toLocaleString('en-PH')}
+                                ₱{(formData.Total || 0).toLocaleString('en-PH')}
                             </span>
                         </div>
                         {remainingBudget !== null && (
                             <div className="text-xs text-gray-500 mt-1">
                                 Remaining budget: ₱{remainingBudget.toLocaleString('en-PH')}
-                                {formData.Total > remainingBudget && (
+                                {(formData.Total || 0) > remainingBudget && (
                                     <span className="text-red-500 block">
-                                        Exceeds by ₱{(formData.Total - remainingBudget).toLocaleString('en-PH')}
+                                        Exceeds by ₱{((formData.Total || 0) - remainingBudget).toLocaleString('en-PH')}
                                     </span>
                                 )}
                             </div>

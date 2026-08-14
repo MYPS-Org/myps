@@ -109,7 +109,7 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Infrastructure Type:</span>
-                  <span className="font-medium">{majorItemToCopy.InfraType}</span>
+                  <span className="font-medium">{majorItemToCopy.InfraTypeFK}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Work Locations:</span>

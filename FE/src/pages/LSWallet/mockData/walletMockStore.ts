@@ -528,8 +528,10 @@ export const importItemizedProjects = (dto: DtoImportItemizedProjects): Itemized
       if (!costMap.has(costId)) {
         costMap.set(costId, {
           Id: _nextSyntheticId++,
+          Source: 'Import',
+          ProjectRevisionFK: 0,
+          ProjectFK: projectId,
           ProjectId: projectId,        // generated ID replaces Excel placeholder
-          CostId: costId,
           ComponentType: ic.ComponentType,
           ComponentId: ic.ComponentId,
           Description: ic.Description,
@@ -539,11 +541,16 @@ export const importItemizedProjects = (dto: DtoImportItemizedProjects): Itemized
           CreatedDate: now,
         });
       }
-      costMap.get(costId)!.Total += ic.Total;
+      const costEntry = costMap.get(costId)!;
+      costEntry.Total = (costEntry.Total ?? 0) + ic.Total;
 
       perYearRows.push({
         Id: _nextSyntheticId++,
-        ComponentCostId: costId,
+        Source: 'Import',
+        ComponentCostFK: costEntry.Id,
+        ProjectFK: projectId,
+        ProjectId: projectId,
+        ComponentId: ic.ComponentId,
         Amount: ic.Total,
         Year: ic.ActivityYear,
         StartDate: ic.StartDate ?? null,
@@ -568,37 +575,46 @@ export const importItemizedProjects = (dto: DtoImportItemizedProjects): Itemized
       if (!workMap.has(refId)) {
         workMap.set(refId, {
           Id: _nextSyntheticId++,
+          Source: 'Import',
+          ComponentCostFK: costMap.get(`${projectId}-${mi.ComponentId}`)?.Id ?? 0,
+          ProjectFK: projectId,
           ProjectId: projectId,
-          ReferenceId: refId,
+          StageName: '',
           ComponentId: mi.ComponentId,
           YearOfWork: mi.ActivityYear ?? 0,
-          // WorkTypeId and InfraType require lookup resolution that the mock
+          // WorkTypeFK and InfraTypeFK require lookup resolution that the mock
           // cannot perform without the enum tables. The real API resolves these.
-          WorkTypeId: 0,
-          InfraType: '',
+          WorkTypeFK: 0,
+          InfraTypeFK: '',
           TargetUnitId: 0,
           TargetUnit: mi.TargetUnit ?? '',
           CreatedBy: dto.createdBy,
           IsDeleted: false,
         });
       }
+      const workEntry = workMap.get(refId)!;
 
       locations.push({
         Id: _nextSyntheticId++,
-        ParentId: refId,
+        WorkItemFK: workEntry.Id,
+        Source: 'Import',
+        ProjectFK: projectId,
+        ProjectId: projectId,
         StageName: '',
+        ComponentId: mi.ComponentId,
+        YearOfWork: mi.ActivityYear ?? 0,
         InfraId: mi.InfraId ?? '',
         DetailedScope: mi.DetailedScope ?? '',
         TargetUnitId: 0,
         TargetUnit: mi.TargetUnit ?? '',
-        PhysicalTarget: mi.PhysicalTarget ?? null,
-        Length: mi.Length ?? null,
+        PhysicalTarget: mi.PhysicalTarget ?? undefined,
+        Length: mi.Length ?? undefined,
         StartChainage: mi.StartChainage ?? 0,
         EndChainage: mi.EndChainage ?? 0,
         StartX: mi.StartX ?? 0,
         StartY: mi.StartY ?? 0,
-        EndX: mi.EndX ?? null,
-        EndY: mi.EndY ?? null,
+        EndX: mi.EndX ?? undefined,
+        EndY: mi.EndY ?? undefined,
         StartStationLimit: mi.StartStation ?? '',
         EndStationLimit: mi.EndStation ?? '',
         IsDeleted: false,
