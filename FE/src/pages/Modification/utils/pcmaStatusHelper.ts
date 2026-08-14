@@ -1,4 +1,4 @@
-import type { ProjectComponentStatus } from '../Model.d';
+import type { ProjectComponentStatus } from '../Model';
 
 /**
  * Determines the overall PCMA status based on component statuses

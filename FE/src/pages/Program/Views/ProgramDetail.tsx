@@ -23,7 +23,7 @@ import { PaginationBar } from '@/components/tailwindui/PaginationBar';
 
 // NameIds (matching DBHelper's EnumProgramStage) excluded from the main BP→GAAR
 // progression track so GAAR is treated as terminal by "Proceed to Next Stage".
-const MAIN_PROGRESSION_EXCLUDED_STAGE_IDS = [8, 9, 11]; // RBP, RDIP, PIP
+const MAIN_PROGRESSION_EXCLUDED_STAGE_IDS = [2, 4]; // RBP, RDIP, PIP
 
 // Mock projects data for the table
 const ProgramDetail: React.FC = () => {
