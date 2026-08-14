@@ -155,7 +155,7 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProgramStages([FromBody] ShowProgramStagesDTO dto, CancellationToken cancellationToken)
         {

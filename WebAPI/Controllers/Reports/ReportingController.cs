@@ -668,7 +668,7 @@ namespace WebAPI.Controllers.Revision
                 var param = new Dictionary<string, object> {
                     { "@ProgramId", dto.ProgramId }
                 };
-                if (!string.IsNullOrEmpty(dto.StageName)) { param.Add("@StageName", dto.StageName); }
+                if (!string.IsNullOrEmpty(dto.StageName)) { param.Add("@StageId", selectedStageValue); }
                 string aipSql = "EXEC pExportRawProjects " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
                 List<ExportRawProjects> rawProjects = Sql.NormalQuery<ExportRawProjects>(
                     Appsetting.DbConnections.MYPSDb,

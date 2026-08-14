@@ -557,7 +557,6 @@ namespace WebAPI.Controllers.Projects
                 return Ok(new
                 {
                     IsActive = (CurrentProgramVersion == null) ? false : (ProgramLatest.Status == "Approved") ? false : true,
-                    IsModify = (ProjectParent.IsPublished && ProgramLatest.Status == "Approved" && ProgramLatest.StageId == EnumProgramStage.GAAR) ? true : false,
                     ProgramDetails = Program,
                     ProjectDetails = ProjectRevisions,
                     FundingProfile = Funding,

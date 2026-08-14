@@ -18,6 +18,8 @@ namespace DBHelper.Models.Functions.Program
         public int RevisionId { get; set; }
         [Required]
         public EnumProgramStage StageId { get; set; }
+        [MaxLength(100)]
+        public string StageDisplayName { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
