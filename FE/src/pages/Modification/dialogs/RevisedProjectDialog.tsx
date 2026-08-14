@@ -11,6 +11,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import { transactionIdAtom } from '../store/routeContextStore';
+import { usePdfUpload } from '../hooks/usePdfUpload';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -49,12 +50,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     const { showToast } = useToast();
     const { user } = useAuth(); // Get user from auth context
     const [approvalDate, setApprovalDate] = useState<string>('');
-    const [approvalDocument, setApprovalDocument] = useState<{
-        Name: string;
-        Extension: string;
-        ContentType: string;
-        DataUrl: string;
-    } | null>(null);
+    const { file: approvalDocument, handleFileChange, reset: resetApprovalDocument } = usePdfUpload();
     const [revisionType] = useState<string>('');
     const [isCertified, setIsCertified] = useState<boolean>(false);
 
@@ -68,47 +64,10 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     useEffect(() => {
         if (isOpen) {
             setApprovalDate('');
-            setApprovalDocument(null);
+            resetApprovalDocument();
             setIsCertified(false);
         }
     }, [isOpen]);
-
-    const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB, matches backend's max upload size
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            // Check if file is PDF
-            if (file.type !== 'application/pdf') {
-                showToast({
-                    type: 'error',
-                    message: 'Please select a PDF file only.'
-                });
-                e.target.value = ''; // Clear the input
-                return;
-            }
-
-            if (file.size > MAX_FILE_SIZE_BYTES) {
-                showToast({
-                    type: 'error',
-                    message: 'File size must not exceed 50 MB.'
-                });
-                e.target.value = '';
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setApprovalDocument({
-                    Name: file.name,
-                    Extension: file.name.split('.').pop() || '',
-                    ContentType: file.type,
-                    DataUrl: reader.result as string,
-                });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -196,7 +155,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
                 // Reset form
                 setApprovalDate('');
-                setApprovalDocument(null);
+                resetApprovalDocument();
                 setIsCertified(false);
 
                 onClose();
@@ -231,7 +190,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
                 // Reset form
                 setApprovalDate('');
-                setApprovalDocument(null);
+                resetApprovalDocument();
                 setIsCertified(false);
 
                 onClose();

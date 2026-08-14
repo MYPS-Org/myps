@@ -11,13 +11,9 @@ export const EnumRevisionStatus = {
 } as const;
 export type EnumRevisionStatus = typeof EnumRevisionStatus[keyof typeof EnumRevisionStatus];
 
-// Backend type: FileUpload (DBHelper\Models\Extra\FileUpload.cs)
-export interface FileUpload {
-    Name: string;
-    Extension: string;
-    ContentType: string;
-    DataUrl: string;
-}
+// Backend type: FileUpload (DBHelper\Models\Extra\FileUpload.cs). Structurally identical to the
+// existing global `FileEntity` (FE/src/types/FileEntity.d.ts) — reuse that instead of redeclaring.
+export type FileUpload = FileEntity;
 
 export interface ApiMessageResult {
     Title: string;
