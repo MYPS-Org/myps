@@ -56,7 +56,7 @@ namespace WebAPI.Controllers.Auth
                     LogDate = CurrentDate,
                     IsValid = false,
                 };
-                var verifyAccount = await _db.vUsers.FirstOrDefaultAsync(x => (x.UserId == dto.UserName || x.EmployeeId == dto.UserName || x.Email == dto.UserName) && x.IsActive == true);
+                var verifyAccount = await _db.vUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserName && x.IsActive == true);
 
                 if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active."; return UnauthorizedUser("Invalid credentials. Please check your user ID and password and try again."); }
 

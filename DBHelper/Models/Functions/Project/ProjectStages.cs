@@ -19,6 +19,9 @@ namespace DBHelper.Models.Functions.Project
         public int StageId { get; set; }
         [Required]
         [MaxLength(100)]
+        public string StageDisplayName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
         [Required]
         public string Description { get; set; } = string.Empty;

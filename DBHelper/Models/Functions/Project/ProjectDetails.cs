@@ -106,5 +106,6 @@ namespace DBHelper.Models.Functions.Project
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;
+        public bool IsPublished { get; set; } = false;
     }
 }

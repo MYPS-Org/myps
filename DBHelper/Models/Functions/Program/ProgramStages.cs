@@ -22,6 +22,9 @@ namespace DBHelper.Models.Functions.Program
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
         [Required]
+        [MaxLength(100)]
+        public string StageDisplayName { get; set; } = string.Empty;
+        [Required]
         [MaxLength(1000)]
         public int[] UserGroup { get; set; } = Array.Empty<int>();
         [Required]
