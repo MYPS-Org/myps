@@ -97,9 +97,13 @@ namespace CrystalReportService.Services
                 },
                 ["rbp-summary-report"] = new ReportDefinition
                 {
-                    RptFileName = "RBPSummaryReport.rpt",
-                    SourceType = DataSourceType.StoredProcedure,
-                    DbObjectName = "sp_RBPSummary"
+                    //RptFileName = "RBPSummaryReport.rpt",
+                    //SourceType = DataSourceType.StoredProcedure,
+                    //DbObjectName = "sp_RBPSummary"
+
+                    RptFileName = "RBP Summary Report.rpt",
+                    SourceType = DataSourceType.View,
+                    DbObjectName = "MYPS_vw_rptRBPSummary"
 
                     //RptFileName = "RBPSummaryReport.rpt",
                     //SourceType = DataSourceType.View,
