@@ -42,479 +42,483 @@ namespace Hangfire.Services
             _logger = logger;
         }
 
-        //[AutomaticRetry(Attempts = 0)]
-        //public async Task ProcessImport(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken)
-        //{
-        //    var jobRecord = await _db.tImportJobResult
-        //        .FirstOrDefaultAsync(x => x.JobId == payload.JobId);
-
-        //    if (jobRecord == null) return;
-
-        //    jobRecord.Status = "Processing";
-        //    jobRecord.StartedAt = Functions.CurrentDate();
-        //    _db.tImportJobResult.Update(jobRecord);
-        //    await _db.SaveChangesAsync(cancellationToken);
-
-        //    // ── Notify: processing ────────────────────────────────────────────
-        //    await NotifyClient(payload.JobId, "Processing", "Import job has started processing.");
-
-        //    // ── Track whether the transaction was already finalized ────────────
-        //    bool transactionFinalized = false;
-        //    var transaction = await _db.Database.BeginTransactionAsync();
-
-        //    try
-        //    {
-        //        jobCancellationToken.ThrowIfCancellationRequested();
-        //        // ── Program validation ─────────────────────────────────────────
-        //        var IsValidProgram = _db.IsValidProgramId(payload.ProgramId, payload.StageName);
-        //        if (!IsValidProgram.IsValid)
-        //        {
-        //            await FailJob(jobRecord, IsValidProgram.Message, transaction, payload.JobId);
-        //            return;
-
-        //            //await ReleaseLock();
-
-        //            //transactionFinalized = true;
-        //            //await transaction.CommitAsync();
-
-        //            //jobRecord.Status = "Failed";
-        //            //jobRecord.Message = IsValidProgram.Message;
-        //            //jobRecord.CompletedAt = Functions.CurrentDate();
-        //            //_db.tImportJobResult.Update(jobRecord);
-        //            //await _db.SaveChangesAsync(cancellationToken);
-        //            //return;
-        //        }
-
-        //        jobCancellationToken.ThrowIfCancellationRequested();
-        //        // ── Read Excel ─────────────────────────────────────────────────
-        //        ExcelPackage package;
-
-        //        if (!payload.FileUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-        //        {
-        //            var fileInfo = new FileInfo(payload.FileUrl);
-        //            if (!fileInfo.Exists)
-        //            {
-        //                await FailJob(jobRecord, $"File not found: {payload.FileUrl}", transaction, payload.JobId);
-        //                return;
-        //            }
-        //            package = new ExcelPackage(fileInfo);
-        //        }
-        //        else
-        //        {
-        //            //using var httpClient = new HttpClient();
-        //            //var fileBytes = await httpClient.GetByteArrayAsync(payload.FileUrl);
-        //            //package = new ExcelPackage(new MemoryStream(fileBytes));
-
-        //            using var httpClient = new HttpClient();
-        //            byte[] fileBytes;
-        //            try
-        //            {
-        //                fileBytes = await httpClient.GetByteArrayAsync(payload.FileUrl, jobCancellationToken.ShutdownToken);
-        //            }
-        //            catch (OperationCanceledException)
-        //            {
-        //                throw;
-        //            }
-        //            catch
-        //            {
-        //                await FailJob(jobRecord, $"Unable to download file: {payload.FileUrl}", transaction, payload.JobId);
-        //                return;
-        //            }
-        //            package = new ExcelPackage(new MemoryStream(fileBytes));
-        //        }
-
-        //        using (package)
-        //        {
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            // ── Validate sheets ────────────────────────────────────────
-        //            var requiredSheets = new[]
-        //            {
-        //                "PROJECT DETAILS", "FUNDING PROFILE",
-        //                "COMPONENT DETAILS", "MAJOR ITEMS OF WORK"
-        //            };
-        //            var missingSheets = requiredSheets
-        //                .Where(s => package.Workbook.Worksheets[s] == null)
-        //                .ToList();
-
-        //            if (missingSheets.Any())
-        //            {
-        //                await FailJob(jobRecord, $"Missing sheets: {string.Join(", ", missingSheets)}", transaction, payload.JobId);
-        //                return;
-        //            }
-
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            // ── Read from Excel ────────────────────────────────────
-        //            var importDto = new ImportProjectDTOExcel
-        //            {
-        //                ProjectDetails = ReadProjectDetails(package),
-        //                FundingProfile = ReadFundingProfile(package),
-        //                ComponentDetails = ReadComponentDetails(package),
-        //                MajorItemsOfWork = ReadMajorItemsOfWork(package)
-        //            };
-
-        //            // ── Validate and group ─────────────────────────────────
-        //            var ValidProjectDetails = new List<ImportProjectDetailsExcel>();
-        //            var ValidFundingProfile = new List<ImportFundingProfileExcel>();
-        //            var ValidComponentDetails = new List<ImportComponentDetailsExcel>();
-        //            var ValidMajorItemsOfWork = new List<ImportMajorItemsOfWorkExcel>();
-        //            var ErrorProjectDetails = new List<ImportProjectDetailsExcel>();
-        //            var ErrorFundingProfile = new List<ImportFundingProfileExcel>();
-        //            var ErrorComponentDetails = new List<ImportComponentDetailsExcel>();
-        //            var ErrorMajorItemsOfWork = new List<ImportMajorItemsOfWorkExcel>();
-        //            var WarningProjectDetails = new List<ImportProjectDetailsExcel>();
-        //            var WarningFundingProfile = new List<ImportFundingProfileExcel>();
-        //            var WarningComponentDetails = new List<ImportComponentDetailsExcel>();
-        //            var WarningMajorItemsOfWork = new List<ImportMajorItemsOfWorkExcel>();
-
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            // ── Load ALL lookup data ONCE — single DB round-trip ──────────
-        //            var cache = await ImportLookupCache.LoadAsync(_db);
-
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            foreach (var item in importDto.ProjectDetails)
-        //            {
-        //                var r = _db.ValidateProjectDetails(item, cache);
-        //                if (!r.IsValid) ErrorProjectDetails.Add(item);
-        //                else if (r.IsWarning) WarningProjectDetails.Add(item);
-        //                else ValidProjectDetails.Add(item);
-        //            }
-
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            foreach (var item in importDto.FundingProfile)
-        //            {
-        //                var r = _db.ValidateFundingProfile(item, cache);
-        //                if (!r.IsValid) ErrorFundingProfile.Add(item);
-        //                else if (r.IsWarning) WarningFundingProfile.Add(item);
-        //                else ValidFundingProfile.Add(item);
-        //            }
-
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            foreach (var item in importDto.ComponentDetails)
-        //            {
-        //                var r = _db.ValidateComponentDetails(item, importDto.ComponentDetails, cache);
-        //                if (!r.IsValid) ErrorComponentDetails.Add(item);
-        //                else if (r.IsWarning) WarningComponentDetails.Add(item);
-        //                else ValidComponentDetails.Add(item);
-        //            }
-
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            foreach (var item in importDto.MajorItemsOfWork)
-        //            {
-        //                var r = _db.ValidateMajorItemsOfWork(item, importDto.ComponentDetails, cache);
-        //                if (!r.IsValid) ErrorMajorItemsOfWork.Add(item);
-        //                else if (r.IsWarning) WarningMajorItemsOfWork.Add(item);
-        //                else ValidMajorItemsOfWork.Add(item);
-        //            }
-
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            // ── Finalize Error List ────────────────────────────────
-        //            FinalizeErrors(
-        //                ValidProjectDetails, ValidFundingProfile, ValidComponentDetails, ValidMajorItemsOfWork,
-        //                WarningProjectDetails, WarningFundingProfile, WarningComponentDetails, WarningMajorItemsOfWork,
-        //                ErrorProjectDetails, ErrorFundingProfile, ErrorComponentDetails, ErrorMajorItemsOfWork);
-
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            // ── Sorting ────────────────────────────────────────────
-        //            ErrorProjectDetails.Sort((a, b) => string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase));
-        //            ErrorFundingProfile.Sort((a, b) => string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase));
-        //            ErrorComponentDetails.Sort((a, b) =>
-        //            {
-        //                int c = string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase); if (c != 0) return c;
-        //                c = string.Compare(a.ComponentType, b.ComponentType, StringComparison.OrdinalIgnoreCase); if (c != 0) return c;
-        //                return string.Compare(a.ComponentId, b.ComponentId, StringComparison.OrdinalIgnoreCase);
-        //            });
-        //            ErrorMajorItemsOfWork.Sort((a, b) =>
-        //            {
-        //                int c = string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase); if (c != 0) return c;
-        //                c = string.Compare(a.ComponentId, b.ComponentId, StringComparison.OrdinalIgnoreCase); if (c != 0) return c;
-        //                return string.Compare(a.InfrastructureId, b.InfrastructureId, StringComparison.OrdinalIgnoreCase);
-        //            });
-
-        //            //// ── Saving to Database ──────────────────────────────────────────────
-        //            //jobCancellationToken.ThrowIfCancellationRequested();
-        //            //// ── Projects ────────────────────────────────────────────────────────
-        //            //var ProjectReference = new List<ImportProjectReference>();
-        //            //var projects = new List<DBHelper.Models.Table.Projects>();
-        //            //var projectstages = new List<DBHelper.Models.Table.ProjectStages>();
-
-        //            //foreach (var Item in ValidProjectDetails.Concat(WarningProjectDetails))
-        //            //{
-        //            //    var Projects = _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, cache);
-
-        //            //    Projects.Project.CreatedBy = jobRecord.RequestedBy;
-        //            //    Projects.Project.CreatedDate = Functions.CurrentDate();
-
-        //            //    Projects.ProjectRevision.CreatedBy = jobRecord.RequestedBy;
-        //            //    Projects.ProjectRevision.CreatedDate = Functions.CurrentDate();
-
-        //            //    ProjectReference.Add(Projects.ImportReference);
-        //            //    projects.Add(Projects.Project);
-
-        //            //    _db.tProjectRevisions.Add(Projects.ProjectRevision);
-        //            //    _db.SaveChanges();
-
-        //            //    Projects.ProjectStage.RevisionId = Projects.ProjectRevision.Id;
-        //            //    Projects.ProjectStage.CreatedBy = jobRecord.RequestedBy;
-        //            //    Projects.ProjectStage.CreatedDate = Functions.CurrentDate();
-
-        //            //    projectstages.Add(Projects.ProjectStage);
-        //            //}
-        //            //await _db.tProjects.AddRangeAsync(projects);
-        //            //await _db.tProjectStages.AddRangeAsync(projectstages);
-
-        //            //jobCancellationToken.ThrowIfCancellationRequested();
-        //            //// ── Funding Profile ────────────────────────────────────────
-        //            //var FundingProfile = new List<DBHelper.Models.Table.ProjectFundingProfile>();
-
-        //            //foreach (var Item in ValidFundingProfile.Concat(WarningFundingProfile))
-        //            //{
-        //            //    var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
-
-        //            //    if (Reference == null) continue;
-
-        //            //    var Validate = _db.SaveFundingProfile(Item, Reference);
-
-        //            //    Validate.FundingProfile.CreatedBy = jobRecord.RequestedBy;
-        //            //    Validate.FundingProfile.CreatedDate = Functions.CurrentDate();
-        //            //    Validate.FundingProfile.StageName = IsValidProgram.ProgramDetails.StageName;
-        //            //    FundingProfile.Add(Validate.FundingProfile);
-        //            //}
-        //            //await _db.tProjectFundingProfile.AddRangeAsync(FundingProfile);
-
-        //            //jobCancellationToken.ThrowIfCancellationRequested();
-        //            //// ── Component Details ──────────────────────────────────────
-        //            //var ComponentCost = new List<DBHelper.Models.Table.ProjectComponentCost>();
-        //            //var ComponentCostPerYear = new List<DBHelper.Models.Table.ProjectComponentCostPerYear>();
-
-        //            //foreach (var Item in ValidComponentDetails.Concat(WarningComponentDetails))
-        //            //{
-        //            //    var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
-        //            //    if (Reference == null) continue;
-
-        //            //    var Validate = _db.SaveComponentCost(Item, Reference);
-
-        //            //    Validate.ComponentCost.CreatedBy = jobRecord.RequestedBy;
-        //            //    Validate.ComponentCost.CreatedDate = Functions.CurrentDate();
-        //            //    Validate.ComponentCost.StageName = IsValidProgram.ProgramDetails.StageName;
-        //            //    Validate.ComponentCost.CostId = $"{Validate.ComponentCost.ProjectId}-{Validate.ComponentCost.ComponentId}";
-        //            //    ComponentCost.Add(Validate.ComponentCost);
-
-        //            //    Validate.ComponentCostPerYear.CreatedBy = jobRecord.RequestedBy;
-        //            //    Validate.ComponentCostPerYear.CreatedDate = Functions.CurrentDate();
-        //            //    Validate.ComponentCostPerYear.StageName = IsValidProgram.ProgramDetails.StageName;
-        //            //    Validate.ComponentCostPerYear.ComponentCostId = $"{Validate.ComponentCost.ProjectId}-{Validate.ComponentCost.ComponentId}";
-        //            //    ComponentCostPerYear.Add(Validate.ComponentCostPerYear);
-        //            //}
-        //            //await _db.tProjectComponentCost.AddRangeAsync(ComponentCost);
-        //            //await _db.tProjectComponentCostPerYear.AddRangeAsync(ComponentCostPerYear);
-
-        //            //jobCancellationToken.ThrowIfCancellationRequested();
-        //            //// ── Major Items Of Work ────────────────────────────────────────
-        //            //var MajorItemOfWork = new List<DBHelper.Models.Table.ProjectMajorWorkItem>();
-        //            //var MajorWorkLocations = new List<DBHelper.Models.Table.ProjectMajorWorkLocations>();
-
-        //            //foreach (var Item in ValidMajorItemsOfWork.Concat(WarningMajorItemsOfWork))
-        //            //{
-        //            //    var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
-        //            //    var ComponentReference = ComponentCost.FirstOrDefault(x => x.ComponentId == Item.ComponentId);
-
-        //            //    if (Reference == null || ComponentReference == null) continue;
-
-        //            //    //var componentDetails = new ImportComponentDetailsExcel();
-
-        //            //    //var queryValidComp = ValidComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId);
-
-        //            //    //if (queryValidComp != null)
-        //            //    //{
-        //            //    //    componentDetails = queryValidComp;
-        //            //    //}
-        //            //    //else
-        //            //    //{
-        //            //    //    componentDetails = WarningComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId);
-        //            //    //}
-
-        //            //    var componentDetails = ValidComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId) ?? WarningComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId);
-
-        //            //    if (componentDetails == null) continue;
-
-        //            //    var Validate = _db.SaveMajorItemsOfWork(Item, Reference, componentDetails);
-
-        //            //    Validate.MajorWorkItem.CreatedBy = jobRecord.RequestedBy;
-        //            //    Validate.MajorWorkItem.CreatedDate = Functions.CurrentDate();
-        //            //    Validate.MajorWorkItem.StageName = IsValidProgram.ProgramDetails.StageName;
-        //            //    Validate.MajorWorkItem.ReferenceId = $"{Reference.NewProjectId}-{Validate.MajorWorkItem.ComponentId}";
-        //            //    MajorItemOfWork.Add(Validate.MajorWorkItem);
-
-        //            //    Validate.MajorWorkLocation.ParentId = $"{Reference.NewProjectId}-{Validate.MajorWorkItem.ComponentId}";
-        //            //    Validate.MajorWorkLocation.CreatedBy = jobRecord.RequestedBy;
-        //            //    Validate.MajorWorkLocation.CreatedDate = Functions.CurrentDate();
-        //            //    //Validate.MajorWorkLocation.TargetUnitId = Reference.WorkTypeId;
-        //            //    Validate.MajorWorkLocation.StageName = IsValidProgram.ProgramDetails.StageName;
-        //            //    MajorWorkLocations.Add(Validate.MajorWorkLocation);
-        //            //}
-        //            //await _db.tProjectMajorWorkItem.AddRangeAsync(MajorItemOfWork);
-        //            //await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
-
-        //            jobCancellationToken.ThrowIfCancellationRequested();
-        //            // ── Generate output files ──────────────────────────────
-        //            bool hasErrors = ErrorProjectDetails.Any() || ErrorFundingProfile.Any()
-        //                          || ErrorComponentDetails.Any() || ErrorMajorItemsOfWork.Any();
-
-        //            //var tempFolder = Path.Combine(_env.WebRootPath, "temp", "imports");
-        //            var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Imports");
-        //            Directory.CreateDirectory(tempFolder);
-
-        //            var textFileName = $"ImportReport_{payload.JobId}.txt";
-        //            var excelFileName = $"ImportErrors_{payload.JobId}.xlsx";
-
-        //            // Text file
-        //            var textBytes = GenerateTextReport(
-        //                ValidProjectDetails, ValidFundingProfile, ValidComponentDetails, ValidMajorItemsOfWork,
-        //                WarningProjectDetails, WarningFundingProfile, WarningComponentDetails, WarningMajorItemsOfWork);
-
-        //            await File.WriteAllBytesAsync(Path.Combine(tempFolder, textFileName), textBytes, jobCancellationToken.ShutdownToken);
-
-        //            // Excel file (only if errors)
-        //            if (hasErrors)
-        //            {
-        //                var excelBytes = GenerateExcelReport(
-        //                    ErrorProjectDetails, ErrorFundingProfile,
-        //                    ErrorComponentDetails, ErrorMajorItemsOfWork);
-
-        //                await File.WriteAllBytesAsync(Path.Combine(tempFolder, excelFileName), excelBytes, jobCancellationToken.ShutdownToken);
-        //            }
-
-        //            // ── Release lock and commit ────────────────────────────────
-        //            await ReleaseLock();
-        //            transactionFinalized = true;
-        //            await transaction.CommitAsync(jobCancellationToken.ShutdownToken);
-        //            //await transaction.CommitAsync();
-
-        //            // ── Update job result AFTER commit ─────────────────────────
-        //            jobRecord.Status = hasErrors ? "CompletedWithErrors" : "Completed";
-        //            jobRecord.Message = $"Projects imported: {ValidProjectDetails.Count + WarningProjectDetails.Count}.";
-        //            jobRecord.ValidCount = ValidProjectDetails.Count + WarningProjectDetails.Count;
-        //            jobRecord.WarningCount = WarningProjectDetails.Count;
-        //            jobRecord.ErrorCount = ErrorProjectDetails.Count;
-        //            jobRecord.TextFileName = textFileName;
-        //            jobRecord.ExcelFileName = hasErrors ? excelFileName : string.Empty;
-        //            jobRecord.CompletedAt = Functions.CurrentDate();
-        //            _db.tImportJobResult.Update(jobRecord);
-        //            await _db.SaveChangesAsync(cancellationToken);
-
-        //            // ── Notify: completed ──────────────────────────────────
-        //            await _hub.Clients.Group($"import-{payload.JobId}").SendAsync("ImportStatusChanged", new
-        //            {
-        //                jobRecord.JobId,
-        //                jobRecord.Status,
-        //                jobRecord.Message,
-        //                jobRecord.ValidCount,
-        //                jobRecord.WarningCount,
-        //                jobRecord.ErrorCount,
-        //                jobRecord.CompletedAt,
-        //                TextFileUrl = $"/api/Importing/DownloadImportFile?fileName={textFileName}",
-        //                ExcelFileUrl = hasErrors ? $"/api/Importing/DownloadImportFile?fileName={excelFileName}" : string.Empty
-        //            });
-        //        }
-        //    }
-        //    catch (OperationCanceledException)
-        //    {
-        //        // ── Hangfire cancelled the job (server shutdown or manual delete) ──
-        //        _logger.LogWarning("Import job {JobId} was cancelled", payload.JobId);
-
-        //        if (!transactionFinalized)
-        //        {
-        //            try { await transaction.RollbackAsync(cancellationToken); }
-        //            catch (Exception rbEx) { _logger.LogWarning(rbEx, "Rollback failed for cancelled job {JobId}", payload.JobId); }
-        //        }
-
-        //        try
-        //        {
-        //            jobRecord.Status = "Cancelled";
-        //            jobRecord.Message = "Import job was cancelled.";
-        //            jobRecord.CompletedAt = Functions.CurrentDate();
-        //            _db.tImportJobResult.Update(jobRecord);
-        //            await _db.SaveChangesAsync(cancellationToken);
-
-        //            await NotifyClient(payload.JobId, "Cancelled", "Import job was cancelled.");
-        //        }
-        //        catch (Exception saveEx) { _logger.LogError(saveEx, "Failed to save cancelled status for job {JobId}", payload.JobId); }
-
-        //        await TryReleaseLock();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Import job {JobId} failed", payload.JobId);
-
-        //        // ── Only rollback if the transaction wasn't already finalized ──
-        //        if (!transactionFinalized)
-        //        {
-        //            try
-        //            {
-        //                await transaction.RollbackAsync(cancellationToken);
-        //            }
-        //            catch (Exception rollbackEx)
-        //            {
-        //                // Transaction may have already been closed by the DB
-        //                _logger.LogWarning(rollbackEx, "Rollback failed for job {JobId} — transaction may already be closed", payload.JobId);
-        //            }
-        //        }
-
-        //        // ── Save failure status outside the dead transaction ───────────
-        //        try
-        //        {
-        //            jobRecord.Status = "Failed";
-        //            jobRecord.Message = ex.Message;
-        //            jobRecord.CompletedAt = Functions.CurrentDate();
-        //            _db.tImportJobResult.Update(jobRecord);
-        //            await _db.SaveChangesAsync(cancellationToken);
-        //        }
-        //        catch (Exception saveEx)
-        //        {
-        //            _logger.LogError(saveEx, "Failed to save error status for job {JobId}", payload.JobId);
-        //        }
-
-        //        await TryReleaseLock();
-        //        throw;
-        //    }
-        //    finally
-        //    {
-        //        await transaction.DisposeAsync();
-        //    }
-
-        //    async Task ReleaseLock()
-        //    {
-        //        var lockRecord = await _db.tImportingStatus
-        //            .FirstOrDefaultAsync(x => x.ImportFunctionName == "ImportProject");
-        //        if (lockRecord == null) return;
-        //        lockRecord.IsActive = false;
-        //        _db.tImportingStatus.Update(lockRecord);
-        //        await _db.SaveChangesAsync(cancellationToken);
-        //    }
-
-        //    // ── Safe version for catch blocks — won't throw ────────────────────
-        //    async Task TryReleaseLock()
-        //    {
-        //        try { await ReleaseLock(); }
-        //        catch (Exception ex) { _logger.LogWarning(ex, "Failed to release import lock for job {JobId}", payload.JobId); }
-        //    }
-
-        //    async Task FailJob(ImportJobResult record, string message, IDbContextTransaction tx, string jobId)
-        //    {
-        //        await TryReleaseLock();
-        //        //finalized = true;
-        //        transactionFinalized = true;
-        //        await tx.CommitAsync();
-
-        //        record.Status = "Failed";
-        //        record.Message = message;
-        //        record.CompletedAt = Functions.CurrentDate();
-        //        _db.tImportJobResult.Update(record);
-        //        await _db.SaveChangesAsync(cancellationToken);
-
-        //        await NotifyClient(jobId, "Failed", message);
-        //    }
-        //}
+        [AutomaticRetry(Attempts = 0)]
+        public async Task ProcessImport(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken)
+        {
+            var jobRecord = await _db.tImportJobResult
+                .FirstOrDefaultAsync(x => x.JobId == payload.JobId);
+
+            if (jobRecord == null) return;
+
+            jobRecord.Status = "Processing";
+            jobRecord.StartedAt = Functions.CurrentDate();
+            _db.tImportJobResult.Update(jobRecord);
+            await _db.SaveChangesAsync();
+
+            // ── Notify: processing ────────────────────────────────────────────
+            await NotifyClient(payload.JobId, "Processing", "Import job has started processing.");
+
+            // ── Track whether the transaction was already finalized ────────────
+            bool transactionFinalized = false;
+            var transaction = await _db.Database.BeginTransactionAsync();
+
+            try
+            {
+                jobCancellationToken.ThrowIfCancellationRequested();
+                // ── Program validation ─────────────────────────────────────────
+                // temporary comment
+                var IsValidProgram = await _db.IsValidProgramId(payload.ProgramId, payload.StageName);
+
+                if (!IsValidProgram.IsValid)
+                {
+                    await FailJob(jobRecord, IsValidProgram.Message, transaction, payload.JobId);
+                    return;
+
+                    //await ReleaseLock();
+
+                    //transactionFinalized = true;
+                    //await transaction.CommitAsync();
+
+                    //jobRecord.Status = "Failed";
+                    //jobRecord.Message = IsValidProgram.Message;
+                    //jobRecord.CompletedAt = Functions.CurrentDate();
+                    //_db.tImportJobResult.Update(jobRecord);
+                    //await _db.SaveChangesAsync();
+                    //return;
+                }
+
+                jobCancellationToken.ThrowIfCancellationRequested();
+                // ── Read Excel ─────────────────────────────────────────────────
+                ExcelPackage package;
+
+                if (!payload.FileUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                {
+                    var fileInfo = new FileInfo(payload.FileUrl);
+                    if (!fileInfo.Exists)
+                    {
+                        await FailJob(jobRecord, $"File not found: {payload.FileUrl}", transaction, payload.JobId);
+                        return;
+                    }
+                    package = new ExcelPackage(fileInfo);
+                }
+                else
+                {
+                    //using var httpClient = new HttpClient();
+                    //var fileBytes = await httpClient.GetByteArrayAsync(payload.FileUrl);
+                    //package = new ExcelPackage(new MemoryStream(fileBytes));
+
+                    using var httpClient = new HttpClient();
+                    byte[] fileBytes;
+                    try
+                    {
+                        fileBytes = await httpClient.GetByteArrayAsync(payload.FileUrl, jobCancellationToken.ShutdownToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                        await FailJob(jobRecord, $"Unable to download file: {payload.FileUrl}", transaction, payload.JobId);
+                        return;
+                    }
+                    package = new ExcelPackage(new MemoryStream(fileBytes));
+                }
+
+                using (package)
+                {
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Validate sheets ────────────────────────────────────────
+                    var requiredSheets = new[]
+                    {
+                        "PROJECT DETAILS", "FUNDING PROFILE",
+                        "COMPONENT DETAILS", "MAJOR ITEMS OF WORK"
+                    };
+                    var missingSheets = requiredSheets
+                        .Where(s => package.Workbook.Worksheets[s] == null)
+                        .ToList();
+
+                    if (missingSheets.Any())
+                    {
+                        await FailJob(jobRecord, $"Missing sheets: {string.Join(", ", missingSheets)}", transaction, payload.JobId);
+                        return;
+                    }
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Read from Excel ────────────────────────────────────
+                    var importDto = new ImportProjectDTOExcel
+                    {
+                        ProjectDetails = ReadProjectDetails(package),
+                        FundingProfile = ReadFundingProfile(package),
+                        ComponentDetails = ReadComponentDetails(package),
+                        MajorItemsOfWork = ReadMajorItemsOfWork(package)
+                    };
+
+                    // ── Validate and group ─────────────────────────────────
+                    var ValidProjectDetails = new List<ImportProjectDetailsExcel>();
+                    var ValidFundingProfile = new List<ImportFundingProfileExcel>();
+                    var ValidComponentDetails = new List<ImportComponentDetailsExcel>();
+                    var ValidMajorItemsOfWork = new List<ImportMajorItemsOfWorkExcel>();
+                    var ErrorProjectDetails = new List<ImportProjectDetailsExcel>();
+                    var ErrorFundingProfile = new List<ImportFundingProfileExcel>();
+                    var ErrorComponentDetails = new List<ImportComponentDetailsExcel>();
+                    var ErrorMajorItemsOfWork = new List<ImportMajorItemsOfWorkExcel>();
+                    var WarningProjectDetails = new List<ImportProjectDetailsExcel>();
+                    var WarningFundingProfile = new List<ImportFundingProfileExcel>();
+                    var WarningComponentDetails = new List<ImportComponentDetailsExcel>();
+                    var WarningMajorItemsOfWork = new List<ImportMajorItemsOfWorkExcel>();
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Load ALL lookup data ONCE — single DB round-trip ──────────
+                    var cache = await ImportLookupCache.LoadAsync(_db);
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    foreach (var item in importDto.ProjectDetails)
+                    {
+                        var r = _db.ValidateProjectDetails(item, cache);
+                        if (!r.IsValid) ErrorProjectDetails.Add(item);
+                        else if (r.IsWarning) WarningProjectDetails.Add(item);
+                        else ValidProjectDetails.Add(item);
+                    }
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    foreach (var item in importDto.FundingProfile)
+                    {
+                        var r = _db.ValidateFundingProfile(item, cache);
+                        if (!r.IsValid) ErrorFundingProfile.Add(item);
+                        else if (r.IsWarning) WarningFundingProfile.Add(item);
+                        else ValidFundingProfile.Add(item);
+                    }
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    foreach (var item in importDto.ComponentDetails)
+                    {
+                        var r = _db.ValidateComponentDetails(item, importDto.ComponentDetails, cache);
+                        if (!r.IsValid) ErrorComponentDetails.Add(item);
+                        else if (r.IsWarning) WarningComponentDetails.Add(item);
+                        else ValidComponentDetails.Add(item);
+                    }
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    foreach (var item in importDto.MajorItemsOfWork)
+                    {
+                        var r = _db.ValidateMajorItemsOfWork(item, importDto.ComponentDetails, cache);
+                        if (!r.IsValid) ErrorMajorItemsOfWork.Add(item);
+                        else if (r.IsWarning) WarningMajorItemsOfWork.Add(item);
+                        else ValidMajorItemsOfWork.Add(item);
+                    }
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Finalize Error List ────────────────────────────────
+                    FinalizeErrors(
+                        ValidProjectDetails, ValidFundingProfile, ValidComponentDetails, ValidMajorItemsOfWork,
+                        WarningProjectDetails, WarningFundingProfile, WarningComponentDetails, WarningMajorItemsOfWork,
+                        ErrorProjectDetails, ErrorFundingProfile, ErrorComponentDetails, ErrorMajorItemsOfWork);
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Sorting ────────────────────────────────────────────
+                    ErrorProjectDetails.Sort((a, b) => string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase));
+                    ErrorFundingProfile.Sort((a, b) => string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase));
+                    ErrorComponentDetails.Sort((a, b) =>
+                    {
+                        int c = string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase); if (c != 0) return c;
+                        c = string.Compare(a.ComponentType, b.ComponentType, StringComparison.OrdinalIgnoreCase); if (c != 0) return c;
+                        return string.Compare(a.ComponentId, b.ComponentId, StringComparison.OrdinalIgnoreCase);
+                    });
+                    ErrorMajorItemsOfWork.Sort((a, b) =>
+                    {
+                        int c = string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase); if (c != 0) return c;
+                        c = string.Compare(a.ComponentId, b.ComponentId, StringComparison.OrdinalIgnoreCase); if (c != 0) return c;
+                        return string.Compare(a.InfrastructureId, b.InfrastructureId, StringComparison.OrdinalIgnoreCase);
+                    });
+
+                    // ── Saving to Database ──────────────────────────────────────────────
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Projects ────────────────────────────────────────────────────────
+                    var ProjectReference = new List<ImportProjectReference>();
+                    var projects = new List<DBHelper.Models.Table.Project.Projects>();
+                    //var projects = new List<DBHelper.Models.Table.Projects>();
+                    var projectstages = new List<DBHelper.Models.Table.Project.ProjectStages>();
+                    //var projectstages = new List<DBHelper.Models.Table.ProjectStages>();
+
+                    foreach (var Item in ValidProjectDetails.Concat(WarningProjectDetails))
+                    {
+                        var Projects = _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, cache);
+
+                        Projects.Project.CreatedBy = jobRecord.RequestedBy;
+                        Projects.Project.CreatedDate = Functions.CurrentDate();
+
+                        Projects.ProjectRevision.CreatedBy = jobRecord.RequestedBy;
+                        Projects.ProjectRevision.CreatedDate = Functions.CurrentDate();
+
+                        ProjectReference.Add(Projects.ImportReference);
+                        projects.Add(Projects.Project);
+
+                        _db.tProjectRevisions.Add(Projects.ProjectRevision);
+                        _db.SaveChanges();
+
+                        Projects.ProjectStage.RevisionId = Projects.ProjectRevision.Id;
+                        Projects.ProjectStage.CreatedBy = jobRecord.RequestedBy;
+                        Projects.ProjectStage.CreatedDate = Functions.CurrentDate();
+
+                        projectstages.Add(Projects.ProjectStage);
+                    }
+                    await _db.tProjects.AddRangeAsync(projects);
+                    await _db.tProjectStages.AddRangeAsync(projectstages);
+
+                    //jobCancellationToken.ThrowIfCancellationRequested();
+                    //// ── Funding Profile ────────────────────────────────────────
+                    //var FundingProfile = new List<DBHelper.Models.Table.ProjectFundingProfile>();
+
+                    //foreach (var Item in ValidFundingProfile.Concat(WarningFundingProfile))
+                    //{
+                    //    var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
+
+                    //    if (Reference == null) continue;
+
+                    //    var Validate = _db.SaveFundingProfile(Item, Reference);
+
+                    //    Validate.FundingProfile.CreatedBy = jobRecord.RequestedBy;
+                    //    Validate.FundingProfile.CreatedDate = Functions.CurrentDate();
+                    //    Validate.FundingProfile.StageName = IsValidProgram.ProgramDetails.StageName;
+                    //    FundingProfile.Add(Validate.FundingProfile);
+                    //}
+                    //await _db.tProjectFundingProfile.AddRangeAsync(FundingProfile);
+
+                    //jobCancellationToken.ThrowIfCancellationRequested();
+                    //// ── Component Details ──────────────────────────────────────
+                    //var ComponentCost = new List<DBHelper.Models.Table.ProjectComponentCost>();
+                    //var ComponentCostPerYear = new List<DBHelper.Models.Table.ProjectComponentCostPerYear>();
+
+                    //foreach (var Item in ValidComponentDetails.Concat(WarningComponentDetails))
+                    //{
+                    //    var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
+                    //    if (Reference == null) continue;
+
+                    //    var Validate = _db.SaveComponentCost(Item, Reference);
+
+                    //    Validate.ComponentCost.CreatedBy = jobRecord.RequestedBy;
+                    //    Validate.ComponentCost.CreatedDate = Functions.CurrentDate();
+                    //    Validate.ComponentCost.StageName = IsValidProgram.ProgramDetails.StageName;
+                    //    Validate.ComponentCost.CostId = $"{Validate.ComponentCost.ProjectId}-{Validate.ComponentCost.ComponentId}";
+                    //    ComponentCost.Add(Validate.ComponentCost);
+
+                    //    Validate.ComponentCostPerYear.CreatedBy = jobRecord.RequestedBy;
+                    //    Validate.ComponentCostPerYear.CreatedDate = Functions.CurrentDate();
+                    //    Validate.ComponentCostPerYear.StageName = IsValidProgram.ProgramDetails.StageName;
+                    //    Validate.ComponentCostPerYear.ComponentCostId = $"{Validate.ComponentCost.ProjectId}-{Validate.ComponentCost.ComponentId}";
+                    //    ComponentCostPerYear.Add(Validate.ComponentCostPerYear);
+                    //}
+                    //await _db.tProjectComponentCost.AddRangeAsync(ComponentCost);
+                    //await _db.tProjectComponentCostPerYear.AddRangeAsync(ComponentCostPerYear);
+
+                    //jobCancellationToken.ThrowIfCancellationRequested();
+                    //// ── Major Items Of Work ────────────────────────────────────────
+                    //var MajorItemOfWork = new List<DBHelper.Models.Table.ProjectMajorWorkItem>();
+                    //var MajorWorkLocations = new List<DBHelper.Models.Table.ProjectMajorWorkLocations>();
+
+                    //foreach (var Item in ValidMajorItemsOfWork.Concat(WarningMajorItemsOfWork))
+                    //{
+                    //    var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
+                    //    var ComponentReference = ComponentCost.FirstOrDefault(x => x.ComponentId == Item.ComponentId);
+
+                    //    if (Reference == null || ComponentReference == null) continue;
+
+                    //    //var componentDetails = new ImportComponentDetailsExcel();
+
+                    //    //var queryValidComp = ValidComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId);
+
+                    //    //if (queryValidComp != null)
+                    //    //{
+                    //    //    componentDetails = queryValidComp;
+                    //    //}
+                    //    //else
+                    //    //{
+                    //    //    componentDetails = WarningComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId);
+                    //    //}
+
+                    //    var componentDetails = ValidComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId) ?? WarningComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId);
+
+                    //    if (componentDetails == null) continue;
+
+                    //    var Validate = _db.SaveMajorItemsOfWork(Item, Reference, componentDetails);
+
+                    //    Validate.MajorWorkItem.CreatedBy = jobRecord.RequestedBy;
+                    //    Validate.MajorWorkItem.CreatedDate = Functions.CurrentDate();
+                    //    Validate.MajorWorkItem.StageName = IsValidProgram.ProgramDetails.StageName;
+                    //    Validate.MajorWorkItem.ReferenceId = $"{Reference.NewProjectId}-{Validate.MajorWorkItem.ComponentId}";
+                    //    MajorItemOfWork.Add(Validate.MajorWorkItem);
+
+                    //    Validate.MajorWorkLocation.ParentId = $"{Reference.NewProjectId}-{Validate.MajorWorkItem.ComponentId}";
+                    //    Validate.MajorWorkLocation.CreatedBy = jobRecord.RequestedBy;
+                    //    Validate.MajorWorkLocation.CreatedDate = Functions.CurrentDate();
+                    //    //Validate.MajorWorkLocation.TargetUnitId = Reference.WorkTypeId;
+                    //    Validate.MajorWorkLocation.StageName = IsValidProgram.ProgramDetails.StageName;
+                    //    MajorWorkLocations.Add(Validate.MajorWorkLocation);
+                    //}
+                    //await _db.tProjectMajorWorkItem.AddRangeAsync(MajorItemOfWork);
+                    //await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Generate output files ──────────────────────────────
+                    bool hasErrors = ErrorProjectDetails.Any() || ErrorFundingProfile.Any()
+                                  || ErrorComponentDetails.Any() || ErrorMajorItemsOfWork.Any();
+
+                    //var tempFolder = Path.Combine(_env.WebRootPath, "temp", "imports");
+                    var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Imports");
+                    Directory.CreateDirectory(tempFolder);
+
+                    var textFileName = $"ImportReport_{payload.JobId}.txt";
+                    var excelFileName = $"ImportErrors_{payload.JobId}.xlsx";
+
+                    // Text file
+                    var textBytes = GenerateTextReport(
+                        ValidProjectDetails, ValidFundingProfile, ValidComponentDetails, ValidMajorItemsOfWork,
+                        WarningProjectDetails, WarningFundingProfile, WarningComponentDetails, WarningMajorItemsOfWork);
+
+                    await File.WriteAllBytesAsync(Path.Combine(tempFolder, textFileName), textBytes, jobCancellationToken.ShutdownToken);
+
+                    // Excel file (only if errors)
+                    if (hasErrors)
+                    {
+                        var excelBytes = GenerateExcelReport(
+                            ErrorProjectDetails, ErrorFundingProfile,
+                            ErrorComponentDetails, ErrorMajorItemsOfWork);
+
+                        await File.WriteAllBytesAsync(Path.Combine(tempFolder, excelFileName), excelBytes, jobCancellationToken.ShutdownToken);
+                    }
+
+                    // ── Release lock and commit ────────────────────────────────
+                    await ReleaseLock();
+                    transactionFinalized = true;
+                    await transaction.CommitAsync(jobCancellationToken.ShutdownToken);
+                    //await transaction.CommitAsync();
+
+                    // ── Update job result AFTER commit ─────────────────────────
+                    jobRecord.Status = hasErrors ? "CompletedWithErrors" : "Completed";
+                    jobRecord.Message = $"Projects imported: {ValidProjectDetails.Count + WarningProjectDetails.Count}.";
+                    jobRecord.ValidCount = ValidProjectDetails.Count + WarningProjectDetails.Count;
+                    jobRecord.WarningCount = WarningProjectDetails.Count;
+                    jobRecord.ErrorCount = ErrorProjectDetails.Count;
+                    jobRecord.TextFileName = textFileName;
+                    jobRecord.ExcelFileName = hasErrors ? excelFileName : string.Empty;
+                    jobRecord.CompletedAt = Functions.CurrentDate();
+                    _db.tImportJobResult.Update(jobRecord);
+                    await _db.SaveChangesAsync();
+
+                    // ── Notify: completed ──────────────────────────────────
+                    await _hub.Clients.Group($"import-{payload.JobId}").SendAsync("ImportStatusChanged", new
+                    {
+                        jobRecord.JobId,
+                        jobRecord.Status,
+                        jobRecord.Message,
+                        jobRecord.ValidCount,
+                        jobRecord.WarningCount,
+                        jobRecord.ErrorCount,
+                        jobRecord.CompletedAt,
+                        TextFileUrl = $"/api/Importing/DownloadImportFile?fileName={textFileName}",
+                        ExcelFileUrl = hasErrors ? $"/api/Importing/DownloadImportFile?fileName={excelFileName}" : string.Empty
+                    });
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // ── Hangfire cancelled the job (server shutdown or manual delete) ──
+                _logger.LogWarning("Import job {JobId} was cancelled", payload.JobId);
+
+                if (!transactionFinalized)
+                {
+                    try { await transaction.RollbackAsync(); }
+                    catch (Exception rbEx) { _logger.LogWarning(rbEx, "Rollback failed for cancelled job {JobId}", payload.JobId); }
+                }
+
+                try
+                {
+                    jobRecord.Status = "Cancelled";
+                    jobRecord.Message = "Import job was cancelled.";
+                    jobRecord.CompletedAt = Functions.CurrentDate();
+                    _db.tImportJobResult.Update(jobRecord);
+                    await _db.SaveChangesAsync();
+
+                    await NotifyClient(payload.JobId, "Cancelled", "Import job was cancelled.");
+                }
+                catch (Exception saveEx) { _logger.LogError(saveEx, "Failed to save cancelled status for job {JobId}", payload.JobId); }
+
+                await TryReleaseLock();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Import job {JobId} failed", payload.JobId);
+
+                // ── Only rollback if the transaction wasn't already finalized ──
+                if (!transactionFinalized)
+                {
+                    try
+                    {
+                        await transaction.RollbackAsync();
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        // Transaction may have already been closed by the DB
+                        _logger.LogWarning(rollbackEx, "Rollback failed for job {JobId} — transaction may already be closed", payload.JobId);
+                    }
+                }
+
+                // ── Save failure status outside the dead transaction ───────────
+                try
+                {
+                    jobRecord.Status = "Failed";
+                    jobRecord.Message = ex.Message;
+                    jobRecord.CompletedAt = Functions.CurrentDate();
+                    _db.tImportJobResult.Update(jobRecord);
+                    await _db.SaveChangesAsync();
+                }
+                catch (Exception saveEx)
+                {
+                    _logger.LogError(saveEx, "Failed to save error status for job {JobId}", payload.JobId);
+                }
+
+                await TryReleaseLock();
+                throw;
+            }
+            finally
+            {
+                await transaction.DisposeAsync();
+            }
+
+            async Task ReleaseLock()
+            {
+                var lockRecord = await _db.tImportingStatus
+                    .FirstOrDefaultAsync(x => x.ImportFunctionName == "ImportProject");
+                if (lockRecord == null) return;
+                lockRecord.IsActive = false;
+                _db.tImportingStatus.Update(lockRecord);
+                await _db.SaveChangesAsync();
+            }
+
+            // ── Safe version for catch blocks — won't throw ────────────────────
+            async Task TryReleaseLock()
+            {
+                try { await ReleaseLock(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to release import lock for job {JobId}", payload.JobId); }
+            }
+
+            async Task FailJob(ImportJobResult record, string message, IDbContextTransaction tx, string jobId)
+            {
+                await TryReleaseLock();
+                //finalized = true;
+                transactionFinalized = true;
+                await tx.CommitAsync();
+
+                record.Status = "Failed";
+                record.Message = message;
+                record.CompletedAt = Functions.CurrentDate();
+                _db.tImportJobResult.Update(record);
+                await _db.SaveChangesAsync();
+
+                await NotifyClient(jobId, "Failed", message);
+            }
+        }
 
         // ── SignalR notification helper ────────────────────────────────────────
         private async Task NotifyClient(string jobId, string status, string message)
@@ -684,15 +688,15 @@ namespace Hangfire.Services
 
             void StyleHeaders(ExcelWorksheet ws, string range, string[] red, string[] blue)
             {
-                foreach (var c in red) 
-                { 
-                    ws.Cells[c].Style.Fill.PatternType = ExcelFillStyle.Solid; 
-                    ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Red); 
+                foreach (var c in red)
+                {
+                    ws.Cells[c].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Red);
                 }
-                foreach (var c in blue) 
-                { 
-                    ws.Cells[c].Style.Fill.PatternType = ExcelFillStyle.Solid; 
-                    ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.SkyBlue); 
+                foreach (var c in blue)
+                {
+                    ws.Cells[c].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.SkyBlue);
                 }
                 ws.Cells[range].Style.Font.Bold = true;
                 ws.Cells[range].Style.Font.Color.SetColor(System.Drawing.Color.White);
@@ -1024,3 +1028,5 @@ namespace Hangfire.Services
         }
     }
 }
+
+

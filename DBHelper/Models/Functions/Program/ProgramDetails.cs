@@ -51,8 +51,10 @@ namespace DBHelper.Models.Functions.Program
         public bool IsSkipped { get; set; }
         [Required]
         [MaxLength(100)]
-        public string RevisionCreatedBy { get; set; } = string.Empty;
+        public string CreatedBy { get; set; } = string.Empty;
+        //public string RevisionCreatedBy { get; set; } = string.Empty;
         [Required]
-        public DateTime RevisionCreatedDate { get; set; }
+        public DateTime CreatedDate { get; set; }
+        //public DateTime RevisionCreatedDate { get; set; }
     }
 }

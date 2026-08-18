@@ -38,12 +38,13 @@ namespace Hangfire.Importing
         public string? Rank { get; set; } = string.Empty;
         public string? ErrorMessage { get; set; } = string.Empty;
 
+        public int? TierNameId { get; set; }
         public int? CategoryCategoryId { get; set; }
         public int? ThrustPAPKey { get; set; }
         public int? OriginNameId { get; set; }
-        public string? CityGdbId { get; set; }
-        public string? ProvinceGdbId { get; set; }
-        public string? LDGdbId { get; set; }
+        public string? CityCode { get; set; }
+        public string? ProvinceCode { get; set; }
+        public string? LDCode { get; set; }
         public string? OperatingUnitParticipantId { get; set; }
         public string? ImplementingOfficeParticipantId { get; set; }
         public string? DeoParticipantId { get; set; }
@@ -67,7 +68,7 @@ namespace Hangfire.Importing
         public string Amount { get; set; }
         public string? ErrorMessage { get; set; } = string.Empty;
 
-        public string? SourceOrganization { get; set; }
+        public string? SourceOrg { get; set; }
         public string? AgreementCode { get; set; }
     }
     public class ImportComponentDetailsExcel
@@ -127,5 +128,12 @@ namespace Hangfire.Importing
         public List<ImportComponentDetailsExcel> ComponentDetails { get; set; } = new List<ImportComponentDetailsExcel>();
         [Required]
         public List<ImportMajorItemsOfWorkExcel> MajorItemsOfWork { get; set; } = new List<ImportMajorItemsOfWorkExcel>();
+    }
+
+    public class ImportProgramDetailsWithFileURL
+    {
+        public string ProgramId { get; set; }
+        public string StageName { get; set; }
+        public string FileURL { get; set; }
     }
 }
