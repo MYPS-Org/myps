@@ -163,6 +163,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "You don't have permission to view this project.", Title = "Permission Denied" });
                 }
+                string ProjectFK = Project.ProjectFK;
                 var RevisionDetails = await _db.fRevisionDetail
                     .FromSqlInterpolated($"SELECT * FROM fRevisionDetail({dto.TransactionId})")
                     .AsNoTracking()
@@ -191,7 +192,7 @@ namespace WebAPI.Controllers.Revision
                     .FirstOrDefaultAsync(cancellationToken) ?? StatusForDisplay.ToString();
 
                 #region Validate PCMA Status
-                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
                 bool HasConstrunctionStatus = ComponentCost.Select(x => !string.IsNullOrEmpty(x.ConstructionStatusCode)).Any() ? true : false;
                 if (ComponentCost == null || !HasConstrunctionStatus)
                 {
@@ -282,7 +283,6 @@ namespace WebAPI.Controllers.Revision
 
                 #region Full Project Details
                 int ProjectRevisionFK = Project.ProjectRevisionFK;
-                string ProjectFK = Project.ProjectFK;
                 int CurrentYear = (int)Functions.CurrentDate().Year;
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync(cancellationToken);
                 var SupportingDoc = await _db.tOptionSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync(cancellationToken);
@@ -416,8 +416,9 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
                 }
+                string ProjectFK = projectRevision.ProjectFK;
                 var projectStage = await _db.tProjectStages.AsNoTracking()
-                    .Where(x => x.ProjectFK == projectRevision.ProjectFK && x.RevisionId == projectRevision.Id && x.StageName == "GAA-R")
+                    .Where(x => x.ProjectFK == ProjectFK && x.RevisionId == projectRevision.Id && x.StageName == "GAA-R")
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (projectStage == null)
@@ -432,7 +433,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
                 }
-                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({dto.ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
                 bool HasConstrunctionStatus = ComponentCost.Select(x => !string.IsNullOrEmpty(x.ConstructionStatusCode)).Any() ? true : false;
                 if (ComponentCost == null || !HasConstrunctionStatus)
                 {
@@ -550,7 +551,6 @@ namespace WebAPI.Controllers.Revision
 
                 #region Full Project Details
                 int ProjectRevisionFK = Project.Id;
-                string ProjectFK = Project.ProjectFK;
                 int CurrentYear = (int)Functions.CurrentDate().Year;
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync(cancellationToken);
                 var SupportingDoc = await _db.tOptionSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync(cancellationToken);
@@ -842,7 +842,7 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = $"Component Cost contains duplicate component IDs: {string.Join(", ", DuplicateComponentId)}. Please check and try again.", Title = "Duplicate Component IDs" });
                 }
 
-                var ExistingComponentCosts = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var ExistingComponentCosts = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
 
                 var NewComponentIds = dto.ComponentCosts.Where(x => x.Id == 0).Select(x => x.ComponentId).ToList();
                 var DuplicateExistingComponentId = ExistingComponentCosts.Where(x => NewComponentIds.Contains(x.ComponentId)).Select(x => x.ComponentId).ToList();
@@ -1061,8 +1061,8 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 #region ComponentCosts
                 var CostIds = dto.ComponentCosts.Where(x => x.Id != 0).Select(x => x.Id).ToList();
-                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
-                var ComponentCostYear = await _db.fProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var ComponentCostYear = await _db.fProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
                 var ComponentCostRules = jsonRules.ComponentCostRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
