@@ -6,11 +6,11 @@ namespace DBHelper.Models.Functions.Project
 {
     public class ProjectComponentCost
     {
+        [Key]
+        public int Id { get; set; }
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;
-        [Key]
-        public int Id { get; set; }
         [Required]
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;

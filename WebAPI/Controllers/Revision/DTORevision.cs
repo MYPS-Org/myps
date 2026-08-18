@@ -69,37 +69,51 @@ namespace WebAPI.Controllers.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
+        [MaxLength(8)]
+        public string Source { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string CostId { get; set; } = string.Empty;
+        public int ProjectRevisionFK { get; set; }
         [Required]
         [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? ComponentName { get; set; }
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
         public string? Description { get; set; }
         [Required]
+        [Column(TypeName = "decimal(18,5)")]
         public decimal Total { get; set; }
-        [MaxLength(10)]
-        public string StageName { get; set; } = "GAA-R";
+        [MaxLength(20)]
+        public string? ConstructionStatusCode { get; set; }
+        [MaxLength(50)]
+        public string? ConstructionStatusName { get; set; }
+        public bool? IsPackaged { get; set; }
         [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        public DateTime CreatedDate { get; set; }
+        public string? CreatedBy { get; set; }
+        public DateTime? CreatedDate { get; set; }
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
-        public bool IsDeleted { get; set; } = false;
+        [Required]
+        [MaxLength(100)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string ProjectFK { get; set; } = string.Empty;
+        [Required]
+        public bool IsDeleted { get; set; }
     }
     public class RevisionComponentCostPerYearDTO
     {
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(8)]
-        public string Source { get; set; } = string.Empty;
+        public int ComponentCostFK { get; set; }
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
@@ -112,32 +126,26 @@ namespace WebAPI.Controllers.Revision
         public string? UACS { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        [MaxLength(100)]
-        public string? CreatedBy { get; set; }
-        public DateTime? CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
         public DateTime? DateOfApproval { get; set; }
         [Required]
         [MaxLength(100)]
-        public string StageName { get; set; } = string.Empty;
+        public string CreatedBy { get; set; } = string.Empty;
         [Required]
-        [MaxLength(200)]
-        public string ProjectFK { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(200)]
-        public string ProjectId { get; set; } = string.Empty;
+        public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
     }
     public class RevisionMajorWorkItemDTO
     {
+        [Key]
+        public int Id { get; set; }
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;
-        [Key]
-        public int Id { get; set; }
+        public int? ComponentCostFK { get; set; }
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
@@ -167,16 +175,18 @@ namespace WebAPI.Controllers.Revision
     }
     public class RevisionMajorWorkLocationsDTO
     {
+        [Key]
+        public int Id { get; set; }
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;
+        [Required]
+        public int WorkItemFK { get; set; }
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
         [Required]
         public int YearOfWork { get; set; }
-        [Key]
-        public int Id { get; set; }
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
@@ -220,8 +230,11 @@ namespace WebAPI.Controllers.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string TransactionId { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string ProjectFK { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? ProjectId { get; set; }
+        public int? ProjectRevisionFK { get; set; }
         [Required]
         [MaxLength(100)]
         public string SourceOrg { get; set; } = string.Empty;
@@ -233,6 +246,19 @@ namespace WebAPI.Controllers.Revision
         public decimal Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(8)]
+        public string Source { get; set; } = string.Empty;
+        public bool? IsWalletDraw { get; set; }
+        [MaxLength(100)]
+        public string? CreatedBy { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
     }
