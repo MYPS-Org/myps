@@ -70,7 +70,6 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
     RevisionDetails?: RevisionDetails;
     ForCorrectionsDetails?: ForCorrectionsDetails[];
     RevisionDocs?: RevisionDoc[];
-    CanRevise?: boolean; // Whether the user can submit a revision request
 }
 
 export interface ForCorrectionsDetails {
