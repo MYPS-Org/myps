@@ -13,6 +13,7 @@ using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
@@ -606,6 +607,9 @@ namespace WebAPI.Controllers.Revision
                 var ScopeOfWork = await _db.tOptionScopeOfWork.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync(cancellationToken);
                 #endregion
 
+                bool isROUser = _Session.UserGroupNames.Contains("RPC");
+                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+
                 return Ok(new
                 {
                     Header = SelectedType,
@@ -621,7 +625,13 @@ namespace WebAPI.Controllers.Revision
                     Rules = SelectedRules,
 
                     IsActive = true,
-                    CanRevise = HasAPIPermission,
+
+                    ActionRules = new
+                    {
+                        CanApprove = (isROUser || isCOUser) || false,
+                        CanForCorrection = (isROUser || isCOUser) || false,
+                        CanSubmit = !isCOUser
+                    },
 
                     ProgramDetails = ProgramRevision,
                     ProjectDetails = Project,
