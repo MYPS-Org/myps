@@ -330,6 +330,9 @@ namespace WebAPI.Controllers.Revision
                 var InfraTypes = await _db.tOptionInfraType.AsNoTracking().OrderBy(x => x.InfraName).ToListAsync(cancellationToken);
                 #endregion
 
+                bool isROUser = _Session.UserGroupNames.Contains("RPC");
+                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+
                 return Ok(new
                 {
                     Header = SelectedType,
@@ -344,6 +347,13 @@ namespace WebAPI.Controllers.Revision
                         ConstructionStatus = ConStatus,
                         PackageStatus = PackedStatus,
                         RevisionStatus = ProjectRevisionStatus
+                    },
+
+                    ActionRules = new
+                    {
+                        CanApprove = (isROUser || isCOUser) || false,
+                        CanForCorrection = (isROUser || isCOUser) || false,
+                        CanSubmit = !isCOUser
                     },
 
                     Rules = SelectedRules,
