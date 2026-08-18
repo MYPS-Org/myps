@@ -191,42 +191,6 @@ namespace WebAPI.Controllers.Revision
                     .Select(x => x.Name)
                     .FirstOrDefaultAsync(cancellationToken) ?? StatusForDisplay.ToString();
 
-                #region Action Rules
-                // Backend-computed replacement for the old FE pattern of gating buttons on
-                // hardcoded usergroup name checks (AUC/RPC/DPC). Mirrors the same RO/CO codes
-                // fRevisionQueue already uses (0=not yet submitted, 1=RO pending, 3=RO for-correction,
-                // 4=RO approved/CO pending, 4+3=CO for-correction) so this stays consistent with the
-                // approval queue's own state machine instead of the display-label string.
-                bool isROUser = _Session.UserGroupNames.Contains("RPC");
-                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
-                bool isDPCUser = _Session.UserGroupNames.Contains("DPC");
-                bool isRevisionCreator = RevisionDetails.RevisionCreatedBy == _Session.UserId;
-
-                int RoStatusCode = (int)ApprovalStatus.ROStatus;
-                int CoStatusCode = (int)ApprovalStatus.COStatus;
-                bool NotYetSubmitted = RoStatusCode == 0;
-                bool IsRoPendingReview = RoStatusCode == 1;
-                bool IsCoPendingReview = RoStatusCode == 4 && CoStatusCode == 0;
-                bool IsForCorrectionStatus = RoStatusCode == 3 || (RoStatusCode == 4 && CoStatusCode == 3);
-                bool IsTerminal = ApprovalStatus.IsDisapproved == 1;
-
-                var ActionRules = new
-                {
-                    CanSubmit = !IsTerminal && (
-                        (NotYetSubmitted && (isROUser || isCOUser || isDPCUser)) ||
-                        (IsForCorrectionStatus && isRevisionCreator)
-                    ),
-                    CanApprove = !IsTerminal && (
-                        (IsRoPendingReview && isROUser) ||
-                        (IsCoPendingReview && isCOUser)
-                    ),
-                    CanForCorrection = !IsTerminal && (
-                        (IsRoPendingReview && isROUser) ||
-                        (IsCoPendingReview && isCOUser)
-                    ),
-                };
-                #endregion
-
                 #region Validate PCMA Status
                 var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
                 bool HasConstrunctionStatus = ComponentCost.Select(x => !string.IsNullOrEmpty(x.ConstructionStatusCode)).Any() ? true : false;
@@ -366,6 +330,9 @@ namespace WebAPI.Controllers.Revision
                 var InfraTypes = await _db.tOptionInfraType.AsNoTracking().OrderBy(x => x.InfraName).ToListAsync(cancellationToken);
                 #endregion
 
+                bool isROUser = _Session.UserGroupNames.Contains("RPC");
+                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+
                 return Ok(new
                 {
                     Header = SelectedType,
@@ -382,7 +349,13 @@ namespace WebAPI.Controllers.Revision
                         RevisionStatus = ProjectRevisionStatus
                     },
 
-                    ActionRules = ActionRules,
+                    ActionRules = new
+                    {
+                        CanApprove = (isROUser || isCOUser) || false,
+                        CanForCorrection = (isROUser || isCOUser) || false,
+                        CanSubmit = !isCOUser
+                    },
+
                     Rules = SelectedRules,
                     ComponentsStatus = ComponentCost,
 
@@ -609,13 +582,6 @@ namespace WebAPI.Controllers.Revision
 
                 var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).ToListAsync(cancellationToken);
                 var HasAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "RequestRevision" && x.UserId == _Session.UserId && x.IsActive);
-                // No transaction exists yet at this stage — only the initial submit is possible.
-                var ActionRules = new
-                {
-                    CanSubmit = HasAPIPermission,
-                    CanApprove = false,
-                    CanForCorrection = false,
-                };
                 #region Dropdowns
                 var ComponentType = await _db.tOptionProjectComponentType.AsNoTracking().OrderBy(x => x.ComponentName).ToListAsync(cancellationToken);
                 var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
@@ -656,7 +622,6 @@ namespace WebAPI.Controllers.Revision
 
                     IsActive = true,
                     CanRevise = HasAPIPermission,
-                    ActionRules = ActionRules,
 
                     ProgramDetails = ProgramRevision,
                     ProjectDetails = Project,
