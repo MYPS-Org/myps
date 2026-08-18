@@ -268,7 +268,7 @@ namespace WebAPI.Controllers.Revision
                 #region Program Validation
                 var ValidateProgram = await _db.ValidateProgramId(new ProgramHelperParams
                 {
-                    ProgramId = Project.ProgramFK,
+                    ProgramId = Project.ProgramId,
                     StageName = "GAA-R",
                     _Session = _Session,
                 }, cancellationToken);
@@ -755,7 +755,7 @@ namespace WebAPI.Controllers.Revision
 
                 var ValidateProgram = await _db.ValidateProgramId(new ProgramHelperParams
                 {
-                    ProgramId = ProgramFK,
+                    ProgramId = dto.ProjectDetails.ProgramId,
                     StageName = StageName,
                     _Session = _Session,
                 }, cancellationToken);
@@ -1259,11 +1259,11 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 #region MajorWorkItem
                 var MajorItemIds = dto.MajorItemOfWorks.Where(x => x.Id != 0).Select(x => x.Id);
-                var MajorWorkItem = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
+                var MajorWorkItem = await _db.fProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
                 //var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && MajorItemIds.Contains(x.Id)).ToListAsync(cancellationToken);
 
 
-                var MajorWorkLocations = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM ProjectMajorWorkLocations({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var MajorWorkLocations = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
