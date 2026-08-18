@@ -45,7 +45,7 @@ namespace WebAPI.Controllers.Revision
         {
             _revisionPcmaPublisher = revisionPcmaPublisher;
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto, CancellationToken cancellationToken)
         {
@@ -143,7 +143,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -401,7 +401,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ReviseProject([FromBody] ReviseProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -571,7 +571,7 @@ namespace WebAPI.Controllers.Revision
                 #endregion
 
                 var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).ToListAsync(cancellationToken);
-
+                var HasAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "RequestRevision" && x.UserId == _Session.UserId && x.IsActive);
                 #region Dropdowns
                 var ComponentType = await _db.tOptionProjectComponentType.AsNoTracking().OrderBy(x => x.ComponentName).ToListAsync(cancellationToken);
                 var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
@@ -611,6 +611,8 @@ namespace WebAPI.Controllers.Revision
                     Rules = SelectedRules,
 
                     IsActive = true,
+                    CanRevise = HasAPIPermission,
+
                     ProgramDetails = ProgramRevision,
                     ProjectDetails = Project,
                     ComponentCosts = ComponentCost,
@@ -662,7 +664,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto, CancellationToken cancellationToken)
         {
@@ -1728,7 +1730,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> UpdateRevisionStatus([FromBody] UpdateRevisionStatusDTO dto, CancellationToken cancellationToken)
         {
@@ -1943,7 +1945,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto, CancellationToken cancellationToken)
         {

@@ -553,10 +553,12 @@ namespace WebAPI.Controllers.Projects
                 var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.ReferenceId == ReferenceId).ToListAsync(cancellationToken);
                 #endregion
 
-
+                var HasViewPermission = await _db.vUserViewPermission.AnyAsync(x => x.RouteName == "RevisionDetails" && x.UserId == _Session.UserId && x.IsActive);
+                var HasAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "ReviseProject" && x.UserId == _Session.UserId && x.IsActive);
                 return Ok(new
                 {
-                    IsActive = (CurrentProgramVersion == null) ? false : (ProgramLatest.Status == "Approved") ? false : true,
+                    IsActive = CurrentProgramVersion != null && ProgramLatest.Status != "Approved",
+                    CanRevise = HasAPIPermission && HasViewPermission,
                     ProgramDetails = Program,
                     ProjectDetails = ProjectRevisions,
                     FundingProfile = Funding,
