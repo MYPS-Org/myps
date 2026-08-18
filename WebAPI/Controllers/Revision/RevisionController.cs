@@ -536,7 +536,7 @@ namespace WebAPI.Controllers.Revision
                 #region Program Validation
                 var ValidateProgram = await _db.ValidateProgramId(new ProgramHelperParams
                 {
-                    ProgramId = Project.ProgramFK,
+                    ProgramId = Project.ProgramId,
                     StageName = "GAA-R",
                     _Session = _Session,
                 }, cancellationToken);
