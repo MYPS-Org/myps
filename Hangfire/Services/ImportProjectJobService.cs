@@ -243,121 +243,158 @@ namespace Hangfire.Services
 
                     foreach (var Item in ValidProjectDetails.Concat(WarningProjectDetails))
                     {
-                        var Projects = _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, cache);
+                        var Projects = await _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, jobCancellationToken.ShutdownToken);
+                        //var Projects = _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, cache);
 
                         Projects.Project.CreatedBy = jobRecord.RequestedBy;
                         Projects.Project.CreatedDate = Functions.CurrentDate();
 
+                        _db.tProjects.Add(Projects.Project);
+                        _db.SaveChanges();
+
                         Projects.ProjectRevision.CreatedBy = jobRecord.RequestedBy;
                         Projects.ProjectRevision.CreatedDate = Functions.CurrentDate();
 
-                        ProjectReference.Add(Projects.ImportReference);
-                        projects.Add(Projects.Project);
-
                         _db.tProjectRevisions.Add(Projects.ProjectRevision);
                         _db.SaveChanges();
+
+                        Projects.ImportReference.NewProjectId = Projects.ProjectRevision.Id;
+                        Projects.ImportReference.UACS = Item.UACS;
+
+                        ProjectReference.Add(Projects.ImportReference);
+                        projects.Add(Projects.Project);
 
                         Projects.ProjectStage.RevisionId = Projects.ProjectRevision.Id;
                         Projects.ProjectStage.CreatedBy = jobRecord.RequestedBy;
                         Projects.ProjectStage.CreatedDate = Functions.CurrentDate();
 
                         projectstages.Add(Projects.ProjectStage);
-                    }
-                    await _db.tProjects.AddRangeAsync(projects);
-                    await _db.tProjectStages.AddRangeAsync(projectstages);
 
-                    //jobCancellationToken.ThrowIfCancellationRequested();
-                    //// ── Funding Profile ────────────────────────────────────────
+                        _db.tProjectStages.Add(Projects.ProjectStage);
+                        _db.SaveChanges();
+                    }
+                    //await _db.tProjectStages.AddRangeAsync(projectstages);
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Funding Profile ────────────────────────────────────────
+                    var FundingProfile = new List<DBHelper.Models.Table.Project.ProjectFundingProfile>();
                     //var FundingProfile = new List<DBHelper.Models.Table.ProjectFundingProfile>();
 
-                    //foreach (var Item in ValidFundingProfile.Concat(WarningFundingProfile))
-                    //{
-                    //    var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
+                    foreach (var Item in ValidFundingProfile.Concat(WarningFundingProfile))
+                    {
+                        var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectFK == Item.ProjectId);
 
-                    //    if (Reference == null) continue;
+                        if (Reference == null) continue;
 
-                    //    var Validate = _db.SaveFundingProfile(Item, Reference);
+                        var Validate = _db.SaveFundingProfile(Item, Reference);
 
-                    //    Validate.FundingProfile.CreatedBy = jobRecord.RequestedBy;
-                    //    Validate.FundingProfile.CreatedDate = Functions.CurrentDate();
-                    //    Validate.FundingProfile.StageName = IsValidProgram.ProgramDetails.StageName;
-                    //    FundingProfile.Add(Validate.FundingProfile);
-                    //}
-                    //await _db.tProjectFundingProfile.AddRangeAsync(FundingProfile);
+                        Validate.FundingProfile.CreatedBy = jobRecord.RequestedBy;
+                        Validate.FundingProfile.CreatedDate = Functions.CurrentDate();
+                        FundingProfile.Add(Validate.FundingProfile);
+                    }
+                    await _db.tProjectFundingProfile.AddRangeAsync(FundingProfile);
 
-                    //jobCancellationToken.ThrowIfCancellationRequested();
-                    //// ── Component Details ──────────────────────────────────────
-                    //var ComponentCost = new List<DBHelper.Models.Table.ProjectComponentCost>();
-                    //var ComponentCostPerYear = new List<DBHelper.Models.Table.ProjectComponentCostPerYear>();
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Component Details ──────────────────────────────────────
+                    var ComponentReference = new List<ImportComponentReference>();
+                    var ComponentCost = new List<DBHelper.Models.Table.Project.ProjectComponentCost>();
+                    var ComponentCostPerYear = new List<DBHelper.Models.Table.Project.ProjectComponentCostPerYear>();
 
-                    //foreach (var Item in ValidComponentDetails.Concat(WarningComponentDetails))
-                    //{
-                    //    var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
-                    //    if (Reference == null) continue;
+                    foreach (var Item in ValidComponentDetails.Concat(WarningComponentDetails))
+                    {
+                        var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectFK == Item.ProjectId);
+                        if (Reference == null) continue;
 
-                    //    var Validate = _db.SaveComponentCost(Item, Reference);
+                        var ReferenceComponent = ComponentReference.FirstOrDefault(x => x.OldProjectFK == Item.ProjectId && x.ComponentId == Item.ComponentId);
 
-                    //    Validate.ComponentCost.CreatedBy = jobRecord.RequestedBy;
-                    //    Validate.ComponentCost.CreatedDate = Functions.CurrentDate();
-                    //    Validate.ComponentCost.StageName = IsValidProgram.ProgramDetails.StageName;
-                    //    Validate.ComponentCost.CostId = $"{Validate.ComponentCost.ProjectId}-{Validate.ComponentCost.ComponentId}";
-                    //    ComponentCost.Add(Validate.ComponentCost);
+                        if (ReferenceComponent == null)
+                        {
+                            // First time seeing this ProjectId + ComponentId -> create the cost record
+                            var Validate = _db.SaveComponentCost(Item, Reference);
+                            Validate.ComponentCost.CreatedBy = jobRecord.RequestedBy;
+                            Validate.ComponentCost.CreatedDate = Functions.CurrentDate();
+                            ComponentCost.Add(Validate.ComponentCost);
+                            _db.tProjectComponentCost.Add(Validate.ComponentCost);
+                            _db.SaveChanges(); // need to save for tProjectComponentCostPerYear.ComponentCostFK
 
-                    //    Validate.ComponentCostPerYear.CreatedBy = jobRecord.RequestedBy;
-                    //    Validate.ComponentCostPerYear.CreatedDate = Functions.CurrentDate();
-                    //    Validate.ComponentCostPerYear.StageName = IsValidProgram.ProgramDetails.StageName;
-                    //    Validate.ComponentCostPerYear.ComponentCostId = $"{Validate.ComponentCost.ProjectId}-{Validate.ComponentCost.ComponentId}";
-                    //    ComponentCostPerYear.Add(Validate.ComponentCostPerYear);
-                    //}
-                    //await _db.tProjectComponentCost.AddRangeAsync(ComponentCost);
-                    //await _db.tProjectComponentCostPerYear.AddRangeAsync(ComponentCostPerYear);
+                            ReferenceComponent = new ImportComponentReference
+                            {
+                                OldProjectFK = Item.ProjectId,
+                                ComponentId = Item.ComponentId,
+                                NewComponentId = Validate.ComponentCost.Id,
+                                WorkTypeFK = (int)Item.ScopeOfWorkEnum!,
+                                InfraTypeFK = Item.InfraTypeInfraCode!
+                            };
+                            ComponentReference.Add(ReferenceComponent);
 
-                    //jobCancellationToken.ThrowIfCancellationRequested();
-                    //// ── Major Items Of Work ────────────────────────────────────────
-                    //var MajorItemOfWork = new List<DBHelper.Models.Table.ProjectMajorWorkItem>();
-                    //var MajorWorkLocations = new List<DBHelper.Models.Table.ProjectMajorWorkLocations>();
+                            var ValidatePerYear = _db.SaveComponentCostPerYear(Item, ReferenceComponent, Reference.UACS);
+                            ValidatePerYear.ComponentCostPerYear.CreatedBy = jobRecord.RequestedBy;
+                            ValidatePerYear.ComponentCostPerYear.CreatedDate = Functions.CurrentDate();
+                            ComponentCostPerYear.Add(ValidatePerYear.ComponentCostPerYear);
+                        }
+                        else
+                        {
+                            // Already have a cost record for this ProjectId + ComponentId -> add another year, roll up the total
+                            var ValidatePerYear = _db.SaveComponentCostPerYear(Item, ReferenceComponent, Reference.UACS);
+                            ValidatePerYear.ComponentCostPerYear.CreatedBy = jobRecord.RequestedBy;
+                            ValidatePerYear.ComponentCostPerYear.CreatedDate = Functions.CurrentDate();
+                            ComponentCostPerYear.Add(ValidatePerYear.ComponentCostPerYear);
 
-                    //foreach (var Item in ValidMajorItemsOfWork.Concat(WarningMajorItemsOfWork))
-                    //{
-                    //    var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
-                    //    var ComponentReference = ComponentCost.FirstOrDefault(x => x.ComponentId == Item.ComponentId);
+                            var ExistingComponentCost = ComponentCost.First(x => x.Id == ReferenceComponent.NewComponentId);
+                            ExistingComponentCost.Total += ValidatePerYear.ComponentCostPerYear.Amount;
+                        }
+                    }
+                    await _db.tProjectComponentCostPerYear.AddRangeAsync(ComponentCostPerYear);
 
-                    //    if (Reference == null || ComponentReference == null) continue;
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Major Items Of Work ────────────────────────────────────────
+                    var WorkItemtReference = new List<ImportMajorWorkItemReference>();
+                    var MajorItemOfWork = new List<DBHelper.Models.Table.Project.ProjectMajorWorkItem>();
+                    var MajorWorkLocations = new List<DBHelper.Models.Table.Project.ProjectMajorWorkLocations>();
 
-                    //    //var componentDetails = new ImportComponentDetailsExcel();
+                    foreach (var Item in ValidMajorItemsOfWork.Concat(WarningMajorItemsOfWork))
+                    {
+                        var ReferenceComponent = ComponentReference.FirstOrDefault(x => x.OldProjectFK == Item.ProjectId && x.ComponentId == Item.ComponentId);
 
-                    //    //var queryValidComp = ValidComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId);
+                        if (ReferenceComponent == null) continue;
 
-                    //    //if (queryValidComp != null)
-                    //    //{
-                    //    //    componentDetails = queryValidComp;
-                    //    //}
-                    //    //else
-                    //    //{
-                    //    //    componentDetails = WarningComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId);
-                    //    //}
+                        var ReferenceWorkItem = WorkItemtReference.FirstOrDefault(x => x.OldProjectFK == Item.ProjectId && x.ComponentId == Item.ComponentId);
 
-                    //    var componentDetails = ValidComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId) ?? WarningComponentDetails.FirstOrDefault(x => x.ProjectId == Item.ProjectId && x.ComponentId == Item.ComponentId);
+                        if (ReferenceWorkItem == null)
+                        {
+                            // First time seeing this ProjectId + ComponentId -> create the work item record
+                            var Validate = _db.SaveMajorItemsOfWork(Item, ReferenceComponent);
 
-                    //    if (componentDetails == null) continue;
+                            Validate.MajorWorkItem.CreatedBy = jobRecord.RequestedBy;
+                            Validate.MajorWorkItem.CreatedDate = Functions.CurrentDate();
+                            MajorItemOfWork.Add(Validate.MajorWorkItem);
+                            _db.tProjectMajorWorkItem.Add(Validate.MajorWorkItem);
+                            _db.SaveChanges(); // need to save for tProjectMajorWorkLocations.WorkItemFK
 
-                    //    var Validate = _db.SaveMajorItemsOfWork(Item, Reference, componentDetails);
+                            ReferenceWorkItem = new ImportMajorWorkItemReference
+                            {
+                                OldProjectFK = Item.ProjectId,
+                                ComponentId = Item.ComponentId,
+                                NewWorkItem = Validate.MajorWorkItem.Id
+                            };
+                            WorkItemtReference.Add(ReferenceWorkItem);
 
-                    //    Validate.MajorWorkItem.CreatedBy = jobRecord.RequestedBy;
-                    //    Validate.MajorWorkItem.CreatedDate = Functions.CurrentDate();
-                    //    Validate.MajorWorkItem.StageName = IsValidProgram.ProgramDetails.StageName;
-                    //    Validate.MajorWorkItem.ReferenceId = $"{Reference.NewProjectId}-{Validate.MajorWorkItem.ComponentId}";
-                    //    MajorItemOfWork.Add(Validate.MajorWorkItem);
+                            var ValidateWorkLocation = _db.SaveMajorWorkLocation(Item, ReferenceWorkItem);
 
-                    //    Validate.MajorWorkLocation.ParentId = $"{Reference.NewProjectId}-{Validate.MajorWorkItem.ComponentId}";
-                    //    Validate.MajorWorkLocation.CreatedBy = jobRecord.RequestedBy;
-                    //    Validate.MajorWorkLocation.CreatedDate = Functions.CurrentDate();
-                    //    //Validate.MajorWorkLocation.TargetUnitId = Reference.WorkTypeId;
-                    //    Validate.MajorWorkLocation.StageName = IsValidProgram.ProgramDetails.StageName;
-                    //    MajorWorkLocations.Add(Validate.MajorWorkLocation);
-                    //}
-                    //await _db.tProjectMajorWorkItem.AddRangeAsync(MajorItemOfWork);
-                    //await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
+                            ValidateWorkLocation.MajorWorkLocation.CreatedBy = jobRecord.RequestedBy;
+                            ValidateWorkLocation.MajorWorkLocation.CreatedDate = Functions.CurrentDate();
+                            MajorWorkLocations.Add(ValidateWorkLocation.MajorWorkLocation);
+                        }
+                        else
+                        {
+                            var ValidateWorkLocation = _db.SaveMajorWorkLocation(Item, ReferenceWorkItem);
+
+                            ValidateWorkLocation.MajorWorkLocation.CreatedBy = jobRecord.RequestedBy;
+                            ValidateWorkLocation.MajorWorkLocation.CreatedDate = Functions.CurrentDate();
+                            MajorWorkLocations.Add(ValidateWorkLocation.MajorWorkLocation);
+                        }
+                    }
+                    await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
 
                     jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Generate output files ──────────────────────────────
@@ -949,7 +986,7 @@ namespace Hangfire.Services
                     Source = ws.Cells[row, 2].Text.Trim(),
                     Agreement = ws.Cells[row, 3].Text.Trim(),
                     Amount = ws.Cells[row, 4].Text.Trim(),
-                    Percentage = 0
+                    Percentage = 100
                 });
             }
             return result;
@@ -1002,7 +1039,7 @@ namespace Hangfire.Services
                 string? startChainage = string.IsNullOrWhiteSpace(ws.Cells[row, 14].Text) ? null : ws.Cells[row, 14].Text.Trim();
                 string? endChainage = string.IsNullOrWhiteSpace(ws.Cells[row, 15].Text) ? null : ws.Cells[row, 15].Text.Trim();
                 string? length = string.IsNullOrWhiteSpace(ws.Cells[row, 16].Text) ? null : ws.Cells[row, 16].Text.Trim();
-                string? activityYear = string.IsNullOrWhiteSpace(ws.Cells[row, 17].Text) ? null : ws.Cells[row, 17].Text.Trim();
+                //string? activityYear = string.IsNullOrWhiteSpace(ws.Cells[row, 17].Text) ? null : ws.Cells[row, 17].Text.Trim();
                 result.Add(new ImportMajorItemsOfWorkExcel
                 {
                     ProjectId = ws.Cells[row, 1].Text.Trim(),
@@ -1021,7 +1058,7 @@ namespace Hangfire.Services
                     StartChainage = startChainage,
                     EndChainage = endChainage,
                     Length = length,
-                    ActivityYear = activityYear //int.TryParse(ws.Cells[row, 17].Text, out var year) ? year : 0
+                    ActivityYear = ws.Cells[row, 17].Text.Trim() //activityYear
                 });
             }
             return result;

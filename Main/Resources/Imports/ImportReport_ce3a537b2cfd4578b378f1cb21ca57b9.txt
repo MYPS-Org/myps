@@ -1,0 +1,41 @@
+=== IMPORT PROJECT REPORT ===
+Generated: 2026-08-18 17:21:52
+
+--- VALID RECORDS ---
+Project Details:      3
+Funding Profile:      3
+Component Details:    5
+Major Items of Work:  4
+
+--- VALID: PROJECT DETAILS ---
+  ProjectId: P00920001LZ
+  ProjectId: P00920001VS
+  ProjectId: P00920003LZ
+
+--- VALID: FUNDING PROFILE ---
+  ProjectId: P00920001LZ
+  ProjectId: P00920001VS
+  ProjectId: P00920003LZ
+
+--- VALID: COMPONENT DETAILS ---
+  ProjectId: P00920001LZ | ComponentId: CW1
+  ProjectId: P00920001VS | ComponentId: CW1
+  ProjectId: P00920001VS | ComponentId: CW1
+  ProjectId: P00920003LZ | ComponentId: CW1
+  ProjectId: P00920003LZ | ComponentId: CW2
+
+--- VALID: MAJOR ITEMS OF WORK ---
+  ProjectId: P00920001VS | InfrastructureId: FCS-20002
+  ProjectId: P00920001VS | InfrastructureId: FCS-20004
+  ProjectId: P00920003LZ | InfrastructureId: FCS-20004
+  ProjectId: P00920003LZ | InfrastructureId: FCS-20005
+
+--- WARNING RECORDS ---
+Project Details:      0
+Funding Profile:      0
+Component Details:    0
+Major Items of Work:  1
+
+--- WARNING: MAJOR ITEMS OF WORK ---
+  ProjectId: P00920001LZ | InfrastructureId: FCS-20001 | Warning: Incorrect Start Chainage, Incorrect End Chainage, Incorrect Length
+

@@ -1,16 +1,21 @@
 ﻿using DBHelper.Data;
+using DBHelper.Models.Enums;
 using DBHelper.Models.Views.AdminAreas;
 using Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Threading.Tasks;
+using static Helpers.ProjectHelper;
 
 namespace Hangfire.Importing
 {
@@ -766,14 +771,19 @@ namespace Hangfire.Importing
                     Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Length") : string.Format("{0}", "Incorrect Length");
                 }
             }
-            if (details.ActivityYear != null)
+            if (!ValidateYear(details.ActivityYear, out _))
             {
-                if (!ValidateYear(details.ActivityYear, out _))
-                {
-                    IsWarning = true;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Activity Year") : string.Format("{0}", "Incorrect Activity Year");
-                }
+                IsValid = false;
+                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Activity Year") : string.Format("{0}", "Incorrect Activity Year");
             }
+            //if (details.ActivityYear != null)
+            //{
+            //    if (!ValidateYear(details.ActivityYear, out _))
+            //    {
+            //        IsWarning = true;
+            //        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Activity Year") : string.Format("{0}", "Incorrect Activity Year");
+            //    }
+            //}
             details.ErrorMessage = Message;
             if (IsValid)
             {
@@ -786,33 +796,39 @@ namespace Hangfire.Importing
         public class SaveProjectResponse : ValidationResponse
         {
             public DBHelper.Models.Table.Project.Projects Project { get; set; } = new DBHelper.Models.Table.Project.Projects();
-            //public DBHelper.Models.Table.Project.Projects Project { get; set; } = new DBHelper.Models.Table.Projects();
             public DBHelper.Models.Table.Project.ProjectRevisions ProjectRevision { get; set; } = new DBHelper.Models.Table.Project.ProjectRevisions();
-            //public DBHelper.Models.Table.Project.ProjectRevisions ProjectRevision { get; set; } = new DBHelper.Models.Table.ProjectRevisions();
             public DBHelper.Models.Table.Project.ProjectStages ProjectStage { get; set; } = new DBHelper.Models.Table.Project.ProjectStages();
-            //public DBHelper.Models.Table.Project.ProjectStages ProjectStage { get; set; } = new DBHelper.Models.Table.ProjectStages();
             public ImportProjectReference ImportReference { get; set; } = new ImportProjectReference();
         }
-        public static SaveProjectResponse SaveProjectDetails(this MYPSDbContext _db, DBHelper.Models.Functions.Program.ProgramDetails ProgramDetails, ImportProjectDetailsExcel details, List<ImportProjectReference> Saved, ImportLookupCache cache)
-        //public static SaveProjectResponse SaveProjectDetails(this MYPSDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, ImportProjectDetailsExcel details, List<ImportProjectReference> Saved, ImportLookupCache cache)
+        public static async Task<SaveProjectResponse> SaveProjectDetails(this MYPSDbContext _db, DBHelper.Models.Functions.Program.ProgramDetails ProgramDetails, ImportProjectDetailsExcel details, List<ImportProjectReference> Saved, CancellationToken cancellationToken)
         {
-            var Category = cache.Categories.First(x => x.CategoryName == details.Category);
+            var Request = new GenerateProjectIDParams
+            {
+                CategoryId = (int)details.CategoryCategoryId!,
+                StageName = ProgramDetails.StageName,
+                IslandCode = details.RegionIslandCode!,
+                YearStart = ProgramDetails.StartYear,
+                Count = 1
+            };
+
+            string ProjectPK = await _db.GenerateProjectID(Request, cancellationToken);
 
             var ImportRef = new ImportProjectReference();
-            string toSaveProjectId = _db.GenerateProjectID(ProgramDetails, Category, details.RegionIslandCode!);
-            var parts = toSaveProjectId.Split("-");
-            string baseId = toSaveProjectId.Replace("-", "");
-            string ReferenceId = baseId;
-            var check = Saved.Where(x => x.ThirdSegment == parts[2]).OrderByDescending(x => x.MaxId).FirstOrDefault(x => x.ThirdSegment == parts[2]);
-            ImportRef.MaxId = parts[2];
-            ImportRef.ThirdSegment = parts[2];
-            if (check != null)
-            {
-                ImportRef.MaxId = (int.Parse(check.MaxId) + 1).ToString();
-                ReferenceId = toSaveProjectId.Replace(parts[2], ImportRef.MaxId.ToString()).Replace("-", "");
-            }
-            ImportRef.OldProjectId = details.ProjectId;
-            ImportRef.NewProjectId = ReferenceId;
+            //string toSaveProjectId = _db.GenerateProjectID(ProgramDetails, Category, details.RegionIslandCode!);
+            //var parts = ProjectPK.Split("-");
+            //string baseId = ProjectPK.Replace("-", "");
+            //string ReferenceId = baseId;
+            //var check = Saved.Where(x => x.ThirdSegment == parts[2]).OrderByDescending(x => x.MaxId).FirstOrDefault(x => x.ThirdSegment == parts[2]);
+            //ImportRef.MaxId = parts[2];
+            //ImportRef.ThirdSegment = parts[2];
+            //if (check != null)
+            //{
+            //    ImportRef.MaxId = (int.Parse(check.MaxId) + 1).ToString();
+            //    ReferenceId = ProjectPK.Replace(parts[2], ImportRef.MaxId.ToString()).Replace("-", "");
+            //}
+            ImportRef.OldProjectFK = details.ProjectId;
+            ImportRef.NewProjectFK = ProjectPK;
+
             /*
             ImportProjectReference AddProject = new ImportProjectReference
             {
@@ -821,249 +837,280 @@ namespace Hangfire.Importing
             };
             AddProject.NewProjectId = Projects.Project.ReferenceId;
              */
+            string ProgramId = ProgramDetails.ProgramId;
+            string ProgramFK = ProgramDetails.ProgramPK;
 
-            //DateTime CurrentDate = Functions.CurrentDate();
             var NewProject = new DBHelper.Models.Table.Project.Projects
-            //var NewProject = new DBHelper.Models.Table.Projects
             {
-                ProgramId = ProgramDetails.ProgramId,
-                ReferenceId = ReferenceId
-            };
-            var NewProjectRevision = new DBHelper.Models.Table.Project.ProjectRevisions
-            //var NewProjectRevision = new DBHelper.Models.Table.ProjectRevisions
-            {
-                ProgramId = ProgramDetails.ProgramId,
-                ReferenceId = ReferenceId,
-                ProjectId = ReferenceId,
-                AlternateId = details.ProjectId,
+                ProjectPK = ProjectPK,
+                ProgramFK = ProgramFK,
+                ProgramId = ProgramId,
                 ExternalId = details.ExternalId,
                 MYId = details.MYId,
-                UACS = details.UACS,
+                ProjectType = string.Empty,
+                IsPublished = false,
+                IsRevised = false,
+                IsPublishable = false,
+                PCMARevisionCount = 0
+            };
+            var NewProjectRevision = new DBHelper.Models.Table.Project.ProjectRevisions
+            {
+                ProjectFK = ProjectPK,
+                ProgramFK = ProgramFK,
+                ProgramId = ProgramId,
+                ProjectId = ProjectPK,
+                AlternateId = details.ProjectId,
                 MYCAApprovalDate = string.IsNullOrWhiteSpace(details.MYCAApprovalDate) ? null : DateTime.TryParse(details.MYCAApprovalDate, out _) ? details.MYCAApprovalDate.StringToDate() : null,
-                RevisionNumber = 1,
                 Description = details.Description!,
-                Category = Category.CategoryId,
+                Category = (int)details.CategoryCategoryId,
                 Thrust = details.ThrustPAPKey,
                 Origin = (int)details.OriginNameId!,
-                City = details.CityGdbId!,
-                Province = details.ProvinceGdbId!,
-                LegislativeDistrict = details.LDGdbId!,
+                City = details.CityCode!,
+                Province = details.ProvinceCode!,
+                LegislativeDistrict = details.LDCode!,
                 OperatingUnit = details.OperatingUnitParticipantId!,
                 ImplementingOffice = details.ImplementingOfficeParticipantId!,
                 DEO = details.DeoParticipantId!,
                 Region = details.RegionParticipantId!,
                 Agency = (int)details.AgencyNameId!,
                 ImplementationMode = details.ImplementationModeNameId,
-                EmergencyMode = (int)details.EmergencyModeNameId!,
+                EmergencyMode = details.EmergencyModeNameId!,
                 IslandCode = details.RegionIslandCode!,
                 Feasibility = details.FeasibilityNameId,
                 FeasibilityDate = string.IsNullOrWhiteSpace(details.FeasibilityDate) ? null : DateTime.TryParse(details.FeasibilityDate, out _) ? details.FeasibilityDate.StringToDate() : null,
-                DetailedDesign = (int)details.DetailedDesignNameId!,
+                DetailedDesign = details.DetailedDesignNameId!,
                 DetailedDesignDate = string.IsNullOrWhiteSpace(details.DetailedDesignDate) ? null : DateTime.TryParse(details.DetailedDesignDate, out _) ? details.DetailedDesignDate.StringToDate() : null,
-                RowAvailable = (int)details.RowAvailableNameId!,
+                RowAvailable = details.RowAvailableNameId!,
                 RegionWide = (int)details.RegionWideNameId!,
-                Tier = (details.Tier.Trim().Equals("Tier I", StringComparison.CurrentCultureIgnoreCase)) ? 1 : 2,
+                Tier = (int)details.TierNameId!,
+                //Tier = (details.Tier.Trim().Equals("Tier I", StringComparison.CurrentCultureIgnoreCase)) ? 1 : 2,
                 Rank = string.IsNullOrWhiteSpace(details.Rank) ? null : double.TryParse(details.Rank, out var rank) ? rank : null,
+                IsDeleted = false
             };
-            var ProjectStage = new DBHelper.Models.Table.ProjectStages
+            var ProjectStage = new DBHelper.Models.Table.Project.ProjectStages
             {
-                ReferenceId = ReferenceId,
+                ProjectFK = ProjectPK,
+                ProgramFK = ProgramFK,
                 ProgramId = ProgramDetails.ProgramId,
                 RevisionId = 0,
-                StageId = ProgramDetails.StageId,
+                StageId = (EnumProgramStage)ProgramDetails.StageId,
+                //StageId = ProgramDetails.StageId,
                 StageName = ProgramDetails.StageName
             };
             return new SaveProjectResponse { IsValid = true, Message = string.Empty, Project = NewProject, ProjectRevision = NewProjectRevision, ProjectStage = ProjectStage, ImportReference = ImportRef };
         }
         #endregion
-        //#region Save - Funding Profile
-        //public class SaveFundingProfileResponse : ValidationResponse
-        //{
-        //    public DBHelper.Models.Table.ProjectFundingProfile FundingProfile { get; set; } = new DBHelper.Models.Table.ProjectFundingProfile();
-        //}
-        //public static SaveFundingProfileResponse SaveFundingProfile(this MYPSDbContext _db, ImportFundingProfileExcel details, ImportProjectReference ProjectRef)
-        //{
-        //    var NewProject = ProjectRef.NewProjectId;
-        //    var FundingProfile = new DBHelper.Models.Table.ProjectFundingProfile
-        //    {
-        //        ProjectId = NewProject,
-        //        Source = details.SourceOrganization!,
-        //        Agreement = details.AgreementCode!,
-        //        Percentage = details.Percentage,
-        //        Amount = double.Parse(details.Amount)
-        //    };
-        //    return new SaveFundingProfileResponse { IsValid = true, Message = string.Empty, FundingProfile = FundingProfile };
-        //}
-        //#endregion
-        //#region Save - Component Details
-        //public class SaveComponentDetailsResponse : ValidationResponse
-        //{
-        //    public DBHelper.Models.Table.ProjectComponentCost ComponentCost { get; set; } = new DBHelper.Models.Table.ProjectComponentCost();
-        //    public DBHelper.Models.Table.ProjectComponentCostPerYear ComponentCostPerYear { get; set; } = new DBHelper.Models.Table.ProjectComponentCostPerYear();
-        //}
-        //public static SaveComponentDetailsResponse SaveComponentCost(this MYPSDbContext _db, ImportComponentDetailsExcel details, ImportProjectReference ProjectRef)
-        //{
-        //    var NewProject = ProjectRef.NewProjectId;
-        //    var ComponentCostProfile = new DBHelper.Models.Table.ProjectComponentCost
-        //    {
-        //        ProjectId = NewProject,
-        //        CostId = string.Format("{0}-{1}", details.ProjectId, details.ComponentId),
-        //        ComponentType = details.ComponentType,
-        //        ComponentId = details.ComponentId,
-        //        Description = details.Description,
-        //        Total = double.Parse(details.Cost)
-        //    };
-        //    DateTime? strStartDate = null, strEndDate = null;
-        //    if (details.StartDate != null)
-        //    {
-        //        if (details.StartDate.Trim().Length > 0)
-        //        {
-        //            bool isValidStartDate = DateTime.TryParse(details.StartDate, out var startDate);
-        //            if (isValidStartDate) strStartDate = startDate;
-        //        }
-        //    }
-        //    if (details.EndDate != null)
-        //    {
-        //        if (details.EndDate.Trim().Length > 0)
-        //        {
-        //            bool isValidEndDate = DateTime.TryParse(details.EndDate, out var endDate);
-        //            if (isValidEndDate) strEndDate = endDate;
-        //        }
-        //    }
-        //    var ComponentCostPerYearProfile = new DBHelper.Models.Table.ProjectComponentCostPerYear
-        //    {
-        //        ComponentCostId = string.Format("{0}-{1}", details.ProjectId, details.ComponentId),
-        //        Amount = double.Parse(details.Cost),
-        //        Year = int.Parse(details.ActiveYear),
-        //        StartDate = strStartDate,
-        //        EndDate = strEndDate
-        //    };
+        #region Save - Funding Profile
+        public class SaveFundingProfileResponse : ValidationResponse
+        {
+            public DBHelper.Models.Table.Project.ProjectFundingProfile FundingProfile { get; set; } = new DBHelper.Models.Table.Project.ProjectFundingProfile();
+        }
+        public static SaveFundingProfileResponse SaveFundingProfile(this MYPSDbContext _db, ImportFundingProfileExcel details, ImportProjectReference ProjectRef)
+        {
+            var NewProjectId = ProjectRef.NewProjectId;
+            var FundingProfile = new DBHelper.Models.Table.Project.ProjectFundingProfile
+            {
+                ProjectRevisionFK = NewProjectId,
+                SourceOrg = details.SourceOrg!,
+                AgreementCode = details.AgreementCode!,
+                Percentage = details.Percentage,
+                Amount = decimal.Parse(details.Amount),
+                IsDeleted = false
+            };
+            return new SaveFundingProfileResponse { IsValid = true, Message = string.Empty, FundingProfile = FundingProfile };
+        }
+        #endregion
+        #region Save - Component Cost
+        public class SaveComponentDetailsResponse : ValidationResponse
+        {
+            public DBHelper.Models.Table.Project.ProjectComponentCost ComponentCost { get; set; } = new DBHelper.Models.Table.Project.ProjectComponentCost();
+        }
+        public static SaveComponentDetailsResponse SaveComponentCost(this MYPSDbContext _db, ImportComponentDetailsExcel details, ImportProjectReference ProjectRef)
+        {
+            var NewProject = ProjectRef.NewProjectId;
+            var ComponentCostProfile = new DBHelper.Models.Table.Project.ProjectComponentCost
+            {
+                ProjectRevisionFK = NewProject,
+                ComponentType = details.ComponentType, // sample: Civil Works
+                ComponentId = details.ComponentId, // sample: CW1
+                Description = details.Description,
+                Total = decimal.Parse(details.Cost),
+                IsDeleted = false
+            };
 
-        //    return new SaveComponentDetailsResponse { IsValid = true, Message = string.Empty, ComponentCost = ComponentCostProfile, ComponentCostPerYear = ComponentCostPerYearProfile };
-        //}
-        //#endregion
-        //#region Save - Major Items of Work
-        //public class SaveMajorItemsOfWorkResponse : ValidationResponse
-        //{
-        //    public DBHelper.Models.Table.ProjectMajorWorkItem MajorWorkItem { get; set; } = new DBHelper.Models.Table.ProjectMajorWorkItem();
-        //    public DBHelper.Models.Table.ProjectMajorWorkLocations MajorWorkLocation { get; set; } = new DBHelper.Models.Table.ProjectMajorWorkLocations();
-        //}
-        //public static SaveMajorItemsOfWorkResponse SaveMajorItemsOfWork(this MYPSDbContext _db, ImportMajorItemsOfWorkExcel details, ImportProjectReference ProjectRef, ImportComponentDetailsExcel component)
-        //{
-        //    int? intActivityYear = null;
-        //    if (details.ActivityYear != null)
-        //    {
-        //        bool isValidActivityYear = ValidateYear(details.ActivityYear, out var activityYear);
-        //        if (isValidActivityYear) intActivityYear = activityYear;
-        //    }
+            return new SaveComponentDetailsResponse { IsValid = true, Message = string.Empty, ComponentCost = ComponentCostProfile };
+        }
+        #endregion
+        #region Save - Component Cost Per Year
+        public class SaveComponentCostPerYearResponse : ValidationResponse
+        {
+            public DBHelper.Models.Table.Project.ProjectComponentCostPerYear ComponentCostPerYear { get; set; } = new DBHelper.Models.Table.Project.ProjectComponentCostPerYear();
+        }
+        public static SaveComponentCostPerYearResponse SaveComponentCostPerYear(this MYPSDbContext _db, ImportComponentDetailsExcel details, ImportComponentReference ComponentRef, string? Uacs)
+        {
+            DateTime? strStartDate = null, strEndDate = null;
+            if (details.StartDate != null)
+            {
+                if (details.StartDate.Trim().Length > 0)
+                {
+                    bool isValidStartDate = DateTime.TryParse(details.StartDate, out var startDate);
+                    if (isValidStartDate) strStartDate = startDate;
+                }
+            }
+            if (details.EndDate != null)
+            {
+                if (details.EndDate.Trim().Length > 0)
+                {
+                    bool isValidEndDate = DateTime.TryParse(details.EndDate, out var endDate);
+                    if (isValidEndDate) strEndDate = endDate;
+                }
+            }
+            var NewComponentId = ComponentRef.NewComponentId;
+            var ComponentCostPerYearProfile = new DBHelper.Models.Table.Project.ProjectComponentCostPerYear
+            {
+                ComponentCostFK = NewComponentId,
+                ComponentId = details.ComponentId,
+                Amount = decimal.Parse(details.Cost),
+                Year = int.Parse(details.ActiveYear),
+                UACS = Uacs,
+                StartDate = strStartDate,
+                EndDate = strEndDate,
+                IsDeleted = false
+            };
 
-        //    var MajorWorkItemProfile = new DBHelper.Models.Table.ProjectMajorWorkItem
-        //    {
-        //        ProjectId = ProjectRef.NewProjectId,
-        //        ReferenceId = details.ReferenceId,
-        //        ComponentId = details.ComponentId,
-        //        YearOfWork = intActivityYear,
-        //        WorkTypeId = (int)component.ScopeOfWorkEnum,
-        //        InfraType = component.InfraTypeInfraCode!,
-        //    };
+            return new SaveComponentCostPerYearResponse { IsValid = true, Message = string.Empty, ComponentCostPerYear = ComponentCostPerYearProfile };
+        }
+        #endregion
+        #region Save - Major Work Item
+        public class SaveMajorWorkItemResponse : ValidationResponse
+        {
+            public DBHelper.Models.Table.Project.ProjectMajorWorkItem MajorWorkItem { get; set; } = new DBHelper.Models.Table.Project.ProjectMajorWorkItem();
+        }
+        public static SaveMajorWorkItemResponse SaveMajorItemsOfWork(this MYPSDbContext _db, ImportMajorItemsOfWorkExcel details, ImportComponentReference ComponentRef)
+        {
+            int NewComponentId = ComponentRef.NewComponentId;
+            int WorkTypeFK = ComponentRef.WorkTypeFK;
+            string InfraTypeFK = ComponentRef.InfraTypeFK;
 
-        //    double? startXVal = null, startYVal = null, endXVal = null, endYVal = null;
-        //    if (details.StartX != null)
-        //    {
-        //        bool isValidStartX = double.TryParse(details.StartX, out var startX);
-        //        if (isValidStartX)
-        //        {
-        //            if (startX >= 116.66666666666666 && startX <= 126.59666666666665)
-        //                startXVal = startX;
-        //        }
-        //    }
-        //    if (details.StartY != null)
-        //    {
-        //        bool isValidStartY = double.TryParse(details.StartY, out var startY);
-        //        if (isValidStartY)
-        //        {
-        //            if (startY >= 4.666666666666666 && startY <= 21.166666666666668)
-        //                startYVal = startY;
-        //        }
-        //    }
-        //    if (details.EndX != null)
-        //    {
-        //        bool isValidEndX = double.TryParse(details.EndX, out var endX);
-        //        if (isValidEndX)
-        //        {
-        //            if (endX >= 116.66666666666666 && endX <= 126.59666666666665)
-        //                endXVal = endX;
-        //        }
-        //    }
-        //    if (details.EndY != null)
-        //    {
-        //        bool isValidEndY = double.TryParse(details.EndY, out var endY);
-        //        if (isValidEndY)
-        //        {
-        //            if (endY >= 4.666666666666666 && endY <= 21.166666666666668)
-        //                endYVal = endY;
-        //        }
-        //    }
-        //    double? lengthVal = null, startChainageVal = null, endChainageVal = null;
-        //    if (details.Length != null)
-        //    {
-        //        bool isValidLength = double.TryParse(details.Length, out var length);
-        //        if (isValidLength) lengthVal = length;
-        //    }
-        //    if (details.StartChainage != null)
-        //    {
-        //        bool isValidStartChainage = double.TryParse(details.StartChainage, out var startChainage);
-        //        if (isValidStartChainage) startChainageVal = startChainage;
-        //    }
-        //    if (details.EndChainage != null)
-        //    {
-        //        bool isValidEndChainage = double.TryParse(details.EndChainage, out var endChainage);
-        //        if (isValidEndChainage) endChainageVal = endChainage;
-        //    }
-        //    //string? startStationVal = null, endStationVal = null;
-        //    //if (details.StartStation != null)
-        //    //{
-        //    //    bool isValidStartStation = double.TryParse(details.StartStation, out var startStation);
-        //    //    if (isValidStartStation) startStationVal = string.Format("{0:N}", startStation);
-        //    //}
-        //    //if (details.EndStation != null)
-        //    //{
-        //    //    bool isValidEndStation = double.TryParse(details.EndStation, out var endStation);
-        //    //    if (isValidEndStation) endStationVal = string.Format("{0:N}", endStation);
-        //    //}
+            var MajorWorkItemProfile = new DBHelper.Models.Table.Project.ProjectMajorWorkItem
+            {
+                ComponentCostFK = NewComponentId,
+                ComponentId = details.ComponentId,
+                YearOfWork = int.Parse(details.ActivityYear),
+                WorkTypeFK = WorkTypeFK,
+                InfraTypeFK = InfraTypeFK,
+                IsDeleted = false
+            };
 
-        //    var MajorWorkLocationProfile = new DBHelper.Models.Table.ProjectMajorWorkLocations
-        //    {
-        //        ParentId = string.Empty, //details.ParentId,
-        //        InfraId = details.InfrastructureId,
-        //        DetailedScope = details.DetailsScope,
-        //        TargetUnitId = (int)details.TargetUnitId,
-        //        TargetUnit = details.TargetUnit,
-        //        PhysicalTarget = double.Parse(details.PhysicalTarget),
-        //        Length = lengthVal,
-        //        StartChainage = startChainageVal,
-        //        EndChainage = endChainageVal,
-        //        StartX = startXVal,
-        //        StartY = startYVal,
-        //        EndX = endXVal,
-        //        EndY = endYVal,
-        //        StartStationLimit = details.StartStation,
-        //        EndStationLimit = details.EndStation
-        //    };
+            return new SaveMajorWorkItemResponse { IsValid = true, Message = string.Empty, MajorWorkItem = MajorWorkItemProfile };
+        }
+        #endregion
+        #region Save - Major Work Location
+        public class SaveMajorWorkLocationResponse : ValidationResponse
+        {
+            public DBHelper.Models.Table.Project.ProjectMajorWorkLocations MajorWorkLocation { get; set; } = new DBHelper.Models.Table.Project.ProjectMajorWorkLocations();
+        }
+        public static SaveMajorWorkLocationResponse SaveMajorWorkLocation(this MYPSDbContext _db, ImportMajorItemsOfWorkExcel details, ImportMajorWorkItemReference WorkRef)
+        {
+            double? startXVal = null, startYVal = null, endXVal = null, endYVal = null;
+            if (details.StartX != null)
+            {
+                bool isValidStartX = double.TryParse(details.StartX, out var startX);
+                if (isValidStartX)
+                {
+                    if (startX >= 116.66666666666666 && startX <= 126.59666666666665)
+                        startXVal = startX;
+                }
+            }
+            if (details.StartY != null)
+            {
+                bool isValidStartY = double.TryParse(details.StartY, out var startY);
+                if (isValidStartY)
+                {
+                    if (startY >= 4.666666666666666 && startY <= 21.166666666666668)
+                        startYVal = startY;
+                }
+            }
+            if (details.EndX != null)
+            {
+                bool isValidEndX = double.TryParse(details.EndX, out var endX);
+                if (isValidEndX)
+                {
+                    if (endX >= 116.66666666666666 && endX <= 126.59666666666665)
+                        endXVal = endX;
+                }
+            }
+            if (details.EndY != null)
+            {
+                bool isValidEndY = double.TryParse(details.EndY, out var endY);
+                if (isValidEndY)
+                {
+                    if (endY >= 4.666666666666666 && endY <= 21.166666666666668)
+                        endYVal = endY;
+                }
+            }
+            double? lengthVal = null, startChainageVal = null, endChainageVal = null;
+            if (details.Length != null)
+            {
+                bool isValidLength = double.TryParse(details.Length, out var length);
+                if (isValidLength) lengthVal = length;
+            }
+            if (details.StartChainage != null)
+            {
+                bool isValidStartChainage = double.TryParse(details.StartChainage, out var startChainage);
+                if (isValidStartChainage) startChainageVal = startChainage;
+            }
+            if (details.EndChainage != null)
+            {
+                bool isValidEndChainage = double.TryParse(details.EndChainage, out var endChainage);
+                if (isValidEndChainage) endChainageVal = endChainage;
+            }
+            //string? startStationVal = null, endStationVal = null;
+            //if (details.StartStation != null)
+            //{
+            //    bool isValidStartStation = double.TryParse(details.StartStation, out var startStation);
+            //    if (isValidStartStation) startStationVal = string.Format("{0:N}", startStation);
+            //}
+            //if (details.EndStation != null)
+            //{
+            //    bool isValidEndStation = double.TryParse(details.EndStation, out var endStation);
+            //    if (isValidEndStation) endStationVal = string.Format("{0:N}", endStation);
+            //}
 
-        //    return new SaveMajorItemsOfWorkResponse { IsValid = true, Message = string.Empty, MajorWorkItem = MajorWorkItemProfile, MajorWorkLocation = MajorWorkLocationProfile };
-        //}
-        //#endregion
+            int NewComponentId = WorkRef.NewWorkItem;
+
+            var MajorWorkLocationProfile = new DBHelper.Models.Table.Project.ProjectMajorWorkLocations
+            {
+                WorkItemFK = NewComponentId,
+                ComponentId = details.ComponentId,
+                InfraId = details.InfrastructureId,
+                DetailedScope = details.DetailsScope,
+                TargetUnitId = (int)details.TargetUnitId!,
+                TargetUnit = details.TargetUnit,
+                StartX = startXVal,
+                StartY = startYVal,
+                EndX = endXVal,
+                EndY = endYVal,
+                PhysicalTarget = double.Parse(details.PhysicalTarget),
+                StartStationLimit = details.StartStation,
+                EndStationLimit = details.EndStation,
+                StartChainage = startChainageVal,
+                EndChainage = endChainageVal,
+                Length = lengthVal,
+                IsDeleted = false
+            };
+
+            return new SaveMajorWorkLocationResponse { IsValid = true, Message = string.Empty, MajorWorkLocation = MajorWorkLocationProfile };
+        }
+        #endregion
         #region Program Validation
         public class IsValidProgramIdResponse : ValidationResponse
         {
             public DBHelper.Models.Functions.Program.ProgramDetails ProgramDetails { get; set; } = new DBHelper.Models.Functions.Program.ProgramDetails();
-            //public DBHelper.Models.Views.ProgramDetails ProgramDetails { get; set; } = new DBHelper.Models.Views.ProgramDetails();
         }
         public static async Task<IsValidProgramIdResponse> IsValidProgramId(this MYPSDbContext _db, string ProgramID, string StageName)
         {
             var CheckProgram = _db.vProgramLatest.AsNoTracking().FirstOrDefault(x => x.ProgramPK == ProgramID);
-            //var CheckProgram = _db.vPrograms.AsNoTracking().FirstOrDefault(x => x.ProgramId == ProgramID);
             if (CheckProgram == null)
             {
                 return new IsValidProgramIdResponse { IsValid = false, Message = $"ProgramID: {ProgramID} does not exist." };
@@ -1077,8 +1124,6 @@ namespace Hangfire.Importing
 
             var Details = await _db.fProgramDetails.FromSqlInterpolated($"SELECT * FROM fProgramDetails({ProgramID}, {GetStageId.NameId})").AsNoTracking().FirstOrDefaultAsync();
 
-            //var Details = _db.fProgramDetails(ProgramID, GetStageId.NameId).AsNoTracking().FirstOrDefault();
-            //var Details = _db.vProgramDetails.AsNoTracking().FirstOrDefault(x => x.ProgramId == ProgramID && x.StageName == StageName);
             if (Details == null)
             {
                 return new IsValidProgramIdResponse { IsValid = false, Message = $"Program details not found for ProgramID: {ProgramID} at Stage: {StageName}." };
@@ -1086,5 +1131,48 @@ namespace Hangfire.Importing
             return new IsValidProgramIdResponse { IsValid = true, Message = string.Empty, ProgramDetails = Details };
         }
         #endregion
+        public static async Task<string> GenerateProjectID(this MYPSDbContext _db, GenerateProjectIDParams request, CancellationToken cancellationToken)
+        {
+            string FirstSegment = request.StageName.GenerateProjec1stSegment();
+            string SecondSegment = request.YearStart.GenerateProjec2ndSegment();
+
+            //var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
+            //    .Where(x => x.Category == Category.CategoryId
+            //        && x.ProjectSuffix == FirstSegment
+            //        && x.IslandCode == IslandCode
+            //        && x.YearStart == ProgramDetails.YearStart)
+            //    .OrderByDescending(x => x.MaxId)
+            //    .FirstOrDefault();
+            //int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
+
+
+            //int nextId = Math.Max(maxExisting + 1, Category.Minimum);
+            //string ThirdSegment = nextId.ToString("D5");
+
+            var param = new Dictionary<string, object>
+            {
+                { "@ProjectSuffix", FirstSegment },
+                { "@CategoryId", request.CategoryId },
+                { "@YearStart", request.YearStart },
+                { "@IslandCode", request.IslandCode }
+            };
+            var results = await _db.Database
+            .SqlQuery<string>($@"EXEC dbo.pGenerateThirdSegment 
+                @ProjectSuffix = {FirstSegment}, 
+                @CategoryId = {request.CategoryId}, 
+                @YearStart = {request.YearStart}, 
+                @IslandCode = {request.IslandCode}")
+            .ToListAsync(cancellationToken);
+
+            string ThirdSegment = results.Single();
+
+            //string ThirdSegment = await Sql.NormalQuery<string>(
+            //    Appsetting.DbConnections.MYPSDb,
+            //    "EXEC pGenerateThirdSegment @ProjectSuffix, @CategoryId, @YearStart, @IslandCode",
+            //    param
+            //).FirstOrDefaultAsync() ?? string.Empty;
+
+            return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{request.IslandCode}".Replace("-", "");
+        }
     }
 }

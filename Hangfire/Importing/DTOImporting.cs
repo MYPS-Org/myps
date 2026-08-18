@@ -106,18 +106,37 @@ namespace Hangfire.Importing
         public string? StartChainage { get; set; } //Double
         public string? EndChainage { get; set; } //Double
         public string? Length { get; set; } //Double
-        public string? ActivityYear { get; set; }
+        public string ActivityYear { get; set; }
         public string? ErrorMessage { get; set; } = string.Empty;
 
         public int? TargetUnitId { get; set; }
     }
     public class ImportProjectReference
     {
-        public string OldProjectId { get; set; } = string.Empty;
-        public string NewProjectId { get; set; } = string.Empty;
+        public string OldProjectFK { get; set; } = string.Empty;
+        public string NewProjectFK { get; set; } = string.Empty;
+        public int NewProjectId { get; set; }
         public string ThirdSegment { get; set; } = string.Empty;
         public string MaxId { get; set; } = string.Empty;
+        public string? UACS { get; set; }
     }
+
+    public class ImportComponentReference
+    {
+        public string OldProjectFK { get; set; } = string.Empty;
+        public string ComponentId { get; set; } = string.Empty;
+        public int NewComponentId { get; set; }
+        public int WorkTypeFK { get; set; }
+        public string InfraTypeFK { get; set; }
+    }
+
+    public class ImportMajorWorkItemReference
+    {
+        public string OldProjectFK { get; set; } = string.Empty;
+        public string ComponentId { get; set; } = string.Empty;
+        public int NewWorkItem { get; set; }
+    }
+
     public class ImportProjectDTOExcel
     {
         [Required]
