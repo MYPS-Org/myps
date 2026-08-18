@@ -200,12 +200,13 @@ const ModificationList: React.FC = () => {
                             ) : (
                                 pagination.data.lists.map((revision) => (
                                     <TableRow key={revision.Id}>
-                                        <TableCell className="font-medium">{revision.RevisionName}</TableCell>
+                                        <TableCell className="font-medium">{revision.RevisionType}</TableCell>
                                         <TableCell>{revision.TransactionId}</TableCell>
-                                        <TableCell>{revision.Reason}</TableCell>
-                                        <TableCell>{revision.CreatedDate ? new Date(revision.CreatedDate).toLocaleDateString() : '-'}</TableCell>
+                                        <TableCell>{revision.RevisionReason}</TableCell>
+                                        <TableCell>{revision.RevisionDate ? new Date(revision.RevisionDate).toLocaleDateString() : '-'}</TableCell>
                                         <TableCell className="flex items-center">
-                                            {(() => {
+                                            {revision.RevisionStatus}
+                                            {/* {(() => {
                                                 const statusName =
                                                     revision.RegionStatus === 1 && revision.COStatus != null
                                                         ? revision.COStatusName
@@ -216,7 +217,7 @@ const ModificationList: React.FC = () => {
                                                         {statusName}
                                                     </span>
                                                 );
-                                            })()}
+                                            })()} */}
                                         </TableCell>
                                         <TableCell>
                                             <Button

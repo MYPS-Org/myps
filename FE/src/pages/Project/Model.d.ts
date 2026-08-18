@@ -155,7 +155,7 @@ export interface TransactionLog {
   Id: number;
   TransactionId: string;
   ReferenceId?: string;
-  TypeOfTransaction: string;
+  TypeOfTransaction?: string;
   AffectedTable: string;
   AffectedColumn: string;
   OldValue: string;

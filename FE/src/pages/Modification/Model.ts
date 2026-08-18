@@ -164,7 +164,10 @@ export interface RevisionLists {
     Id: number;
 	TransactionId: string;
 	RevisionName: string;
+    RevisionType: string;
+    RevisionReason: string;
 	RevisionGroupId: number;
+    RevisionStatus?: string;
 	CategoryName?: string;
 	CategoryId?: number;
 	Reason: string;
@@ -181,6 +184,7 @@ export interface RevisionLists {
 	ApprovedDocument?: string;
 	CreatedBy?: string;
 	CreatedDate?: string;
+    RevisionDate?: string;
 }
 
 // Matches the backend's cursor-pagination convention (see FE/src/types/Pagination.d.ts)
