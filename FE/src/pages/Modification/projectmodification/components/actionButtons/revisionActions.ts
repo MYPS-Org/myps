@@ -1,9 +1,7 @@
 // revisionActions.ts
 
-// The API only exposes a single collapsed status string (ProjectStatus.RevisionStatus) — it does
-// not distinguish "awaiting RPC (region) review" from "awaiting AUC (central office) review" (that
-// split exists server-side as ApprovalStatus.ROStatus/COStatus but is never returned to the client).
-// Until the API is extended to expose both, AUC and RPC share the same pending-approval gate below.
+import type { ActionRevisionRules } from '../../../Model';
+
 const normalizeStatus = (status?: string | null) => status?.toLowerCase().replace(/\s+/g, '') ?? '';
 
 export type RevisionAction = {
@@ -16,9 +14,11 @@ export type RevisionAction = {
 
 type Params = {
   isEdit: boolean;
-  userGroups?: string[];
+  // Backend-computed gate (WebAPI RevisionController: ReviseProject/ViewReviseProject
+  // ActionRules) — replaces the old FE-side AUC/RPC/DPC usergroup name checks.
+  actionRules?: ActionRevisionRules;
   // ProjectStatus.RevisionStatus from the API, e.g. "For Approval" | "Approved" | "Disapproved" | "For Correction".
-  // Absent/undefined means the revision hasn't been submitted yet.
+  // Only used here to pick the Submit vs Re-Submit label/handler — visibility itself comes from actionRules.
   revisionStatus?: string | null;
   createdBy?: string | null;
   currentUserId?: string | null;
@@ -43,95 +43,51 @@ type Params = {
 
 export const getRevisionActions = ({
   isEdit,
-  userGroups,
+  actionRules,
   revisionStatus,
   createdBy,
   currentUserId,
   loading,
   actions,
 }: Params): RevisionAction[] => {
-  const status = normalizeStatus(revisionStatus);
-  const notYetSubmitted = status === '';
-  const isPendingApproval = status === 'forapproval';
-  const isForCorrection = status === 'forcorrection';
+  const isForCorrection = normalizeStatus(revisionStatus) === 'forcorrection';
+  const isOwnRevision = !!currentUserId && currentUserId === createdBy;
 
   return [
-    // --- AUC ---
     {
-      show: isEdit && !!userGroups?.find(g => g === 'AUC') && notYetSubmitted,
-      color: 'green',
-      label: 'Submit Revision Request to CO',
-      loading: loading.revise,
-      onClick: () => actions.submit('new'),
-    },
-    {
-      show: isEdit && !!userGroups?.find(g => g === 'AUC') && isPendingApproval,
-      color: 'green',
-      label: 'Approve',
-      loading: loading.approve,
-      onClick: () => actions.submit('approve'),
-    },
-    {
-      show: isEdit && !!userGroups?.find(g => g === 'AUC') && isPendingApproval,
-      color: 'amber',
-      label: 'For Correction',
-      loading: loading.review,
-      onClick: () => actions.openReview(),
-    },
-    {
-      show: isEdit && !!userGroups?.find(g => g === 'AUC') && isPendingApproval,
-      color: 'red',
-      label: 'Disapprove',
-      loading: loading.reject,
-      onClick: () => actions.openReject(),
-    },
-
-    // --- RPC ---
-    {
-      show: isEdit && !!userGroups?.find(g => g === 'RPC') && notYetSubmitted,
-      color: 'green',
-      label: 'Submit Revision Request to CO',
-      loading: loading.revise,
-      onClick: () => actions.submit('new'),
-    },
-    {
-      show: isEdit && !!userGroups?.find(g => g === 'RPC') && isPendingApproval,
-      color: 'green',
-      label: 'Approve and Submit Revision to CO',
-      loading: loading.approve,
-      onClick: () => actions.openApprove(),
-    },
-    {
-      show: isEdit && !!userGroups?.find(g => g === 'RPC') && isPendingApproval,
-      color: 'amber',
-      label: 'For Correction',
-      loading: loading.review,
-      onClick: () => actions.openReview(),
-    },
-    {
-      show: isEdit && !!userGroups?.find(g => g === 'RPC') && isPendingApproval,
-      color: 'red',
-      label: 'Disapprove',
-      loading: loading.reject,
-      onClick: () => actions.openReject(),
-    },
-
-    // --- DPC ---
-    {
-      show: isEdit && !!userGroups?.find(g => g === 'DPC') && notYetSubmitted,
-      color: 'green',
-      label: 'Submit Revision Request to RO',
-      loading: loading.revise,
-      onClick: () => actions.submit('new'),
-    },
-
-    // --- Re-Submit: whoever created the revision resubmits it (any group) ---
-    {
-      show: isEdit && isForCorrection && !!currentUserId && currentUserId === createdBy && !!userGroups?.length,
+      show: isEdit && !!actionRules?.CanSubmit && isForCorrection && isOwnRevision,
       color: 'green',
       label: 'Re-Submit Revision',
       loading: loading.resubmit,
       onClick: () => actions.submit('resubmit'),
+    },
+    {
+      show: isEdit && !!actionRules?.CanSubmit && !isForCorrection,
+      color: 'green',
+      label: 'Submit Revision Request',
+      loading: loading.revise,
+      onClick: () => actions.submit('new'),
+    },
+    {
+      show: isEdit && !!actionRules?.CanApprove,
+      color: 'green',
+      label: 'Approve',
+      loading: loading.approve,
+      onClick: () => actions.openApprove(),
+    },
+    {
+      show: isEdit && !!actionRules?.CanForCorrection,
+      color: 'amber',
+      label: 'For Correction',
+      loading: loading.review,
+      onClick: () => actions.openReview(),
+    },
+    {
+      show: isEdit && !!actionRules?.CanApprove,
+      color: 'red',
+      label: 'Disapprove',
+      loading: loading.reject,
+      onClick: () => actions.openReject(),
     },
   ];
 };

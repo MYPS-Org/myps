@@ -778,7 +778,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         <div className="flex flex-end space-y-3 fixed top-2 right-25 z-50">
           <RevisionActionButtons
             mode={mode}
-            userGroups={user?.UserGroupNames}
             initialData={initialData}
             currentUserId={user?.UserId}
             loading={{

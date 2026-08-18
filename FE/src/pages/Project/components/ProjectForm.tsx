@@ -1032,7 +1032,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </Button> 
                 </>
               )}
-              {mode === 'edit' && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.ProjectDetails?.IsPublished && (
+              {mode === 'edit' && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.ProjectDetails?.IsPublished && initialData?.CanRevise && (
                 <Menu as="div" className="relative inline-block text-left">
                   <MenuButton
                     as={Button}

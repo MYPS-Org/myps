@@ -70,7 +70,8 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
     RevisionDetails?: RevisionDetails;
     ForCorrectionsDetails?: ForCorrectionsDetails[];
     RevisionDocs?: RevisionDoc[];
-    CanRevise?: boolean; // Whether the user can submit a revision request
+    // Backend-computed action gating — replaces FE-side usergroup name checks.
+    ActionRules?: ActionRevisionRules;
 }
 
 export interface ForCorrectionsDetails {
@@ -191,4 +192,10 @@ export interface RevisionFilter {
   RevisionType?: string | null;
   RevisionStatus?: string | null;
   CurrentStage?: string | null;
+}
+
+export interface ActionRevisionRules{
+    CanApprove: boolean;
+    CanForCorrection: boolean;
+    CanSubmit: boolean;
 }

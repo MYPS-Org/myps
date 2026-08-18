@@ -9,6 +9,9 @@ export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
   IsUnlock?: boolean;
+  // Whether the current user has permission to submit a revision request (ShowProjectDetails
+  // computes this from vUserActionPermission/vUserViewPermission; ReviseProject also returns it).
+  CanRevise?: boolean;
   ProgramDetails: ProgramLatest;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
@@ -105,7 +108,6 @@ export interface ProjectDetails {
 	LastUpdatedDate?: string;
 	Source: string;
 	IsPublished?: boolean;
-	CanRevise?: boolean;
 }
 export interface ProjectLists {
 	Id: number;
