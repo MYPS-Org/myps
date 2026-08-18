@@ -4,13 +4,10 @@ import { Button } from '../../../components/tailwindui/button';
 import { DateInput } from '../../../components/tailwindui/date-input';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from '../../Project/Model';
-import { EnumRevisionStatus } from '../Model';
-import { submitModificationRequest, updateRevisionRequestStatus } from '../Service';
+import { submitModificationRequest } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useAtomValue } from 'jotai';
-import { transactionIdAtom } from '../store/routeContextStore';
 import { usePdfUpload } from '../hooks/usePdfUpload';
 
 interface ReviseProjectDialogProps {
@@ -56,9 +53,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
     // console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-    const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
-
 
     // Reset form when modal opens
     useEffect(() => {
@@ -113,11 +107,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
         setIsSubmitting(true);
 
-        const isImplementingOffice = user?.UserGroupNames.find((x) => x === 'DPC' || x === 'RPC');
-        const isAuc = user?.UserGroupNames.find((x) => x === 'AUC');
-
-        const shouldCreateNewRevision = isImplementingOffice || (isAuc && !transactionId);
-
         try {
             // Prepare the payload
             const payload = {
@@ -144,59 +133,25 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
             console.log('Submitting modification request with payload:', payload);
 
-            if (shouldCreateNewRevision) {
-                // Implementing Office: Submit new modification request
-                await submitModificationRequest(payload);
-                
-                showToast({
-                    type: 'success',
-                    message: 'Modification request submitted successfully.'
-                });
+            // This dialog only ever opens from the "Submit Revision Request" action (see
+            // RevisionActionButtons/revisionActions.ts) — Approve now goes through
+            // ApproveModifyDialog instead, so submitting here always creates a new revision.
+            await submitModificationRequest(payload);
 
-                // Reset form
-                setApprovalDate('');
-                resetApprovalDocument();
-                setIsCertified(false);
+            showToast({
+                type: 'success',
+                message: 'Modification request submitted successfully.'
+            });
 
-                onClose();
-                // Navigate to the newly created revision view
-                // navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
-                navigate('/revision');
-            } else {
-                // AUC approving an existing revision
-                if (!transactionId) {
-                    showToast({
-                        type: 'error',
-                        message: 'Transaction ID is missing for approving the revision.'
-                    });
-                    return;
-                }
-                await updateRevisionRequestStatus(
-                    transactionId,
-                    EnumRevisionStatus.Approved,
-                    {
-                        Name: approvalDocument.Name,
-                        Extension: approvalDocument.Extension,
-                        ContentType: approvalDocument.ContentType,
-                        DataUrl: approvalDocument.DataUrl
-                    },
-                    approvalDate
-                );
-                
-                showToast({
-                    type: 'success',
-                    message: 'Revision approved successfully.'
-                });
+            // Reset form
+            setApprovalDate('');
+            resetApprovalDocument();
+            setIsCertified(false);
 
-                // Reset form
-                setApprovalDate('');
-                resetApprovalDocument();
-                setIsCertified(false);
-
-                onClose();
-                // Navigate back to modification list
-                navigate('/revision');
-            }
+            onClose();
+            // Navigate to the newly created revision view
+            // navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
+            navigate('/revision');
         } catch (error) {
             console.error('Error submitting modification request:', error);
             showToast({
