@@ -4,7 +4,6 @@ import type { RevisionProjectPayload } from '../../../Model';
 
 type Props = {
   mode: string;
-  userGroups?: string[];
   initialData?: RevisionProjectPayload;
   currentUserId?: string | null;
 
@@ -28,7 +27,6 @@ type Props = {
 
 export const RevisionActionButtons = ({
   mode,
-  userGroups,
   initialData,
   currentUserId,
   loading,
@@ -36,7 +34,7 @@ export const RevisionActionButtons = ({
 }: Props) => {
   const actionsList = getRevisionActions({
     isEdit: mode === 'edit',
-    userGroups,
+    actionRules: initialData?.ActionRules,
     revisionStatus: initialData?.ProjectStatus?.RevisionStatus,
     createdBy: initialData?.RevisionDetails?.RevisionCreatedBy,
     currentUserId,
