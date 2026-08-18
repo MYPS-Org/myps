@@ -70,6 +70,7 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
     RevisionDetails?: RevisionDetails;
     ForCorrectionsDetails?: ForCorrectionsDetails[];
     RevisionDocs?: RevisionDoc[];
+    CanRevise?: boolean; // Whether the user can submit a revision request
 }
 
 export interface ForCorrectionsDetails {
@@ -100,28 +101,25 @@ export interface ProjectComponentStatus {
 	PackedStatusName: string;
 }
 
+// Matches DBHelper.Models.Functions.Revision.RevisionDetail — the shape actually returned by
+// the fRevisionDetail() function backing ViewReviseProject. Note there is no RegionStatus/COStatus
+// here (that split lives server-side in ApprovalStatus.ROStatus/COStatus and is not returned to the
+// client) — use ProjectStatus.RevisionStatus for the collapsed display/gating status instead.
 export interface RevisionDetails {
     Id: number;
-	TransactionId: string;
-	RevisionGroupId: number;
-	CategoryId?: number;
-	ReasonId: number;
-	IODocApprovalDate?: string;
-	RegionStatus: number;
-	RegionDescription?: string;
-	RegionApprover?: string;
-	RegionApprovedDate?: string;
-	RegionLastUpdatedDate?: string;
-	COStatus: number;
-	CODocApprovalDate?: string;
-	CODescription?: string;
-	COApprover?: string;
-	COApprovedDate?: string;
-	COLastUpdatedDate?: string;
-	CreatedBy?: string;
-	CreatedDate?: string;
-    ConstructionStatus?: string;
-    PackageStatus?: string;
+    TransactionId: string;
+    ProjectFK: string;
+    ProjectId: string;
+    ProgramId: string;
+    RevisionType: string;
+    RevisionReason: string;
+    CategoryName?: string;
+    CurrentStage: string;
+    IODocApprovalDate?: string;
+    IODocPath?: string;
+    IsCertified: boolean;
+    RevisionCreatedBy: string;
+    RevisionDate: string;
 }
 
 export interface Rules {

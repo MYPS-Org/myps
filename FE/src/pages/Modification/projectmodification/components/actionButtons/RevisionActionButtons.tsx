@@ -1,10 +1,11 @@
-import { Button } from '../tailwindui/button';
+import { Button } from '../../../../../components/tailwindui/button';
 import { getRevisionActions } from './revisionActions';
+import type { RevisionProjectPayload } from '../../../Model';
 
 type Props = {
   mode: string;
   userGroups?: string[];
-  initialData: any;
+  initialData?: RevisionProjectPayload;
   currentUserId?: string | null;
 
   loading: {
@@ -36,12 +37,8 @@ export const RevisionActionButtons = ({
   const actionsList = getRevisionActions({
     isEdit: mode === 'edit',
     userGroups,
-    regionStatus: initialData?.RevisionDetails?.RegionStatus,
-    coStatus: initialData?.RevisionDetails?.COStatus,
-    isActive: initialData?.IsActive,
-    isModify: initialData?.IsModify,
-    stageId: initialData?.ProgramDetails?.StageId,
-    createdBy: initialData?.RevisionDetails?.CreatedBy,
+    revisionStatus: initialData?.ProjectStatus?.RevisionStatus,
+    createdBy: initialData?.RevisionDetails?.RevisionCreatedBy,
     currentUserId,
     loading,
     actions,

@@ -59,7 +59,7 @@ import {
 import { useComponentCosts } from '../../hooks/useComponentCosts';
 
 import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
-import { RevisionActionButtons } from '../../../../components/actionButtons/RevisionActionButtons';
+import { RevisionActionButtons } from './actionButtons/RevisionActionButtons';
 
 
 interface ProjectFormProps {
@@ -146,6 +146,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     ProgramId: '',
     StageId: 0,
     StageName: '',
+    StageDisplayName: '',
     Name: '',
     Status: undefined,
     Type: '',
