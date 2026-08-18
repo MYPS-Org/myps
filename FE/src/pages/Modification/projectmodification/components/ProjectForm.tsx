@@ -318,7 +318,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       componentCosts,
       projectDetails.ProjectId || '',
       initialData?.ProgramDetails?.StageName || '',
-      user?.UserId
+      user?.UserId,
+      projectDetails.ProjectFK || ''
     );
 
     if (automation.shouldApply && automation.terminatedCount > 0) {
@@ -1091,6 +1092,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               <MajorItemOfWorksForm
                 majorItems={majorItems}
                 projectId={initialData?.ProjectDetails.ProjectId || ''}
+                projectFK={initialData?.ProjectDetails.ProjectFK || ''}
                 componentCosts={componentCosts}
                 infraData={infraData}
                 onAdd={addMajorItem}

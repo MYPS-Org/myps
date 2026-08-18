@@ -25,6 +25,7 @@ interface ComponentCostDialogProps {
   componentTypes: ComponentTypeEnum[];
   componentCosts: ComponentCost[];
   ProjectId: string;
+  ProjectFK?: string;
   ReferenceId?: string;
   maxAmountCost?: number;
   categoryDesc?: string; // Keep for display purposes
@@ -45,6 +46,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   componentTypes,
   componentCosts,
   ProjectId,
+  ProjectFK,
   ReferenceId,
   maxAmountCost,
   isChangeOfCreditor,
@@ -62,7 +64,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     Id: 0,
     Source: '',
     ProjectRevisionFK: defaultProjectRevisionFK,
-    ProjectFK: '',
+    ProjectFK: ProjectFK || '',
     ProjectId: ProjectId,
     ComponentType: '',
     ComponentId: '',
@@ -244,7 +246,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       // Real ComponentCost.Id when editing an existing component; 0 for a
       // brand-new component, which the backend correlates by ComponentId instead.
       ComponentCostFK: formData.Id,
-      ProjectFK: '',
+      ProjectFK: formData.ProjectFK || ProjectFK || '',
       ProjectId: formData.ProjectId,
       ComponentId: formData.ComponentId,
       Amount: 0,
@@ -297,7 +299,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         Id: editingCost.Id ?? 0,
         Source: editingCost.Source ?? '',
         ProjectRevisionFK: editingCost.ProjectRevisionFK ?? defaultProjectRevisionFK,
-        ProjectFK: editingCost.ProjectFK ?? '',
+        ProjectFK: editingCost.ProjectFK || ProjectFK || '',
         ProjectId: editingCost.ProjectId ?? ProjectId,
         ComponentType: editingCost.ComponentType ?? '',
         ComponentId: editingCost.ComponentId ?? '',
@@ -324,7 +326,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         Id: generateTempId(),
         Source: '',
         ProjectRevisionFK: defaultProjectRevisionFK,
-        ProjectFK: '',
+        ProjectFK: ProjectFK || '',
         ProjectId: ProjectId,
         ComponentType: '',
         ComponentId: '',
@@ -340,7 +342,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setComponentCostPerYear([]);
       isInitializedRef.current = true;
     }
-  }, [editingCost, editingCostPerYear, mode, isOpen, ProjectId, user?.UserId]);
+  }, [editingCost, editingCostPerYear, mode, isOpen, ProjectId, ProjectFK, user?.UserId]);
 
   const handleChange = (field: string, value: string | number | null) => {
     setFormData(prev => ({
@@ -484,7 +486,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             Id: generateTempId(),
             Source: '',
             ProjectRevisionFK: defaultProjectRevisionFK,
-            ProjectFK: '',
+            ProjectFK: ProjectFK || '',
             ProjectId: '',
             ComponentType: '',
             ComponentId: '',

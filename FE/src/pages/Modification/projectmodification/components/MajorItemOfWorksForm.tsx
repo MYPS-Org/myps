@@ -23,6 +23,7 @@ import { useMajorItemLocations } from '../../hooks/useMajorItemLocations';
 interface MajorItemOfWorksFormProps {
   majorItems: MajorItemOfWorksWithDropdown[];
   projectId: string;
+  projectFK?: string;
   componentCosts: ComponentCost[];
   infraData?: InfraData;
   programDetails?: ProgramLatest;
@@ -38,6 +39,7 @@ interface MajorItemOfWorksFormProps {
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   majorItems: propMajorItems,
   projectId,
+  projectFK,
   componentCosts,
   infraData,
   programDetails,
@@ -214,7 +216,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         Id: generateTempId(), // Temporary Id
         Source: '',
         ComponentCostFK: componentCostId,
-        ProjectFK: projectId,
+        ProjectFK: projectFK || '',
         ProjectId: projectId,
         StageName: programDetails?.StageName || '',
         ComponentId: majorItemData.ComponentId,
