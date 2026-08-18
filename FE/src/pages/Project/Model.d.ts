@@ -105,6 +105,7 @@ export interface ProjectDetails {
 	LastUpdatedDate?: string;
 	Source: string;
 	IsPublished?: boolean;
+	CanRevise?: boolean;
 }
 export interface ProjectLists {
 	Id: number;
