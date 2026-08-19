@@ -47,7 +47,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   componentCosts,
   ProjectId,
   ProjectFK,
-  ReferenceId,
+  // ReferenceId,
   maxAmountCost,
   isChangeOfCreditor,
   programDetails
@@ -91,13 +91,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     try {
       const response = await autoFillComponentDescription(
         user?.UserId || '',
-        ReferenceId || '',
+        ProjectId || '',
         formData.ComponentId,
-        programDetails?.ProgramId || '',
+        programDetails?.ProgramPK || '',
         programDetails?.StageName || ''
       );
-      const data = response?.Data as Record<string, string> | undefined;
-      const description = data?.component_description ?? data?.description ?? data?.Description ?? '';
+      const gisResponse = response?.Data as { status?: string; data?: string } | undefined;
+      const description = gisResponse?.data ?? '';
       if (description) {
         handleChange('Description', description);
         showToast({ type: 'success', message: 'Description auto-filled successfully.' });
