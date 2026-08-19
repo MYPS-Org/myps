@@ -7,10 +7,9 @@ import DocumentArrowUpIcon from '@heroicons/react/24/outline/DocumentArrowUpIcon
 import DocumentIcon from '@heroicons/react/24/outline/DocumentIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import type { ProjectDetails } from '../../Project/Model';
-import { EnumRevisionStatus } from '../Model';
 import { useAtomValue } from 'jotai';
 import { transactionIdAtom } from '../store/routeContextStore';
-import { updateRevisionRequestStatus } from '../Service';
+import { approveRevision } from '../Service';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { usePdfUpload } from '../hooks/usePdfUpload';
@@ -56,9 +55,8 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
         setIsSubmitting(true);
 
         try {
-            await updateRevisionRequestStatus(
+            await approveRevision(
                 transactionId,
-                EnumRevisionStatus.Approved,
                 isCentralOffice ? approvalDocument ?? undefined : undefined
             );
 

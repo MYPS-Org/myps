@@ -1,6 +1,6 @@
 import { httpClient } from "../../services/httpClient";
 import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from "../Project/Model.d";
-import type { ApiMessageResult, ApiTransactionResult, EnumRevisionStatus, FileUpload, RevisionLists, RevisionPagination, RevisionProjectPayload } from "./Model";
+import type { ApiMessageResult, ApiTransactionResult, FileUpload, RevisionLists, RevisionPagination, RevisionProjectPayload } from "./Model";
 
 interface RevisionDetailsRequest {
     CategoryId?: number | null;
@@ -31,28 +31,61 @@ export const submitModificationRequest = async (payload: RequestRevisionPayload)
     }
 };
 
-export const updateRevisionRequestStatus = async (
+// BE note: /Revision/UpdateRevisionStatus was removed (commit 3bec5ce7, 2026-08-19) and split into
+// ApproveRevision/RejectRevision/ForCorrectionRevision below, each with its own DTO — there is no
+// single Status int anymore, and RejectRevisionDTO currently has no Remarks field at all (the reason
+// collected by RejectModifyDialog is not persisted server-side yet).
+export const approveRevision = async (
     transactionId: string,
-    status: EnumRevisionStatus,
     ApprovedDocument?: FileUpload,
-    ApprovalDate?: string,
-    remarks?: string
+    ApprovalDate?: string
 ) => {
     try {
         const payload = {
             TransactionId: transactionId,
-            Status: status,
             Document: ApprovedDocument,
-            ApprovalDate: ApprovalDate,
-            Remarks: remarks
+            ApprovalDate: ApprovalDate
         };
 
-        const response = await httpClient.post<ApiMessageResult>('/Revision/UpdateRevisionStatus', payload, {
+        const response = await httpClient.post<ApiMessageResult>('/Revision/ApproveRevision', payload, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;
     } catch (ErrorResponse) {
-        console.error('Error updating revision status:', ErrorResponse);
+        console.error('Error approving revision:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
+export const rejectRevision = async (transactionId: string) => {
+    try {
+        const payload = {
+            TransactionId: transactionId
+        };
+
+        const response = await httpClient.post<ApiMessageResult>('/Revision/RejectRevision', payload, {
+            preloaderMessage: 'Requesting revision...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error rejecting revision:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
+export const forCorrectionRevision = async (transactionId: string, remarks?: string) => {
+    try {
+        const payload = {
+            TransactionId: transactionId,
+            Remarks: remarks
+        };
+
+        const response = await httpClient.post<ApiMessageResult>('/Revision/ForCorrectionRevision', payload, {
+            preloaderMessage: 'Requesting revision...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error sending revision for correction:', ErrorResponse);
         throw ErrorResponse;
     }
 };
