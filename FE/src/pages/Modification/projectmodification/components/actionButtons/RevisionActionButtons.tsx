@@ -5,7 +5,6 @@ import type { RevisionProjectPayload } from '../../../Model';
 type Props = {
   mode: string;
   initialData?: RevisionProjectPayload;
-  currentUserId?: string | null;
 
   loading: {
     revise?: boolean;
@@ -28,7 +27,6 @@ type Props = {
 export const RevisionActionButtons = ({
   mode,
   initialData,
-  currentUserId,
   loading,
   actions,
 }: Props) => {
@@ -36,9 +34,6 @@ export const RevisionActionButtons = ({
     isEdit: mode === 'edit',
     actionRules: initialData?.ActionRules,
     currentStage: initialData?.RevisionDetails?.CurrentStage,
-    forCorrectionsCount: initialData?.ForCorrectionsDetails?.length,
-    createdBy: initialData?.RevisionDetails?.RevisionCreatedBy,
-    currentUserId,
     loading,
     actions,
   });

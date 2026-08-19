@@ -19,14 +19,23 @@ import type { ActionRevisionRules } from '../../../Model';
 // ConstructionStatus/PackageStatus come back.
 //
 // RevisionDetails.CurrentStage ('IO' | 'RO' | 'CO' | 'Disapproved' | 'Done', from the SQL function
-// fRevisionDetail()) is still used here, but only for two things ActionRules doesn't cover:
-// (1) notYetSubmitted — RevisionDetails is absent entirely until a revision is actually submitted;
-// (2) distinguishing the real "sent back to IO for correction" case (show Re-Submit) from a fresh
-// submission that hasn't been acted on yet, using whether a correction was ever recorded
-// (ForCorrectionsDetails). Note fRevisionDetail() itself hasn't been updated for the new
-// ROStatus==1-means-CO's-turn convention (it still reads ROStatus==1 as CurrentStage 'RO'), so
-// don't use CurrentStage to gate Approve/For Correction/Disapprove — ActionRules is the accurate
-// signal for those.
+// fRevisionDetail()) is used for exactly one thing ActionRules doesn't cover: notYetSubmitted —
+// RevisionDetails is absent entirely until a revision is actually submitted, which is what tells
+// "Submit Revision Request" (brand new) apart from "Re-Submit Revision" (already submitted).
+//
+// Re-Submit no longer re-derives ownership/for-correction state on the FE (previously via
+// currentUserId===createdBy and a CurrentStage==='io'+ForCorrectionsDetails check). Backend commit
+// 7c5dcb68 (2026-08-20) moved that logic server-side: CanSubmit is now
+// `isRevisionOwner && (isNewRevision || ROStatus==3 || COStatus==3)`, so once a revision has been
+// submitted (!notYetSubmitted), CanSubmit=true can only mean "owner, sent back for correction" —
+// same trust-ActionRules-alone principle as Approve/For Correction/Disapprove below. The old FE-side
+// recheck compared against RevisionDetails.RevisionCreatedBy (from fRevisionDetail(), a different/
+// staler source than the RevisionRoot.CreatedBy the backend now uses for CanSubmit), so it could go
+// out of sync and hide the button even when CanSubmit was correctly true.
+//
+// fRevisionDetail() itself hasn't been updated for the new ROStatus==1-means-CO's-turn convention
+// (it still reads ROStatus==1 as CurrentStage 'RO'), so don't use CurrentStage to gate Approve/For
+// Correction/Disapprove/Re-Submit — ActionRules is the accurate signal for all of those.
 const normalizeStage = (stage?: string | null) => stage?.toLowerCase().trim() ?? '';
 
 const STAGE_LABELS: Record<string, string> = {
@@ -64,10 +73,6 @@ type Params = {
   // Absent means RevisionDetails itself wasn't returned, i.e. this revision hasn't been submitted yet
   // (ReviseProject, the start-a-new-revision endpoint, never returns a RevisionDetails object).
   currentStage?: string | null;
-  // ForCorrectionsDetails?.length — see the CurrentStage 'IO' disambiguation note above.
-  forCorrectionsCount?: number;
-  createdBy?: string | null;
-  currentUserId?: string | null;
 
   loading: {
     revise?: boolean;
@@ -91,21 +96,14 @@ export const getRevisionActions = ({
   isEdit,
   actionRules,
   currentStage,
-  forCorrectionsCount,
-  createdBy,
-  currentUserId,
   loading,
   actions,
 }: Params): RevisionAction[] => {
-  const stage = normalizeStage(currentStage);
   const notYetSubmitted = !currentStage;
-  const hasBeenReturnedForCorrection = (forCorrectionsCount ?? 0) > 0;
-  const isForCorrection = stage === 'io' && hasBeenReturnedForCorrection;
-  const isOwnRevision = !!currentUserId && currentUserId === createdBy;
 
   return [
     {
-      show: isEdit && !!actionRules?.CanSubmit && isForCorrection && isOwnRevision,
+      show: isEdit && !!actionRules?.CanSubmit && !notYetSubmitted,
       color: 'green',
       label: 'Re-Submit Revision',
       loading: loading.resubmit,

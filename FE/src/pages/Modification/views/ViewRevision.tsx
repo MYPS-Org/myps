@@ -120,12 +120,12 @@ const ViewRevision: React.FC = () => {
     }, [transactionId]);
 
     const handleBack = () => {
-        navigate('/modification/list');
+        navigate('/revision');
     };
 
     const handleActionSuccess = () => {
         // Navigate back to list after successful approve/reject/for review
-        navigate('/modification/list');
+        navigate('/revision');
     };
 
     if (isLoading) {
