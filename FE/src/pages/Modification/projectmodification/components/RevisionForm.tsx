@@ -7,7 +7,6 @@ import type {
 } from '../../../Project/Model.d';
 import type { ForCorrectionsDetails } from '../../Model';
 import type { FieldRules, RevisionDoc } from '../../Model';
-import { getRevisionStatusLabel } from './actionButtons/revisionActions';
 
 interface RevisionFormProps {
     category?: string;
@@ -256,7 +255,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                         </div>
                         <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
                             <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Status</p>
-                            <p className="text-sm font-bold text-gray-900">{getRevisionStatusLabel(statusName)}</p>
+                            <p className="text-sm font-bold text-gray-900">{statusName || 'N/A'}</p>
                         </div>
                         <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
                             <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Category</p>

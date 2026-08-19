@@ -5,37 +5,47 @@ import type { ActionRevisionRules } from '../../../Model';
 // WebAPI RevisionController's ActionRules (ReviseProject/ViewReviseProject) only encodes role
 // permission — CanApprove/CanForCorrection are true for any RPC or AUC user regardless of the
 // revision's actual stage, and CanSubmit is just "not AUC". It does not know whether this specific
-// transaction is currently pending that role's review, so FE still gates each button against
-// ProjectStatus.RevisionStatus the same way it did before ActionRules existed — actionRules answers
-// "is this role allowed to do this at all", revisionStatus answers "is it this transaction's turn".
+// transaction is currently pending that role's review, so FE still gates each button against the
+// revision's actual stage — actionRules answers "is this role allowed to do this at all", stage
+// answers "is it this transaction's turn".
 //
-// IMPORTANT — ProjectStatus.RevisionStatus is NOT the literal label it looks like. BE-verified
-// (live tOptionRevisionStatus + RevisionController.cs, 2026): the code table backing this string
-// was reseeded for a newer 6-state scheme (0 Pending/"not yet submitted", 1 Submitted, 2 ForApproval,
-// 3 ForCorrection, 4 Approved, 5 Disapproved), but RequestRevision/UpdateRevisionStatus still write
-// raw values using the OLD 4-state EnumRevisionStatus (Pending=0 meaning "awaiting review",
-// Approved=1, Rejected=2, ForCorrection=3). Net effect on the string this endpoint actually returns:
-//   "Pending"        -> really means "awaiting RO/CO review" (write path's Pending=0)
-//   "Submitted"       -> really means CO Approved (write path wrote raw 1 for Approved)
-//   "ForApproval"     -> really means CO Disapproved/Rejected (write path wrote raw 2 for Rejected)
-//   "ForCorrection"   -> matches its label (raw 3 lines up in both schemes)
-// This is a backend write-path bug (see WebAPI/Controllers/Revision/RevisionController.cs), not
-// something to fix by relabeling the table — remap the *known* strings below until it's reconciled.
-// Do not match "For Approval" here: the write path never produces that text.
-const REVISION_STATUS_LABELS: Record<string, string> = {
-  pending: 'For Approval',
-  submitted: 'Approved',
-  forapproval: 'Disapproved',
-  forcorrection: 'For Correction',
+// IMPORTANT — do NOT gate on ProjectStatus.RevisionStatus. Live-verified (Playwright against
+// https://myps.eptisa-dev.com, 2026-08-19): ViewReviseProject's ProjectStatus object does not
+// return a RevisionStatus field at all for an already-submitted transaction — only
+// ConstructionStatus/PackageStatus come back. Gating on that field can never work.
+//
+// Use RevisionDetails.CurrentStage instead — it IS reliably present, computed server-side by the
+// SQL function fRevisionDetail() from the live (correct) tRevisionApprovals/fRevisionApprovalStatus
+// data, independent of the broken RevisionStatus/tOptionRevisionStatus lookup. Values: 'IO' | 'RO' |
+// 'CO' | 'Disapproved' | 'Done'.
+//
+// One backend write-path bug still leaks through, DB-verified: RequestRevision leaves a
+// freshly-submitted revision's RO/CO approval rows at raw status 0 ("Pending") instead of 1
+// ("Submitted"), so fRevisionDetail's CASE reads that as CurrentStage 'IO' even though the
+// revision has already left the IO's hands and is actually waiting on RO/CO. The only way to tell
+// that case apart from a genuine "sent back to IO for correction" purely on the frontend is
+// whether a correction event has ever actually been recorded (ForCorrectionsDetails). Until the
+// write path is fixed on the backend: CurrentStage 'IO' with zero correction history is treated as
+// "awaiting RO/CO", and 'IO' with at least one correction record is the real for-correction/
+// resubmit case.
+const normalizeStage = (stage?: string | null) => stage?.toLowerCase().trim() ?? '';
+
+const STAGE_LABELS: Record<string, string> = {
+  ro: 'For Approval',
+  co: 'For Approval',
+  disapproved: 'Disapproved',
+  done: 'Approved',
 };
 
-const normalizeStatus = (status?: string | null) => status?.toLowerCase().replace(/\s+/g, '') ?? '';
-
-// Human-facing label for ProjectStatus.RevisionStatus — use this instead of displaying the raw
-// string, which reads backwards for Approved/Disapproved (see note above).
-export const getRevisionStatusLabel = (status?: string | null): string => {
-  const key = normalizeStatus(status);
-  return REVISION_STATUS_LABELS[key] ?? (status || 'N/A');
+// Human-facing label for the revision's current stage — use this instead of displaying
+// RevisionDetails.CurrentStage or ProjectStatus.RevisionStatus verbatim.
+export const getRevisionStageLabel = (currentStage?: string | null, forCorrectionsCount?: number): string => {
+  if (!currentStage) return 'N/A';
+  const stage = normalizeStage(currentStage);
+  if (stage === 'io') {
+    return (forCorrectionsCount ?? 0) > 0 ? 'For Correction' : 'For Approval';
+  }
+  return STAGE_LABELS[stage] ?? currentStage;
 };
 
 export type RevisionAction = {
@@ -51,9 +61,12 @@ type Params = {
   // Backend-computed role gate (WebAPI RevisionController: ReviseProject/ViewReviseProject
   // ActionRules) — replaces the old FE-side AUC/RPC/DPC usergroup name checks.
   actionRules?: ActionRevisionRules;
-  // ProjectStatus.RevisionStatus from the API, e.g. "For Approval" | "Approved" | "Disapproved" | "For Correction".
-  // Absent/undefined means the revision hasn't been submitted yet.
-  revisionStatus?: string | null;
+  // RevisionDetails.CurrentStage from ViewReviseProject ('IO' | 'RO' | 'CO' | 'Disapproved' | 'Done').
+  // Absent means RevisionDetails itself wasn't returned, i.e. this revision hasn't been submitted yet
+  // (ReviseProject, the start-a-new-revision endpoint, never returns a RevisionDetails object).
+  currentStage?: string | null;
+  // ForCorrectionsDetails?.length — see the CurrentStage 'IO' disambiguation note above.
+  forCorrectionsCount?: number;
   createdBy?: string | null;
   currentUserId?: string | null;
 
@@ -78,20 +91,18 @@ type Params = {
 export const getRevisionActions = ({
   isEdit,
   actionRules,
-  revisionStatus,
+  currentStage,
+  forCorrectionsCount,
   createdBy,
   currentUserId,
   loading,
   actions,
 }: Params): RevisionAction[] => {
-  const status = normalizeStatus(revisionStatus);
-  const notYetSubmitted = status === '';
-  // "pending" is what the write path actually emits for "awaiting RO/CO review" — see the note
-  // above REVISION_STATUS_LABELS. Do not match "forapproval" here: that string is only ever
-  // reached once CO has already rejected the revision, and treating it as pending would let
-  // Approve/Disapprove render again on an already-decided transaction.
-  const isPendingApproval = status === 'pending';
-  const isForCorrection = status === 'forcorrection';
+  const stage = normalizeStage(currentStage);
+  const notYetSubmitted = !currentStage;
+  const hasBeenReturnedForCorrection = (forCorrectionsCount ?? 0) > 0;
+  const isForCorrection = stage === 'io' && hasBeenReturnedForCorrection;
+  const isPendingApproval = stage === 'ro' || stage === 'co' || (stage === 'io' && !hasBeenReturnedForCorrection);
   const isOwnRevision = !!currentUserId && currentUserId === createdBy;
 
   return [

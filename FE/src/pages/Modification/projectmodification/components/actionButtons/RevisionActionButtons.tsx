@@ -35,7 +35,8 @@ export const RevisionActionButtons = ({
   const actionsList = getRevisionActions({
     isEdit: mode === 'edit',
     actionRules: initialData?.ActionRules,
-    revisionStatus: initialData?.ProjectStatus?.RevisionStatus,
+    currentStage: initialData?.RevisionDetails?.CurrentStage,
+    forCorrectionsCount: initialData?.ForCorrectionsDetails?.length,
     createdBy: initialData?.RevisionDetails?.RevisionCreatedBy,
     currentUserId,
     loading,

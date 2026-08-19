@@ -60,6 +60,7 @@ import { useComponentCosts } from '../../hooks/useComponentCosts';
 
 import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
 import { RevisionActionButtons } from './actionButtons/RevisionActionButtons';
+import { getRevisionStageLabel } from './actionButtons/revisionActions';
 
 
 interface ProjectFormProps {
@@ -127,7 +128,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // get the status of Revision
   // #region Revision Status Text
-  const revisionStatus = initialData?.ProjectStatus?.RevisionStatus;
+  // ProjectStatus.RevisionStatus is not reliably returned by ViewReviseProject (BE-verified, see
+  // revisionActions.ts) — derive the display label from RevisionDetails.CurrentStage instead.
+  const revisionStatus = getRevisionStageLabel(
+    initialData?.RevisionDetails?.CurrentStage,
+    initialData?.ForCorrectionsDetails?.length,
+  );
   // #endregion
 
   // set GeoJSON data for map
