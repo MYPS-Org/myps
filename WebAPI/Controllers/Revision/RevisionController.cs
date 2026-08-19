@@ -186,7 +186,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Revision approval status not found.", Title = "Invalid Revision" });
                 }
-                var StatusForDisplay = ApprovalStatus.ROStatus == EnumRevisionStatus.ForCorrection ? ApprovalStatus.ROStatus : ApprovalStatus.COStatus;
+                var StatusForDisplay = ApprovalStatus.ROStatus == 3 ? ApprovalStatus.ROStatus : ApprovalStatus.COStatus;
                 string ProjectRevisionStatus = await _db.tOptionRevisionStatus.AsNoTracking()
                     .Where(x => x.Enum == StatusForDisplay)
                     .Select(x => x.Name)
@@ -233,7 +233,7 @@ namespace WebAPI.Controllers.Revision
                     "Packaged";
                 #endregion
                 DBHelper.Models.Table.RevisionRules? SelectedRules = null;
-                if (RevisionDetails.RevisionCreatedBy == _Session.UserId && (ApprovalStatus.ROStatus == EnumRevisionStatus.ForCorrection || ApprovalStatus.COStatus == EnumRevisionStatus.ForCorrection))
+                if (RevisionDetails.RevisionCreatedBy == _Session.UserId && (ApprovalStatus.ROStatus == 3 || ApprovalStatus.COStatus == 3))
                 {
                     SelectedRules = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.IsActive && x.ReasonId == RevisionRoot.ReasonId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus, cancellationToken);
                 }
@@ -1494,7 +1494,7 @@ namespace WebAPI.Controllers.Revision
                     {
                         RevisionDetailFK = RevisionDetailFK,
                         Level = "RO",
-                        Status = isROUser || isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
+                        Status = isROUser || isCOUser ? 1 : 0,
                         Approver = isROUser || isCOUser ? _Session.UserId : null,
                         ApprovedDate = isROUser || isCOUser ? CurrentDate : null,
                         LastUpdatedDate = CurrentDate
@@ -1503,7 +1503,7 @@ namespace WebAPI.Controllers.Revision
                     {
                         RevisionDetailFK = RevisionDetailFK,
                         Level = "CO",
-                        Status = isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
+                        Status = isCOUser ? 1 : 0,
                         Approver = isCOUser ? _Session.UserId : null,
                         ApprovedDate = isCOUser ? CurrentDate : null,
                         LastUpdatedDate = CurrentDate
@@ -1791,12 +1791,12 @@ namespace WebAPI.Controllers.Revision
                 }
                 var OldRevisionProjects = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == SelectedProjectRevision.ProjectId && x.IsActive);
                 #region Commented
-                if ((dto.Status == EnumRevisionStatus.Rejected || dto.Status == EnumRevisionStatus.ForCorrection) && string.IsNullOrEmpty(dto.Remarks))
+                if ((dto.Status == 2 || dto.Status == 3) && string.IsNullOrEmpty(dto.Remarks))
                 {
-                    string RevisionStatusMessage = dto.Status == EnumRevisionStatus.Rejected ? "rejectin revision request" : "sending revision for correction";
+                    string RevisionStatusMessage = dto.Status == 2 ? "rejectin revision request" : "sending revision for correction";
                     return new BadRequestObjectResult(new { Message = $"Reason is required when {RevisionStatusMessage}", Title = "Reason Required" });
                 }
-                if (dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected)
+                if (dto.Status == 1 || dto.Status == 2)
                 {
                     if (isROUser)
                     {
@@ -1807,8 +1807,8 @@ namespace WebAPI.Controllers.Revision
                             await _db.tRevisionApprovals.AddAsync(RegionApproval, cancellationToken);
                         }
                         RegionApproval.Status = dto.Status;
-                        RegionApproval.Approver = dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected ? _Session.UserId : RegionApproval.Approver;
-                        RegionApproval.ApprovedDate = dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected ? CurrentDate : RegionApproval.ApprovedDate;
+                        RegionApproval.Approver = dto.Status == 1 || dto.Status == 2 ? _Session.UserId : RegionApproval.Approver;
+                        RegionApproval.ApprovedDate = dto.Status == 1 || dto.Status == 2 ? CurrentDate : RegionApproval.ApprovedDate;
                         RegionApproval.LastUpdatedDate = CurrentDate;
                     }
                     else
@@ -1819,7 +1819,7 @@ namespace WebAPI.Controllers.Revision
                             CentralApproval = new RevisionApprovals { RevisionDetailFK = RevisionDetails.Id, Level = "CO" };
                             await _db.tRevisionApprovals.AddAsync(CentralApproval, cancellationToken);
                         }
-                        if (dto.Status == EnumRevisionStatus.Approved)
+                        if (dto.Status == 1)
                         {
                             var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionDetails.RevisionGroupId);
                             if (DocumentNaming == null)
@@ -1910,8 +1910,8 @@ namespace WebAPI.Controllers.Revision
                             return Ok(new { Message = $"Revision Updated by {_Session.UserGroupNames}", Title = "Updated Successfully" });
                         }
                         CentralApproval.Status = dto.Status;
-                        CentralApproval.Approver = dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected ? _Session.UserId : CentralApproval.Approver;
-                        CentralApproval.ApprovedDate = dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected ? CurrentDate : CentralApproval.ApprovedDate;
+                        CentralApproval.Approver = dto.Status == 1 || dto.Status == 2 ? _Session.UserId : CentralApproval.Approver;
+                        CentralApproval.ApprovedDate = dto.Status == 1 || dto.Status == 2 ? CurrentDate : CentralApproval.ApprovedDate;
                         CentralApproval.LastUpdatedDate = CurrentDate;
                     }
 
@@ -1921,7 +1921,7 @@ namespace WebAPI.Controllers.Revision
                         _db.tRevisionProjects.Update(OldRevisionProjects);
                     }
                 }
-                else if (dto.Status == EnumRevisionStatus.ForCorrection)
+                else if (dto.Status == 3)
                 {
                     if (isROUser)
                     {
@@ -2003,7 +2003,7 @@ namespace WebAPI.Controllers.Revision
                     .FromSqlInterpolated($"SELECT * FROM fRevisionApprovalStatus({ExistingRevision.Id})")
                     .AsNoTracking()
                     .FirstOrDefaultAsync(cancellationToken);
-                if (ExistingStatus == null || (ExistingStatus.ROStatus != EnumRevisionStatus.ForCorrection && ExistingStatus.COStatus != EnumRevisionStatus.ForCorrection))
+                if (ExistingStatus == null || (ExistingStatus.ROStatus != 3 && ExistingStatus.COStatus != 3))
                 {
                     return new BadRequestObjectResult(new { Message = $"For Correction revision status does not exist in revision requests,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Transaction ID not found" });
                 }
@@ -3201,10 +3201,10 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
                 #endregion
-                var ResubmitApprovals = await _db.tRevisionApprovals.Where(x => x.RevisionDetailFK == ExistingRevision.Id && x.Status == EnumRevisionStatus.ForCorrection).ToListAsync(cancellationToken);
+                var ResubmitApprovals = await _db.tRevisionApprovals.Where(x => x.RevisionDetailFK == ExistingRevision.Id && x.Status == 3).ToListAsync(cancellationToken);
                 ResubmitApprovals.ForEach(x =>
                 {
-                    x.Status = EnumRevisionStatus.Pending;
+                    x.Status = 0;
                     x.LastUpdatedDate = CurrentDate;
                 });
                 _db.tRevisionDetails.Update(ExistingRevision);

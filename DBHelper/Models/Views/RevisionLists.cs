@@ -21,13 +21,13 @@ namespace DBHelper.Models.Views
         public int ReasonId { get; set; }
         //public string? RequestDocument { get; set; }
         //public string? RequestDocumentPath { get; set; }
-        public EnumRevisionStatus? RegionStatus { get; set; }
+        public int? RegionStatus { get; set; }
         public string? RegionStatusName { get; set; }
         public string? ROComment { get; set; }
         public DateTime? ROForCorrectionDate { get; set; }
         public string? RegionApprover { get; set; }
         public DateTime? RegionApprovedDate { get; set; }
-        public EnumRevisionStatus? COStatus { get; set; }
+        public int? COStatus { get; set; }
         public string? COStatusName { get; set; }
         public string? COComment { get; set; }
         public DateTime? COForCorrectionDate { get; set; }

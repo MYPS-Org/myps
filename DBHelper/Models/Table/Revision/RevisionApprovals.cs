@@ -13,7 +13,7 @@ namespace DBHelper.Models.Table.Revision
         [MaxLength(10)]
         public string Level { get; set; } = string.Empty;
         [Required]
-        public EnumRevisionStatus Status { get; set; } = EnumRevisionStatus.Pending;
+        public int Status { get; set; } = 0;
         public string? Description { get; set; }
         [MaxLength(100)]
         public string? Approver { get; set; }

@@ -5,10 +5,10 @@ namespace DBHelper.Models.Functions.Revision
 {
     public class RevisionApprovalStatus
     {
-        public EnumRevisionStatus ROStatus { get; set; }
+        public int ROStatus { get; set; }
         [MaxLength(50)]
         public string? ROStatusName { get; set; }
-        public EnumRevisionStatus COStatus { get; set; }
+        public int COStatus { get; set; }
         [MaxLength(50)]
         public string? COStatusName { get; set; }
         public int IsFullyApproved { get; set; }

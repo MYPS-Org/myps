@@ -13,8 +13,8 @@ namespace DBHelper.Models.Functions.Revision
         [Required]
         [MaxLength(200)]
         public string ProjectFK { get; set; } = string.Empty;
-        public EnumRevisionStatus RO_Status { get; set; }
-        public EnumRevisionStatus CO_Status { get; set; }
+        public int RO_Status { get; set; }
+        public int CO_Status { get; set; }
         public DateTime RevisionDate { get; set; }
     }
 }

@@ -14,7 +14,7 @@ namespace DBHelper.Models.Table.Revision
         public int Id { get; set; }
         public bool IsActive { get; set; } = false;
         [Required]
-        public EnumRevisionStatus Enum { get; set; }
+        public int Enum { get; set; }
         [Required]
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;

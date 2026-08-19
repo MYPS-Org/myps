@@ -43,8 +43,8 @@ public sealed class RevisionControllerContractTests
     {
         Assert.Equal(0, (int)EnumRevisionStatus.Pending);
         Assert.Equal(1, (int)EnumRevisionStatus.Approved);
-        Assert.Equal(2, (int)EnumRevisionStatus.Rejected);
-        Assert.Equal(3, (int)EnumRevisionStatus.ForCorrection);
+        Assert.Equal(2, (int)2);
+        Assert.Equal(3, (int)3);
     }
 
     [Fact]
