@@ -104,18 +104,21 @@ namespace Helpers
         public class CreateActionRulesParam
         {
             public RevisionApprovalStatus ApprovalStatus { get; set; } = new();
-            public string[] UserGroupNames { get; set; } = Array.Empty<string>();
+            public DBHelper.Models.Views.Users Session { get; set; } = new DBHelper.Models.Views.Users();
+            public string CreatedBy { get; set; } = string.Empty;
         }
 
-        public static RevisionHelperResponse<RevisionActionRules> CreateActionRules(this CreateActionRulesParam p)
+        public static RevisionHelperResponse<RevisionActionRules> CreateActionRules(
+            this CreateActionRulesParam p)
         {
-            var response = new RevisionHelperResponse<RevisionActionRules>
-            {
-                IsValid = true,
-                Data = new RevisionActionRules()
-            };
+            var groups =
+                p.Session.UserGroupNames
+                ?? Array.Empty<string>();
 
-            var groups = p.UserGroupNames ?? Array.Empty<string>();
+
+            // ============================================================
+            // USER ROLE
+            // ============================================================
 
             bool isROUser = groups.Contains(
                 "RPC",
@@ -125,30 +128,52 @@ namespace Helpers
                 "AUC",
                 StringComparer.OrdinalIgnoreCase);
 
-            bool isIOUser =
-                !isROUser &&
-                !isCOUser;
+
+            // ============================================================
+            // REVISION OWNERSHIP
+            //
+            // Important:
+            // Being the OWNER and being an RO are separate things.
+            //
+            // An RO user can also be the creator/owner of a revision.
+            // ============================================================
+
+            bool isRevisionOwner =
+                string.Equals(
+                    p.CreatedBy,
+                    p.Session.UserId?.ToString(),
+                    StringComparison.OrdinalIgnoreCase);
+
 
             var status = p.ApprovalStatus;
 
+
             // ============================================================
-            // RO
+            // NEW REVISION
             //
-            // RO can act only when the revision is waiting for RO approval.
+            // No approval status means it has not been submitted into
+            // the approval workflow yet.
+            // ============================================================
+
+            bool isNewRevision =
+                status == null;
+
+
+            // ============================================================
+            // RO ACTION
             //
-            // 0 = ForApproval
+            // RO can act when ROStatus = 0 (ForApproval).
             // ============================================================
 
             bool canROAct =
                 isROUser &&
-                status.ROStatus == 0;
+                status?.ROStatus == 0;
 
 
             // ============================================================
-            // CO
+            // CO ACTION
             //
-            // CO can act only after RO has approved
-            // and CO has not acted yet.
+            // CO can act only after RO approval.
             //
             // RO = 1 -> Approved
             // CO = 0 -> ForApproval
@@ -156,45 +181,57 @@ namespace Helpers
 
             bool canCOAct =
                 isCOUser &&
-                status.ROStatus == 1 &&
+                status?.ROStatus == 1 &&
                 status.COStatus == 0;
 
 
             // ============================================================
-            // IO
+            // OWNER SUBMIT / RESUBMIT
             //
-            // IO can resubmit only when either approval level
-            // returned the revision for correction.
+            // Submission is based on OWNERSHIP, not IO/RO membership.
             //
-            // 3 = ForCorrection
+            // The owner may submit when:
             //
-            // After resubmission, both statuses should be reset to 0
-            // because the corrected revision must go through RO again.
+            // 1. It is a brand-new revision
+            //
+            // OR
+            //
+            // 2. RO returned it for correction
+            //
+            // OR
+            //
+            // 3. CO returned it for correction
+            //
+            // This correctly allows an RO creator to resubmit.
             // ============================================================
 
             bool canSubmit =
-                isIOUser &&
+                isRevisionOwner &&
                 (
-                    status.ROStatus == 3 ||
-                    status.COStatus == 3
+                    isNewRevision ||
+                    status?.ROStatus == 3 ||
+                    status?.COStatus == 3
                 );
 
 
-            response.Data = new RevisionActionRules
+            return new RevisionHelperResponse<RevisionActionRules>
             {
-                CanApprove =
-                    canROAct ||
-                    canCOAct,
+                IsValid = true,
 
-                CanForCorrection =
-                    canROAct ||
-                    canCOAct,
+                Data = new RevisionActionRules
+                {
+                    CanApprove =
+                        canROAct ||
+                        canCOAct,
 
-                CanSubmit =
-                    canSubmit
+                    CanForCorrection =
+                        canROAct ||
+                        canCOAct,
+
+                    CanSubmit =
+                        canSubmit
+                }
             };
-
-            return response;
         }
         #endregion
     }

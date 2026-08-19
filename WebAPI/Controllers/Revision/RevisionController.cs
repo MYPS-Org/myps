@@ -402,8 +402,8 @@ namespace WebAPI.Controllers.Revision
                 var actionRules = new CreateActionRulesParam
                 {
                     ApprovalStatus = ApprovalStatus,
-                    UserGroupNames = _Session.UserGroupNames?.ToArray()
-                     ?? Array.Empty<string>()
+                    Session = _Session,
+                    CreatedBy = RevisionRoot.CreatedBy
                 }
                 .CreateActionRules();
 
@@ -2153,7 +2153,7 @@ namespace WebAPI.Controllers.Revision
                 DateTime CurrentDate = Functions.CurrentDate();
                 List<RevisionTransactionLog> Logs = new List<RevisionTransactionLog>();
                 #region Validating Created Revision Project Data
-                var ExistingRevision = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId, cancellationToken);
+                var ExistingRevision = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && x.CreatedBy == User, cancellationToken);
                 if (ExistingRevision == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"For Correction revision status does not exist in revision requests,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Transaction ID not found" });
@@ -3360,14 +3360,58 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
                 #endregion
-                var ResubmitApprovals = await _db.tRevisionApprovals.Where(x => x.RevisionDetailFK == ExistingRevision.Id && x.Status == 3).ToListAsync(cancellationToken);
-                ResubmitApprovals.ForEach(x =>
+
+                #region Owner Resubmit RO or IO
+                bool isCreator =
+                string.Equals(
+                    ExistingRevision.CreatedBy,
+                    _Session.UserId.ToString(),
+                    StringComparison.OrdinalIgnoreCase);
+
+                bool isROUser =
+                    _Session.UserGroupNames?.Contains(
+                        "RPC",
+                        StringComparer.OrdinalIgnoreCase) == true;
+
+                bool isROCreator =
+                    isCreator && isROUser;
+
+
+                var approvals = await _db.tRevisionApprovals
+                    .Where(x => x.RevisionDetailFK == ExistingRevision.Id)
+                    .ToListAsync(cancellationToken);
+
+
+                var roApproval = approvals
+                    .FirstOrDefault(x => x.Level == "RO");
+
+                var coApproval = approvals
+                    .FirstOrDefault(x => x.Level == "CO");
+
+
+                if (roApproval != null)
                 {
-                    x.Status = 0;
-                    x.LastUpdatedDate = CurrentDate;
-                });
+                    // Initial submission:
+                    // RO creator is automatically approved.
+                    roApproval.Status = isROCreator ? 1 : 0;
+                    roApproval.LastUpdatedDate = CurrentDate;
+                }
+
+                if (coApproval != null)
+                {
+                    coApproval.Status = 0;
+                    coApproval.LastUpdatedDate = CurrentDate;
+                }
+                _db.tRevisionApprovals.UpdateRange(approvals);
+                #endregion
+                //var ResubmitApprovals = await _db.tRevisionApprovals.Where(x => x.RevisionDetailFK == ExistingRevision.Id && x.Status == 3).ToListAsync(cancellationToken);
+                //ResubmitApprovals.ForEach(x =>
+                //{
+                //    x.Status = 0;
+                //    x.LastUpdatedDate = CurrentDate;
+                //});
                 _db.tRevisionDetails.Update(ExistingRevision);
-                _db.tRevisionApprovals.UpdateRange(ResubmitApprovals);
+                //_db.tRevisionApprovals.UpdateRange(ResubmitApprovals);
                 _db.tRevisionProjects.Update(ExistingRevisionProject);
                 _db.tRevisionProjectFundingProfile.UpdateRange(ExistingFundingProfile);
                 _db.tRevisionProjectComponentCost.UpdateRange(ExistingComponent);
