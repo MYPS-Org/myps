@@ -8,17 +8,5 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table.Revision
 {
-    public class OptionRevisionStatus
-    {
-        [Key]
-        public int Id { get; set; }
-        public bool IsActive { get; set; } = false;
-        [Required]
-        public int Enum { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string Name { get; set; } = string.Empty;
-        [MaxLength(200)]
-        public string? Description { get; set; }
-    }
+    public class OptionRevisionStatus : TableEnum { }
 }

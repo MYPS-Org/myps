@@ -1905,7 +1905,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Status has been selected, please select a revision status."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionApprovals.AsNoTracking().FirstOrDefaultAsync(x => x.Status == data.Enum);
+                    var CheckIfAlreadyUse = await _db.tRevisionApprovals.AsNoTracking().FirstOrDefaultAsync(x => x.Status == data.NameId);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1938,7 +1938,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionRevisionStatus.AsNoTracking().OrderByDescending(x => x.Enum).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionRevisionStatus.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
                         //data.Enum = (CheckMaxId != null) ? CheckMaxId.Enum + 1 : 1;
                         await _db.tOptionRevisionStatus.AddAsync(data);
                     }

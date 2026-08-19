@@ -1,16 +1,9 @@
-﻿using Dapper;
-using DBHelper.Data;
-using DBHelper.Models.Enums;
-using DBHelper.Models.Functions.Program;
-using DBHelper.Models.Table.Lookups;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using DBHelper.Data;
+using DBHelper.Models.Functions.Revision;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using System.ComponentModel.DataAnnotations;
-using System.Data;
-using static Helpers.ProjectHelper;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using static Helpers.RevisionHelper;
+
 
 namespace Helpers
 {
@@ -21,16 +14,16 @@ namespace Helpers
             public bool IsValid { get; set; } = false;
             public string Title { get; set; } = string.Empty;
             public string Message { get; set; } = string.Empty;
-            public T? Data { get; set; }
+            public T? Data { get; set; } = default;
         }
 
         #region ValidateProjectId
         public class ValidateRevisionIdDataResult
         {
-            public DBHelper.Models.Functions.Revision.RevisionProjectDetails ProjectDetails { get; set; } = new DBHelper.Models.Functions.Revision.RevisionProjectDetails();
+            public RevisionProjectDetails ProjectDetails { get; set; } = new RevisionProjectDetails();
             public DBHelper.Models.Table.Revision.RevisionDetails RevisionParent { get; set; } = new DBHelper.Models.Table.Revision.RevisionDetails();
-            public DBHelper.Models.Functions.Revision.RevisionDetail RevisionDetail { get; set; } = new DBHelper.Models.Functions.Revision.RevisionDetail();
-            public DBHelper.Models.Functions.Revision.RevisionApprovalStatus RevisionStatus { get; set; } = new DBHelper.Models.Functions.Revision.RevisionApprovalStatus();
+            public RevisionDetail RevisionDetail { get; set; } = new RevisionDetail();
+            public RevisionApprovalStatus RevisionStatus { get; set; } = new RevisionApprovalStatus();
         }
         public class ValidateRevisionParams
         {
@@ -90,10 +83,117 @@ namespace Helpers
             }
 
             response.IsValid = true;
-            response.Data.ProjectDetails = Project;
-            response.Data.RevisionParent = RevisionParent;
-            response.Data.RevisionDetail = RevisionDetails;
-            response.Data.RevisionStatus = ApprovalStatus;
+            response.Data = new ValidateRevisionIdDataResult()
+            {
+                ProjectDetails = Project,
+                RevisionParent = RevisionParent,
+                RevisionDetail = RevisionDetails,
+                RevisionStatus = ApprovalStatus
+            };
+            return response;
+        }
+        #endregion
+        #region Create Action Rules
+        public class RevisionActionRules
+        {
+            public bool CanApprove { get; set; }
+            public bool CanForCorrection { get; set; }
+            public bool CanSubmit { get; set; }
+        }
+
+        public class CreateActionRulesParam
+        {
+            public RevisionApprovalStatus ApprovalStatus { get; set; } = new();
+            public string[] UserGroupNames { get; set; } = Array.Empty<string>();
+        }
+
+        public static RevisionHelperResponse<RevisionActionRules> CreateActionRules(this CreateActionRulesParam p)
+        {
+            var response = new RevisionHelperResponse<RevisionActionRules>
+            {
+                IsValid = true,
+                Data = new RevisionActionRules()
+            };
+
+            var groups = p.UserGroupNames ?? Array.Empty<string>();
+
+            bool isROUser = groups.Contains(
+                "RPC",
+                StringComparer.OrdinalIgnoreCase);
+
+            bool isCOUser = groups.Contains(
+                "AUC",
+                StringComparer.OrdinalIgnoreCase);
+
+            bool isIOUser =
+                !isROUser &&
+                !isCOUser;
+
+            var status = p.ApprovalStatus;
+
+            // ============================================================
+            // RO
+            //
+            // RO can act only when the revision is waiting for RO approval.
+            //
+            // 0 = ForApproval
+            // ============================================================
+
+            bool canROAct =
+                isROUser &&
+                status.ROStatus == 0;
+
+
+            // ============================================================
+            // CO
+            //
+            // CO can act only after RO has approved
+            // and CO has not acted yet.
+            //
+            // RO = 1 -> Approved
+            // CO = 0 -> ForApproval
+            // ============================================================
+
+            bool canCOAct =
+                isCOUser &&
+                status.ROStatus == 1 &&
+                status.COStatus == 0;
+
+
+            // ============================================================
+            // IO
+            //
+            // IO can resubmit only when either approval level
+            // returned the revision for correction.
+            //
+            // 3 = ForCorrection
+            //
+            // After resubmission, both statuses should be reset to 0
+            // because the corrected revision must go through RO again.
+            // ============================================================
+
+            bool canSubmit =
+                isIOUser &&
+                (
+                    status.ROStatus == 3 ||
+                    status.COStatus == 3
+                );
+
+
+            response.Data = new RevisionActionRules
+            {
+                CanApprove =
+                    canROAct ||
+                    canCOAct,
+
+                CanForCorrection =
+                    canROAct ||
+                    canCOAct,
+
+                CanSubmit =
+                    canSubmit
+            };
+
             return response;
         }
         #endregion

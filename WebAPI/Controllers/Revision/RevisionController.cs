@@ -23,6 +23,7 @@ using static Helpers.ProgramHelper;
 using static Helpers.ProjectHelper;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Microsoft.AspNetCore.Authorization;
 namespace WebAPI.Controllers.Revision
 {
     [ApiController]
@@ -40,7 +41,6 @@ namespace WebAPI.Controllers.Revision
         {
             _revisionPcmaPublisher = revisionPcmaPublisher;
         }
-        
         [HttpPost]
         public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto, CancellationToken cancellationToken)
         {
@@ -52,93 +52,186 @@ namespace WebAPI.Controllers.Revision
                     object? Value)>();
 
 
-                if (!string.IsNullOrWhiteSpace(dto.Filters.TransactionId))
+                // ================================================================
+                // TRANSACTION ID
+                // ================================================================
+
+                if (!string.IsNullOrWhiteSpace(
+                    dto.Filters.TransactionId))
                 {
                     filters.Add((
                         "v.TransactionId = @TransactionId",
                         "@TransactionId",
-                        dto.Filters.TransactionId));
+                        dto.Filters.TransactionId.Trim()
+                    ));
                 }
-                if (!string.IsNullOrWhiteSpace(dto.Filters.ProjectId))
+
+
+                // ================================================================
+                // PROJECT ID
+                // ================================================================
+
+                if (!string.IsNullOrWhiteSpace(
+                    dto.Filters.ProjectId))
                 {
-                    var projectId = dto.Filters.ProjectId.Trim();
+                    var projectId =
+                        dto.Filters.ProjectId.Trim();
+
+
                     filters.Add((
-                        projectId.Length > 4 ? "v.ProjectId LIKE @ProjectId" : "v.ProjectId = @ProjectId",
+                        projectId.Length > 4
+                            ? "v.ProjectId LIKE @ProjectId"
+                            : "v.ProjectId = @ProjectId",
+
                         "@ProjectId",
-                        projectId.Length > 4 ? $"{projectId}%" : projectId));
+
+                        projectId.Length > 4
+                            ? $"{projectId}%"
+                            : projectId
+                    ));
                 }
-                if (!string.IsNullOrWhiteSpace(dto.Filters.RevisionType))
+
+
+                // ================================================================
+                // REVISION TYPE
+                // ================================================================
+
+                if (!string.IsNullOrWhiteSpace(
+                    dto.Filters.RevisionType))
                 {
                     filters.Add((
                         "v.RevisionType = @RevisionType",
                         "@RevisionType",
-                        dto.Filters.RevisionType));
+                        dto.Filters.RevisionType.Trim()
+                    ));
                 }
-                if (!string.IsNullOrWhiteSpace(dto.Filters.RevisionStatus))
+
+
+                // ================================================================
+                // REVISION STATUS
+                // ================================================================
+
+                if (!string.IsNullOrWhiteSpace(
+                    dto.Filters.RevisionStatus))
                 {
                     filters.Add((
                         "v.RevisionStatus = @RevisionStatus",
                         "@RevisionStatus",
-                        dto.Filters.RevisionStatus));
+                        dto.Filters.RevisionStatus.Trim()
+                    ));
                 }
-                if (!string.IsNullOrWhiteSpace(dto.Filters.CurrentStage))
+
+
+                // ================================================================
+                // CURRENT STAGE
+                // ================================================================
+
+                if (!string.IsNullOrWhiteSpace(
+                    dto.Filters.CurrentStage))
                 {
                     filters.Add((
                         "v.CurrentStage = @CurrentStage",
                         "@CurrentStage",
-                        dto.Filters.CurrentStage));
+                        dto.Filters.CurrentStage.Trim().ToUpper()
+                    ));
                 }
 
-                string @Level = "IO";
-                string[] UserGroup = _Session.UserGroupNames.ToArray();
-                if (UserGroup.Contains("RPC"))
-                {
-                    @Level = "RO";
-                }
-                if (UserGroup.Contains("AUC"))
-                {
-                    @Level = "CO";
-                }
+
+                // ================================================================
+                // USER ROLES
+                // ================================================================
+
+                var userGroups =
+                    _Session.UserGroupNames?.ToArray()
+                    ?? Array.Empty<string>();
+
+
+                bool isROUser = userGroups.Contains(
+                    "RPC",
+                    StringComparer.OrdinalIgnoreCase);
+
+
+                bool isCOUser = userGroups.Contains(
+                    "AUC",
+                    StringComparer.OrdinalIgnoreCase);
+
+
+                // ================================================================
+                // TVF PARAMETERS
+                // ================================================================
+
                 var sourceParameters =
-                new List<(string ParamName, object? Value)>
-                {
-                    ("@Level", @Level)
-                };
+                    new List<(string ParamName, object? Value)>
+                    {
+                        (
+                            "@UserId",
+                            _Session.UserId.ToString()
+                        ),
+                        (
+                            "@IsRO",
+                            isROUser
+                        ),
+                        (
+                            "@IsCO",
+                            isCOUser
+                        )
+                    };
+
                 FilterDataResult<RevisionQueue> result =
                     await _db.FilterDataCursor<
                         RevisionQueue,
                         RevisionRequestsFilter>(
-                            tableName: $"fRevisionQueue",
-                            sourceParameters: sourceParameters,
-                            isTableValuedFunction: true,
-                            dto: dto,
-                            filter: filters,
-                            keyColumn: "Id",
-                            descending: true,
-                            includeTotal: true,
-                            ct: cancellationToken);
+                            tableName:
+                                "fRevisionQueue",
 
+                            sourceParameters:
+                                sourceParameters,
+
+                            isTableValuedFunction:
+                                true,
+
+                            dto:
+                                dto,
+
+                            filter:
+                                filters,
+
+                            keyColumn:
+                                "Id",
+
+                            descending:
+                                true,
+
+                            includeTotal:
+                                true,
+
+                            ct:
+                                cancellationToken
+                        );
                 if (result.HasError)
                 {
                     return new BadRequestObjectResult(
                         new ErrorResult
                         {
-                            Title = "Pagination error",
+                            Title =
+                                "Unable to Retrieve Revisions",
+
                             Message =
                                 result.ErrorMessage ??
-                                "Unable to retrieve the records."
+                                "Unable to retrieve the revision requests."
                         });
                 }
-
                 return Ok(result.Data);
             }
             catch (Exception ex)
             {
-                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+                return _exceptionHandler.Handle(
+                    ex,
+                    dto,
+                    _Session.UserId.ToString());
             }
         }
 
-        
         [HttpPost]
         public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -161,7 +254,7 @@ namespace WebAPI.Controllers.Revision
                 var StatusForDisplay = ApprovalStatus.ROStatus == 3 ? ApprovalStatus.ROStatus : ApprovalStatus.COStatus;
                 string ProjectFK = Project.ProjectFK;
                 string ProjectRevisionStatus = await _db.tOptionRevisionStatus.AsNoTracking()
-                    .Where(x => x.Enum == StatusForDisplay)
+                    .Where(x => x.NameId == StatusForDisplay)
                     .Select(x => x.Name)
                     .FirstOrDefaultAsync(cancellationToken) ?? StatusForDisplay.ToString();
 
@@ -306,6 +399,13 @@ namespace WebAPI.Controllers.Revision
 
                 bool isROUser = _Session.UserGroupNames.Contains("RPC");
                 bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+                var actionRules = new CreateActionRulesParam
+                {
+                    ApprovalStatus = ApprovalStatus,
+                    UserGroupNames = _Session.UserGroupNames?.ToArray()
+                     ?? Array.Empty<string>()
+                }
+                .CreateActionRules();
 
                 return Ok(new
                 {
@@ -324,12 +424,7 @@ namespace WebAPI.Controllers.Revision
 
                     RevisionStatus = ApprovalStatus,
 
-                    ActionRules = new
-                    {
-                        CanApprove = ((isROUser && ApprovalStatus.ROStatus == 0) || (isCOUser && ApprovalStatus.ROStatus == 1)) || false,
-                        CanForCorrection = ((isROUser && ApprovalStatus.ROStatus == 0) || (isCOUser && ApprovalStatus.ROStatus == 1)) || false,
-                        CanSubmit = false//!isCOUser
-                    },
+                    ActionRules = actionRules.Data,
 
                     Rules = SelectedRules,
                     ComponentsStatus = ComponentCost,
@@ -2030,222 +2125,6 @@ namespace WebAPI.Controllers.Revision
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        
-        #region Commented
-        //[HttpPost]
-        //public async Task<IActionResult> UpdateRevisionStatus([FromBody] UpdateRevisionStatusDTO dto, CancellationToken cancellationToken)
-        //{
-        //    var transaction = await _db.Database.BeginTransactionAsync();
-        //    string? uploadedApprovalDocumentResourcePath = null;
-        //    bool transactionCommitted = false;
-        //    try
-        //    {
-        //        DateTime CurrentDate = Functions.CurrentDate(); ;
-        //        var RevisionDetails = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId, cancellationToken);
-        //        if (RevisionDetails == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = $"Revision Transaction ID {dto.TransactionId} does not exist in revision requests", Title = "Transaction ID not found" });
-        //        }
-        //        var ExistingStatus = await _db.fRevisionApprovalStatus
-        //            .FromSqlInterpolated($"SELECT * FROM fRevisionApprovalStatus({RevisionDetails.Id})")
-        //            .AsNoTracking()
-        //            .FirstOrDefaultAsync(cancellationToken);
-        //        if (ExistingStatus?.IsDisapproved == 1)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = $"Revision Transaction ID {dto.TransactionId} is already rejected and cannot be updated.", Title = "Revision Already Rejected" });
-        //        }
-        //        if (_Session.UserGroupNames.Count() == 0)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator.", Title = "User Groups Missing" });
-        //        }
-        //        bool isROUser = _Session.UserGroupNames.Contains("RPC");
-        //        bool isCOUser = _Session.UserGroupNames.Contains("AUC");
-        //        if (!isCOUser && !isROUser)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to update Revision. Please contact administrator.", Title = "Invalid User Group" });
-        //        }
-        //        var SelectedProjectRevision = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
-        //        if (SelectedProjectRevision == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = $"Project Revision details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project Revision not found" });
-        //        }
-        //        var OldRevisionProjects = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == SelectedProjectRevision.ProjectId && x.IsActive);
-        //        #region Commented
-        //        if ((dto.Status == 2 || dto.Status == 3) && string.IsNullOrEmpty(dto.Remarks))
-        //        {
-        //            string RevisionStatusMessage = dto.Status == 2 ? "rejectin revision request" : "sending revision for correction";
-        //            return new BadRequestObjectResult(new { Message = $"Reason is required when {RevisionStatusMessage}", Title = "Reason Required" });
-        //        }
-        //        if (dto.Status == 1 || dto.Status == 2)
-        //        {
-        //            if (isROUser)
-        //            {
-        //                var RegionApproval = await _db.tRevisionApprovals.FirstOrDefaultAsync(x => x.RevisionDetailFK == RevisionDetails.Id && x.Level == "RO", cancellationToken);
-        //                if (RegionApproval == null)
-        //                {
-        //                    RegionApproval = new RevisionApprovals { RevisionDetailFK = RevisionDetails.Id, Level = "RO" };
-        //                    await _db.tRevisionApprovals.AddAsync(RegionApproval, cancellationToken);
-        //                }
-        //                RegionApproval.Status = dto.Status;
-        //                RegionApproval.Approver = dto.Status == 1 || dto.Status == 2 ? _Session.UserId : RegionApproval.Approver;
-        //                RegionApproval.ApprovedDate = dto.Status == 1 || dto.Status == 2 ? CurrentDate : RegionApproval.ApprovedDate;
-        //                RegionApproval.LastUpdatedDate = CurrentDate;
-        //            }
-        //            else
-        //            {
-        //                var CentralApproval = await _db.tRevisionApprovals.FirstOrDefaultAsync(x => x.RevisionDetailFK == RevisionDetails.Id && x.Level == "CO", cancellationToken);
-        //                if (CentralApproval == null)
-        //                {
-        //                    CentralApproval = new RevisionApprovals { RevisionDetailFK = RevisionDetails.Id, Level = "CO" };
-        //                    await _db.tRevisionApprovals.AddAsync(CentralApproval, cancellationToken);
-        //                }
-        //                if (dto.Status == 4)
-        //                {
-        //                    var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionDetails.RevisionGroupId);
-        //                    if (DocumentNaming == null)
-        //                    {
-        //                        return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
-        //                    }
-        //                    if (dto.Document == null)
-        //                    {
-        //                        return new BadRequestObjectResult(new { Message = "Approved document is required when approving revision request", Title = "Approved Document Required" });
-        //                    }
-        //                    if (dto.Document.IsPdfCorrupted())
-        //                    {
-        //                        return new BadRequestObjectResult(new { Message = "Approved document file is corrupted or not a valid PDF.", Title = "Invalid File" });
-        //                    }
-        //                    if (!dto.Document.ValidateFileSize(50))
-        //                    {
-        //                        return new BadRequestObjectResult(new { Message = "Approved document file size exceeds the maximum limit of 50 MB.", Title = "File Size Exceeded" });
-        //                    }
-        //                    if (RevisionDetails.RevisionGroupId == 9)
-        //                    {
-        //                        return new BadRequestObjectResult(new { Message = "Termination revisions are not yet supported by the normalized schema because the former component-status evidence table is no longer available.", Title = "Revision Type Temporarily Blocked" });
-        //                    }
-        //                    if (RevisionDetails.RevisionGroupId == 13)
-        //                    {
-        //                        return new BadRequestObjectResult(new { Message = "Continuation revisions are not yet supported by the normalized schema because the exact continuation ReasonId and project-fork rules are not yet confirmed.", Title = "Revision Type Temporarily Blocked" });
-        //                    }
-
-        //                    string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
-        //                    string FilePath = Path.Combine(Appsetting.Resources.Revision.CentralOffice, DocumentName);
-        //                    string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
-        //                    if (!dto.Document.UploadFile(ResourcePath))
-        //                    {
-        //                        return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
-        //                    }
-        //                    uploadedApprovalDocumentResourcePath = ResourcePath;
-
-        //                    SelectedProjectRevision.IsActive = true;
-        //                    if (OldRevisionProjects != null)
-        //                    {
-        //                        OldRevisionProjects.IsActive = false;
-        //                    }
-
-        //                    await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
-        //                    {
-        //                        RevisionDetailFK = RevisionDetails.Id,
-        //                        DocumentPath = FilePath,
-        //                        DocumentName = DocumentName,
-        //                        IsApprovedDocument = true
-        //                    }, cancellationToken);
-
-        //                    CentralApproval.Status = dto.Status;
-        //                    CentralApproval.Approver = _Session.UserId;
-        //                    CentralApproval.ApprovedDate = CurrentDate;
-        //                    CentralApproval.LastUpdatedDate = CurrentDate;
-
-        //                    _db.tRevisionProjects.Update(SelectedProjectRevision);
-        //                    if (OldRevisionProjects != null)
-        //                    {
-        //                        _db.tRevisionProjects.Update(OldRevisionProjects);
-        //                    }
-        //                    _db.tRevisionDetails.Update(RevisionDetails);
-
-        //                    await _db.SaveChangesAsync(cancellationToken);
-
-        //                    var pcmaResponse = await _revisionPcmaPublisher.PublishRevisionAsync(
-        //                        RevisionDetails.ProgramId,
-        //                        _Session.Name,
-        //                        cancellationToken);
-
-        //                    if (!pcmaResponse.Success)
-        //                    {
-        //                        await transaction.RollbackAsync(cancellationToken);
-        //                        if (System.IO.File.Exists(ResourcePath))
-        //                        {
-        //                            System.IO.File.Delete(ResourcePath);
-        //                            uploadedApprovalDocumentResourcePath = null;
-        //                        }
-
-        //                        return new BadRequestObjectResult(new
-        //                        {
-        //                            Message = $"Failed to publish approved revision to PCMA. Reason: {pcmaResponse.Message}",
-        //                            Title = "PCMA Publish Failed"
-        //                        });
-        //                    }
-
-        //                    await transaction.CommitAsync(cancellationToken);
-        //                    transactionCommitted = true;
-        //                    return Ok(new { Message = $"Revision Updated by {_Session.UserGroupNames}", Title = "Updated Successfully" });
-        //                }
-        //                CentralApproval.Status = dto.Status;
-        //                CentralApproval.Approver = dto.Status == 4 || dto.Status == 2 ? _Session.UserId : CentralApproval.Approver;
-        //                CentralApproval.ApprovedDate = dto.Status == 4 || dto.Status == 2 ? CurrentDate : CentralApproval.ApprovedDate;
-        //                CentralApproval.LastUpdatedDate = CurrentDate;
-        //            }
-
-        //            _db.tRevisionProjects.Update(SelectedProjectRevision);
-        //            if (OldRevisionProjects != null)
-        //            {
-        //                _db.tRevisionProjects.Update(OldRevisionProjects);
-        //            }
-        //        }
-        //        else if (dto.Status == 3)
-        //        {
-        //            if (isROUser)
-        //            {
-        //                await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
-        //                {
-        //                    RevisionDetailFK = RevisionDetails.Id,
-        //                    ReturnedBy = "RO",
-        //                    ReturnedTo = "IO",
-        //                    CorrectionReason = dto.Remarks,
-        //                    ForCorrectionDate = CurrentDate
-        //                });
-        //            }
-        //            else
-        //            {
-        //                await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
-        //                {
-        //                    RevisionDetailFK = RevisionDetails.Id,
-        //                    ReturnedBy = "CO",
-        //                    ReturnedTo = "RO",
-        //                    CorrectionReason = dto.Remarks,
-        //                    ForCorrectionDate = CurrentDate
-        //                });
-        //            }
-        //        }
-        //        _db.tRevisionDetails.Update(RevisionDetails);
-        //        #endregion
-        //        await _db.SaveChangesAsync(cancellationToken);
-        //        await transaction.CommitAsync(cancellationToken);
-        //        transactionCommitted = true;
-        //        return Ok(new { Message = $"Revision Updated by {_Session.UserGroupNames}", Title = "Updated Successfully" });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        await transaction.RollbackAsync(cancellationToken);
-        //        if (!transactionCommitted
-        //            && uploadedApprovalDocumentResourcePath != null
-        //            && System.IO.File.Exists(uploadedApprovalDocumentResourcePath))
-        //        {
-        //            System.IO.File.Delete(uploadedApprovalDocumentResourcePath);
-        //        }
-        //        return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
-        //    }
-        //}
-        #endregion
         
         [HttpPost]
         public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto, CancellationToken cancellationToken)
