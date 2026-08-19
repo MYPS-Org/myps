@@ -273,6 +273,25 @@ namespace WebAPI.Controllers.Revision
         public string? Remarks { get; set; }
         public FileUpload? Document { get; set; } = new FileUpload();
     }
+    public class ApproveRevisionDTO
+    {
+        [Required]
+        public string TransactionId { get; set; } = string.Empty;
+        public DateTime? ApprovalDate { get; set; }
+        public FileUpload? Document { get; set; } = new FileUpload();
+    }
+    public class RejectRevisionDTO
+    {
+        [Required]
+        public string TransactionId { get; set; } = string.Empty;
+        //public string? Remarks { get; set; }
+    }
+    public class ForCorrectionRevisionDTO
+    {
+        [Required]
+        public string TransactionId { get; set; } = string.Empty;
+        public string? Remarks { get; set; }
+    }
     public class ResubmitRevisionDTO
     {
         [Required]

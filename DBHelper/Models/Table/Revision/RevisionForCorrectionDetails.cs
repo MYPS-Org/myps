@@ -18,9 +18,6 @@ namespace DBHelper.Models.Table.Revision
         [MaxLength(10)]
         public string ReturnedBy { get; set; } = string.Empty;
         [Required]
-        [MaxLength(10)]
-        public string ReturnedTo { get; set; } = string.Empty;
-        [Required]
         [MaxLength(500)]
         public string CorrectionReason { get; set; } = string.Empty;
         [Required]
