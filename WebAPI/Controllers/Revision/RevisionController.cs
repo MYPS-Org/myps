@@ -101,7 +101,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     @Level = "RO";
                 }
-                if (UserGroup.Contains("DPDAdmin"))
+                if (UserGroup.Contains("AUC"))
                 {
                     @Level = "CO";
                 }
@@ -347,8 +347,9 @@ namespace WebAPI.Controllers.Revision
                     {
                         ConstructionStatus = ConStatus,
                         PackageStatus = PackedStatus,
-                        RevisionStatus = ProjectRevisionStatus
                     },
+
+                    RevisionStatus = ApprovalStatus,
 
                     ActionRules = new
                     {
