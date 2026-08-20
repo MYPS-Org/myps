@@ -360,6 +360,9 @@ namespace WebAPI.Controllers.Revision
 
                 var ComponentCostYear = await _db.fRevisionComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fRevisionComponentCostPerYear({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
 
+                //var MajorItemOfWork = await _db.fProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProjectFK}, {7})").AsNoTracking().ToListAsync(cancellationToken);
+                //var MajorWorkLocation = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({TransactionId}, {7})").AsNoTracking().ToListAsync(cancellationToken);
+
                 var MajorItemOfWork = await _db.fRevisionMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fRevisionMajorWorkItem({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
                 var MajorWorkLocation = await _db.fRevisionMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
 
@@ -750,7 +753,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto, CancellationToken cancellationToken)
         {
@@ -1325,11 +1328,11 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 #region MajorWorkItem
                 var MajorItemIds = dto.MajorItemOfWorks.Where(x => x.Id != 0).Select(x => x.Id);
-                var MajorWorkItem = await _db.fProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
+                var MajorWorkItem = await _db.fProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
                 //var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && MajorItemIds.Contains(x.Id)).ToListAsync(cancellationToken);
 
 
-                var MajorWorkLocations = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({ProjectId}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var MajorWorkLocations = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
