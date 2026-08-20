@@ -764,7 +764,7 @@ namespace WebAPI.Controllers.Revision
             {
                 if (_Session.UserGroupNames.Count() == 0)
                 {
-                    //return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator.", Title = "User Groups Missing" });
+                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator.", Title = "User Groups Missing" });
                 }
                 if (dto.RevisionDetails.ApprovedDocument == null)
                 {
@@ -881,7 +881,7 @@ namespace WebAPI.Controllers.Revision
                     .FirstOrDefaultAsync(cancellationToken);
                 if (HasPendingModification != null)
                 {
-                    //return new BadRequestObjectResult(new { Message = $"There is an open revision request for this project. Transaction ID: {HasPendingModification.TransactionId}. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                    return new BadRequestObjectResult(new { Message = $"There is an open revision request for this project. Transaction ID: {HasPendingModification.TransactionId}. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
                 if (jsonRules == null)
@@ -1585,7 +1585,6 @@ namespace WebAPI.Controllers.Revision
                 await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
                 await _db.SaveChangesAsync(cancellationToken);
                 ApplyRevisionChildForeignKeys(NewComponent, NewComponentPerYear, NewMajorWorkItem, NewMajorWorkLocations);
-                await transaction.RollbackAsync(cancellationToken);
                 await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
                 await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
                 await _db.tTransactionLog.AddRangeAsync(Logs.Select(ToTransactionLog));
