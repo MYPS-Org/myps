@@ -10,7 +10,7 @@ import {
 import { Button } from '../../../components/tailwindui/button';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ImportJobStatus } from '../Model.d';
-import { uploadImportFile, startImportProjectJob, getImportJobStatus } from '../Service';
+import { startImportProjectJob, getImportJobStatus } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface ImportProjectsJobDialogProps {
@@ -22,21 +22,13 @@ interface ImportProjectsJobDialogProps {
   stageName: string;
 }
 
-type Phase = 'idle' | 'uploading' | 'queuing' | 'polling' | 'done';
+type Phase = 'idle' | 'submitting' | 'polling' | 'done';
 
 const ACCEPTED_EXTENSIONS = ['xlsx', 'xlsm'];
 const POLL_INTERVAL_MS = 2500;
 
 const isTerminalStatus = (status: ImportJobStatus['Status']) =>
   status === 'Completed' || status === 'CompletedWithErrors' || status === 'Failed' || status === 'Cancelled';
-
-const readFileAsDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file.'));
-    reader.readAsDataURL(file);
-  });
 
 const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
   isOpen,
@@ -107,36 +99,19 @@ const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
     }
 
     setFileName(file.name);
-    setPhase('uploading');
-
-    let dataUrl: string;
-    try {
-      dataUrl = await readFileAsDataUrl(file);
-    } catch {
-      showToast({ type: 'error', message: 'Failed to read the selected file.' });
-      setPhase('idle');
-      return;
-    }
+    setPhase('submitting');
 
     try {
-      const uploadResponse = await uploadImportFile({
-        Name: file.name,
-        Extension: extension,
-        ContentType: file.type,
-        DataUrl: dataUrl,
-      });
-
-      setPhase('queuing');
       const jobResponse = await startImportProjectJob({
         ProgramId: programId,
         StageName: stageName,
-        FileURL: uploadResponse.Data.FileURL,
+        File: file,
       });
 
       setPhase('polling');
       pollJobStatus(jobResponse.Data.JobId);
     } catch {
-      // httpClient interceptor already toasted the API error (e.g. "Import In Progress" or "File Corrupted")
+      // httpClient interceptor already toasted the API error (e.g. "Import In Progress")
       setPhase('idle');
     }
   }, [programId, stageName, pollJobStatus, showToast]);
@@ -158,7 +133,7 @@ const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
     e.target.value = '';
   };
 
-  const busy = phase === 'uploading' || phase === 'queuing' || phase === 'polling';
+  const busy = phase === 'submitting' || phase === 'polling';
   const hasErrors = (jobStatus?.ErrorCount ?? 0) > 0;
   const isTerminal = jobStatus ? isTerminalStatus(jobStatus.Status) : false;
 
@@ -213,8 +188,7 @@ const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
               <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
                 <ArrowPathIcon className="h-8 w-8 text-blue-500 animate-spin" />
                 <p className="text-sm font-medium text-gray-700">
-                  {phase === 'uploading' && `Uploading ${fileName}…`}
-                  {phase === 'queuing' && 'Queuing import job…'}
+                  {phase === 'submitting' && `Uploading ${fileName}…`}
                   {phase === 'polling' && (jobStatus?.Status === 'Processing' ? 'Processing import…' : 'Waiting in queue…')}
                 </p>
                 {jobStatus?.Message && <p className="text-xs text-gray-500">{jobStatus.Message}</p>}

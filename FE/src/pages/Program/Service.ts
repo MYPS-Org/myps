@@ -2,7 +2,7 @@
 import { httpClient } from '../../services/httpClient';
 import type { ImportProjectDTO } from '../Project/Model';
 
-import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, ImportJobStatus, ImportFileUpload } from './Model';
+import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, ImportJobStatus } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -239,22 +239,19 @@ export const importProjects = async (payload: ImportProjectDTO) => {
     }
 };
 
-export const uploadImportFile = async (file: ImportFileUpload) => {
+export const startImportProjectJob = async (data: { ProgramId: string; StageName: string; File: File }) => {
     try {
-        const response = await httpClient.post<{ FileURL: string }>('/Importing/UploadImportFile', file, {
-            preloaderMessage: 'Uploading file...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error uploading import file:', ErrorResponse);
-        throw ErrorResponse;
-    }
-};
+        const formData = new FormData();
+        formData.append('ProgramId', data.ProgramId);
+        formData.append('StageName', data.StageName);
+        formData.append('File', data.File);
 
-export const startImportProjectJob = async (data: { ProgramId: string; StageName: string; FileURL: string }) => {
-    try {
-        const response = await httpClient.post<{ JobId: string; HangfireJobId: string; Message: string; Title: string }>('/Importing/ImportProject', data, {
-            preloaderMessage: 'Queuing import...'
+        const response = await httpClient.post<{ JobId: string; HangfireJobId: string; Message: string; Title: string }>('/Importing/ImportProject', formData, {
+            // Force off the instance's default JSON Content-Type so axios doesn't
+            // JSON.stringify the FormData — the browser fills in the multipart
+            // boundary itself once this header is out of the way.
+            headers: { 'Content-Type': 'multipart/form-data' },
+            preloaderMessage: 'Uploading and queuing import...'
         });
         return response;
     } catch (ErrorResponse) {

@@ -282,13 +282,6 @@ export interface AIPReportParams {
   LegislativeDistrictName?: string;
 }
 
-export interface ImportFileUpload {
-  Name: string;
-  Extension: string;
-  ContentType: string;
-  DataUrl: string;
-}
-
 export type ImportJobStatusValue = 'Queued' | 'Processing' | 'Completed' | 'CompletedWithErrors' | 'Failed' | 'Cancelled';
 
 export interface ImportJobStatus {

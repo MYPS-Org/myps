@@ -143,3 +143,18 @@ Files changed:
 - `FE/src/pages/Program/IMPORT_PROJECTS_GUIDE.md`
 
 Verification performed: `dotnet build WebAPI/WebAPI.csproj` — 0 errors. `tsc --noEmit -p tsconfig.app.json` — 0 errors in any file touched by this change (all pre-existing errors are in unrelated modules: `Modification/*`, `LSWallet/mockData/*`, `Main/Resources/Internal/index.ts`'s `vite/client` types). Not run: end-to-end import (needs `Importing.Schema.sql` applied to a live DB, and a running backend + FE dev server, per the Verification section above).
+
+## Correction Log
+Date: 2026-08-20 (same day, follow-up)
+
+While this plan's implementation was in flight, the backend author (eptisadev) pushed a follow-up commit — `4a31ccc1` "Importing Projects - update - to handle the blob file" — that changed `ImportProject` itself from a JSON `{ProgramId, StageName, FileURL}` body to `[Consumes("multipart/form-data")] [FromForm] ImportProgramDetailsWithFile {ProgramId, StageName, IFormFile File}`. The upload and the job-queue now happen in that one call; the controller saves the posted file to `Resources/Upload/` itself before enqueueing the Hangfire job. That commit landed on a teammate's fork branch and was merged into this branch (merge commit `94cdbbcd`) alongside this plan's own commit (`5732ef88`), so both designs briefly coexisted in the tree. The user asked to re-check for a newer backend commit; this is the result.
+
+This obsoleted the plan's original "no upload endpoint exists, add one" premise and its two-step upload-then-queue design. Corrections made on top of the already-`Implemented` state above:
+- Removed the `UploadImportFile` action from `ImportingController.cs` (and the now-unused `using DBHelper.Models.Extra;`) — dead code once `ImportProject` accepts the file directly.
+- `Service.ts`: removed `uploadImportFile`; `startImportProjectJob` now builds a `FormData` (`ProgramId`, `StageName`, `File`) and posts it directly to `/Importing/ImportProject` in one call, with `headers: { 'Content-Type': 'multipart/form-data' }` explicitly forced — necessary because `httpClient`'s axios instance defaults to `application/json`, and axios's `transformRequest` will `JSON.stringify` a `FormData` body instead of sending it as multipart if the resolved Content-Type still reads `application/json` at request time (confirmed by reading the installed axios 1.12.2 source, `node_modules/axios/lib/defaults/index.js`); axios/the browser overwrite that header with the real multipart boundary right before sending once it's out of the way.
+- `ImportProjectsJobDialog.tsx`: dropped the `FileReader`/base64 step entirely — the raw `File` object is now handed straight to `startImportProjectJob`. Phase state machine simplified from `idle → uploading → queuing → polling → done` to `idle → submitting → polling → done`.
+- `Model.d.ts`: removed the now-unused `ImportFileUpload` (base64 payload) type. `ImportJobStatus` is untouched — `GetImportStatus`'s response shape didn't change.
+- `httpClient.ts`'s `silent` option, `Importing.Schema.sql`, and the `Helpers/Functions.cs` `.xlsm` allowlist fix are all still valid and unchanged — none of them were specific to the two-step design.
+- Docs (`program.md`, `IMPORT_PROJECTS_GUIDE.md`) updated to describe the single multipart call instead of the two-step upload+queue flow, and `IMPORT_PROJECTS_GUIDE.md`'s legacy banner now cites `4a31ccc1` as well as `eb3327af`.
+
+Re-verified: `dotnet build WebAPI/WebAPI.csproj` — 0 errors. `tsc --noEmit -p tsconfig.app.json` — 0 errors in any touched file. End-to-end import still not run (same DB-schema prerequisite as before).
