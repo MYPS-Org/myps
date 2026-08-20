@@ -45,6 +45,17 @@ export const generateTempId = (): number => {
 export const normalizeTempIds = <T extends { Id: number }>(rows: T[]): T[] =>
   rows.map((row) => (row.Id <= 0 ? { ...row, Id: 0 } : row));
 
+// ResubmitRevision binds ComponentCosts/ComponentCostPerYear/MajorItemOfWorks/MajorItemLocations/
+// FundingProfile to the revision-scoped models (DBHelper.Models.Functions.Revision.*), which all
+// have `[Required] string TransactionId`. Rows fetched from ViewReviseProject already carry it
+// (the FE types just don't declare the field), but rows a user adds during the resubmit session
+// are built from those same FE types and never get one — [ApiController] auto-validation then
+// 400s the whole request before ResubmitRevision's body runs. Stamp every row with the current
+// TransactionId right before it goes into the resubmit payload so new rows validate the same way
+// as fetched ones.
+export const stampTransactionId = <T extends { Id: number }>(rows: T[], transactionId: string): (T & { TransactionId: string })[] =>
+  rows.map((row) => ({ ...row, TransactionId: transactionId }));
+
 // The resubmit-for-correction flow loads its ProjectDetails from ViewReviseProject, whose
 // response omits CreatedBy/CreatedDate/Source. RevisionController's ResubmitRevision DTO
 // reuses the same ProjectDetails model as RequestRevision (the "new revision" flow, whose

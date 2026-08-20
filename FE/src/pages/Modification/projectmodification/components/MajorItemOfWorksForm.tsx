@@ -211,10 +211,14 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     const componentCostId = componentCosts.find(c => c.ComponentId === majorItemData.ComponentId)?.Id ?? 0;
 
     if (isAddingNewMajorItem) {
+      // Source is [Required] on the backend's revision-scoped MajorWorkItem model — an
+      // empty string fails validation. Carry through an existing sibling component's Source
+      // (mirrors the ComponentCostDialog default-Source pattern).
+      const defaultSource = componentCosts.find(c => c.Source)?.Source || '';
       // Create new major item
       const newMajorItem: MajorItemOfWorksWithDropdown = {
         Id: generateTempId(), // Temporary Id
-        Source: '',
+        Source: defaultSource,
         ComponentCostFK: componentCostId,
         ProjectFK: projectFK || '',
         ProjectId: projectId,

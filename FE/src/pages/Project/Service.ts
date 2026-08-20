@@ -225,7 +225,9 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
 // #endregion
 
 // #region GeoJSON Data
-export const fetchProjectGeoJSON = async (referenceId: string, programId: string, username: string, stageName: string) => {
+// transactionId is revision-module only: when present, it replaces revision_id so the GIS
+// service resolves the layer for that specific revision transaction instead of the base project.
+export const fetchProjectGeoJSON = async (referenceId: string, programId: string, username: string, stageName: string, transactionId?: string) => {
     try {
         const response = await gisClient.get(
             `/projects_and_programs/get_proj_geom`,
@@ -234,6 +236,7 @@ export const fetchProjectGeoJSON = async (referenceId: string, programId: string
                 program_pk: programId,
                 username,
                 program_stage_name: stageName,
+                ...(transactionId ? { transaction_id: transactionId } : {}),
             },
             { preloaderMessage: 'Loading map data...' }
         );

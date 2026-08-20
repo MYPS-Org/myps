@@ -60,9 +60,15 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   // The backend re-derives ProjectRevisionFK server-side on save — we just carry
   // through whatever value existing rows already have so new rows aren't missing it.
   const defaultProjectRevisionFK = componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK || 0;
+  // Source/StageName are [Required] on the backend's revision-scoped ComponentCost model —
+  // an empty string fails validation (unlike ProjectRevisionFK above, these aren't ints that
+  // harmlessly bind to 0). Carry through an existing sibling row's Source, falling back to
+  // programDetails.StageName (already available for this dialog) for StageName.
+  const defaultSource = componentCosts.find(c => c.Source)?.Source || '';
+  const defaultStageName = programDetails?.StageName || '';
   const [formData, setFormData] = useState<ComponentCost>({
     Id: 0,
-    Source: '',
+    Source: defaultSource,
     ProjectRevisionFK: defaultProjectRevisionFK,
     ProjectFK: ProjectFK || '',
     ProjectId: ProjectId,
@@ -70,7 +76,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     ComponentId: '',
     Description: '',
     Total: 0,
-    StageName: '',
+    StageName: defaultStageName,
     IsDeleted: false,
     CreatedBy: user?.UserId || '',
     CreatedDate: new Date().toISOString(),
@@ -242,7 +248,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     const baseYear = programDetails?.StartYear || new Date().getFullYear();
     const newPerYearCost: ComponentCostPerYear = {
       Id: 0,
-      Source: '',
+      Source: formData.Source || defaultSource,
+      StageName: formData.StageName || defaultStageName,
       // Real ComponentCost.Id when editing an existing component; 0 for a
       // brand-new component, which the backend correlates by ComponentId instead.
       ComponentCostFK: formData.Id,
@@ -297,7 +304,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     if (editingCost && mode === 'edit') {
       setFormData({
         Id: editingCost.Id ?? 0,
-        Source: editingCost.Source ?? '',
+        Source: editingCost.Source || defaultSource,
         ProjectRevisionFK: editingCost.ProjectRevisionFK ?? defaultProjectRevisionFK,
         ProjectFK: editingCost.ProjectFK || ProjectFK || '',
         ProjectId: editingCost.ProjectId ?? ProjectId,
@@ -305,7 +312,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         ComponentId: editingCost.ComponentId ?? '',
         Description: editingCost.Description ?? '',
         Total: editingCost.Total ?? 0,
-        StageName: editingCost.StageName ?? '',
+        StageName: editingCost.StageName || defaultStageName,
         IsDeleted: editingCost.IsDeleted ?? false,
         CreatedBy: editingCost.CreatedBy ?? '',
         CreatedDate: editingCost.CreatedDate ?? new Date().toISOString(),
@@ -324,7 +331,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       // ComponentCostPerYear rows link back to it via ComponentCostFK.
       setFormData({
         Id: generateTempId(),
-        Source: '',
+        Source: defaultSource,
         ProjectRevisionFK: defaultProjectRevisionFK,
         ProjectFK: ProjectFK || '',
         ProjectId: ProjectId,
@@ -332,7 +339,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         ComponentId: '',
         Description: '',
         Total: 0,
-        StageName: '',
+        StageName: defaultStageName,
         IsDeleted: false,
         CreatedBy: '',
         CreatedDate: new Date().toISOString(),
@@ -484,7 +491,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     const handleReset = () => {
         setFormData({
             Id: generateTempId(),
-            Source: '',
+            Source: defaultSource,
             ProjectRevisionFK: defaultProjectRevisionFK,
             ProjectFK: ProjectFK || '',
             ProjectId: '',
@@ -492,7 +499,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             ComponentId: '',
             Description: '',
             Total: 0,
-            StageName: '',
+            StageName: defaultStageName,
             IsDeleted: false,
             CreatedBy: '',
             CreatedDate: new Date().toISOString(),

@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import { transactionIdAtom } from '../store/routeContextStore';
 import { usePdfUpload } from '../hooks/usePdfUpload';
-import { normalizeTempIds, normalizeProjectDetailsForSubmit } from '../../../utils/GlobalFunctions';
+import { normalizeTempIds, normalizeProjectDetailsForSubmit, stampTransactionId } from '../../../utils/GlobalFunctions';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -127,11 +127,11 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                     ConstructionStatus: projectStatus?.ConstructionStatus
                 },
                 ProjectDetails: normalizeProjectDetailsForSubmit(project, user?.UserId),
-                ComponentCosts: normalizeTempIds(componentCosts),
-                ComponentCostPerYear: normalizeTempIds(componentsCostPerYear || []),
-                MajorItemOfWorks: normalizeTempIds(majorItemOfWorks),
-                MajorItemLocations: normalizeTempIds(majorItemLocations),
-                FundingProfile: normalizeTempIds(fundingProfile),
+                ComponentCosts: stampTransactionId(normalizeTempIds(componentCosts), transactionId),
+                ComponentCostPerYear: stampTransactionId(normalizeTempIds(componentsCostPerYear || []), transactionId),
+                MajorItemOfWorks: stampTransactionId(normalizeTempIds(majorItemOfWorks), transactionId),
+                MajorItemLocations: stampTransactionId(normalizeTempIds(majorItemLocations), transactionId),
+                FundingProfile: stampTransactionId(normalizeTempIds(fundingProfile), transactionId),
             };
 
             console.log('Submitting resubmit request with payload:', payload);

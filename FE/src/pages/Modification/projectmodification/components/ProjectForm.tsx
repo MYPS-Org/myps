@@ -226,7 +226,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           initialData.ProjectDetails.ProjectFK || '',
           initialData.ProgramDetails.ProgramPK,
           user?.UserId || '',
-          initialData.ProgramDetails.StageName
+          initialData.ProgramDetails.StageName,
+          initialData.RevisionDetails?.TransactionId
         );
         if (response.Data) {
           setGeoJsonData(response.Data as GeoJSON.FeatureCollection);
@@ -236,7 +237,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         // Gracefully handle error - map will show "No data available"
       }
     }
-  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId, initialData?.ProgramDetails?.StageName, initialData?.MajorItemLocations?.length, user?.UserId]);
+  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId, initialData?.ProgramDetails?.StageName, initialData?.MajorItemLocations?.length, initialData?.RevisionDetails?.TransactionId, user?.UserId]);
 
   useEffect(() => {
     loadMapData();
