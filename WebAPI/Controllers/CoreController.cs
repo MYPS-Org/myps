@@ -92,6 +92,7 @@ namespace WebAPI.Controllers
             }
             catch (Exception ex)
             {
+                _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
                 throw new Exception(ex.Message);
             }
         }

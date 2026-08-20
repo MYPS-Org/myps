@@ -237,9 +237,10 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
+                string TransactionId = dto.TransactionId;
                 var ValidateTransacionId = await _db.ValidateTransactionId(new ValidateRevisionParams
                 {
-                    TransactionId = dto.TransactionId,
+                    TransactionId = TransactionId,
                     _Session = _Session
                 }, cancellationToken);
                 if (!ValidateTransacionId.IsValid)
@@ -259,7 +260,7 @@ namespace WebAPI.Controllers.Revision
                     .FirstOrDefaultAsync(cancellationToken) ?? StatusForDisplay.ToString();
 
                 #region Validate PCMA Status
-                var ComponentCost = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var ComponentCost = await _db.fRevisionComponentCost.FromSqlInterpolated($"SELECT * FROM fRevisionComponentCost({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
                 bool HasConstrunctionStatus = ComponentCost.Select(x => !string.IsNullOrEmpty(x.ConstructionStatusCode)).Any() ? true : false;
                 if (ComponentCost == null || !HasConstrunctionStatus)
                 {
@@ -354,19 +355,16 @@ namespace WebAPI.Controllers.Revision
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectRevisionFK == ProjectRevisionFK).ToListAsync(cancellationToken);
                 var SupportingDoc = await _db.tOptionSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
-                //var ComponentCost = await _db.vRevisionProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.TransactionId == dto.TransactionId).ToListAsync(cancellationToken);
-                //var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fPendingProjectComponentCost({dto.TransactionId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync(cancellationToken);
-
-
-                var ComponentCostYear = await _db.fProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
-
-                var MajorItemOfWork = await _db.fProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
-                var MajorWorkLocation = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
-
-
-
                 //var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync(cancellationToken);
-                var Funding = await _db.fProjectFundingProfile.FromSqlInterpolated($"SELECT * FROM fProjectFundingProfile({ProjectFK},{EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var Funding = await _db.fRevisionFundingProfile.FromSqlInterpolated($"SELECT * FROM fRevisionFundingProfile({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
+
+                var ComponentCostYear = await _db.fRevisionComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fRevisionComponentCostPerYear({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
+
+                var MajorItemOfWork = await _db.fRevisionMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fRevisionMajorWorkItem({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
+                var MajorWorkLocation = await _db.fRevisionMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
+
+
+
                 #endregion
 
                 #region TransactionLogs
@@ -481,12 +479,14 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
-        
+
         [HttpPost]
         public async Task<IActionResult> ReviseProject([FromBody] ReviseProjectDTO dto, CancellationToken cancellationToken)
         {
             try
             {
+                bool isROUser = _Session.UserGroupNames.Contains("RPC");
+                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var projectRevision = await _db.tProjectRevisions.AsNoTracking()
                     .Where(x => x.ProjectId == dto.ProjectId && !x.IsDeleted)
@@ -529,7 +529,7 @@ namespace WebAPI.Controllers.Revision
                 }
 
                 var HasPendingModification = await _db.fRevisionQueue
-                    .FromSqlInterpolated($"SELECT * FROM fRevisionQueue({"IO"}) v WHERE v.TransactionId LIKE {dto.ProjectId + "-%"}")
+                    .FromSqlInterpolated($"SELECT * FROM fRevisionQueue({"IO"},{isROUser},{isCOUser}) v WHERE v.TransactionId LIKE {dto.ProjectId + "-%"}")
                     .AsNoTracking()
                     .FirstOrDefaultAsync(cancellationToken);
                 if (HasPendingModification != null)
@@ -676,9 +676,6 @@ namespace WebAPI.Controllers.Revision
                 var ScopeOfWork = await _db.tOptionScopeOfWork.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync(cancellationToken);
                 #endregion
 
-                bool isROUser = _Session.UserGroupNames.Contains("RPC");
-                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
-
                 return Ok(new
                 {
                     Header = SelectedType,
@@ -753,7 +750,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
-        
+
         [HttpPost]
         public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto, CancellationToken cancellationToken)
         {
@@ -1578,14 +1575,14 @@ namespace WebAPI.Controllers.Revision
                     }
                 });
                 await _db.tRevisionProjectSnapshot.AddAsync(ToRevisionProjectSnapshot(RevisionDetailFK, ProjectRevision));
-                ApplyRevisionRootForeignKeys(RevisionDetailFK, NewFundingProfile, NewComponent, NewMajorWorkItem);
+                ApplyRevisionRootForeignKeys(RevisionDetailFK, NewFundingProfile, NewComponent);
                 _db.tProjects.Update(ProjectParent);
                 await _db.tRevisionProjects.AddAsync(NewRevisionProject);
                 await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
                 await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
-                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
                 await _db.SaveChangesAsync(cancellationToken);
                 ApplyRevisionChildForeignKeys(NewComponent, NewComponentPerYear, NewMajorWorkItem, NewMajorWorkLocations);
+                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
                 await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
                 await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
                 await _db.tTransactionLog.AddRangeAsync(Logs.Select(ToTransactionLog));
@@ -2125,7 +2122,7 @@ namespace WebAPI.Controllers.Revision
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto, CancellationToken cancellationToken)
         {
@@ -2187,7 +2184,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision component cost per year not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost Per Year not found" });
                 }
-                var ExistingMajorWorkItem = await _db.tRevisionProjectMajorWorkItem.Where(x => x.RevisionDetailFK == ExistingRevision.Id).ToListAsync(cancellationToken);
+                var ExistingMajorWorkItem = await _db.tRevisionProjectMajorWorkItem.Where(x => ExistingComponentIds.Contains(x.ComponentCostFK)).ToListAsync(cancellationToken);
                 if (ExistingMajorWorkItem == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Item not found" });
@@ -3514,12 +3511,10 @@ namespace WebAPI.Controllers.Revision
         private static void ApplyRevisionRootForeignKeys(
             int revisionDetailFK,
             List<RevisionProjectFundingProfile> fundingProfiles,
-            List<DBHelper.Models.Table.Revision.RevisionProjectComponentCost> componentCosts,
-            List<RevisionProjectMajorWorkItem> majorWorkItems)
+            List<DBHelper.Models.Table.Revision.RevisionProjectComponentCost> componentCosts)
         {
             fundingProfiles.ForEach(x => x.RevisionDetailFK = revisionDetailFK);
             componentCosts.ForEach(x => x.RevisionDetailFK = revisionDetailFK);
-            majorWorkItems.ForEach(x => x.RevisionDetailFK = revisionDetailFK);
         }
 
         private static void ApplyRevisionChildForeignKeys(
@@ -3536,6 +3531,13 @@ namespace WebAPI.Controllers.Revision
                 if (componentCostKeys.TryGetValue(x.ComponentId, out var revisionComponentCostFK))
                 {
                     x.RevisionComponentCostFK = revisionComponentCostFK;
+                }
+            });
+            majorWorkItems.ForEach(x =>
+            {
+                if (componentCostKeys.TryGetValue(x.ComponentId, out var revisionComponentCostFK))
+                {
+                    x.ComponentCostFK = revisionComponentCostFK;
                 }
             });
 

@@ -12,8 +12,8 @@ namespace DBHelper.Models.Table
     {
         [Key]
         public int Id { get; set; }
-        public bool IsActive { get; set; } = false;
         [Required]
+        // FK -> dbo.tOptionRevisionReasons(ReasonId)
         public int ReasonId { get; set; }
         [Required]
         [MaxLength(50)]
@@ -24,5 +24,7 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(1500)]
         public string Field { get; set; } = string.Empty;
+        [Required]
+        public bool IsActive { get; set; }
     }
 }

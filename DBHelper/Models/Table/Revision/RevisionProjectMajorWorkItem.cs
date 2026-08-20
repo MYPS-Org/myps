@@ -13,8 +13,8 @@ namespace DBHelper.Models.Table.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        // FK -> dbo.tRevisionDetails(Id)
-        public int RevisionDetailFK { get; set; }
+        // FK -> dbo.tRevisionComponentCost(Id)
+        public int ComponentCostFK { get; set; }
         [Required]
         [MaxLength(20)]
         public string ComponentId { get; set; } = string.Empty;

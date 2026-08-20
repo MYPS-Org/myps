@@ -207,7 +207,13 @@ namespace DBHelper.Data
         public DbSet<OpenRevision> fOpenRevision { get; set; }
         public DbSet<RevisionRuleFor> fRevisionRuleFor { get; set; }
         public DbSet<RevisionProjectDetails> fRevisionProjectDetails { get; set; }
-        public DbSet<PendingProjectComponentCost> fPendingProjectComponentCost { get; set; }
+
+        public DbSet<RevisionFundingProfile> fRevisionFundingProfile { get; set; }
+        public DbSet<RevisionComponentCost> fRevisionComponentCost { get; set; }
+        public DbSet<RevisionComponentCostPerYear> fRevisionComponentCostPerYear { get; set; }
+
+        public DbSet<RevisionMajorWorkItem> fRevisionMajorWorkItem { get; set; }
+        public DbSet<RevisionMajorWorkLocations> fRevisionMajorWorkLocations { get; set; }
         #endregion
         #endregion
 

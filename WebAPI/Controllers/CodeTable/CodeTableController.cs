@@ -1766,13 +1766,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Field!;
                             CheckUpdate.Field = data.Field;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
-                        {
-                            transactionLog.AffectedColumn = "IsActive";
-                            transactionLog.NewValue = data.IsActive ? "True" : "False";
-                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
-                            CheckUpdate.IsActive = data.IsActive;
-                        }
+                        //if (CheckUpdate.IsActive != data.IsActive)
+                        //{
+                        //    transactionLog.AffectedColumn = "IsActive";
+                        //    transactionLog.NewValue = data.IsActive ? "True" : "False";
+                        //    transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                        //    CheckUpdate.IsActive = data.IsActive;
+                        //}
                         _db.tRevisionRules.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
