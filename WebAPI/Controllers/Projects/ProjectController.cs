@@ -38,33 +38,22 @@ namespace WebAPI.Controllers.Projects
                     .AsNoTracking().ToListAsync(cancellationToken);
                 HashSet<string> RegionParticipantIds = regions.Select(x => x.ParticipantId).ToHashSet();
 
-                var provinces = await _db.tOptionAdminAreaProvince.AsNoTracking().Where(
-                    x => RegionParticipantIds.Contains(x.RegionParticipantId) && !x.Deprecated).OrderBy(x => x.Name).ToListAsync(cancellationToken);
-
+                var provinces = await _db.tOptionAdminAreaProvince.AsNoTracking().Where(x => RegionParticipantIds.Contains(x.RegionParticipantId) && !x.Deprecated).ToListAsync(cancellationToken);
                 HashSet<string> ProvinceCodes = provinces.Select(x => x.Code).ToHashSet();
 
-                var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().Where(
-                    x => ProvinceCodes.Contains(x.ProvinceCode) && !x.Deprecated).OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                var cities = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().Where(x => ProvinceCodes.Contains(x.ProvinceCode) && !x.Deprecated).ToListAsync(cancellationToken);
 
-                var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().Where(
-                    x => ProvinceCodes.Contains(x.ProvinceCode) && !x.Deprecated).OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().Where(x => ProvinceCodes.Contains(x.ProvinceCode) && !x.Deprecated).ToListAsync(cancellationToken);
 
-                var deos = await _db.vAdminDEO.AsNoTracking().Where(
-                    x => RegionParticipantIds.Contains(
-                        x.RegionParticipantId!) || string.IsNullOrEmpty(x.RegionParticipantId)).OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                var deos = await _db.vAdminDEO.AsNoTracking().Where(x => RegionParticipantIds.Contains(x.RegionParticipantId!) || string.IsNullOrEmpty(x.RegionParticipantId)).ToListAsync(cancellationToken);
 
-                var implementingOffices = await _db.vAdminImplementingOffice.AsNoTracking().Where(
-                    x => RegionParticipantIds.Contains(
-                        x.RegionParticipantId!) || string.IsNullOrEmpty(x.RegionParticipantId)).OrderBy(x => x.Name).ToListAsync(cancellationToken);
-                
-                var operatingUnits = await _db.vAdminOperatingUnit.AsNoTracking().Where(
-                    x => RegionParticipantIds.Contains(
-                        x.RegionParticipantId!) || string.IsNullOrEmpty(x.RegionParticipantId)).OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                var implementingOffices = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => RegionParticipantIds.Contains(x.RegionParticipantId!) || string.IsNullOrEmpty(x.RegionParticipantId)).ToListAsync(cancellationToken);
+                var operatingUnits = await _db.vAdminOperatingUnit.AsNoTracking().Where(x => RegionParticipantIds.Contains(x.RegionParticipantId!) || string.IsNullOrEmpty(x.RegionParticipantId)).ToListAsync(cancellationToken);
 
 
                 int CurrentYear = (int)Functions.CurrentDate().Year;
                 var categories = await _db.tOptionProjectCategory.AsNoTracking()
-                    .Where(c => c.IsActive && (c.ValidUntil >= CurrentYear || c.ValidUntil == 0)).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
+                    .Where(c => c.IsActive || (c.ValidUntil >= CurrentYear || c.ValidUntil == 0)).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
                 var thrusts = await _db.tOptionProjectThrustList.AsNoTracking()
                     .Where(t => t.IsActive).OrderBy(x => x.ThrustDescription).ToListAsync(cancellationToken);
                 var origins = await _db.tOptionProjectOrigin.AsNoTracking()

@@ -379,3 +379,7 @@ FodyWeavers.xsd
 
 # graphify knowledge graph output
 graphify-out/
+
+# e2e test
+e2e/playwright-report/
+e2e/.env

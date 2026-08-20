@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -38,12 +39,13 @@ namespace Hangfire.Importing
         public string? Rank { get; set; } = string.Empty;
         public string? ErrorMessage { get; set; } = string.Empty;
 
+        public int? TierNameId { get; set; }
         public int? CategoryCategoryId { get; set; }
         public int? ThrustPAPKey { get; set; }
         public int? OriginNameId { get; set; }
-        public string? CityGdbId { get; set; }
-        public string? ProvinceGdbId { get; set; }
-        public string? LDGdbId { get; set; }
+        public string? CityCode { get; set; }
+        public string? ProvinceCode { get; set; }
+        public string? LDCode { get; set; }
         public string? OperatingUnitParticipantId { get; set; }
         public string? ImplementingOfficeParticipantId { get; set; }
         public string? DeoParticipantId { get; set; }
@@ -67,7 +69,7 @@ namespace Hangfire.Importing
         public string Amount { get; set; }
         public string? ErrorMessage { get; set; } = string.Empty;
 
-        public string? SourceOrganization { get; set; }
+        public string? SourceOrg { get; set; }
         public string? AgreementCode { get; set; }
     }
     public class ImportComponentDetailsExcel
@@ -105,18 +107,37 @@ namespace Hangfire.Importing
         public string? StartChainage { get; set; } //Double
         public string? EndChainage { get; set; } //Double
         public string? Length { get; set; } //Double
-        public string? ActivityYear { get; set; }
+        public string ActivityYear { get; set; }
         public string? ErrorMessage { get; set; } = string.Empty;
 
         public int? TargetUnitId { get; set; }
     }
     public class ImportProjectReference
     {
-        public string OldProjectId { get; set; } = string.Empty;
-        public string NewProjectId { get; set; } = string.Empty;
+        public string OldProjectFK { get; set; } = string.Empty;
+        public string NewProjectFK { get; set; } = string.Empty;
+        public int NewProjectId { get; set; }
         public string ThirdSegment { get; set; } = string.Empty;
         public string MaxId { get; set; } = string.Empty;
+        public string? UACS { get; set; }
     }
+
+    public class ImportComponentReference
+    {
+        public string OldProjectFK { get; set; } = string.Empty;
+        public string ComponentId { get; set; } = string.Empty;
+        public int NewComponentId { get; set; }
+        public int WorkTypeFK { get; set; }
+        public string InfraTypeFK { get; set; }
+    }
+
+    public class ImportMajorWorkItemReference
+    {
+        public string OldProjectFK { get; set; } = string.Empty;
+        public string ComponentId { get; set; } = string.Empty;
+        public int NewWorkItem { get; set; }
+    }
+
     public class ImportProjectDTOExcel
     {
         [Required]
@@ -128,4 +149,21 @@ namespace Hangfire.Importing
         [Required]
         public List<ImportMajorItemsOfWorkExcel> MajorItemsOfWork { get; set; } = new List<ImportMajorItemsOfWorkExcel>();
     }
+
+    public class ImportProgramDetailsWithFile
+    {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
+        [Required]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        public IFormFile File { get; set; } = default!;
+    }
+
+    //public class ImportProgramDetailsWithFileURL
+    //{
+    //    public string ProgramId { get; set; }
+    //    public string StageName { get; set; }
+    //    public string FileURL { get; set; }
+    //}
 }

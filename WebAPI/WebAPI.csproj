@@ -37,6 +37,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DBHelper\DBHelper.csproj" />
+    <ProjectReference Include="..\Hangfire\Hangfire.csproj" />
     <ProjectReference Include="..\Helpers\Helpers.csproj" />
     <ProjectReference Include="..\ReportGeneration\ReportGeneration.csproj" />
   </ItemGroup>

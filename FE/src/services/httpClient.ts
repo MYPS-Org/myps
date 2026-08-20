@@ -22,6 +22,8 @@ export interface ErrorResponse {
 
 export interface RequestConfig extends AxiosRequestConfig {
     preloaderMessage?: string;
+    /** Skip the global preloader overlay for this request (e.g. background polling). */
+    silent?: boolean;
 }
 export interface HttpClientConfig {
     baseURL: string;
@@ -55,7 +57,10 @@ class HttpClient {
         // Request interceptor
         this.client.interceptors.request.use(
             (config: InternalAxiosRequestConfig) => {
-                const customConfig = config as InternalAxiosRequestConfig & { preloaderMessage?: string };
+                const customConfig = config as InternalAxiosRequestConfig & { preloaderMessage?: string; silent?: boolean };
+                if (customConfig.silent) {
+                    return config;
+                }
                 // Cancel any pending hide so new request's loading state isn't cleared
                 if (this.hideTimeout) {
                     clearTimeout(this.hideTimeout);
@@ -72,6 +77,9 @@ class HttpClient {
                 return config;
             },
             (error: any) => {
+                if ((error.config as { silent?: boolean } | undefined)?.silent) {
+                    return Promise.reject(error);
+                }
                 this.activeRequests = Math.max(0, this.activeRequests - 1);
                 if (this.activeRequests === 0) {
                     this.updatePreloader({ loading: false, progress: 0, message: '' });
@@ -83,6 +91,9 @@ class HttpClient {
         // Response interceptor
         this.client.interceptors.response.use(
             (response: AxiosResponse) => {
+                if ((response.config as { silent?: boolean }).silent) {
+                    return response;
+                }
                 this.activeRequests = Math.max(0, this.activeRequests - 1);
 
                 if (this.activeRequests === 0) {
@@ -104,9 +115,11 @@ class HttpClient {
                 return response;
             },
             async (error: any) => {
-                this.activeRequests = Math.max(0, this.activeRequests - 1);
-                if (this.activeRequests === 0) {
-                    this.updatePreloader({ loading: false, progress: 0, message: '' });
+                if (!(error.config as { silent?: boolean } | undefined)?.silent) {
+                    this.activeRequests = Math.max(0, this.activeRequests - 1);
+                    if (this.activeRequests === 0) {
+                        this.updatePreloader({ loading: false, progress: 0, message: '' });
+                    }
                 }
 
                 console.error('❌ HTTP Error:', error.response?.status, error.config?.url, error.message);

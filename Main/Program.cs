@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using OfficeOpenXml;
 using WebAPI.MicroService;
+using Hangfire.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,6 +98,16 @@ if (builder.Environment.IsDevelopment())
     builder.Services.AddDevSwagger();
 }
 
+// Named HttpClient for the CrystalReportService microservice
+builder.Services.AddHttpClient("ReportService", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ReportService:BaseUrl"]!);
+    client.Timeout = TimeSpan.FromMinutes(10); // report rendering can be slow
+});
+
+// Hangfire job service
+builder.Services.AddTransient<ReportJobService>();
+
 
 var app = builder.Build();
 
@@ -177,6 +188,8 @@ app.MapControllers();
 app.MapHub<SignalRHub>("/notificationHub");
 
 app.MapHub<ImportHub>("/hubs/import");
+
+app.MapHub<ReportHub>("/hubs/report");
 
 
 // ==========================================================

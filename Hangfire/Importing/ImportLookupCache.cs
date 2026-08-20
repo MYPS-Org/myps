@@ -11,6 +11,7 @@ namespace Hangfire.Importing
     public class ImportLookupCache
     {
         // Project Details lookups
+        public List<OptionProjectTier> Tiers { get; set; }
         public List<DBHelper.Models.Table.Lookups.OptionProjectCategory> Categories { get; set; }
         public List<OptionProjectThrustList> Thrusts { get; set; }
         public List<OptionAdminAreaProvince> Provinces { get; set; }
@@ -30,8 +31,8 @@ namespace Hangfire.Importing
         public List<OptionProjectDetailedDesign> DetailedDesigns { get; set; }
 
         // Funding Profile lookups
-        public List<OptionFundingAgreement> FundingAgreements { get; set; }
         public List<OptionFundingSource> FundingSources { get; set; }
+        public List<OptionFundingAgreement> FundingAgreements { get; set; }
 
         // Component Details lookups
         public List<OptionProjectComponentType> Components { get; set; }
@@ -43,6 +44,7 @@ namespace Hangfire.Importing
         {
             return new ImportLookupCache
             {
+                Tiers = await db.tOptionProjectTier.AsNoTracking().ToListAsync(),
                 Categories = await db.tOptionProjectCategory.AsNoTracking().ToListAsync(),
                 Thrusts = await db.tOptionProjectThrustList.AsNoTracking().ToListAsync(),
                 Provinces = await db.tOptionAdminAreaProvince.AsNoTracking().ToListAsync(),

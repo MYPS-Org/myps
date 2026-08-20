@@ -23,7 +23,8 @@ pages/Program/
 │   ├── NextStageDialog.tsx      ← Advance or skip program stage
 │   ├── PublishProgramDialog.tsx ← Confirm publish to PCMA
 │   ├── AddExistingProjectDialog.tsx ← Link existing projects to a program
-│   ├── ImportProjectsDialog.tsx ← Parse and preview Excel import
+│   ├── ImportProjectsJobDialog.tsx ← Live: upload → async job → poll → download reports
+│   ├── ImportProjectsDialog.tsx ← Unused: old client-side parse + preview (kept for later reuse)
 │   ├── ExportConfirmDialog.tsx  ← Confirm export to Excel
 │   ├── AIPReportDialog.tsx      ← Configure and download AIP/RBP/RDIP reports
 │   ├── BatchTagDialog.tsx       ← Batch operation input (IDs + action type)
@@ -279,13 +280,24 @@ IsActive && !isTerminalStage
 - On submit: passes `string[]` of selected ProjectIds to parent handler
 - > NOTE: parent (`handleAddExistingProjectSubmit`) has a TODO — API call not yet wired
 
-### `ImportProjectsDialog`
+### `ImportProjectsJobDialog` (live — wired into `ActionsDropdown`)
 
+- Accepts `.xlsx` / `.xlsm` via drag-and-drop or file picker
+- No client-side parsing — the whole workbook is validated and written to the DB server-side, asynchronously
+- Flow: `startImportProjectJob()` posts a single `multipart/form-data` request (`ProgramId`, `StageName`, `File`) straight to `/Importing/ImportProject` — the backend saves the upload to disk and enqueues the Hangfire job in that same call, returning `JobId` — then polls `getImportJobStatus()` (`/Importing/GetImportStatus`, `silent: true` so it doesn't flash the global preloader) every 2.5s until a terminal status
+- The `multipart/form-data` POST needs `headers: { 'Content-Type': 'multipart/form-data' }` passed explicitly in `Service.ts` — `httpClient`'s axios instance defaults to `application/json`, and axios's own `transformRequest` will silently `JSON.stringify` a `FormData` body if the resolved Content-Type still says `application/json` at request time. Setting it to `multipart/form-data` (no boundary) short-circuits that check; axios/the browser then strips and replaces it with the real multipart boundary right before sending.
+- Terminal states: `Completed`, `CompletedWithErrors`, `Failed`, `Cancelled` — shows `ValidCount`/`WarningCount`/`ErrorCount` plus download links for the always-present text report and the error-only Excel report (`TextFileUrl`/`ExcelFileUrl`, one-shot downloads — the backend deletes each file after it's served once)
+- A 400 "Import In Progress" response (system-wide import lock) resets the dialog back to idle so the user can retry later; the `httpClient` interceptor already toasts the message, so the dialog does not toast it again
+- On `Completed`/`CompletedWithErrors`, calls `onImported()` so the caller (`ActionsDropdown`) can refresh the project table
+
+### `ImportProjectsDialog` (present but unused — kept for possible later reuse)
+
+- Not opened from anywhere in the live UI as of this writing; `ActionsDropdown`'s "Import Projects" menu item opens `ImportProjectsJobDialog` instead
 - Accepts `.xlsm` via drag-and-drop or file picker
 - Validates `_ImportStatus` sheet: `STATUS = VALIDATED`, `SIGNATURE = MYPS-IMPORT-2026`
-- Parses 4 sheets: `PROJECT DETAILS`, `FUNDING PROFILE`, `COMPONENT DETAILS`, `MAJOR ITEMS OF WORK`
+- Parses 4 sheets client-side: `PROJECT DETAILS`, `FUNDING PROFILE`, `COMPONENT DETAILS`, `MAJOR ITEMS OF WORK`
 - 8-tab preview: Summary | Projects | Funding | Components | Cost/Year | Major Items | Locations | Errors
-- On import: calls `parseImportFile` → `transformImportedProjects` → `importProjects()` → `/Importing/ImportProject/`
+- Its `onSubmit` path called `parseImportFile` → `transformImportedProjects` → `importProjects()`, which POSTed a full parsed JSON payload to `/Importing/ImportProject/` — that JSON-body contract no longer exists on the backend (see `IMPORT_PROJECTS_GUIDE.md`), so this dialog cannot currently complete an import even if reopened
 
 ### `AIPReportDialog`
 
@@ -321,7 +333,7 @@ IsActive && !isTerminalStage
 
 - Gear icon (`Cog6ToothIcon`) button in ProgramDetail header
 - Menu items: Download Template (TODO), Import Projects, Export Projects, Generate Report
-- Opens `ImportProjectsDialog`, `ExportConfirmDialog`, `AIPReportDialog`
+- Opens `ImportProjectsJobDialog`, `ExportConfirmDialog`, `AIPReportDialog`
 
 ### `BatchActionsDropdown` (per program)
 

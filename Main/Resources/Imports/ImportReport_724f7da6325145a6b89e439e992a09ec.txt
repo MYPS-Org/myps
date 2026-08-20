@@ -1,0 +1,27 @@
+=== IMPORT PROJECT REPORT ===
+Generated: 2026-08-18 12:53:32
+
+--- VALID RECORDS ---
+Project Details:      1
+Funding Profile:      1
+Component Details:    0
+Major Items of Work:  0
+
+--- VALID: PROJECT DETAILS ---
+  ProjectId: P00920001LZ
+
+--- VALID: FUNDING PROFILE ---
+  ProjectId: P00920001LZ
+
+--- WARNING RECORDS ---
+Project Details:      0
+Funding Profile:      0
+Component Details:    1
+Major Items of Work:  1
+
+--- WARNING: COMPONENT DETAILS ---
+  ProjectId: P00920001LZ | ComponentId: CW1 | Warning: Incorrect Planned Start Date, Incorrect Planned End Date
+
+--- WARNING: MAJOR ITEMS OF WORK ---
+  ProjectId: P00920001LZ | InfrastructureId: FCS-20001 | Warning: Incorrect Start Chainage, Incorrect End Chainage, Incorrect Length, Incorrect Activity Year
+
