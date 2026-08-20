@@ -22,10 +22,10 @@ namespace DBHelper.Models.Functions.Revision
         [MaxLength(200)]
         public string ProjectFK { get; set; } = string.Empty;
         [Required]
+        public int ProjectRevisionFK { get; set; }
+        [Required]
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
-        [Required]
-        public int ProjectRevisionFK { get; set; }
         [Required]
         [MaxLength(20)]
         public string ComponentType { get; set; } = string.Empty;
@@ -38,9 +38,11 @@ namespace DBHelper.Models.Functions.Revision
         public decimal Total { get; set; }
         [MaxLength(20)]
         public string? ConstructionStatusCode { get; set; }
+        [Required]
         [MaxLength(50)]
-        public string? ConstructionStatusName { get; set; }
-        public bool? IsPackaged { get; set; }
+        public string ConstructionStatusName { get; set; } = string.Empty;
+        [Required]
+        public bool IsPackaged { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

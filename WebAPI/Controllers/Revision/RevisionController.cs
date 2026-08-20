@@ -364,7 +364,7 @@ namespace WebAPI.Controllers.Revision
                 //var MajorWorkLocation = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({TransactionId}, {7})").AsNoTracking().ToListAsync(cancellationToken);
 
                 var MajorItemOfWork = await _db.fRevisionMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fRevisionMajorWorkItem({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
-                var MajorWorkLocation = await _db.fRevisionMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
+                var MajorWorkLocation = await _db.fRevisionMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fRevisionMajorWorkLocations({TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
 
 
 

@@ -8,6 +8,12 @@ namespace DBHelper.Models.Functions.Revision
         [Key]
         public int Id { get; set; }
         [Required]
+        [MaxLength(8)]
+        public string Source { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(5)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
         public int RevisionDetailFK { get; set; }
         [Required]
         [MaxLength(200)]
@@ -31,14 +37,7 @@ namespace DBHelper.Models.Functions.Revision
         public decimal Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
-        [Required]
-        [MaxLength(5)]
-        public string StageName { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(8)]
-        public string Source { get; set; } = string.Empty;
-        [Required]
-        public bool IsWalletDraw { get; set; }
+        public bool? IsWalletDraw { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

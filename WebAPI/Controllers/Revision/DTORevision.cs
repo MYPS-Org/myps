@@ -1,6 +1,7 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using DBHelper.Models.Functions.Project;
+using DBHelper.Models.Functions.Revision;
 using DBHelper.Models.Table;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -99,7 +100,6 @@ namespace WebAPI.Controllers.Revision
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
-        [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
         [Required]
@@ -162,7 +162,6 @@ namespace WebAPI.Controllers.Revision
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
-        [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
         [Required]
@@ -214,7 +213,6 @@ namespace WebAPI.Controllers.Revision
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
-        [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
         [Required]
@@ -246,7 +244,6 @@ namespace WebAPI.Controllers.Revision
         public decimal Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
-        [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
         [Required]
@@ -301,15 +298,15 @@ namespace WebAPI.Controllers.Revision
         [Required]
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
         [Required]
-        public List<RevisionComponentCostDTO> ComponentCosts { get; set; } = new List<RevisionComponentCostDTO>();
+        public List<RevisionComponentCost> ComponentCosts { get; set; } = new List<RevisionComponentCost>();
         [Required]
-        public List<RevisionComponentCostPerYearDTO> ComponentCostPerYear { get; set; } = new List<RevisionComponentCostPerYearDTO>();
+        public List<RevisionComponentCostPerYear> ComponentCostPerYear { get; set; } = new List<RevisionComponentCostPerYear>();
         [Required]
-        public List<RevisionMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<RevisionMajorWorkItemDTO>();
+        public List<RevisionMajorWorkItem> MajorItemOfWorks { get; set; } = new List<RevisionMajorWorkItem>();
         [Required]
-        public List<RevisionMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<RevisionMajorWorkLocationsDTO>();
+        public List<RevisionMajorWorkLocations> MajorItemLocations { get; set; } = new List<RevisionMajorWorkLocations>();
         [Required]
-        public List<RevisionFundingProfileDTO> FundingProfile { get; set; } = new List<RevisionFundingProfileDTO>();
+        public List<RevisionFundingProfile> FundingProfile { get; set; } = new List<RevisionFundingProfile>();
     }
     public class ProjectStatusDTO
     {
