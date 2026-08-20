@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -149,10 +150,20 @@ namespace Hangfire.Importing
         public List<ImportMajorItemsOfWorkExcel> MajorItemsOfWork { get; set; } = new List<ImportMajorItemsOfWorkExcel>();
     }
 
-    public class ImportProgramDetailsWithFileURL
+    public class ImportProgramDetailsWithFile
     {
-        public string ProgramId { get; set; }
-        public string StageName { get; set; }
-        public string FileURL { get; set; }
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
+        [Required]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        public IFormFile File { get; set; } = default!;
     }
+
+    //public class ImportProgramDetailsWithFileURL
+    //{
+    //    public string ProgramId { get; set; }
+    //    public string StageName { get; set; }
+    //    public string FileURL { get; set; }
+    //}
 }

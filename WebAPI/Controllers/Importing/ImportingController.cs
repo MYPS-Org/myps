@@ -57,15 +57,13 @@ namespace WebAPI.Controllers.Importing
 
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ImportProject([FromBody] ImportProgramDetailsWithFileURL programDetails, CancellationToken cancellationToken)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ImportProject([FromForm] ImportProgramDetailsWithFile programDetails, CancellationToken cancellationToken)
         {
             try
             {
-                // ── Quick lock check before queuing ───────────────────────────
                 string User = _Session.UserId;
 
-                // ── Atomically try to acquire the lock ────────────────────────
-                // Use ExecuteSqlInterpolated so the check + set is one operation
                 var rows = await _db.Database.ExecuteSqlInterpolatedAsync($@"
                     UPDATE dbo.tImportingStatus
                     SET IsActive        = 1,
@@ -74,7 +72,6 @@ namespace WebAPI.Controllers.Importing
                     WHERE ImportFunctionName = 'ImportProject'
                       AND IsActive = 0;", cancellationToken);
 
-                // ── Lock already held by someone else ─────────────────────────
                 if (rows == 0)
                 {
                     var holder = await _db.tImportingStatus
@@ -90,10 +87,22 @@ namespace WebAPI.Controllers.Importing
                     });
                 }
 
+                // ── Save the uploaded blob to disk BEFORE enqueueing ───────────
+                var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Upload");
+                Directory.CreateDirectory(tempFolder);
+
+                var safeFileName = $"{Guid.NewGuid()}_{Path.GetFileName(programDetails.File.FileName)}";
+                var savedPath = Path.Combine(tempFolder, safeFileName);
+
+                using (var stream = new FileStream(savedPath, FileMode.Create))
+                {
+                    await programDetails.File.CopyToAsync(stream, cancellationToken);
+                }
+
                 // ── Create job payload ─────────────────────────────────────────
                 var payload = new ImportProjectJobPayload
                 {
-                    FileUrl = programDetails.FileURL,
+                    FileUrl = savedPath,
                     ProgramId = programDetails.ProgramId,
                     StageName = programDetails.StageName,
                     RequestedBy = _Session.UserId
@@ -130,10 +139,6 @@ namespace WebAPI.Controllers.Importing
             }
             catch (OperationCanceledException)
             {
-                // ── Client disconnected before the job was queued ──────────────
-                // Release the lock since the job was never enqueued
-                //_logger.LogWarning("ImportProject request cancelled by client");
-
                 try
                 {
                     var lockRecord = await _db.tImportingStatus
@@ -143,20 +148,15 @@ namespace WebAPI.Controllers.Importing
                     {
                         lockRecord.IsActive = false;
                         _db.tImportingStatus.Update(lockRecord);
-                        await _db.SaveChangesAsync();  // ← no ct here, connection is gone
+                        await _db.SaveChangesAsync();
                     }
                 }
-                catch (Exception lockEx)
-                {
-                    //_logger.LogWarning(lockEx, "Failed to release lock after client disconnected");
-                }
+                catch (Exception lockEx) { }
 
                 return StatusCode(499, new { Message = "Request cancelled by client.", Title = "Cancelled." });
             }
             catch (Exception ex)
             {
-                //return ExceptionHandler(ex);
-                // ── If anything fails after acquiring the lock, release it ─────
                 try
                 {
                     var lockRecord = await _db.tImportingStatus
@@ -168,16 +168,135 @@ namespace WebAPI.Controllers.Importing
                         await _db.SaveChangesAsync();
                     }
                 }
-                catch (Exception lockEx)
-                {
-                    //_logger.LogWarning(lockEx, "Failed to release lock after controller error");
-                }
-                
+                catch (Exception lockEx) { }
+
                 return _exceptionHandler.Handle(ex, programDetails, _Session.UserId.ToString());
-                //return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
-                //return ExceptionHandler(ex);
             }
         }
+
+        //[AllowAnonymous]
+        //[HttpPost]
+        //public async Task<IActionResult> ImportProject([FromBody] ImportProgramDetailsWithFileURL programDetails, CancellationToken cancellationToken)
+        //{
+        //    try
+        //    {
+        //        // ── Quick lock check before queuing ───────────────────────────
+        //        string User = _Session.UserId;
+
+        //        // ── Atomically try to acquire the lock ────────────────────────
+        //        // Use ExecuteSqlInterpolated so the check + set is one operation
+        //        var rows = await _db.Database.ExecuteSqlInterpolatedAsync($@"
+        //            UPDATE dbo.tImportingStatus
+        //            SET IsActive        = 1,
+        //                LastUserIdInUse = {User},
+        //                LastUsedDate    = {Functions.CurrentDate()}
+        //            WHERE ImportFunctionName = 'ImportProject'
+        //              AND IsActive = 0;", cancellationToken);
+
+        //        // ── Lock already held by someone else ─────────────────────────
+        //        if (rows == 0)
+        //        {
+        //            var holder = await _db.tImportingStatus
+        //                .AsNoTracking()
+        //                .Where(x => x.ImportFunctionName == "ImportProject" && x.IsActive)
+        //                .Select(x => x.LastUserIdInUse)
+        //                .FirstOrDefaultAsync(cancellationToken);
+
+        //            return new BadRequestObjectResult(new
+        //            {
+        //                Title = "Import In Progress",
+        //                Message = $"Import is currently in use by {holder}. Please try again later."
+        //            });
+        //        }
+
+        //        // ── Create job payload ─────────────────────────────────────────
+        //        var payload = new ImportProjectJobPayload
+        //        {
+        //            FileUrl = programDetails.FileURL,
+        //            ProgramId = programDetails.ProgramId,
+        //            StageName = programDetails.StageName,
+        //            RequestedBy = _Session.UserId
+        //        };
+
+        //        // ── Save initial job record ────────────────────────────────────
+        //        var jobRecord = new ImportJobResult
+        //        {
+        //            JobId = payload.JobId,
+        //            Status = "Queued",
+        //            Message = "Job queued and waiting to be processed.",
+        //            RequestedBy = payload.RequestedBy,
+        //            QueuedAt = Functions.CurrentDate()
+        //        };
+        //        _db.tImportJobResult.Add(jobRecord);
+        //        await _db.SaveChangesAsync(cancellationToken);
+
+        //        // ── Enqueue Hangfire job ───────────────────────────────────────
+        //        var hangfireJobId = _backgroundJobs.Enqueue<ImportProjectJobService>(
+        //            x => x.ProcessImport(payload, JobCancellationToken.Null));
+
+        //        // ── Store Hangfire job ID for tracking ─────────────────────────
+        //        jobRecord.HangfireJobId = hangfireJobId;
+        //        _db.tImportJobResult.Update(jobRecord);
+        //        await _db.SaveChangesAsync(cancellationToken);
+
+        //        return Ok(new
+        //        {
+        //            JobId = payload.JobId,
+        //            HangfireJobId = hangfireJobId,
+        //            Message = "Import job queued.",
+        //            Title = "Import Queued"
+        //        });
+        //    }
+        //    catch (OperationCanceledException)
+        //    {
+        //        // ── Client disconnected before the job was queued ──────────────
+        //        // Release the lock since the job was never enqueued
+        //        //_logger.LogWarning("ImportProject request cancelled by client");
+
+        //        try
+        //        {
+        //            var lockRecord = await _db.tImportingStatus
+        //                .FirstOrDefaultAsync(x => x.ImportFunctionName == "ImportProject");
+
+        //            if (lockRecord != null && lockRecord.LastUserIdInUse == _Session.UserId)
+        //            {
+        //                lockRecord.IsActive = false;
+        //                _db.tImportingStatus.Update(lockRecord);
+        //                await _db.SaveChangesAsync();  // ← no ct here, connection is gone
+        //            }
+        //        }
+        //        catch (Exception lockEx)
+        //        {
+        //            //_logger.LogWarning(lockEx, "Failed to release lock after client disconnected");
+        //        }
+
+        //        return StatusCode(499, new { Message = "Request cancelled by client.", Title = "Cancelled." });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        //return ExceptionHandler(ex);
+        //        // ── If anything fails after acquiring the lock, release it ─────
+        //        try
+        //        {
+        //            var lockRecord = await _db.tImportingStatus
+        //                .FirstOrDefaultAsync(x => x.ImportFunctionName == "ImportProject");
+        //            if (lockRecord != null && lockRecord.LastUserIdInUse == _Session.UserId)
+        //            {
+        //                lockRecord.IsActive = false;
+        //                _db.tImportingStatus.Update(lockRecord);
+        //                await _db.SaveChangesAsync();
+        //            }
+        //        }
+        //        catch (Exception lockEx)
+        //        {
+        //            //_logger.LogWarning(lockEx, "Failed to release lock after controller error");
+        //        }
+
+        //        return _exceptionHandler.Handle(ex, programDetails, _Session.UserId.ToString());
+        //        //return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
+        //        //return ExceptionHandler(ex);
+        //    }
+        //}
 
         // ── Poll endpoint ──────────────────────────────────────────────────────────
         [AllowAnonymous]
