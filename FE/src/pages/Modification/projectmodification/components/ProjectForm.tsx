@@ -958,6 +958,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <RevisionForm
               category={permissions?.category || modificationCategory}
               reason={modificationReason}
+              projectDetails={initialData?.ProjectDetails || projectDetails}
               revisionDocs={initialData?.RevisionDocs}
               forCorrectionsDetails={initialData?.ForCorrectionsDetails}
               fieldRules={fieldRules}
