@@ -7,7 +7,6 @@ namespace DBHelper.Models.Procedures
     {
         [Key]
         public int RevisionId { get; set; }
-        public EnumProgramStage StageId { get; set; }
         public decimal NewCost { get; set; }
     }
 }
