@@ -35,6 +35,14 @@ export const generateTempId = (): number => {
   return -(Date.now() * 1000 + _tempIdCounter);
 };
 
+// The backend's "insert vs update" check is strictly `Id == 0` (RevisionController
+// RequestRevision/ResubmitRevision) — it doesn't understand the negative temp Ids
+// generateTempId() hands out for FE-side staging. Call this on every array right
+// before it goes into a submit payload so unsaved rows (Id <= 0) arrive as exactly
+// 0; leave the atoms/state that generateTempId() populated untouched.
+export const normalizeTempIds = <T extends { Id: number }>(rows: T[]): T[] =>
+  rows.map((row) => (row.Id <= 0 ? { ...row, Id: 0 } : row));
+
 export const handleNumberFocus = (e: React.FocusEvent<HTMLInputElement>) => {
   // Clear the field if it contains 0
   if (e.target.value === '0') {

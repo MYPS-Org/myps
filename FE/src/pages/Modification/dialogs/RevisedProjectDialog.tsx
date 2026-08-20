@@ -9,6 +9,7 @@ import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { usePdfUpload } from '../hooks/usePdfUpload';
+import { normalizeTempIds } from '../../../utils/GlobalFunctions';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -124,11 +125,11 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                     ConstructionStatus: projectStatus?.ConstructionStatus
                 },
                 ProjectDetails: project,
-                ComponentCosts: componentCosts,
-                ComponentCostPerYear: componentsCostPerYear || [],
-                MajorItemOfWorks: majorItemOfWorks,
-                MajorItemLocations: majorItemLocations,
-                FundingProfile: fundingProfile,
+                ComponentCosts: normalizeTempIds(componentCosts),
+                ComponentCostPerYear: normalizeTempIds(componentsCostPerYear || []),
+                MajorItemOfWorks: normalizeTempIds(majorItemOfWorks),
+                MajorItemLocations: normalizeTempIds(majorItemLocations),
+                FundingProfile: normalizeTempIds(fundingProfile),
             };
 
             console.log('Submitting modification request with payload:', payload);
