@@ -58,34 +58,38 @@ export function Toaster({
   return (
     <div
       className={clsx(
-        "flex items-center gap-3 rounded-md p-4 shadow-md transition-all mb-2",
+        "rounded-md p-4 shadow-md transition-all mb-2",
         styles.bg,
         sizes[size],
         className,
       )}
     >
-      {type === "success" && <CheckCircleIcon className={clsx("size-6", styles.icon)} />}
-      {type === "error" && <XCircleIcon className={clsx("size-6", styles.icon)} />}
-      {type === "info" && <InformationCircleIcon className={clsx("size-6", styles.icon)} />}
-      {type === "warning" && <ExclamationCircleIcon className={clsx("size-6", styles.icon)} />}
-      <p className={clsx("text-sm font-medium flex-1", styles.text)}>{message}</p>
-      {action && (
-        <a
-          href={action.href}
-          className={clsx("text-sm font-semibold underline whitespace-nowrap", styles.text)}
+      <div className="flex items-center gap-3">
+        {type === "success" && <CheckCircleIcon className={clsx("size-6", styles.icon)} />}
+        {type === "error" && <XCircleIcon className={clsx("size-6", styles.icon)} />}
+        {type === "info" && <InformationCircleIcon className={clsx("size-6", styles.icon)} />}
+        {type === "warning" && <ExclamationCircleIcon className={clsx("size-6", styles.icon)} />}
+        <p className={clsx("text-sm font-medium flex-1", styles.text)}>{message}</p>
+        <button
+          onClick={onClose}
+          className={clsx(
+            "inline-flex rounded-md p-1.5 focus-visible:outline-none focus-visible:ring-2 hover:bg-black/5",
+            styles.ring
+          )}
         >
-          {action.label}
-        </a>
+          <XMarkIcon className={clsx("size-5", styles.text)} />
+        </button>
+      </div>
+      {action && (
+        <div className="mt-2 pl-9">
+          <a
+            href={action.href}
+            className={clsx("text-sm font-semibold underline", styles.text)}
+          >
+            {action.label}
+          </a>
+        </div>
       )}
-      <button
-        onClick={onClose}
-        className={clsx(
-          "inline-flex rounded-md p-1.5 focus-visible:outline-none focus-visible:ring-2 hover:bg-black/5",
-          styles.ring
-        )}
-      >
-        <XMarkIcon className={clsx("size-5", styles.text)} />
-      </button>
     </div>
   );
 }
