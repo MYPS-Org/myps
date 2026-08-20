@@ -13,7 +13,6 @@ interface ActionsDropdownProps {
   stageName: string;
   stageId: number;
   stages?: TableEnum[];
-  onRefresh: () => Promise<void>;
   onLoadingChange: (loading: boolean) => void;
 }
 
@@ -23,7 +22,6 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
   stageName,
   stageId,
   stages = [],
-  onRefresh,
   onLoadingChange,
 }) => {
   const { showToast } = useToast();
@@ -50,10 +48,6 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
   const handleImportProjects = () => {
     setIsImportDialogOpen(true);
     setIsOpen(false);
-  };
-
-  const handleImportProjectsDone = async () => {
-    await onRefresh();
   };
 
   const handleExportProjects = () => {
@@ -188,7 +182,6 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
         <ImportProjectsJobDialog
           isOpen={isImportDialogOpen}
           onClose={() => setIsImportDialogOpen(false)}
-          onImported={handleImportProjectsDone}
           programId={programId}
           programName={programName}
           stageName={stageName}

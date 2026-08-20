@@ -311,3 +311,12 @@ export interface ImportJobStatus {
   TextFileUrl: string | null;
   ExcelFileUrl: string | null;
 }
+
+/**
+ * Shape of the `ImportStatusChanged` SignalR event pushed by ImportHub. Leaner than
+ * `ImportJobStatus` — intermediate (Queued/Processing) and failure/cancel pushes only
+ * carry {JobId, Status, Message}; only a terminal Completed/CompletedWithErrors push
+ * includes the counts and report URLs.
+ */
+export type ImportJobNotification = Pick<ImportJobStatus, 'JobId' | 'Status' | 'Message'> &
+  Partial<Omit<ImportJobStatus, 'JobId' | 'Status' | 'Message'>>;

@@ -43,6 +43,7 @@ export function Toaster({
   type = "success",
   size = "md",
   className,
+  action,
 }: {
   onClose: () => void;
   message: string;
@@ -50,6 +51,7 @@ export function Toaster({
   size?: keyof typeof sizes;
   className?: string;
   timeOut?: number;
+  action?: { label: string; href: string };
 }) {
   const styles = typeStyles[type];
 
@@ -67,6 +69,14 @@ export function Toaster({
       {type === "info" && <InformationCircleIcon className={clsx("size-6", styles.icon)} />}
       {type === "warning" && <ExclamationCircleIcon className={clsx("size-6", styles.icon)} />}
       <p className={clsx("text-sm font-medium flex-1", styles.text)}>{message}</p>
+      {action && (
+        <a
+          href={action.href}
+          className={clsx("text-sm font-semibold underline whitespace-nowrap", styles.text)}
+        >
+          {action.label}
+        </a>
+      )}
       <button
         onClick={onClose}
         className={clsx(

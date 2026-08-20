@@ -681,7 +681,6 @@ const ProgramDetail: React.FC = () => {
               stageName={programEnums?.Details.StageName ?? ''}
               stageId={programEnums?.Details.StageId ?? 0}
               stages={programEnums?.Dropdowns.Stages || []}
-              onRefresh={() => fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName)}
               onLoadingChange={setIsLoading}
             />
           </div>

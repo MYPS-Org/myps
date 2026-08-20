@@ -90,7 +90,15 @@ builder.Services.AddCors(options =>
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;
-});
+})
+    // SignalR's JsonHubProtocol camelCases property names by default, independent of
+    // the AddControllers().AddJsonOptions(...) override above. Match that override so
+    // hub payloads (e.g. ImportHub's ImportStatusChanged) use the same PascalCase field
+    // names as every REST DTO in this app instead of a second, inconsistent casing.
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.PropertyNamingPolicy = null;
+    });
 
 
 if (builder.Environment.IsDevelopment())

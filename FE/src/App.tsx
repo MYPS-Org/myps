@@ -8,6 +8,7 @@ import { ModalProvider } from './components/Modal/ModalContext';
 import GlobalModal from './components/Modal/Modal';
 import { ToasterProvider } from './components/toaster/ToasterContext';
 import { HttpClientSetup } from './components/HttpClientSetup';
+import { ImportJobNotifier } from './components/ImportJobNotifier';
 import AppRoutes from './components/AppRoutes'; // ✅ new component
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
     <ModalProvider>
       <ToasterProvider>
         <HttpClientSetup />
+        <ImportJobNotifier />
         <ThemeProvider>
           <AuthProvider>          {/* ✅ AuthProvider wraps Router */}
             <Router>
