@@ -407,6 +407,11 @@ const ProgramDetail: React.FC = () => {
         message: 'Program published to PCMA successfully.',
       });
       await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
+      // Re-fetch the projects list so the Published/Publishable columns reflect the
+      // statuses PCMA just flipped server-side — fetchProgramDetail alone only refreshes
+      // the program header, not this separately-sourced table (same pattern as the
+      // mount-time [id] effect above).
+      pagination.applyFilters(pagination.currentFilters ?? { ProjectId: '' });
     } catch (error) {
       console.error('Error publishing program to PCMA:', error);
       showToast({

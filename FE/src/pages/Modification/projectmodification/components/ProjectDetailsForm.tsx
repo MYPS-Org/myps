@@ -439,7 +439,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <EditableField field="Province" isFieldEditable={isFieldEditable}>
                                         {(editable) => (
                                         <SearchableDropdown
-                                            options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
+                                            options={formatDropdownOptions(projectEnums?.Provinces || [], 'Code', 'Name', 'Id')}
                                             value={projectDetails?.Province || ''}
                                             onChange={(value) => handleInputChange('Province', value === '' ? undefined : value.toString())}
                                             placeholder="Select Province"
@@ -461,7 +461,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <EditableField field="City" isFieldEditable={isFieldEditable}>
                                         {(editable) => (
                                         <SearchableDropdown
-                                            options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
+                                            options={formatDropdownOptions(filteredCities || [], 'Code', 'Name', 'Id')}
                                             value={projectDetails?.City || ''}
                                             onChange={(value) => handleInputChange('City', value === '' ? undefined : value.toString())}
                                             placeholder="Select City/Municipality"
@@ -483,7 +483,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <EditableField field="LegislativeDistrict" isFieldEditable={isFieldEditable}>
                                         {(editable) => (
                                         <SearchableDropdown
-                                            options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
+                                            options={formatDropdownOptions(filteredLegislativeDistricts || [], 'Code', 'Name', 'Id')}
                                             value={projectDetails?.LegislativeDistrict || ''}
                                             onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : value.toString())}
                                             placeholder="Select Legislative District"
