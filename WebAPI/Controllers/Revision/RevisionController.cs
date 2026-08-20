@@ -24,6 +24,7 @@ using static Helpers.ProjectHelper;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.AspNetCore.Authorization;
+using System.Transactions;
 namespace WebAPI.Controllers.Revision
 {
     [ApiController]
@@ -763,7 +764,7 @@ namespace WebAPI.Controllers.Revision
             {
                 if (_Session.UserGroupNames.Count() == 0)
                 {
-                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator.", Title = "User Groups Missing" });
+                    //return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator.", Title = "User Groups Missing" });
                 }
                 if (dto.RevisionDetails.ApprovedDocument == null)
                 {
@@ -793,7 +794,7 @@ namespace WebAPI.Controllers.Revision
 
                 #region Project Details
                 string ProjectId = dto.ProjectDetails.ProjectId;
-                string StageName = dto.ProjectDetails.StageName;
+                string StageName = "GAA-R";
                 string ProgramFK = dto.ProjectDetails.ProgramFK;
                 string ProjectFK = dto.ProjectDetails.ProjectFK;
                 var ValidateProjectId = await _db.ValidateProjectId(new ValidateProjectIdParams
@@ -880,7 +881,7 @@ namespace WebAPI.Controllers.Revision
                     .FirstOrDefaultAsync(cancellationToken);
                 if (HasPendingModification != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"There is an open revision request for this project. Transaction ID: {HasPendingModification.TransactionId}. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                    //return new BadRequestObjectResult(new { Message = $"There is an open revision request for this project. Transaction ID: {HasPendingModification.TransactionId}. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
                 if (jsonRules == null)
@@ -1260,33 +1261,32 @@ namespace WebAPI.Controllers.Revision
                                 var UpdateAndGenerateLogs = ComponentCostPerYearRules.UpdateRevisionData(User, TransactionId, "tRevisionProjectComponentCostPerYear", CurrentDate, component, SelectedComponent);
                                 Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
                                 SelectedComponent = UpdateAndGenerateLogs.Data;
-                                var AddRow = new RevisionProjectComponentCostPerYear
+                            }
+                            var AddRow = new RevisionProjectComponentCostPerYear
+                            {
+                                ComponentId = SelectedComponent.ComponentId,
+                                Year = SelectedComponent.Year,
+                                Amount = (decimal)SelectedComponent.Amount!,
+                                StartDate = (DateTime)SelectedComponent.StartDate,
+                                EndDate = (DateTime)SelectedComponent.EndDate,
+                                UACS = SelectedComponent.UACS,
+                                DateOfApproval = SelectedComponent.DateOfApproval,
+                                IsDeleted = CanDelete ? component.IsDeleted : false,
+                            };
+                            NewComponentPerYear.Add(AddRow);
+                            if (CanDelete)
+                            {
+                                Logs.Add(new RevisionTransactionLog
                                 {
                                     TransactionId = TransactionId,
-                                    ComponentId = SelectedComponent.ComponentId,
-                                    Year = SelectedComponent.Year,
-                                    Amount = (decimal)SelectedComponent.Amount!,
-                                    StartDate = (DateTime)SelectedComponent.StartDate,
-                                    EndDate = (DateTime)SelectedComponent.EndDate,
-                                    UACS = SelectedComponent.UACS,
-                                    DateOfApproval = SelectedComponent.DateOfApproval,
-                                    IsDeleted = CanDelete ? component.IsDeleted : false,
-                                };
-                                NewComponentPerYear.Add(AddRow);
-                                if (CanDelete)
-                                {
-                                    Logs.Add(new RevisionTransactionLog
-                                    {
-                                        TransactionId = TransactionId,
-                                        AffectedTable = "tRevisionProjectComponentCostPerYear",
-                                        TypeOfTransaction = "Delete",
-                                        AffectedColumn = "Row",
-                                        OldValue = JsonConvert.SerializeObject(AddRow),
-                                        NewValue = string.Empty,
-                                        CreatedBy = User,
-                                        CreatedDate = CurrentDate
-                                    });
-                                }
+                                    AffectedTable = "tRevisionProjectComponentCostPerYear",
+                                    TypeOfTransaction = "Delete",
+                                    AffectedColumn = "Row",
+                                    OldValue = JsonConvert.SerializeObject(AddRow),
+                                    NewValue = string.Empty,
+                                    CreatedBy = User,
+                                    CreatedDate = CurrentDate
+                                });
                             }
                         }
                     }
@@ -1307,7 +1307,6 @@ namespace WebAPI.Controllers.Revision
                     }));
                     NewComponentPerYear.AddRange(NewCostPerYear.Select(x => new DBHelper.Models.Table.Revision.RevisionProjectComponentCostPerYear
                     {
-                        TransactionId = TransactionId,
                         ComponentId = x.ComponentId,
                         Year = x.Year,
                         Amount = (decimal)x.Amount!,
@@ -1583,9 +1582,10 @@ namespace WebAPI.Controllers.Revision
                 await _db.tRevisionProjects.AddAsync(NewRevisionProject);
                 await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
                 await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
+                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
                 await _db.SaveChangesAsync(cancellationToken);
                 ApplyRevisionChildForeignKeys(NewComponent, NewComponentPerYear, NewMajorWorkItem, NewMajorWorkLocations);
-                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
+                await transaction.RollbackAsync(cancellationToken);
                 await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
                 await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
                 await _db.tTransactionLog.AddRangeAsync(Logs.Select(ToTransactionLog));
@@ -2152,6 +2152,9 @@ namespace WebAPI.Controllers.Revision
                 string User = _Session.UserId;
                 DateTime CurrentDate = Functions.CurrentDate();
                 List<RevisionTransactionLog> Logs = new List<RevisionTransactionLog>();
+
+                string StageName = "GAA-R";
+
                 #region Validating Created Revision Project Data
                 var ExistingRevision = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && x.CreatedBy == User, cancellationToken);
                 if (ExistingRevision == null)
@@ -2204,7 +2207,7 @@ namespace WebAPI.Controllers.Revision
                 var ValidateProjectId = await _db.ValidateProjectId(new ValidateProjectIdParams
                 {
                     ProjectId = dto.ProjectDetails.ProjectId,
-                    StageName = dto.ProjectDetails.StageName,
+                    StageName = StageName,
                     _Session = _Session,
                 }, cancellationToken);
                 if (!ValidateProjectId.IsValid)
@@ -2807,7 +2810,6 @@ namespace WebAPI.Controllers.Revision
                             var OldSelectedComponentCostYear = new RevisionProjectComponentCostPerYear
                             {
                                 Id = SelectedComponentCostYear.Id,
-                                TransactionId = SelectedComponentCostYear.TransactionId,
                                 ComponentId = SelectedComponentCostYear.ComponentId,
                                 Amount = SelectedComponentCostYear.Amount,
                                 Year = SelectedComponentCostYear.Year,
@@ -2915,7 +2917,6 @@ namespace WebAPI.Controllers.Revision
                     }));
                     SaveNewComponentCostPerYear.AddRange(NewCost.Select(x => new RevisionProjectComponentCostPerYear
                     {
-                        TransactionId = dto.TransactionId,
                         ComponentId = x.ComponentId,
                         Amount = (decimal)x.Amount!,
                         StartDate = (DateTime)x.StartDate,

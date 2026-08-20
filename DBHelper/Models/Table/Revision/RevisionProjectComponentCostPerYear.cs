@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ namespace DBHelper.Models.Table.Revision
     {
         [Key]
         public int Id { get; set; }
+        [Required]
+        public string ComponentId { get; set; } = string.Empty;
         [Required]
         public int RevisionComponentCostFK { get; set; }
         [Required]
@@ -27,11 +30,5 @@ namespace DBHelper.Models.Table.Revision
         [Required]
         public bool IsDeleted { get; set; } = false;
         public DateTime? DateOfApproval { get; set; }
-
-        [NotMapped]
-        public string ComponentId { get; set; } = string.Empty;
-
-        [NotMapped]
-        public string TransactionId { get; set; } = string.Empty;
     }
 }

@@ -296,7 +296,7 @@ namespace WebAPI.Controllers.Revision
         [Required]
         public RevisionDetailsDTO RevisionDetails { get; set; } = new RevisionDetailsDTO();
         [Required]
-        public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
+        public RevisionProjectDetails ProjectDetails { get; set; } = new RevisionProjectDetails();
         [Required]
         public List<RevisionComponentCost> ComponentCosts { get; set; } = new List<RevisionComponentCost>();
         [Required]
