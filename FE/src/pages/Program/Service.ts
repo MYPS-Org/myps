@@ -2,7 +2,7 @@
 import { httpClient } from '../../services/httpClient';
 import type { ImportProjectDTO } from '../Project/Model';
 
-import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse } from './Model';
+import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, ImportJobStatus, ImportFileUpload } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -235,6 +235,42 @@ export const importProjects = async (payload: ImportProjectDTO) => {
         return response;
     } catch (ErrorResponse) {
         console.error('Error importing projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
+export const uploadImportFile = async (file: ImportFileUpload) => {
+    try {
+        const response = await httpClient.post<{ FileURL: string }>('/Importing/UploadImportFile', file, {
+            preloaderMessage: 'Uploading file...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error uploading import file:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
+export const startImportProjectJob = async (data: { ProgramId: string; StageName: string; FileURL: string }) => {
+    try {
+        const response = await httpClient.post<{ JobId: string; HangfireJobId: string; Message: string; Title: string }>('/Importing/ImportProject', data, {
+            preloaderMessage: 'Queuing import...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error starting import job:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
+export const getImportJobStatus = async (jobId: string) => {
+    try {
+        const response = await httpClient.get<ImportJobStatus>('/Importing/GetImportStatus', { jobId }, {
+            silent: true
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching import job status:', ErrorResponse);
         throw ErrorResponse;
     }
 };

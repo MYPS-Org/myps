@@ -1,5 +1,7 @@
 # Import Projects Guide
 
+> **⚠ Legacy / currently unused.** This guide documents `ImportProjectsDialog.tsx`'s client-side parse flow, which is no longer wired into the live UI — the backend's `/Importing/ImportProject/` endpoint stopped accepting the JSON payload this flow builds (see commit `eb3327af`, "Importing Projects - Validation and Writing to DB"). The live "Import Projects" action now opens `ImportProjectsJobDialog.tsx` instead: it uploads the workbook to `/Importing/UploadImportFile`, queues an async Hangfire job via `/Importing/ImportProject` (now `{ProgramId, StageName, FileURL}`), and polls `/Importing/GetImportStatus` until the job finishes. This dialog and the utilities below (`parseImportFile.ts`, `transformImportedProjects.ts`) are kept in the codebase for possible later reuse but are not currently reachable from the app. See `documents/plans/program-import-job-dialog.md` for the full rationale.
+
 Bulk-import projects into a program from an **XLSM template file**.
 
 ---

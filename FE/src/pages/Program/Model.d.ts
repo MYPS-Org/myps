@@ -281,3 +281,27 @@ export interface AIPReportParams {
   ImplementingOfficeName?: string;
   LegislativeDistrictName?: string;
 }
+
+export interface ImportFileUpload {
+  Name: string;
+  Extension: string;
+  ContentType: string;
+  DataUrl: string;
+}
+
+export type ImportJobStatusValue = 'Queued' | 'Processing' | 'Completed' | 'CompletedWithErrors' | 'Failed' | 'Cancelled';
+
+export interface ImportJobStatus {
+  JobId: string;
+  HangfireJobId?: string;
+  Status: ImportJobStatusValue;
+  Message?: string;
+  ValidCount: number;
+  WarningCount: number;
+  ErrorCount: number;
+  QueuedAt?: string;
+  StartedAt?: string | null;
+  CompletedAt?: string | null;
+  TextFileUrl: string | null;
+  ExcelFileUrl: string | null;
+}

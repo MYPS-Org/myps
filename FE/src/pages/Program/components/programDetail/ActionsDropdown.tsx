@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { ChevronDownIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
-import { downloadAIPReport, exportProjects, importProjects } from '../../Service';
+import { downloadAIPReport, exportProjects } from '../../Service';
 import type { AIPReportParams, TableEnum } from '../../Model';
-import type { ImportedProject } from '../../../Project/Model.d';
-import { transformImportedProjects } from '../../../Project/utils/transformImportedProjects';
 import AIPReportDialog from '../../dialogs/AIPReportDialog';
 import ExportConfirmDialog from '../../dialogs/ExportConfirmDialog';
-import ImportProjectsDialog from '../../dialogs/ImportProjectsDialog';
+import ImportProjectsJobDialog from '../../dialogs/ImportProjectsJobDialog';
 
 interface ActionsDropdownProps {
   programId: string;
@@ -54,39 +52,8 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
     setIsOpen(false);
   };
 
-  const handleImportProjectsSubmit = async (projects: ImportedProject[]) => {
-    try {
-      onLoadingChange(true);
-
-      const transformed = transformImportedProjects(projects, programId, stageName);
-
-      console.group('[Import Projects — Exact API Payload → /Importing/ImportProject/]');
-      console.log('programDetails:',       transformed.programDetails);
-      console.log('projectDetails:',       transformed.projectDetails);
-      console.log('fundingProfile:',       transformed.fundingProfile);
-      console.log('componentCosts:',       transformed.componentCosts);
-      console.log('componentCostPerYear:', transformed.componentCostPerYear);
-      console.log('majorItemOfWorks:',     transformed.majorItemOfWorks);
-      console.log('majorItemLocations:',   transformed.majorItemLocations);
-      console.log('── Full JSON ──', JSON.stringify(transformed, null, 2));
-      console.groupEnd();
-
-      await importProjects(transformed);
-      showToast({
-        type: 'success',
-        message: `Payload built for ${transformed.projectDetails.length} project${transformed.projectDetails.length !== 1 ? 's' : ''}. Check console for full JSON.`,
-      });
-
-      await onRefresh();
-    } catch (error) {
-      console.error('Error importing projects:', error);
-      showToast({
-        type: 'error',
-        message: 'Failed to import projects. Please try again.',
-      });
-    } finally {
-      onLoadingChange(false);
-    }
+  const handleImportProjectsDone = async () => {
+    await onRefresh();
   };
 
   const handleExportProjects = () => {
@@ -218,10 +185,10 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
       </div>
 
       {isImportDialogOpen && (
-        <ImportProjectsDialog
+        <ImportProjectsJobDialog
           isOpen={isImportDialogOpen}
           onClose={() => setIsImportDialogOpen(false)}
-          onSubmit={handleImportProjectsSubmit}
+          onImported={handleImportProjectsDone}
           programId={programId}
           programName={programName}
           stageName={stageName}

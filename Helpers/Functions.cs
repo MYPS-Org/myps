@@ -293,11 +293,12 @@ namespace Helpers
         // Allowed types
         // -------------------------------------------------------------------------
         private static readonly string[] AllowedImageExtensions = { "jpg", "jpeg", "png" };
-        private static readonly string[] AllowedExcelExtensions = { "xls", "xlsx" };
+        private static readonly string[] AllowedExcelExtensions = { "xls", "xlsx", "xlsm" };
         private static readonly string[] AllowedExcelContentTypes =
         {
             "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel.sheet.macroEnabled.12",
             "application/excel",
             "application/x-excel",
             "application/x-msexcel"

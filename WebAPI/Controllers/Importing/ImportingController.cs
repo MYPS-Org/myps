@@ -2,6 +2,7 @@
 using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
+using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Eaf.BackgroundJobs;
@@ -227,6 +228,36 @@ namespace WebAPI.Controllers.Importing
             var bytes = await System.IO.File.ReadAllBytesAsync(filePath, cancellationToken);
             System.IO.File.Delete(filePath); // delete after download
             return File(bytes, contentType, safeName);
+        }
+
+        // ── Upload endpoint ───────────────────────────────────────────────────────
+        // Accepts the workbook as base64 JSON (this codebase's established FileUpload
+        // pattern — see Helpers/Functions.cs), writes it to disk, and hands back a
+        // local FileURL that ImportProject/ProcessImport already know how to consume.
+        [AllowAnonymous]
+        [HttpPost]
+        public IActionResult UploadImportFile([FromBody] FileUpload file)
+        {
+            var ext = file.Extension.TrimStart('.').ToLowerInvariant().Trim();
+            if (ext != "xlsx" && ext != "xlsm")
+            {
+                return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
+            }
+
+            if (file.IsFileCorrupted())
+            {
+                return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
+            }
+
+            var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Imports");
+            var filePath = Path.Combine(tempFolder, $"{Guid.NewGuid():N}.xlsx");
+
+            if (!file.UploadFile(filePath))
+            {
+                return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
+            }
+
+            return Ok(new { FileURL = filePath });
         }
 
         //[HttpPost]
