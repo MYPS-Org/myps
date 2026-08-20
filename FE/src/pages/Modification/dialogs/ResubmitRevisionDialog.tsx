@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import { transactionIdAtom } from '../store/routeContextStore';
 import { usePdfUpload } from '../hooks/usePdfUpload';
-import { normalizeTempIds } from '../../../utils/GlobalFunctions';
+import { normalizeTempIds, normalizeProjectDetailsForSubmit } from '../../../utils/GlobalFunctions';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -126,7 +126,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                     PackageStatus: projectStatus?.PackageStatus,
                     ConstructionStatus: projectStatus?.ConstructionStatus
                 },
-                ProjectDetails: project,
+                ProjectDetails: normalizeProjectDetailsForSubmit(project, user?.UserId),
                 ComponentCosts: normalizeTempIds(componentCosts),
                 ComponentCostPerYear: normalizeTempIds(componentsCostPerYear || []),
                 MajorItemOfWorks: normalizeTempIds(majorItemOfWorks),

@@ -1,3 +1,5 @@
+import type { ProjectDetails } from '../pages/Project/Model';
+
 // Formats a date as local YYYY-MM-DD for <input type="date"> values.
 // Using toISOString() here would convert to UTC first, which rolls the date
 // back a day in timezones ahead of UTC (e.g. PHT, UTC+8) for date-time
@@ -42,6 +44,26 @@ export const generateTempId = (): number => {
 // 0; leave the atoms/state that generateTempId() populated untouched.
 export const normalizeTempIds = <T extends { Id: number }>(rows: T[]): T[] =>
   rows.map((row) => (row.Id <= 0 ? { ...row, Id: 0 } : row));
+
+// The resubmit-for-correction flow loads its ProjectDetails from ViewReviseProject, whose
+// response omits CreatedBy/CreatedDate/Source. RevisionController's ResubmitRevision DTO
+// reuses the same ProjectDetails model as RequestRevision (the "new revision" flow, whose
+// ProjectDetails comes from a base-project fetch and already carries these fields), where
+// CreatedBy/Source are [Required] for model-binding validation only — the controller always
+// stamps its own CreatedBy/CreatedDate server-side and never reads these off the payload.
+// Sent empty, [ApiController]'s automatic validation 400s before the action even runs.
+// Backfill with harmless placeholders so the resubmit payload validates the same way the
+// new-revision payload already does.
+export const normalizeProjectDetailsForSubmit = (
+  project: ProjectDetails,
+  userId?: string
+): ProjectDetails => ({
+  ...project,
+  CreatedBy: project.CreatedBy || userId || '',
+  CreatedDate: project.CreatedDate || new Date().toISOString(),
+  Source: project.Source || 'Base',
+  IsPublished: project.IsPublished ?? true,
+});
 
 export const handleNumberFocus = (e: React.FocusEvent<HTMLInputElement>) => {
   // Clear the field if it contains 0
