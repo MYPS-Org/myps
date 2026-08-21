@@ -43,8 +43,8 @@ namespace DBHelper.Models.Functions.Revision
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
-        public int? UpdatedBy { get; set; }
-        public int? UpdatedDate { get; set; }
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
     }

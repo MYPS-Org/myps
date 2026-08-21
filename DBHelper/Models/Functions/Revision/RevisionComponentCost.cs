@@ -38,18 +38,16 @@ namespace DBHelper.Models.Functions.Revision
         public decimal Total { get; set; }
         [MaxLength(20)]
         public string? ConstructionStatusCode { get; set; }
-        [Required]
         [MaxLength(50)]
-        public string ConstructionStatusName { get; set; } = string.Empty;
-        [Required]
-        public bool IsPackaged { get; set; }
+        public string? ConstructionStatusName { get; set; }
+        public bool? IsPackaged { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
-        public int? UpdatedBy { get; set; }
-        public int? UpdatedDate { get; set; }
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
     }
