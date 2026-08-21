@@ -56,10 +56,15 @@ export const ImportJobNotifier = () => {
 
   const notify = useCallback((event: ImportJobNotification) => {
     console.log('[ImportJobNotifier] notifying toast for job:', event.JobId, event);
+    const actions = [
+      event.TextFileUrl ? { label: 'View Report', href: event.TextFileUrl } : null,
+      event.ExcelFileUrl ? { label: 'View Errors', href: event.ExcelFileUrl } : null,
+    ].filter((a): a is { label: string; href: string } => a !== null);
+
     showToast({
       type: toastTypeForStatus(event.Status),
       message: buildMessage(event),
-      action: event.TextFileUrl ? { label: 'View Report', href: event.TextFileUrl } : undefined,
+      actions: actions.length > 0 ? actions : undefined,
     });
   }, [showToast]);
 

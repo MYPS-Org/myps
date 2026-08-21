@@ -12,9 +12,9 @@ export interface Toast {
   id: number;
   message: string;
   type: ToastType;
-  /** Optional call-to-action link (e.g. "View Report"). Presence suppresses auto-dismiss
-   *  so the user has time to act on it — closed manually via the toast's X button instead. */
-  action?: ToastAction;
+  /** Optional call-to-action link(s) (e.g. "View Report", "View Errors"). Presence suppresses
+   *  auto-dismiss so the user has time to act on them — closed manually via the toast's X button instead. */
+  actions?: ToastAction[];
 }
 
 interface ToastContextProps {
@@ -51,9 +51,9 @@ export const ToasterProvider: React.FC<{ children: ReactNode }> = ({ children })
     const id = ++idCounter.current;
     setToasts((prev) => [...prev, { ...toast, id }]);
 
-    // Toasts with an action link stay until manually dismissed — an auto-dismiss
+    // Toasts with action links stay until manually dismissed — an auto-dismiss
     // would risk losing the only way back to a background job's downloadable report.
-    if (!toast.action) {
+    if (!toast.actions?.length) {
       const timer = setTimeout(() => {
         timerRefs.current.delete(id);
         setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -80,7 +80,7 @@ export const ToasterProvider: React.FC<{ children: ReactNode }> = ({ children })
             onClose={() => removeToast(toast.id)}
             message={toast.message}
             type={toast.type}
-            action={toast.action}
+            actions={toast.actions}
           />
         ))}
       </div>
