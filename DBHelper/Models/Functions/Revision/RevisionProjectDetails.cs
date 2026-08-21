@@ -30,9 +30,8 @@ namespace DBHelper.Models.Functions.Revision
         public string? AlternateId { get; set; }
         [MaxLength(200)]
         public string? MYId { get; set; }
-        [Required]
         [MaxLength(10)]
-        public string ProjectType { get; set; } = string.Empty;
+        public string? ProjectType { get; set; }
         [MaxLength(200)]
         public string? ProgramName { get; set; }
         [Required]
