@@ -295,7 +295,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         onClose={handleCloseModal}
         onSave={handleSaveCost}
         editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
-        editingCostPerYear={editingIndex !== null ? componentCostPerYear.filter(cost => cost.ComponentCostFK === componentCosts[editingIndex]?.Id) : undefined}
+        editingCostPerYear={editingIndex !== null && componentCosts[editingIndex] ?
+          componentCostPerYear.filter(cost => cost.ComponentCostFK === componentCosts[editingIndex].Id && !cost.IsDeleted) :
+          []}
         mode={modalMode}
         componentTypes={initialData?.Dropdowns?.ComponentTypes}
         componentCosts={componentCosts}

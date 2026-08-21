@@ -42,8 +42,22 @@ export const generateTempId = (): number => {
 // generateTempId() hands out for FE-side staging. Call this on every array right
 // before it goes into a submit payload so unsaved rows (Id <= 0) arrive as exactly
 // 0; leave the atoms/state that generateTempId() populated untouched.
-export const normalizeTempIds = <T extends { Id: number }>(rows: T[]): T[] =>
-  rows.map((row) => (row.Id <= 0 ? { ...row, Id: 0 } : row));
+//
+// `fkFields` covers FK columns (e.g. ComponentCostFK, WorkItemFK) that point at
+// another row's Id: when a new child references a new, not-yet-saved parent, that
+// FK is itself a negative temp Id copied from the parent's staged Id. The backend
+// re-derives these FKs server-side by correlating on ComponentId, but it never
+// understands a negative number for them either — zero them out the same as Id so
+// the payload doesn't carry temp Ids into any field.
+export const normalizeTempIds = <T extends { Id: number }>(rows: T[], fkFields: (keyof T)[] = []): T[] =>
+  rows.map((row) => {
+    const normalized: T = row.Id <= 0 ? { ...row, Id: 0 } : row;
+    if (fkFields.length === 0) return normalized;
+    return fkFields.reduce((acc, field) => {
+      const value = acc[field];
+      return typeof value === 'number' && value <= 0 ? ({ ...acc, [field]: 0 } as T) : acc;
+    }, normalized);
+  });
 
 // ResubmitRevision binds ComponentCosts/ComponentCostPerYear/MajorItemOfWorks/MajorItemLocations/
 // FundingProfile to the revision-scoped models (DBHelper.Models.Functions.Revision.*), which all

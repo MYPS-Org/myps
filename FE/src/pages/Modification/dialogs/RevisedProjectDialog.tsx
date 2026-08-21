@@ -126,9 +126,9 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                 },
                 ProjectDetails: project,
                 ComponentCosts: normalizeTempIds(componentCosts),
-                ComponentCostPerYear: normalizeTempIds(componentsCostPerYear || []),
-                MajorItemOfWorks: normalizeTempIds(majorItemOfWorks),
-                MajorItemLocations: normalizeTempIds(majorItemLocations),
+                ComponentCostPerYear: normalizeTempIds(componentsCostPerYear || [], ['ComponentCostFK']),
+                MajorItemOfWorks: normalizeTempIds(majorItemOfWorks, ['ComponentCostFK']),
+                MajorItemLocations: normalizeTempIds(majorItemLocations, ['WorkItemFK']),
                 FundingProfile: normalizeTempIds(fundingProfile),
             };
 

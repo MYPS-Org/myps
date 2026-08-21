@@ -128,9 +128,9 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                 },
                 ProjectDetails: normalizeProjectDetailsForSubmit(project, user?.UserId),
                 ComponentCosts: stampTransactionId(normalizeTempIds(componentCosts), transactionId),
-                ComponentCostPerYear: stampTransactionId(normalizeTempIds(componentsCostPerYear || []), transactionId),
-                MajorItemOfWorks: stampTransactionId(normalizeTempIds(majorItemOfWorks), transactionId),
-                MajorItemLocations: stampTransactionId(normalizeTempIds(majorItemLocations), transactionId),
+                ComponentCostPerYear: stampTransactionId(normalizeTempIds(componentsCostPerYear || [], ['ComponentCostFK']), transactionId),
+                MajorItemOfWorks: stampTransactionId(normalizeTempIds(majorItemOfWorks, ['ComponentCostFK']), transactionId),
+                MajorItemLocations: stampTransactionId(normalizeTempIds(majorItemLocations, ['WorkItemFK']), transactionId),
                 FundingProfile: stampTransactionId(normalizeTempIds(fundingProfile), transactionId),
             };
 
