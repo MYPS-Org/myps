@@ -48,12 +48,14 @@ export const ImportJobNotifier = () => {
   }, [pendingJobs]);
 
   const resolveJob = useCallback((jobId: string) => {
+    console.log('[ImportJobNotifier] resolving job, leaving group:', jobId);
     setPendingJobs((prev) => prev.filter((id) => id !== jobId));
     joinedRef.current.delete(jobId);
-    invoke('LeaveJobGroup', jobId).catch(() => {});
+    invoke('LeaveJobGroup', jobId).catch((err) => console.error('[ImportJobNotifier] Failed to leave job group:', jobId, err));
   }, [invoke, setPendingJobs]);
 
   const notify = useCallback((event: ImportJobNotification) => {
+    console.log('[ImportJobNotifier] notifying toast for job:', event.JobId, event);
     showToast({
       type: toastTypeForStatus(event.Status),
       message: buildMessage(event),
@@ -67,7 +69,10 @@ export const ImportJobNotifier = () => {
     pendingJobs.forEach((jobId) => {
       if (joinedRef.current.has(jobId)) return;
       joinedRef.current.add(jobId);
-      invoke('JoinJobGroup', jobId).catch((err) => console.error('Failed to join import job group:', err));
+      console.log('[ImportJobNotifier] joining job group:', jobId);
+      invoke('JoinJobGroup', jobId)
+        .then(() => console.log('[ImportJobNotifier] joined job group:', jobId))
+        .catch((err) => console.error('[ImportJobNotifier] Failed to join import job group:', jobId, err));
     });
   }, [pendingJobs, invoke]);
 
@@ -75,15 +80,27 @@ export const ImportJobNotifier = () => {
   // subscription every time a job resolves.
   useEffect(() => {
     const handleStatusChanged = (event: ImportJobNotification) => {
-      if (!pendingJobsRef.current.includes(event.JobId)) return;
-      if (!TERMINAL_STATUSES.has(event.Status)) return;
+      console.log('[ImportJobNotifier] ImportStatusChanged received:', event);
+
+      if (!pendingJobsRef.current.includes(event.JobId)) {
+        console.log('[ImportJobNotifier] ignoring — job not tracked:', event.JobId, pendingJobsRef.current);
+        return;
+      }
+      if (!TERMINAL_STATUSES.has(event.Status)) {
+        console.log('[ImportJobNotifier] ignoring — non-terminal status:', event.Status);
+        return;
+      }
 
       notify(event);
       resolveJob(event.JobId);
     };
 
+    console.log('[ImportJobNotifier] subscribing to ImportStatusChanged');
     on('ImportStatusChanged', handleStatusChanged);
-    return () => off('ImportStatusChanged');
+    return () => {
+      console.log('[ImportJobNotifier] unsubscribing from ImportStatusChanged');
+      off('ImportStatusChanged');
+    };
   }, [on, off, notify, resolveJob]);
 
   // A dropped/reconnected SignalR connection loses server-side group membership —
@@ -91,16 +108,18 @@ export const ImportJobNotifier = () => {
   // event fired while we were disconnected.
   useEffect(() => {
     signalRService.onReconnected(async () => {
+      console.log('[ImportJobNotifier] SignalR reconnected, rechecking pending jobs:', pendingJobsRef.current);
       for (const jobId of pendingJobsRef.current) {
         try {
           await invoke('JoinJobGroup', jobId);
           const response = await getImportJobStatus(jobId);
+          console.log('[ImportJobNotifier] reconnect status check:', jobId, response.Data.Status);
           if (TERMINAL_STATUSES.has(response.Data.Status)) {
             notify(response.Data);
             resolveJob(jobId);
           }
         } catch (err) {
-          console.error(`Failed to recheck import job ${jobId} after reconnect:`, err);
+          console.error(`[ImportJobNotifier] Failed to recheck import job ${jobId} after reconnect:`, err);
         }
       }
     }, 'import');
