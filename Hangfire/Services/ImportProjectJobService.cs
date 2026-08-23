@@ -42,8 +42,18 @@ namespace Hangfire.Services
             _logger = logger;
         }
 
+        // ── Fresh import: inserts new projects for a Program+Stage, nothing existing is touched ──
         [AutomaticRetry(Attempts = 0)]
-        public async Task ProcessImport(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken)
+        public Task ProcessImport(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken)
+            => RunImportAsync(payload, jobCancellationToken, isUpdate: false);
+
+        // ── Update: soft-deletes the existing project set for this Program+Stage, then inserts the replacement set ──
+        [AutomaticRetry(Attempts = 0)]
+        public Task ProcessUpdate(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken)
+            => RunImportAsync(payload, jobCancellationToken, isUpdate: true);
+
+        // ── Shared core — both entry points funnel through here so fixes/behavior only live in one place ──
+        private async Task RunImportAsync(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken, bool isUpdate)
         {
             var jobRecord = await _db.tImportJobResult
                 .FirstOrDefaultAsync(x => x.JobId == payload.JobId);
@@ -70,25 +80,12 @@ namespace Hangfire.Services
             {
                 jobCancellationToken.ThrowIfCancellationRequested();
                 // ── Program validation ─────────────────────────────────────────
-                // temporary comment
                 var IsValidProgram = await _db.IsValidProgramId(payload.ProgramId, payload.StageName);
 
                 if (!IsValidProgram.IsValid)
                 {
                     await FailJob(jobRecord, IsValidProgram.Message, transaction, payload.JobId);
                     return;
-
-                    //await ReleaseLock();
-
-                    //transactionFinalized = true;
-                    //await transaction.CommitAsync();
-
-                    //jobRecord.Status = "Failed";
-                    //jobRecord.Message = IsValidProgram.Message;
-                    //jobRecord.CompletedAt = Functions.CurrentDate();
-                    //_db.tImportJobResult.Update(jobRecord);
-                    //await _db.SaveChangesAsync();
-                    //return;
                 }
 
                 jobCancellationToken.ThrowIfCancellationRequested();
@@ -107,10 +104,6 @@ namespace Hangfire.Services
                 }
                 else
                 {
-                    //using var httpClient = new HttpClient();
-                    //var fileBytes = await httpClient.GetByteArrayAsync(payload.FileUrl);
-                    //package = new ExcelPackage(new MemoryStream(fileBytes));
-
                     using var httpClient = new HttpClient();
                     byte[] fileBytes;
                     try
@@ -236,24 +229,47 @@ namespace Hangfire.Services
                         return string.Compare(a.InfrastructureId, b.InfrastructureId, StringComparison.OrdinalIgnoreCase);
                     });
 
+                    // ── Update mode: soft-delete only the projects present in this file ──
+                    // Scoped to the same ProjectIds that are about to be re-inserted below
+                    // (Valid + Warning rows) — anything under this Program+Stage that isn't
+                    // in the file is left untouched. Done here (post-validation, still inside
+                    // the transaction) so a bad file never touches existing data, and any
+                    // later failure rolls this back too.
+                    if (isUpdate)
+                    {
+                        jobCancellationToken.ThrowIfCancellationRequested();
+                        var UpdateProjectIds = ValidProjectDetails.Concat(WarningProjectDetails)
+                            .Select(x => x.ProjectId)
+                            .ToList();
+
+                        await _db.SoftDeleteProjectsByProgramStage(
+                            IsValidProgram.ProgramDetails.ProgramPK,
+                            payload.StageName,
+                            UpdateProjectIds,
+                            jobRecord.RequestedBy,
+                            jobCancellationToken.ShutdownToken);
+                    }
+
                     // ── Saving to Database ──────────────────────────────────────────────
                     jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Projects ────────────────────────────────────────────────────────
                     var ProjectReference = new List<ImportProjectReference>();
                     var projects = new List<DBHelper.Models.Table.Project.Projects>();
-                    //var projects = new List<DBHelper.Models.Table.Projects>();
                     var projectstages = new List<DBHelper.Models.Table.Project.ProjectStages>();
-                    //var projectstages = new List<DBHelper.Models.Table.ProjectStages>();
 
                     foreach (var Item in ValidProjectDetails.Concat(WarningProjectDetails))
                     {
                         var Projects = await _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, jobCancellationToken.ShutdownToken);
-                        //var Projects = _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, cache);
 
-                        Projects.Project.CreatedBy = jobRecord.RequestedBy;
-                        Projects.Project.CreatedDate = Functions.CurrentDate();
-
-                        _db.tProjects.Add(Projects.Project);
+                        // ── Reused project (found via AlternateId): entity is already tracked by EF,
+                        // field updates made inside SaveProjectDetails persist on SaveChanges below —
+                        // no Add(), and CreatedBy/CreatedDate must stay untouched (tProjects has no UpdatedBy).
+                        if (Projects.IsNewProject)
+                        {
+                            Projects.Project.CreatedBy = jobRecord.RequestedBy;
+                            Projects.Project.CreatedDate = Functions.CurrentDate();
+                            _db.tProjects.Add(Projects.Project);
+                        }
                         _db.SaveChanges();
 
                         Projects.ProjectRevision.CreatedBy = jobRecord.RequestedBy;
@@ -269,20 +285,24 @@ namespace Hangfire.Services
                         projects.Add(Projects.Project);
 
                         Projects.ProjectStage.RevisionId = Projects.ProjectRevision.Id;
-                        Projects.ProjectStage.CreatedBy = jobRecord.RequestedBy;
-                        Projects.ProjectStage.CreatedDate = Functions.CurrentDate();
+
+                        // Id == 0 means SaveProjectDetails built a brand-new stage row (new project,
+                        // or an existing project's first row for this particular stage) — otherwise
+                        // it's a tracked existing row and the RevisionId change above is enough.
+                        if (Projects.ProjectStage.Id == 0)
+                        {
+                            Projects.ProjectStage.CreatedBy = jobRecord.RequestedBy;
+                            Projects.ProjectStage.CreatedDate = Functions.CurrentDate();
+                            _db.tProjectStages.Add(Projects.ProjectStage);
+                        }
 
                         projectstages.Add(Projects.ProjectStage);
-
-                        _db.tProjectStages.Add(Projects.ProjectStage);
                         _db.SaveChanges();
                     }
-                    //await _db.tProjectStages.AddRangeAsync(projectstages);
 
                     jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Funding Profile ────────────────────────────────────────
                     var FundingProfile = new List<DBHelper.Models.Table.Project.ProjectFundingProfile>();
-                    //var FundingProfile = new List<DBHelper.Models.Table.ProjectFundingProfile>();
 
                     foreach (var Item in ValidFundingProfile.Concat(WarningFundingProfile))
                     {
@@ -405,7 +425,6 @@ namespace Hangfire.Services
                     bool hasErrors = ErrorProjectDetails.Any() || ErrorFundingProfile.Any()
                                   || ErrorComponentDetails.Any() || ErrorMajorItemsOfWork.Any();
 
-                    //var tempFolder = Path.Combine(_env.WebRootPath, "temp", "imports");
                     var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Imports");
                     Directory.CreateDirectory(tempFolder);
 
@@ -433,7 +452,6 @@ namespace Hangfire.Services
                     await ReleaseLock();
                     transactionFinalized = true;
                     await transaction.CommitAsync(jobCancellationToken.ShutdownToken);
-                    //await transaction.CommitAsync();
 
                     // ── Update job result AFTER commit ─────────────────────────
                     jobRecord.Status = hasErrors ? "CompletedWithErrors" : "Completed";
@@ -1085,5 +1103,3 @@ namespace Hangfire.Services
         }
     }
 }
-
-

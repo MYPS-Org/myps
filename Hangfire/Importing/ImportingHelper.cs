@@ -823,41 +823,96 @@ namespace Hangfire.Importing
             public DBHelper.Models.Table.Project.ProjectRevisions ProjectRevision { get; set; } = new DBHelper.Models.Table.Project.ProjectRevisions();
             public DBHelper.Models.Table.Project.ProjectStages ProjectStage { get; set; } = new DBHelper.Models.Table.Project.ProjectStages();
             public ImportProjectReference ImportReference { get; set; } = new ImportProjectReference();
+            // ── true when a brand-new tProjects/tProjectStages row needs to be Add()-ed.
+            // false when an existing row (found via AlternateId) was fetched and just needs updating —
+            // the caller must NOT Add() it again, only SaveChanges() to persist the tracked changes.
+            public bool IsNewProject { get; set; } = true;
         }
         public static async Task<SaveProjectResponse> SaveProjectDetails(this MYPSDbContext _db, DBHelper.Models.Functions.Program.ProgramDetails ProgramDetails, ImportProjectDetailsExcel details, List<ImportProjectReference> Saved, CancellationToken cancellationToken)
         {
-            var Request = new GenerateProjectIDParams
-            {
-                CategoryId = (int)details.CategoryCategoryId!,
-                StageName = ProgramDetails.StageName,
-                IslandCode = details.RegionIslandCode!,
-                YearStart = ProgramDetails.StartYear,
-                Count = 1
-            };
+            string ProgramFK = ProgramDetails.ProgramPK;
+            string ProgramId = ProgramDetails.ProgramId;
 
-            string ProjectPK = await _db.GenerateProjectID(Request, cancellationToken);
+            // ── Reuse an existing project identity, if the excel ProjectId was seen before ──
+            // AlternateId on tProjectRevisions holds the ProjectId as it appears in the excel
+            // file, so it's a stable key back to a previously-imported project even across
+            // Update runs (which soft-delete the prior revision rather than the project itself).
+            var ExistingProjectFK = await _db.tProjectRevisions
+                .Where(x => x.ProgramFK == ProgramFK && x.AlternateId == details.ProjectId)
+                .OrderByDescending(x => x.Id)
+                .Select(x => x.ProjectFK)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            bool IsNewProject = string.IsNullOrEmpty(ExistingProjectFK);
+
+            string ProjectPK;
+            DBHelper.Models.Table.Project.Projects NewProject;
+            DBHelper.Models.Table.Project.ProjectStages ProjectStage;
+
+            if (IsNewProject)
+            {
+                var Request = new GenerateProjectIDParams
+                {
+                    CategoryId = (int)details.CategoryCategoryId!,
+                    StageName = ProgramDetails.StageName,
+                    IslandCode = details.RegionIslandCode!,
+                    YearStart = ProgramDetails.StartYear,
+                    Count = 1
+                };
+
+                ProjectPK = await _db.GenerateProjectID(Request, cancellationToken);
+
+                NewProject = new DBHelper.Models.Table.Project.Projects
+                {
+                    ProjectPK = ProjectPK,
+                    ProgramFK = ProgramFK,
+                    ProgramId = ProgramId,
+                    ExternalId = details.ExternalId,
+                    MYId = details.MYId,
+                    ProjectType = details.RegionIslandCode!,
+                    IsPublished = false,
+                    IsRevised = false,
+                    IsPublishable = false,
+                    PCMARevisionCount = 0
+                };
+                ProjectStage = new DBHelper.Models.Table.Project.ProjectStages
+                {
+                    ProjectFK = ProjectPK,
+                    ProgramFK = ProgramFK,
+                    ProgramId = ProgramId,
+                    RevisionId = 0,
+                    StageId = (EnumProgramStage)ProgramDetails.StageId,
+                    StageName = ProgramDetails.StageName
+                };
+            }
+            else
+            {
+                ProjectPK = ExistingProjectFK!;
+
+                // Fetch tracked so field updates + the eventual RevisionId assignment persist on SaveChanges
+                NewProject = await _db.tProjects.FirstAsync(x => x.ProjectPK == ProjectPK, cancellationToken);
+                NewProject.ExternalId = details.ExternalId;
+                NewProject.MYId = details.MYId;
+                NewProject.ProjectType = details.RegionIslandCode!;
+
+                ProjectStage = await _db.tProjectStages
+                    .FirstOrDefaultAsync(x => x.ProjectFK == ProjectPK && x.StageName == ProgramDetails.StageName, cancellationToken)
+                    ?? new DBHelper.Models.Table.Project.ProjectStages
+                    {
+                        ProjectFK = ProjectPK,
+                        ProgramFK = ProgramFK,
+                        ProgramId = ProgramId,
+                        RevisionId = 0,
+                        StageId = (EnumProgramStage)ProgramDetails.StageId,
+                        StageName = ProgramDetails.StageName
+                    };
+            }
 
             var ImportRef = new ImportProjectReference();
 
             ImportRef.OldProjectFK = details.ProjectId;
             ImportRef.NewProjectFK = ProjectPK;
 
-            string ProgramId = ProgramDetails.ProgramId;
-            string ProgramFK = ProgramDetails.ProgramPK;
-
-            var NewProject = new DBHelper.Models.Table.Project.Projects
-            {
-                ProjectPK = ProjectPK,
-                ProgramFK = ProgramFK,
-                ProgramId = ProgramId,
-                ExternalId = details.ExternalId,
-                MYId = details.MYId,
-                ProjectType = string.Empty,
-                IsPublished = false,
-                IsRevised = false,
-                IsPublishable = false,
-                PCMARevisionCount = 0
-            };
             var NewProjectRevision = new DBHelper.Models.Table.Project.ProjectRevisions
             {
                 ProjectFK = ProjectPK,
@@ -891,16 +946,7 @@ namespace Hangfire.Importing
                 Rank = string.IsNullOrWhiteSpace(details.Rank) ? null : double.TryParse(details.Rank, out var rank) ? rank : null,
                 IsDeleted = false
             };
-            var ProjectStage = new DBHelper.Models.Table.Project.ProjectStages
-            {
-                ProjectFK = ProjectPK,
-                ProgramFK = ProgramFK,
-                ProgramId = ProgramDetails.ProgramId,
-                RevisionId = 0,
-                StageId = (EnumProgramStage)ProgramDetails.StageId,
-                StageName = ProgramDetails.StageName
-            };
-            return new SaveProjectResponse { IsValid = true, Message = string.Empty, Project = NewProject, ProjectRevision = NewProjectRevision, ProjectStage = ProjectStage, ImportReference = ImportRef };
+            return new SaveProjectResponse { IsValid = true, Message = string.Empty, Project = NewProject, ProjectRevision = NewProjectRevision, ProjectStage = ProjectStage, ImportReference = ImportRef, IsNewProject = IsNewProject };
         }
         #endregion
         #region Save - Funding Profile
@@ -951,16 +997,16 @@ namespace Hangfire.Importing
         }
         public static SaveComponentCostPerYearResponse SaveComponentCostPerYear(this MYPSDbContext _db, ImportComponentDetailsExcel details, ImportComponentReference ComponentRef, string? Uacs)
         {
-            DateTime? strStartDate = null, strEndDate = null;
+            DateTime? dtStartDate = null, dtEndDate = null;
             if (!string.IsNullOrWhiteSpace(details.StartDate))
             {
                 bool isValidStartDate = DateTime.TryParse(details.StartDate, out var startDate);
-                if (isValidStartDate) strStartDate = startDate;
+                if (isValidStartDate) dtStartDate = startDate;
             }
             if (!string.IsNullOrWhiteSpace(details.EndDate))
             {
                 bool isValidEndDate = DateTime.TryParse(details.EndDate, out var endDate);
-                if (isValidEndDate) strEndDate = endDate;
+                if (isValidEndDate) dtEndDate = endDate;
             }
             var NewComponentId = ComponentRef.NewComponentId;
             var ComponentCostPerYearProfile = new DBHelper.Models.Table.Project.ProjectComponentCostPerYear
@@ -970,8 +1016,8 @@ namespace Hangfire.Importing
                 Amount = decimal.Parse(details.Cost),
                 Year = int.Parse(details.ActiveYear),
                 UACS = Uacs,
-                StartDate = strStartDate,
-                EndDate = strEndDate,
+                StartDate = dtStartDate,
+                EndDate = dtEndDate,
                 IsDeleted = false
             };
 
@@ -1046,7 +1092,12 @@ namespace Hangfire.Importing
                         endYVal = endY;
                 }
             }
-            double? lengthVal = null, startChainageVal = null, endChainageVal = null;
+            double? physicalTarget = null, lengthVal = null, startChainageVal = null, endChainageVal = null;
+            if (details.PhysicalTarget != null)
+            {
+                bool isValidPhysicalTarget = double.TryParse(details.PhysicalTarget, out var physicalTargetParsed);
+                if (isValidPhysicalTarget) physicalTarget = physicalTargetParsed;
+            }
             if (details.Length != null)
             {
                 bool isValidLength = double.TryParse(details.Length, out var length);
@@ -1062,17 +1113,6 @@ namespace Hangfire.Importing
                 bool isValidEndChainage = double.TryParse(details.EndChainage, out var endChainage);
                 if (isValidEndChainage) endChainageVal = endChainage;
             }
-            //string? startStationVal = null, endStationVal = null;
-            //if (details.StartStation != null)
-            //{
-            //    bool isValidStartStation = double.TryParse(details.StartStation, out var startStation);
-            //    if (isValidStartStation) startStationVal = string.Format("{0:N}", startStation);
-            //}
-            //if (details.EndStation != null)
-            //{
-            //    bool isValidEndStation = double.TryParse(details.EndStation, out var endStation);
-            //    if (isValidEndStation) endStationVal = string.Format("{0:N}", endStation);
-            //}
 
             int NewComponentId = WorkRef.NewWorkItem;
 
@@ -1088,7 +1128,7 @@ namespace Hangfire.Importing
                 StartY = startYVal,
                 EndX = endXVal,
                 EndY = endYVal,
-                PhysicalTarget = double.Parse(details.PhysicalTarget),
+                PhysicalTarget = physicalTarget,
                 StartStationLimit = details.StartStation,
                 EndStationLimit = details.EndStation,
                 StartChainage = startChainageVal,
@@ -1126,6 +1166,97 @@ namespace Hangfire.Importing
                 return new IsValidProgramIdResponse { IsValid = false, Message = $"Program details not found for ProgramID: {ProgramID} at Stage: {StageName}." };
             }
             return new IsValidProgramIdResponse { IsValid = true, Message = string.Empty, ProgramDetails = Details };
+        }
+        #endregion
+        #region Soft Delete - Update
+        /// <summary>
+        /// Soft-deletes the existing project revision (and everything hanging off it — funding
+        /// profile, component cost, component cost per year, major work items, major work locations)
+        /// for a given Program + Stage, but ONLY for the ProjectIds present in the current excel
+        /// import — projects under that Program+Stage that aren't in the file are left untouched.
+        /// tProjects and tProjectStages are NOT touched here — SaveProjectDetails reuses those rows
+        /// (matched via tProjectRevisions.AlternateId, which holds the excel ProjectId) instead of
+        /// creating new ones on every import, so they never become orphaned in the first place.
+        /// </summary>
+        public static async Task<int> SoftDeleteProjectsByProgramStage(this MYPSDbContext _db, string ProgramFK, string StageName, List<string> ProjectIds, string UpdatedBy, CancellationToken cancellationToken)
+        {
+            var DistinctProjectIds = (ProjectIds ?? new List<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+
+            if (DistinctProjectIds.Count == 0) return 0;
+
+            // ── Resolve the exact revisions to touch via LINQ (safely parameterized IN clause,
+            // no manual string-building needed since AlternateId is free-text) ──
+            var RevisionIds = await (
+                from ps in _db.tProjectStages
+                join rev in _db.tProjectRevisions on ps.RevisionId equals rev.Id
+                where ps.ProgramFK == ProgramFK
+                   && ps.StageName == StageName
+                   && DistinctProjectIds.Contains(rev.AlternateId)
+                select rev.Id
+            ).Distinct().ToListAsync(cancellationToken);
+
+            if (RevisionIds.Count == 0) return 0;
+
+            DateTime CurrentDate = Functions.CurrentDate();
+            string RevisionIdsCsv = string.Join(",", RevisionIds); // ints only — safe to join, passed as one parameter below
+
+            int affected = await _db.Database.ExecuteSqlInterpolatedAsync($@"
+                DECLARE @RevisionIds TABLE (Id INT PRIMARY KEY);
+                DECLARE @ComponentCostIds TABLE (Id INT PRIMARY KEY);
+                DECLARE @WorkItemIds TABLE (Id INT PRIMARY KEY);
+
+                INSERT INTO @RevisionIds (Id)
+                SELECT DISTINCT TRY_CAST(value AS INT)
+                FROM STRING_SPLIT({RevisionIdsCsv}, ',');
+
+                -- Component costs hanging off those revisions
+                INSERT INTO @ComponentCostIds (Id)
+                SELECT cc.Id
+                FROM dbo.tProjectComponentCost cc
+                WHERE cc.ProjectRevisionFK IN (SELECT Id FROM @RevisionIds)
+                  AND cc.IsDeleted = 0;
+
+                -- Major work items hanging off those component costs
+                INSERT INTO @WorkItemIds (Id)
+                SELECT wi.Id
+                FROM dbo.tProjectMajorWorkItem wi
+                WHERE wi.ComponentCostFK IN (SELECT Id FROM @ComponentCostIds)
+                  AND wi.IsDeleted = 0;
+
+                -- Leaf-most first, then walk back up the hierarchy
+                UPDATE dbo.tProjectMajorWorkLocations
+                SET IsDeleted = 1, UpdatedBy = {UpdatedBy}, UpdatedDate = {CurrentDate}
+                WHERE WorkItemFK IN (SELECT Id FROM @WorkItemIds)
+                  AND IsDeleted = 0;
+
+                UPDATE dbo.tProjectMajorWorkItem
+                SET IsDeleted = 1, UpdatedBy = {UpdatedBy}, UpdatedDate = {CurrentDate}
+                WHERE Id IN (SELECT Id FROM @WorkItemIds);
+
+                UPDATE dbo.tProjectComponentCostPerYear
+                SET IsDeleted = 1, UpdatedBy = {UpdatedBy}, UpdatedDate = {CurrentDate}
+                WHERE ComponentCostFK IN (SELECT Id FROM @ComponentCostIds)
+                  AND IsDeleted = 0;
+
+                UPDATE dbo.tProjectComponentCost
+                SET IsDeleted = 1, UpdatedBy = {UpdatedBy}, UpdatedDate = {CurrentDate}
+                WHERE Id IN (SELECT Id FROM @ComponentCostIds);
+
+                UPDATE dbo.tProjectFundingProfile
+                SET IsDeleted = 1, UpdatedBy = {UpdatedBy}, UpdatedDate = {CurrentDate}
+                WHERE ProjectRevisionFK IN (SELECT Id FROM @RevisionIds)
+                  AND IsDeleted = 0;
+
+                UPDATE dbo.tProjectRevisions
+                SET IsDeleted = 1, UpdatedBy = {UpdatedBy}, UpdatedDate = {CurrentDate}
+                WHERE Id IN (SELECT Id FROM @RevisionIds)
+                  AND IsDeleted = 0;
+            ", cancellationToken);
+
+            return affected;
         }
         #endregion
         public static async Task<string> GenerateProjectID(this MYPSDbContext _db, GenerateProjectIDParams request, CancellationToken cancellationToken)
