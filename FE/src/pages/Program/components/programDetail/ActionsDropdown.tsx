@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDownIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, Cog6ToothIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { downloadAIPReport, exportProjects } from '../../Service';
 import type { AIPReportParams, TableEnum } from '../../Model';
@@ -26,7 +26,7 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
 }) => {
   const { showToast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importDialogMode, setImportDialogMode] = useState<'import' | 'update' | null>(null);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isAIPDialogOpen, setIsAIPDialogOpen] = useState(false);
 
@@ -46,7 +46,12 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
   };
 
   const handleImportProjects = () => {
-    setIsImportDialogOpen(true);
+    setImportDialogMode('import');
+    setIsOpen(false);
+  };
+
+  const handleUpdateProjects = () => {
+    setImportDialogMode('update');
     setIsOpen(false);
   };
 
@@ -155,6 +160,13 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
                   Import Projects
                 </button>
                 <button
+                  onClick={handleUpdateProjects}
+                  className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
+                >
+                  <ArrowPathIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" aria-hidden="true" />
+                  Update Projects
+                </button>
+                <button
                   onClick={handleExportProjects}
                   className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
                 >
@@ -178,13 +190,14 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
         )}
       </div>
 
-      {isImportDialogOpen && (
+      {importDialogMode && (
         <ImportProjectsJobDialog
-          isOpen={isImportDialogOpen}
-          onClose={() => setIsImportDialogOpen(false)}
+          isOpen={!!importDialogMode}
+          onClose={() => setImportDialogMode(null)}
           programId={programId}
           programName={programName}
           stageName={stageName}
+          mode={importDialogMode}
         />
       )}
 

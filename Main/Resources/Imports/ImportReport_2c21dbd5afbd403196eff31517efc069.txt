@@ -1,0 +1,55 @@
+=== IMPORT PROJECT REPORT ===
+Generated: 2026-08-23 21:01:44
+
+--- VALID RECORDS ---
+Project Details:      0
+Funding Profile:      7
+Component Details:    8
+Major Items of Work:  5
+
+--- VALID: FUNDING PROFILE ---
+  ProjectId: P00900032LZ
+  ProjectId: P00900061LZ
+  ProjectId: P00900077LZ
+  ProjectId: P00900083LZ
+  ProjectId: P00920001LZ
+  ProjectId: P00920003LZ
+  ProjectId: P00920005LZ
+
+--- VALID: COMPONENT DETAILS ---
+  ProjectId: P00900032LZ | ComponentId: CW1
+  ProjectId: P00900061LZ | ComponentId: CW1
+  ProjectId: P00900077LZ | ComponentId: CW1
+  ProjectId: P00900083LZ | ComponentId: CW1
+  ProjectId: P00900083LZ | ComponentId: CW1
+  ProjectId: P00920001LZ | ComponentId: CW1
+  ProjectId: P00920003LZ | ComponentId: CW1
+  ProjectId: P00920005LZ | ComponentId: CW1
+
+--- VALID: MAJOR ITEMS OF WORK ---
+  ProjectId: P00900032LZ | InfrastructureId: S00887LZ
+  ProjectId: P00900061LZ | InfrastructureId: S06128LZ
+  ProjectId: P00900077LZ | InfrastructureId: S03516LZ
+  ProjectId: P00900083LZ | InfrastructureId: S05606LZ
+  ProjectId: P00900083LZ | InfrastructureId: S05606LZ
+
+--- WARNING RECORDS ---
+Project Details:      7
+Funding Profile:      0
+Component Details:    0
+Major Items of Work:  3
+
+--- WARNING: PROJECT DETAILS ---
+  ProjectId: P00900032LZ | Warning: Incorrect MYCA Approval Date, Incorrect Feasibility Date, Incorrect Detailed Design Date, Incorrect Rank
+  ProjectId: P00900061LZ | Warning: Incorrect Feasibility Date, Incorrect Detailed Design Date, Incorrect Rank
+  ProjectId: P00900077LZ | Warning: Incorrect Feasibility Date, Incorrect Detailed Design Date, Incorrect Rank
+  ProjectId: P00900083LZ | Warning: Incorrect MYCA Approval Date, Incorrect Feasibility Date, Incorrect Detailed Design Date, Incorrect Rank
+  ProjectId: P00920001LZ | Warning: Incorrect Feasibility Date, Incorrect Detailed Design Date, Incorrect Rank
+  ProjectId: P00920005LZ | Warning: Incorrect Feasibility Date, Incorrect Detailed Design Date, Incorrect Rank
+  ProjectId: P00920003LZ | Warning: Incorrect MYCA Approval Date, Incorrect Feasibility Date, Incorrect Detailed Design Date, Incorrect Rank
+
+--- WARNING: MAJOR ITEMS OF WORK ---
+  ProjectId: P00920001LZ | InfrastructureId: FCS-20001 | Warning: Incorrect Start Chainage, Incorrect End Chainage, Incorrect Length
+  ProjectId: P00920003LZ | InfrastructureId: FCS-20003 | Warning: Incorrect Start Chainage, Incorrect End Chainage, Incorrect Length
+  ProjectId: P00920005LZ | InfrastructureId: FCS-20005 | Warning: Incorrect Start Chainage, Incorrect End Chainage, Incorrect Length
+
