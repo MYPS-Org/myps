@@ -14,6 +14,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Security.Cryptography.Xml;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static Helpers.ProjectHelper;
 
@@ -34,6 +35,79 @@ namespace Hangfire.Importing
             ? result
             : null;
         }
+
+        // ── Shared validation-state accumulator ─────────────────────────────────
+        // Centralizes the repeated "IsValid=false; Message = append(...)" and
+        // "IsWarning=true; Message = append(...)" pattern used throughout every
+        // Validate* method below, so call sites read as one line instead of three,
+        // and the comma-joining/append logic only lives in one place.
+        private sealed class ValidationState
+        {
+            public bool IsValid { get; private set; } = true;
+            public bool IsWarning { get; private set; } = false;
+            public string Message { get; private set; } = string.Empty;
+
+            // Marks the record invalid (hard error) and appends the message.
+            public void Fail(string message)
+            {
+                IsValid = false;
+                Append(message);
+            }
+
+            // Marks the record as having a warning (soft error) and appends the message.
+            // Does not affect IsValid — a record can carry warnings and still be valid.
+            public void Warn(string message)
+            {
+                IsWarning = true;
+                Append(message);
+            }
+
+            private void Append(string message)
+            {
+                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, message) : message;
+            }
+        }
+        // ── Shared case-insensitive / trim-tolerant name comparison ────────────
+        // Use this everywhere a lookup/reference name is compared against an
+        // imported Excel value, instead of raw `==`, so casing differences
+        // (e.g. "Metro Manila" vs "METRO MANILA") don't fail validation.
+        public static bool NamesMatch(string? a, string? b)
+            => string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+        // ── Tier comparison: cache.Tiers.Name is always Arabic ("Tier 1"/"Tier 2"),
+        // but imported Excel values may come in as Roman numerals ("Tier I"/"Tier II").
+        private static readonly Dictionary<string, int> TierRomanToArabic = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "I", 1 }, { "II", 2 }
+        };
+
+        // Extracts the tier's numeric value regardless of whether it's written as
+        // "Tier 1", "Tier I", "TIER1", "tier-1", etc. Returns null if it can't be parsed.
+        private static int? NormalizeTierValue(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+
+            // Strip a leading "Tier" (any casing) and any separators/whitespace around the number.
+            var cleaned = Regex.Replace(raw.Trim(), @"^\s*Tier\s*[-:]?\s*", "", RegexOptions.IgnoreCase).Trim();
+            if (cleaned.Length == 0) return null;
+
+            if (int.TryParse(cleaned, out int arabicValue))
+                return arabicValue;
+
+            if (TierRomanToArabic.TryGetValue(cleaned, out int romanValue))
+                return romanValue;
+
+            return null;
+        }
+
+        // Use this instead of NamesMatch specifically for Tier fields.
+        public static bool TierMatches(string? cacheTierName, string? importedTierValue)
+        {
+            var a = NormalizeTierValue(cacheTierName);
+            var b = NormalizeTierValue(importedTierValue);
+            return a.HasValue && b.HasValue && a.Value == b.Value;
+        }
+
         public static bool ValidateYear(string input, out int year)
         {
             // 1. Ensure the input string converts cleanly to an integer
@@ -54,265 +128,241 @@ namespace Hangfire.Importing
         { }
         public static ValidateProjectDetailsResponse ValidateProjectDetails(this MYPSDbContext _db, ImportProjectDetailsExcel details, ImportLookupCache cache)
         {
-            bool IsValid = true, IsWarning = false;
-            string Message = string.Empty;
+            var v = new ValidationState();
 
-            if (details.ProjectId.Trim().Length == 0)
+            if (string.IsNullOrWhiteSpace(details.ProjectId))
             {
-                IsValid = false;
-                Message = string.Format("Incorrect Project ID");
+                v.Fail("Incorrect Project ID");
             }
-            bool isMYCAApprovalDateValid = true;
-            if (details.MYId != null)
+            if (details.MYCAApprovalDate != null)
             {
-                if (details.MYId.Trim().Length > 0)
+                bool isMYCAApprovalDateValid = DateTime.TryParse(details.MYCAApprovalDate, out _);
+                if (!isMYCAApprovalDateValid)
                 {
-                    if (details.MYCAApprovalDate != null)
-                    {
-                        bool isValidMYCADate = DateTime.TryParse(details.MYCAApprovalDate, out _);
-                        if (!isValidMYCADate)
-                        {
-                            isMYCAApprovalDateValid = false;
-                            IsWarning = true;
-                            Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect MYCA Approval Date") : string.Format("{0}", "Incorrect MYCA Approval Date");
-                        }
-                    }
+                    v.Warn("Incorrect MYCA Approval Date");
                 }
-            }
-            if (isMYCAApprovalDateValid)
-            {
-                if (details.MYCAApprovalDate != null)
+                else if (string.IsNullOrWhiteSpace(details.MYId))
                 {
-                    bool isValidMYCADate = DateTime.TryParse(details.MYCAApprovalDate, out _);
-                    if (!isValidMYCADate)
-                    {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect MYCA Approval Date") : string.Format("{0}", "Incorrect MYCA Approval Date");
-                    }
-                    else
-                    {
-                        if (string.IsNullOrWhiteSpace(details.MYId))
-                        {
-                            IsWarning = true;
-                            Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Multi Year ID") : string.Format("{0}", "Incorrect Multi Year ID");
-                        }
-                    }
+                    v.Warn("Incorrect Multi Year ID");
                 }
             }
 
-            var Tier = cache.Tiers.FirstOrDefault(x => x.Name == details.Tier);
-            //if (!details.Tier.Trim().Equals("Tier I", StringComparison.CurrentCultureIgnoreCase) &&
-            //    !details.Tier.Trim().Equals("Tier II", StringComparison.CurrentCultureIgnoreCase))
+            var Tier = cache.Tiers.FirstOrDefault(x => TierMatches(x.Name, details.Tier));
             if (Tier == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Tier") : string.Format("{0}", "Incorrect Tier");
+                v.Fail("Incorrect Tier");
             }
-            var Category = cache.Categories.FirstOrDefault(x => x.CategoryName == details.Category);
-            //var Category = _db.tOptionProjectCategory.AsNoTracking().FirstOrDefault(x => x.CategoryName == details.Category);
+            var Category = cache.Categories.FirstOrDefault(x => NamesMatch(x.CategoryName, details.Category));
             if (Category == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Category") : string.Format("{0}", "Incorrect Category");
+                v.Fail("Incorrect Category");
             }
-            var Thrust = cache.Thrusts.FirstOrDefault(x => x.ThrustDescription == details.Thrust);
-            //var Thrust = _db.tProjectThrustLists.AsNoTracking().FirstOrDefault(x => x.ThrustDescription == details.Thrust);
+            var Thrust = cache.Thrusts.FirstOrDefault(x => NamesMatch(x.ThrustDescription, details.Thrust));
             if (Thrust == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Thrust") : string.Format("{0}", "Incorrect Thrust");
+                v.Fail("Incorrect Thrust");
             }
-            if (details.Description.Trim().Length == 0)
+            if (string.IsNullOrWhiteSpace(details.Description))
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Required Description") : string.Format("{0}", "Required Description");
+                v.Fail("Required Description");
             }
-            var Province = cache.Provinces.FirstOrDefault(x => x.Name == details.Province);
-            //var Province = _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefault(x => x.Name == details.Province);
-            if (Province == null)
-            {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Province") : string.Format("{0}", "Incorrect Province");
+            // ── Primary source: Legislative District (name may not be globally unique) ──
+            // Province is DERIVED from the resolved LD, not read from details.Province.
+            // details.Province is only used as a disambiguation signal when the LD
+            // name matches more than one district (see scoring below).
+            var LDCandidates = cache.Districts.Where(x => NamesMatch(x.Name, details.LegislativeDistrict)).ToList();
 
-                var City = cache.Cities.FirstOrDefault(x => x.Name == details.City);
-                //var City = _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefault(x => x.Name == details.City);
+            var LDResolvedCandidates = LDCandidates;
+            bool ldAmbiguous = false;
+            string? ldAmbiguityDetail = null;
+
+            // Declared here (outer scope) because it's referenced again near the
+            // end of this method when populating `details` on success.
+            var Province = cache.Provinces.FirstOrDefault(x => false);
+
+            if (LDCandidates.Count > 1)
+            {
+                // ── Multiple LDs share this name — disambiguate using Province/City/Region/DEO ──
+                var scored = LDCandidates
+                    .Select(candidate =>
+                    {
+                        var province = cache.Provinces.FirstOrDefault(p => p.Code == candidate.ProvinceCode);
+                        int score = 0;
+
+                        if (province != null)
+                        {
+                            if (NamesMatch(province.Name, details.Province))
+                                score += 4;
+
+                            if (cache.Cities.Any(c => NamesMatch(c.Name, details.City) && c.ProvinceCode == province.Code))
+                                score += 3;
+
+                            var region = cache.Regions.FirstOrDefault(r => r.ParticipantId == province.RegionParticipantId);
+                            if (region != null && NamesMatch(region.Name, details.Region))
+                                score += 2;
+
+                            if (cache.DEOs.Any(d => NamesMatch(d.Name, details.DEO) && d.ProvinceCode == province.Code))
+                                score += 1;
+                        }
+
+                        return new { Candidate = candidate, Province = province, Score = score };
+                    })
+                    .OrderByDescending(x => x.Score)
+                    .ToList();
+
+                var topScore = scored[0].Score;
+                var topMatches = scored.Where(x => x.Score == topScore).ToList();
+
+                if (topScore == 0 || topMatches.Count > 1)
+                {
+                    // ── Genuine tie, or nothing matched any signal — cannot safely pick one ──
+                    ldAmbiguous = true;
+                    ldAmbiguityDetail = string.Join(" / ", scored.Select(x => x.Province?.Name ?? "Unknown"));
+                    LDResolvedCandidates = new();
+                }
+                else
+                {
+                    LDResolvedCandidates = new() { topMatches[0].Candidate };
+                }
+            }
+
+            var LD = LDResolvedCandidates.FirstOrDefault();
+
+            if (LD == null)
+            {
+                if (ldAmbiguous)
+                {
+                    v.Fail($"Ambiguous Legislative District '{details.LegislativeDistrict}' — matches {LDCandidates.Count} provinces ({ldAmbiguityDetail}); could not disambiguate using Province/City/Region/DEO");
+                }
+                else
+                {
+                    v.Fail("Incorrect Legislative District");
+                }
+
+                // ── LD unresolved → can't derive Province → fall back to name-only checks ──
+                // Record is already invalid from the LD failure above; these use Fail too
+                // (not just message-only) so City/Region/DEO issues are reflected the same
+                // way as every other required field in this method.
+                var City = cache.Cities.FirstOrDefault(x => NamesMatch(x.Name, details.City));
                 if (City == null)
                 {
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect City") : string.Format("{0}", "Incorrect City");
+                    v.Fail("Incorrect City");
                 }
-                var LD = cache.Districts.FirstOrDefault(x => x.Name == details.LegislativeDistrict);
-                //var LD = _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefault(x => x.Name == details.LegislativeDistrict);
-                if (LD == null)
-                {
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Legislative District") : string.Format("{0}", "Incorrect Legislative District");
-                }
-                var Region = cache.Regions.FirstOrDefault(x => x.Name == details.Region);
-                //var Region = _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefault(x => x.Name == details.Region);
+                var Region = cache.Regions.FirstOrDefault(x => NamesMatch(x.Name, details.Region));
                 if (Region == null)
                 {
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Region") : string.Format("{0}", "Incorrect Region");
+                    v.Fail("Incorrect Region");
                 }
-                var Deo = cache.DEOs.FirstOrDefault(x => x.Name == details.DEO);
-                //var Deo = _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefault(x => x.Name == details.DEO);
+                var Deo = cache.DEOs.FirstOrDefault(x => NamesMatch(x.Name, details.DEO));
                 if (Deo == null)
                 {
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect DEO") : string.Format("{0}", "Incorrect DEO");
+                    v.Fail("Incorrect DEO");
                 }
-                var ImplementingOffice = cache.ImplementingOffices.FirstOrDefault(x => x.Name == details.ImplementingOffice);
-                //var ImplementingOffice = _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefault(x => x.Name == details.ImplementingOffice);
+                var ImplementingOffice = cache.ImplementingOffices.FirstOrDefault(x => NamesMatch(x.Name, details.ImplementingOffice));
                 if (ImplementingOffice == null)
                 {
-                    IsValid = false;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Implementing Office") : string.Format("{0}", "Incorrect Implementing Office");
+                    v.Fail("Incorrect Implementing Office");
                 }
-                var OperatingUnit = cache.OperatingUnits.FirstOrDefault(x => x.Name == details.OperatingUnit);
-                //var OperatingUnit = _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefault(x => x.Name == details.OperatingUnit);
+                var OperatingUnit = cache.OperatingUnits.FirstOrDefault(x => NamesMatch(x.Name, details.OperatingUnit));
                 if (OperatingUnit == null)
                 {
-                    IsValid = false;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Operating Unit") : string.Format("{0}", "Incorrect Operating Unit");
+                    v.Fail("Incorrect Operating Unit");
                 }
-                //if (IsValid)
-                //{
-                //    details.CityCode = City.Code;
-                //    details.LDCode = LD.Code;
-                //    details.DeoParticipantId = Deo.ParticipantId;
-                //    details.RegionParticipantId = Region.ParticipantId;
-                //    details.RegionIslandCode = Region.IslandCode;
-                //}
             }
             else
             {
-                var City = cache.Cities.FirstOrDefault(x => x.Name == details.City && x.ProvinceCode == Province.Code);
-                //var City = _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefault(x => x.Name == details.City && x.ProvinceGdbId == Province.GdbId);
-                if (City == null)
-                {
-                    IsValid = false;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect City") : string.Format("{0}", "Incorrect City");
-                }
-                var LD = cache.Districts.FirstOrDefault(x => x.Name == details.LegislativeDistrict && x.ProvinceCode == Province.Code);
-                //var LD = _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefault(x => x.Name == details.LegislativeDistrict && x.ProvinceGdbId == Province.GdbId);
-                if (LD == null)
-                {
-                    IsValid = false;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Legislative District") : string.Format("{0}", "Incorrect Legislative District");
-                }
-                var Region = cache.Regions.FirstOrDefault(x => x.Name == details.Region && x.ParticipantId == Province.RegionParticipantId);
-                //var Region = _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefault(x => x.Name == details.Region && x.GdbId == Province.RegionParticipantId);
-                if (Region == null)
-                {
-                    IsValid = false;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Region") : string.Format("{0}", "Incorrect Region");
-                }
-                var Deo = cache.DEOs.FirstOrDefault(x => x.Name == details.DEO && x.ProvinceCode == Province.Code);
-                //var Deo = _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefault(x => x.Name == details.DEO && x.ProvinceGdbId == Province.GdbId);
-                if (Deo == null)
-                {
-                    IsValid = false;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect DEO") : string.Format("{0}", "Incorrect DEO");
-                }
+                // ── LD resolved (unique or disambiguated) → derive the "real" Province from it ──
+                Province = cache.Provinces.FirstOrDefault(x => x.Code == LD.ProvinceCode);
 
-                if (Region != null && Deo != null)
+                if (Province == null)
                 {
-                    var ImplementingOffice = cache.ImplementingOffices.FirstOrDefault(x => (x.Name == Region.Name || x.Name == Deo.Name) && x.RegionParticipantId == Province.RegionParticipantId);
-                    if (ImplementingOffice == null)
+                    // Data integrity issue — LD points to a province code that doesn't exist in cache.
+                    v.Fail("Province could not be resolved from Legislative District");
+                }
+                else
+                {
+                    var City = cache.Cities.FirstOrDefault(x => NamesMatch(x.Name, details.City) && x.ProvinceCode == Province.Code);
+                    if (City == null)
                     {
-                        IsValid = false;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Implementing Office") : string.Format("{0}", "Incorrect Implementing Office");
-                    }
-                    var OperatingUnit = details.OperatingUnit == "Central Office" ?
-                        cache.OperatingUnits.FirstOrDefault(x => x.Name == "Central Office") :
-                        cache.OperatingUnits.FirstOrDefault(x => (x.Name == Region.Name || x.Name == Deo.Name) && x.RegionParticipantId == Province.RegionParticipantId);
-                    //AdminOperatingUnit OperatingUnit;
-                    //if (details.OperatingUnit == "Central Office")
-                    //{
-                    //    OperatingUnit = cache.OperatingUnits.FirstOrDefault(x => x.Name == "Central Office");
-                    //}
-                    //else
-                    //{
-                    //    OperatingUnit = cache.OperatingUnits.FirstOrDefault(x => (x.Name == Region.Name || x.Name == Deo.Name) && x.RegionParticipantId == Province.RegionParticipantId);
-                    //}
-                    if (OperatingUnit == null)
-                    {
-                        IsValid = false;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Operating Unit") : string.Format("{0}", "Incorrect Operating Unit");
+                        v.Fail("Incorrect City");
                     }
 
-                    if (IsValid)
+                    var Region = cache.Regions.FirstOrDefault(x => NamesMatch(x.Name, details.Region) && x.ParticipantId == Province.RegionParticipantId);
+                    if (Region == null)
                     {
-                        details.CityCode = City.Code;
-                        details.LDCode = LD.Code;
-                        details.DeoParticipantId = Deo.ParticipantId;
-                        details.RegionParticipantId = Region.ParticipantId;
-                        details.RegionIslandCode = Region.IslandCode;
-                        details.ImplementingOfficeParticipantId = ImplementingOffice.ParticipantId;
-                        details.OperatingUnitParticipantId = OperatingUnit.ParticipantId;
+                        v.Fail("Incorrect Region");
+                    }
+
+                    var Deo = cache.DEOs.FirstOrDefault(x => NamesMatch(x.Name, details.DEO) && x.ProvinceCode == Province.Code);
+                    if (Deo == null)
+                    {
+                        v.Fail("Incorrect DEO");
+                    }
+
+                    if (Region != null && Deo != null)
+                    {
+                        var ImplementingOffice = cache.ImplementingOffices.FirstOrDefault(x => (NamesMatch(x.Name, Region.Name) || NamesMatch(x.Name, Deo.Name)) && x.RegionParticipantId == Province.RegionParticipantId);
+                        if (ImplementingOffice == null)
+                        {
+                            v.Fail("Incorrect Implementing Office");
+                        }
+
+                        var OperatingUnit = NamesMatch(details.OperatingUnit, "Central Office") ?
+                            cache.OperatingUnits.FirstOrDefault(x => NamesMatch(x.Name, "Central Office")) :
+                            cache.OperatingUnits.FirstOrDefault(x => (NamesMatch(x.Name, Region.Name) || NamesMatch(x.Name, Deo.Name)) && x.RegionParticipantId == Province.RegionParticipantId);
+                        if (OperatingUnit == null)
+                        {
+                            v.Fail("Incorrect Operating Unit");
+                        }
+
+                        if (v.IsValid)
+                        {
+                            details.CityCode = City.Code;
+                            details.LDCode = LD.Code;
+                            details.DeoParticipantId = Deo.ParticipantId;
+                            details.RegionParticipantId = Region.ParticipantId;
+                            details.RegionIslandCode = Region.IslandCode;
+                            details.ImplementingOfficeParticipantId = ImplementingOffice.ParticipantId;
+                            details.OperatingUnitParticipantId = OperatingUnit.ParticipantId;
+                        }
                     }
                 }
             }
-            //var ImplementingOffice = cache.ImplementingOffices.FirstOrDefault(x => x.Name == details.ImplementingOffice);
-            ////var ImplementingOffice = _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefault(x => x.Name == details.ImplementingOffice);
-            //if (ImplementingOffice == null)
-            //{
-            //    IsValid = false;
-            //    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Implementing Office") : string.Format("{0}", "Incorrect Implementing Office");
-            //}
-            //var OperatingUnit = cache.OperatingUnits.FirstOrDefault(x => x.Name == details.OperatingUnit);
-            ////var OperatingUnit = _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefault(x => x.Name == details.OperatingUnit);
-            //if (OperatingUnit == null)
-            //{
-            //    IsValid = false;
-            //    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Operating Unit") : string.Format("{0}", "Incorrect Operating Unit");
-            //}
 
-            var RegionWide = cache.RegionWides.FirstOrDefault(x => x.Name == details.RegionWide);
-            //var RegionWide = _db.tOptionRegionWide.AsNoTracking().FirstOrDefault(x => x.Name == details.RegionWide);
+            var RegionWide = cache.RegionWides.FirstOrDefault(x => NamesMatch(x.Name, details.RegionWide));
             if (RegionWide == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Region Wide") : string.Format("{0}", "Incorrect Region Wide");
+                v.Fail("Incorrect Region Wide");
             }
-            var Origin = cache.Origins.FirstOrDefault(x => x.Name == details.Origin);
-            //var Origin = _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefault(x => x.Name == details.Origin);
+            var Origin = cache.Origins.FirstOrDefault(x => NamesMatch(x.Name, details.Origin));
             if (Origin == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Origin") : string.Format("{0}", "Incorrect Origin");
+                v.Fail("Incorrect Origin");
             }
-            var Agency = cache.Agencies.FirstOrDefault(x => x.Name == details.Agency);
-            //var Agency = _db.tOptionProjectAgency.AsNoTracking().FirstOrDefault(x => x.Name == details.Agency);
+            var Agency = cache.Agencies.FirstOrDefault(x => NamesMatch(x.Name, details.Agency));
             if (Agency == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Agency") : string.Format("{0}", "Incorrect Agency");
+                v.Fail("Incorrect Agency");
             }
-            var ImplementationMode = cache.ImplementationModes.FirstOrDefault(x => x.Name == details.ImplementationMode);
-            //var ImplementationMode = _db.tOptionProjectImplementationMode.AsNoTracking().FirstOrDefault(x => x.Name == details.ImplementationMode);
+            var ImplementationMode = cache.ImplementationModes.FirstOrDefault(x => NamesMatch(x.Name, details.ImplementationMode));
             if (ImplementationMode == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Implementation Mode") : string.Format("{0}", "Incorrect Implementation Mode");
+                v.Fail("Incorrect Implementation Mode");
             }
-            var EmergencyMode = cache.EmergencyModes.FirstOrDefault(x => x.Name == details.EmergencyMode);
-            //var EmergencyMode = _db.tOptionProjectEmergencyMode.AsNoTracking().FirstOrDefault(x => x.Name == details.EmergencyMode);
+            var EmergencyMode = cache.EmergencyModes.FirstOrDefault(x => NamesMatch(x.Name, details.EmergencyMode));
             if (EmergencyMode == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Emergency Mode") : string.Format("{0}", "Incorrect Emergency Mode");
+                v.Fail("Incorrect Emergency Mode");
             }
-            var RowAvailable = cache.RowAvailables.FirstOrDefault(x => x.Name == details.RowAvailable);
-            //var RowAvailable = _db.tOptionProjectRowAvailable.AsNoTracking().FirstOrDefault(x => x.Name == details.RowAvailable);
+            var RowAvailable = cache.RowAvailables.FirstOrDefault(x => NamesMatch(x.Name, details.RowAvailable));
             if (RowAvailable == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Row Available") : string.Format("{0}", "Incorrect Row Available");
+                v.Fail("Incorrect Row Available");
             }
-            var Feasibility = cache.FeasibilityStudies.FirstOrDefault(x => x.Name == details.Feasibility);
-            //var Feasibility = _db.tOptionProjectFeasibilityStudy.AsNoTracking().FirstOrDefault(x => x.Name == details.Feasibility);
+            var Feasibility = cache.FeasibilityStudies.FirstOrDefault(x => NamesMatch(x.Name, details.Feasibility));
             if (Feasibility == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Feasibility") : string.Format("{0}", "Incorrect Feasibility");
+                v.Fail("Incorrect Feasibility");
             }
             else
             {
@@ -323,31 +373,26 @@ namespace Hangfire.Importing
                         bool isValidDate = DateTime.TryParse(details.FeasibilityDate, out _);
                         if (!isValidDate)
                         {
-                            IsWarning = true;
-                            Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Feasibility Date") : string.Format("{0}", "Incorrect Feasibility Date");
+                            v.Warn("Incorrect Feasibility Date");
                         }
                     }
                     else
                     {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Feasibility Date") : string.Format("{0}", "Incorrect Feasibility Date");
+                        v.Warn("Incorrect Feasibility Date");
                     }
                 }
                 else if (details.Feasibility.Trim().Equals("NO", StringComparison.OrdinalIgnoreCase))
                 {
                     if (details.FeasibilityDate != null)
                     {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Feasibility Date") : string.Format("{0}", "Incorrect Feasibility Date");
+                        v.Warn("Incorrect Feasibility Date");
                     }
                 }
             }
-            var DetailedDesign = cache.DetailedDesigns.FirstOrDefault(x => x.Name == details.DetailedDesign);
-            //var DetailedDesign = _db.tOptionProjectDetailedDesign.AsNoTracking().FirstOrDefault(x => x.Name == details.DetailedDesign);
+            var DetailedDesign = cache.DetailedDesigns.FirstOrDefault(x => NamesMatch(x.Name, details.DetailedDesign));
             if (DetailedDesign == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Detailed Design") : string.Format("{0}", "Incorrect Detailed Design");
+                v.Fail("Incorrect Detailed Design");
             }
             else
             {
@@ -359,22 +404,19 @@ namespace Hangfire.Importing
 
                         if (!isValidDate)
                         {
-                            IsWarning = true;
-                            Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Detailed Design Date") : string.Format("{0}", "Incorrect Detailed Design Date");
+                            v.Warn("Incorrect Detailed Design Date");
                         }
                     }
                     else
                     {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Detailed Design Date") : string.Format("{0}", "Incorrect Detailed Design Date");
+                        v.Warn("Incorrect Detailed Design Date");
                     }
                 }
                 else if (details.DetailedDesign.Trim().Equals("NO", StringComparison.OrdinalIgnoreCase))
                 {
                     if (details.DetailedDesignDate != null)
                     {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Detailed Design Date") : string.Format("{0}", "Incorrect Detailed Design Date");
+                        v.Warn("Incorrect Detailed Design Date");
                     }
                 }
             }
@@ -383,24 +425,17 @@ namespace Hangfire.Importing
                 bool isValidRank = decimal.TryParse(details.Rank, out _);
                 if (!isValidRank)
                 {
-                    IsWarning = false;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Rank") : string.Format("{0}", "Incorrect Rank");
+                    v.Warn("Incorrect Rank");
                 }
             }
-            details.ErrorMessage = Message;
-            if (IsValid)
+            details.ErrorMessage = v.Message;
+            if (v.IsValid)
             {
                 details.TierNameId = Tier.NameId;
                 details.CategoryCategoryId = Category.CategoryId;
                 details.ThrustPAPKey = Thrust.PAPKey;
                 details.OriginNameId = Origin.NameId;
-                //details.CityGdbId = City.GdbId;
                 details.ProvinceCode = Province.Code;
-                //details.LDGdbId = LD.GdbId;
-                //details.OperatingUnitParticipantId = OperatingUnit.ParticipantId;
-                //details.ImplementingOfficeParticipantId = ImplementingOffice.ParticipantId;
-                //details.DeoParticipantId = Deo.ParticipantId;
-                //details.RegionParticipantId = Region.ParticipantId;
                 details.RegionWideNameId = RegionWide.NameId;
                 details.OriginNameId = Origin.NameId;
                 details.AgencyNameId = Agency.NameId;
@@ -411,7 +446,7 @@ namespace Hangfire.Importing
                 details.DetailedDesignNameId = DetailedDesign.NameId;
             }
 
-            return new ValidateProjectDetailsResponse { IsValid = IsValid, Message = Message, IsWarning = IsWarning };
+            return new ValidateProjectDetailsResponse { IsValid = v.IsValid, Message = v.Message, IsWarning = v.IsWarning };
         }
         #endregion
         #region Validation - Funding Profile
@@ -420,22 +455,17 @@ namespace Hangfire.Importing
         public static ValidateFundingProfileResponse ValidateFundingProfile(this MYPSDbContext _db,
             ImportFundingProfileExcel details, ImportLookupCache cache)
         {
-            bool IsValid = true, IsWarning = false;
-            string Message = string.Empty;
+            var v = new ValidationState();
 
-            var Agreement = cache.FundingAgreements.FirstOrDefault(x => x.Name == details.Agreement);
-            //var Agreement = _db.tOptionFundingAgreement.AsNoTracking().FirstOrDefault(x => x.Name == details.Agreement);
+            var Agreement = cache.FundingAgreements.FirstOrDefault(x => NamesMatch(x.Name, details.Agreement));
             if (Agreement == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Funding Agreement") : string.Format("{0}", "Incorrect Funding Agreement");
+                v.Fail("Incorrect Funding Agreement");
             }
-            var Source = cache.FundingSources.FirstOrDefault(x => x.Name == details.Source);
-            //var Source = _db.tOptionFundingSource.AsNoTracking().FirstOrDefault(x => x.Name == details.Source);
+            var Source = cache.FundingSources.FirstOrDefault(x => NamesMatch(x.Name, details.Source));
             if (Source == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Funding Source") : string.Format("{0}", "Incorrect Funding Source");
+                v.Fail("Incorrect Funding Source");
             }
             else
             {
@@ -443,8 +473,7 @@ namespace Hangfire.Importing
                 {
                     if (Source.Organization != Agreement.SourceOrg)
                     {
-                        IsValid = false;
-                        Message = Message.Length > 0 ? string.Format("{0}, Funding Source '{1}' does not match the required source organization for Agreement '{2}'. Expected Source Organization: '{3}'", Message, details.Source, details.Agreement, Agreement.SourceOrg) : string.Format("Funding Source '{0}' does not match the required source organization for Agreement '{1}'. Expected Source Organization: '{2}'", details.Source, details.Agreement, Agreement.SourceOrg);
+                        v.Fail($"Funding Source '{details.Source}' does not match the required source organization for Agreement '{details.Agreement}'. Expected Source Organization: '{Agreement.SourceOrg}'");
                     }
                 }
             }
@@ -452,17 +481,16 @@ namespace Hangfire.Importing
             bool isValidAmount = decimal.TryParse(details.Amount, NumberStyles.Currency, CultureInfo.GetCultureInfo("en-PH"), out amountValue);
             if (!isValidAmount)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Amount") : string.Format("{0}", "Incorrect Amount");
+                v.Fail("Incorrect Amount");
             }
-            details.ErrorMessage = Message;
-            if (IsValid)
+            details.ErrorMessage = v.Message;
+            if (v.IsValid)
             {
                 details.Amount = amountValue.ToString();
                 details.AgreementCode = Agreement.Code;
                 details.SourceOrg = Source.Organization;
             }
-            return new ValidateFundingProfileResponse { IsValid = IsValid, Message = Message, IsWarning = IsWarning };
+            return new ValidateFundingProfileResponse { IsValid = v.IsValid, Message = v.Message, IsWarning = v.IsWarning };
         }
         #endregion
         #region Validation - Component Details
@@ -470,153 +498,148 @@ namespace Hangfire.Importing
         { }
         public static ValidateComponentDetailsResponse ValidateComponentDetails(this MYPSDbContext _db, ImportComponentDetailsExcel details, List<ImportComponentDetailsExcel> componentCosts, ImportLookupCache cache)
         {
-            bool IsValid = true, IsWarning = false;
-            string Message = string.Empty;
+            var v = new ValidationState();
 
-            var Component = cache.Components.FirstOrDefault(x => x.ComponentName == details.ComponentType);
-            //var Component = _db.tOptionProjectComponent.AsNoTracking().FirstOrDefault(x => x.ComponentName == details.ComponentType);
+            var Component = cache.Components.FirstOrDefault(x => NamesMatch(x.ComponentName, details.ComponentType));
+
             if (Component == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Component Type") : string.Format("{0}", "Incorrect Component Type");
+                v.Fail("Incorrect Component Type");
             }
             else
             {
-                if (details.ComponentId.Trim().Length >= 2)
+                bool isCivilWorks = Component.ComponentName.Equals("Civil Works", StringComparison.OrdinalIgnoreCase);
+                string componentId = details.ComponentId?.Trim() ?? string.Empty;
+
+                if (componentId.Length < 2)
                 {
-                    if (details.ComponentId != Component.ComponentId)
-                    {
-                        if (!Component.ComponentName.Equals("Civil Works", StringComparison.OrdinalIgnoreCase))
-                        {
-                            IsValid = false;
-                            Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Component ID") : string.Format("{0}", "Incorrect Component ID");
-                        }
-                        else
-                        {
-                            if (details.ComponentId.Substring(0, 2) == "CW")
-                            {
-                                string excessOfComponentId = details.ComponentId.Substring(Component.ComponentId.Length);
-                                if (excessOfComponentId.Length > 0)
-                                {
-                                    int cntNumber = 0;
-                                    bool isValidExcessOfComponentId = int.TryParse(excessOfComponentId, out cntNumber);
-                                    if (!isValidExcessOfComponentId)
-                                    {
-                                        IsValid = false;
-                                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Component ID") : string.Format("{0}", "Incorrect Component ID");
-                                    }
-                                    else
-                                    {
-                                        //Check if correct numbering
-                                        var query = componentCosts.Where(x => x.ProjectId == details.ProjectId && x.ComponentType == details.ComponentType).ToList();
-                                        if (cntNumber > query.Count())
-                                        {
-                                            IsValid = false;
-                                            Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Component ID") : string.Format("{0}", "Incorrect Component ID");
-                                        }
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                IsValid = false;
-                                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Component ID") : string.Format("{0}", "Incorrect Component ID");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (Component.ComponentName.Equals("Civil Works", StringComparison.OrdinalIgnoreCase))
-                        {
-                            IsValid = false;
-                            Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Component ID") : string.Format("{0}", "Incorrect Component ID");
-                        }
-                    }
+                    // Too short to be a valid component ID.
+                    v.Fail("Incorrect Component ID");
+                }
+                else if (componentId == Component.ComponentId)
+                {
+                    // Exact base code — only allowed for non-Civil-Works components,
+                    // since Civil Works requires the numbered suffix scheme below.
+                    if (isCivilWorks)
+                        v.Fail("Incorrect Component ID");
+                }
+                else if (!isCivilWorks)
+                {
+                    // Any non-exact ID is invalid unless the component is Civil Works.
+                    v.Fail("Incorrect Component ID");
+                }
+                else if (componentId.Substring(0, 2) != "CW")
+                {
+                    v.Fail("Incorrect Component ID");
                 }
                 else
                 {
-                    IsValid = false;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Component ID") : string.Format("{0}", "Incorrect Component ID");
+                    // Civil Works allows a numbered suffix, e.g. "CW1", "CW2", ...
+                    string excessOfComponentId = componentId.Substring(Component.ComponentId.Length);
+                    if (excessOfComponentId.Length > 0)
+                    {
+                        if (!int.TryParse(excessOfComponentId, out int cntNumber))
+                        {
+                            v.Fail("Incorrect Component ID");
+                        }
+                        else
+                        {
+                            // Check if correct numbering
+                            int existingCount = componentCosts.Count(x => x.ProjectId == details.ProjectId && NamesMatch(x.ComponentType, details.ComponentType));
+                            if (cntNumber > existingCount)
+                            {
+                                v.Fail("Incorrect Component ID");
+                            }
+                        }
+                    }
                 }
             }
             decimal costValue;
             bool isValidCost = decimal.TryParse(details.Cost, NumberStyles.Currency, CultureInfo.GetCultureInfo("en-PH"), out costValue);
             if (!isValidCost)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Cost") : string.Format("{0}", "Incorrect Cost");
+                v.Fail("Incorrect Cost");
             }
-            if (details.StartDate != null)
+            DateTime? startDateValue = null, endDateValue = null;
+            if (!string.IsNullOrWhiteSpace(details.StartDate))
             {
-                if (details.StartDate.Trim().Length > 0)
+                bool isValidStartDate = DateTime.TryParse(details.StartDate, out var parsedStartDate);
+                if (!isValidStartDate)
                 {
-                    bool isValidStartDate = DateTime.TryParse(details.StartDate, out _);
-                    if (!isValidStartDate)
-                    {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Planned Start Date") : string.Format("{0}", "Incorrect Planned Start Date");
-                    }
+                    v.Warn("Incorrect Planned Start Date");
+                }
+                else
+                {
+                    startDateValue = parsedStartDate;
                 }
             }
-            if (details.EndDate != null)
+            if (!string.IsNullOrWhiteSpace(details.EndDate))
             {
-                if (details.EndDate.Trim().Length > 0)
+                bool isValidEndDate = DateTime.TryParse(details.EndDate, out var parsedEndDate);
+                if (!isValidEndDate)
                 {
-                    bool isValidEndDate = DateTime.TryParse(details.EndDate, out _);
-                    if (!isValidEndDate)
-                    {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Planned End Date") : string.Format("{0}", "Incorrect Planned End Date");
-                    }
+                    v.Warn("Incorrect Planned End Date");
+                }
+                else
+                {
+                    endDateValue = parsedEndDate;
                 }
             }
-            var InfraType = cache.InfraTypes.FirstOrDefault(x => x.InfraName == details.InfraType);
-            //var InfraType = _db.tOptionInfraType.AsNoTracking().FirstOrDefault(x => x.InfraName == details.InfraType);
+            var InfraType = cache.InfraTypes.FirstOrDefault(x => NamesMatch(x.InfraName, details.InfraType));
             if (InfraType == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Infrastructure Type") : string.Format("{0}", "Incorrect Infrastructure Type");
+                v.Fail("Incorrect Infrastructure Type");
             }
-            var ScopeOfWork = cache.ScopeOfWorks.Where(x => x.Description == details.WorkTypeId).ToList();
-            //var ScopeOfWork = _db.tOptionScopeOfWork.AsNoTracking().Where(x => x.Description == details.WorkTypeId);
-            if (ScopeOfWork == null)
+            var ScopeOfWork = cache.ScopeOfWorks.Where(x => NamesMatch(x.Description, details.WorkTypeId)).ToList();
+            if (ScopeOfWork.Count == 0)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Work Type") : string.Format("{0}", "Incorrect Work Type");
+                v.Fail("Incorrect Work Type");
             }
             int? ScopeOfWorkEnum = null;
-            if (InfraType != null && ScopeOfWork != null)
+            if (InfraType != null && ScopeOfWork.Count > 0)
             {
-                bool isValidCombi = false;
-                foreach (var x in ScopeOfWork)
+                var matchedScope = ScopeOfWork.FirstOrDefault(x => x.InfraType.Contains(InfraType.InfraCode));
+                if (matchedScope != null)
                 {
-                    if (x.InfraType.Contains(InfraType.InfraCode))
-                    {
-                        ScopeOfWorkEnum = x.Enum;
-                        isValidCombi = true;
-                        goto hill;
-                    }
+                    ScopeOfWorkEnum = matchedScope.Enum;
                 }
-            hill:
-                if (!isValidCombi)
+                else
                 {
-                    IsValid = false;
-                    Message = Message.Length > 0 ? string.Format("{0}, The selected Work Type '{1}' is not valid for the selected Infrastructure Type '{2}'. Please select a valid Work Type for the Infra Type", Message, details.WorkTypeId, details.InfraType) : string.Format("The selected Work Type '{0}' is not valid for the selected Infrastructure Type '{1}'. Please select a valid Work Type for the Infra Type", details.WorkTypeId, details.InfraType);
+                    v.Fail($"The selected Work Type '{details.WorkTypeId}' is not valid for the selected Infrastructure Type '{details.InfraType}'. Please select a valid Work Type for the Infra Type");
                 }
             }
-            if (!ValidateYear(details.ActiveYear, out _))
+            bool isValidActiveYear = ValidateYear(details.ActiveYear, out int activeYearValue);
+            if (!isValidActiveYear)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Activity Year") : string.Format("{0}", "Incorrect Activity Year");
+                v.Fail("Incorrect Activity Year");
             }
-            details.ErrorMessage = Message;
-            if (IsValid)
+
+            // ── Date range cross-check: only runs when ActiveYear, StartDate, and EndDate
+            // are ALL individually valid (StartDate/EndDate are otherwise optional fields,
+            // so this never fires just because one of them was left blank).
+            if (isValidActiveYear && startDateValue.HasValue && endDateValue.HasValue)
+            {
+                if (endDateValue.Value.Date < startDateValue.Value.Date)
+                {
+                    v.Warn("Planned End Date cannot be earlier than Planned Start Date");
+                }
+                if (startDateValue.Value.Year < activeYearValue)
+                {
+                    v.Warn("Planned Start Date cannot be earlier than the Active Year");
+                }
+                if (endDateValue.Value.Year < activeYearValue)
+                {
+                    v.Warn("Planned End Date cannot be earlier than the Active Year");
+                }
+            }
+            details.ErrorMessage = v.Message;
+            if (v.IsValid)
             {
                 details.Cost = costValue.ToString();
                 details.ScopeOfWorkEnum = ScopeOfWorkEnum; // tProjectMajorWorkItem.WorkTypeFK
                 details.InfraTypeInfraCode = InfraType.InfraCode; // tProjectMajorWorkItem.InfraTypeFK
             }
-            return new ValidateComponentDetailsResponse { IsValid = IsValid, Message = Message, IsWarning = IsWarning };
+            return new ValidateComponentDetailsResponse { IsValid = v.IsValid, Message = v.Message, IsWarning = v.IsWarning };
         }
         #endregion
         #region Validation - Major Items of Work
@@ -624,133 +647,121 @@ namespace Hangfire.Importing
         { }
         public static ValidateMajorItemsOfWorkResponse ValidateMajorItemsOfWork(this MYPSDbContext _db, ImportMajorItemsOfWorkExcel details, List<ImportComponentDetailsExcel> componentCost, ImportLookupCache cache)
         {
-            bool IsValid = true, IsWarning = false;
-            string Message = string.Empty;
+            var v = new ValidationState();
 
             var Component = componentCost.FirstOrDefault(x => x.ProjectId == details.ProjectId && x.ComponentId == details.ComponentId);
+
             if (Component == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Component ID") : string.Format("{0}", "Incorrect Component ID");
+                v.Fail("Incorrect Component ID");
             }
             string refId = string.Format("{0}-{1}", details.ProjectId, details.ComponentId);
             if (refId != details.ReferenceId)
             {
-                IsWarning = true;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Reference ID") : string.Format("{0}", "Incorrect Reference ID");
+                v.Warn("Incorrect Reference ID");
             }
-            if (details.InfrastructureId.Trim().Length == 0)
+            if (string.IsNullOrWhiteSpace(details.InfrastructureId))
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Infrastructure ID") : string.Format("{0}", "Incorrect Infrastructure ID");
+                v.Fail("Incorrect Infrastructure ID");
             }
+
+            // ── Special case: Roads items whose Infrastructure ID starts with 'S', and
+            // Bridges items whose Infrastructure ID starts with 'B', relax PhysicalTarget
+            // from a hard failure to a warning, and expect additional station/chainage/
+            // length data (checked further below, also warning-only).
+            bool isRoadsSCase = Component != null
+                && NamesMatch(Component.InfraType, "Roads")
+                && (details.InfrastructureId?.Trim().StartsWith("S", StringComparison.OrdinalIgnoreCase) ?? false);
+
+            bool isBridgesBCase = Component != null
+                && NamesMatch(Component.InfraType, "Bridges")
+                && (details.InfrastructureId?.Trim().StartsWith("B", StringComparison.OrdinalIgnoreCase) ?? false);
+
             string workTypeId = Component != null ? Component.WorkTypeId : "";
-            var TargetUnit = cache.ScopeOfWorks.FirstOrDefault(x => x.Description == workTypeId && x.Measure == details.TargetUnit);
-            //var TargetUnit = _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefault(x => x.Description == workTypeId && x.Measure == details.TargetUnit);
+            var TargetUnit = cache.ScopeOfWorks.FirstOrDefault(x => x.Description == workTypeId && NamesMatch(x.Measure, details.TargetUnit));
             if (TargetUnit == null)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Target Unit") : string.Format("{0}", "Incorrect Target Unit");
+                v.Fail("Incorrect Target Unit");
             }
-            if (details.StartX != null)
+            // ── StartX/StartY/EndX/EndY only apply outside the Roads-S / Bridges-B
+            // special cases, which use Station/Chainage instead of X/Y coordinates.
+            if (!isRoadsSCase && !isBridgesBCase)
             {
-                bool isValidStartX = double.TryParse(details.StartX, out var startXVal);
-                if (!isValidStartX)
+                if (details.StartX != null)
                 {
-                    IsWarning = true;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Start X") : string.Format("{0}", "Incorrect Start X");
-                }
-                else
-                {
-                    if (!(startXVal >= 116.66666666666666 && startXVal <= 126.59666666666665))
+                    bool isValidStartX = double.TryParse(details.StartX, out var startXVal);
+                    if (!isValidStartX)
                     {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Start X Range: 116.66666666666666 - 126.59666666666665") : string.Format("{0}", "Start X Range: 116.66666666666666 - 126.59666666666665");
+                        v.Warn("Incorrect Start X");
+                    }
+                    else
+                    {
+                        if (!(startXVal >= 116.66666666666666 && startXVal <= 126.59666666666665))
+                        {
+                            v.Warn("Start X Range: 116.66666666666666 - 126.59666666666665");
+                        }
+                    }
+                }
+                if (details.StartY != null)
+                {
+                    bool isValidStartY = double.TryParse(details.StartY, out var startYVal);
+                    if (!isValidStartY)
+                    {
+                        v.Warn("Incorrect Start Y");
+                    }
+                    else
+                    {
+                        if (!(startYVal >= 4.666666666666666 && startYVal <= 21.166666666666668))
+                        {
+                            v.Warn("Start Y Range: 4.666666666666666 - 21.166666666666668");
+                        }
+                    }
+                }
+                if (details.EndX != null)
+                {
+                    bool isValidEndX = double.TryParse(details.EndX, out var endXVal);
+                    if (!isValidEndX)
+                    {
+                        v.Warn("Incorrect End X");
+                    }
+                    else
+                    {
+                        if (!(endXVal >= 116.66666666666666 && endXVal <= 126.59666666666665))
+                        {
+                            v.Warn("End X Range: 116.66666666666666 - 126.59666666666665");
+                        }
+                    }
+                }
+                if (details.EndY != null)
+                {
+                    bool isValidEndY = double.TryParse(details.EndY, out var endYVal);
+                    if (!isValidEndY)
+                    {
+                        v.Warn("Incorrect End Y");
+                    }
+                    else
+                    {
+                        if (!(endYVal >= 4.666666666666666 && endYVal <= 21.166666666666668))
+                        {
+                            v.Warn("End Y Range: 4.666666666666666 - 21.166666666666668");
+                        }
                     }
                 }
             }
-            if (details.StartY != null)
+            if (details.PhysicalTarget != null)
             {
-                bool isValidStartY = double.TryParse(details.StartY, out var startYVal);
-                if (!isValidStartY)
+                bool isValidPhysicalTarget = decimal.TryParse(details.PhysicalTarget, out _);
+                if (!isValidPhysicalTarget)
                 {
-                    IsWarning = true;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Start Y") : string.Format("{0}", "Incorrect Start Y");
-                }
-                else
-                {
-                    if (!(startYVal >= 4.666666666666666 && startYVal <= 21.166666666666668))
-                    {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Start Y Range: 4.666666666666666 - 21.166666666666668") : string.Format("{0}", "Start Y Range: 4.666666666666666 - 21.166666666666668");
-                    }
+                    v.Warn("Incorrect Physical Target");
                 }
             }
-            if (details.EndX != null)
-            {
-                bool isValidEndX = double.TryParse(details.EndX, out var endXVal);
-                if (!isValidEndX)
-                {
-                    IsWarning = true;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect End X") : string.Format("{0}", "Incorrect End X");
-                }
-                else
-                {
-                    if (!(endXVal >= 116.66666666666666 && endXVal <= 126.59666666666665))
-                    {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "End X Range: 116.66666666666666 - 126.59666666666665") : string.Format("{0}", "End X Range: 116.66666666666666 - 126.59666666666665");
-                    }
-                }
-            }
-            if (details.EndY != null)
-            {
-                bool isValidEndY = double.TryParse(details.EndY, out var endYVal);
-                if (!isValidEndY)
-                {
-                    IsWarning = true;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect End Y") : string.Format("{0}", "Incorrect End Y");
-                }
-                else
-                {
-                    if (!(endYVal >= 4.666666666666666 && endYVal <= 21.166666666666668))
-                    {
-                        IsWarning = true;
-                        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "End Y Range: 4.666666666666666 - 21.166666666666668") : string.Format("{0}", "End Y Range: 4.666666666666666 - 21.166666666666668");
-                    }
-                }
-            }
-            bool isValidPhysicalTarget = decimal.TryParse(details.PhysicalTarget, out _);
-            if (!isValidPhysicalTarget)
-            {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Physical Target") : string.Format("{0}", "Incorrect Physical Target");
-            }
-            //if (details.StartStation != null)
-            //{
-            //    bool isValidStartStationLimit = decimal.TryParse(details.StartStation, out _);
-            //    if (!isValidStartStationLimit)
-            //    {
-            //        IsWarning = true;
-            //        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Start Station") : string.Format("{0}", "Incorrect Start Station");
-            //    }
-            //}
-            //if (details.EndStation != null)
-            //{
-            //    bool isValidEndStationLimit = decimal.TryParse(details.EndStation, out _);
-            //    if (!isValidEndStationLimit)
-            //    {
-            //        IsWarning = true;
-            //        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect End Station") : string.Format("{0}", "Incorrect End Station");
-            //    }
-            //}
             if (details.StartChainage != null)
             {
                 bool isValidStartChainage = decimal.TryParse(details.StartChainage, out _);
                 if (!isValidStartChainage)
                 {
-                    IsWarning = true;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Start Chainage") : string.Format("{0}", "Incorrect Start Chainage");
+                    v.Warn("Incorrect Start Chainage");
                 }
             }
             if (details.EndChainage != null)
@@ -758,8 +769,7 @@ namespace Hangfire.Importing
                 bool isValidEndChainage = decimal.TryParse(details.EndChainage, out _);
                 if (!isValidEndChainage)
                 {
-                    IsWarning = true;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect End Chainage") : string.Format("{0}", "Incorrect End Chainage");
+                    v.Warn("Incorrect End Chainage");
                 }
             }
             if (details.Length != null)
@@ -767,29 +777,43 @@ namespace Hangfire.Importing
                 bool isValidLength = decimal.TryParse(details.Length, out _);
                 if (!isValidLength)
                 {
-                    IsWarning = true;
-                    Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Length") : string.Format("{0}", "Incorrect Length");
+                    v.Warn("Incorrect Length");
                 }
             }
-            if (!ValidateYear(details.ActivityYear, out _))
+            // ── Same special case as above: Roads items whose Infrastructure ID starts with
+            // 'S', and Bridges items whose Infrastructure ID starts with 'B', have additional
+            // expected fields. Every check in this block is warning-only by design — it never
+            // fails the record, only flags missing/invalid supplementary data.
+            if (isRoadsSCase)
             {
-                IsValid = false;
-                Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Activity Year") : string.Format("{0}", "Incorrect Activity Year");
+                if (details.StartStation == null)
+                {
+                    v.Warn("Incorrect Start Chainage");
+                }
+                if (details.EndStation == null)
+                {
+                    v.Warn("Incorrect End Chainage");
+                }
             }
-            //if (details.ActivityYear != null)
-            //{
-            //    if (!ValidateYear(details.ActivityYear, out _))
-            //    {
-            //        IsWarning = true;
-            //        Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, "Incorrect Activity Year") : string.Format("{0}", "Incorrect Activity Year");
-            //    }
-            //}
-            details.ErrorMessage = Message;
-            if (IsValid)
+
+            bool isValidActivityYear = ValidateYear(details.ActivityYear, out int activityYearValue);
+            if (!isValidActivityYear)
+            {
+                v.Fail("Incorrect Activity Year");
+            }
+            else if (Component != null && ValidateYear(Component.ActiveYear, out int componentActiveYearValue))
+            {
+                if (activityYearValue < componentActiveYearValue)
+                {
+                    v.Fail($"Activity Year ({activityYearValue}) cannot be earlier than the Component's Active Year ({componentActiveYearValue})");
+                }
+            }
+            details.ErrorMessage = v.Message;
+            if (v.IsValid)
             {
                 details.TargetUnitId = TargetUnit.Id;
             }
-            return new ValidateMajorItemsOfWorkResponse { IsValid = IsValid, Message = Message, IsWarning = IsWarning };
+            return new ValidateMajorItemsOfWorkResponse { IsValid = v.IsValid, Message = v.Message, IsWarning = v.IsWarning };
         }
         #endregion
         #region Save - Project Details
@@ -814,29 +838,10 @@ namespace Hangfire.Importing
             string ProjectPK = await _db.GenerateProjectID(Request, cancellationToken);
 
             var ImportRef = new ImportProjectReference();
-            //string toSaveProjectId = _db.GenerateProjectID(ProgramDetails, Category, details.RegionIslandCode!);
-            //var parts = ProjectPK.Split("-");
-            //string baseId = ProjectPK.Replace("-", "");
-            //string ReferenceId = baseId;
-            //var check = Saved.Where(x => x.ThirdSegment == parts[2]).OrderByDescending(x => x.MaxId).FirstOrDefault(x => x.ThirdSegment == parts[2]);
-            //ImportRef.MaxId = parts[2];
-            //ImportRef.ThirdSegment = parts[2];
-            //if (check != null)
-            //{
-            //    ImportRef.MaxId = (int.Parse(check.MaxId) + 1).ToString();
-            //    ReferenceId = ProjectPK.Replace(parts[2], ImportRef.MaxId.ToString()).Replace("-", "");
-            //}
+
             ImportRef.OldProjectFK = details.ProjectId;
             ImportRef.NewProjectFK = ProjectPK;
 
-            /*
-            ImportProjectReference AddProject = new ImportProjectReference
-            {
-                OldProjectId = Item.ProjectId,
-                NewProjectId = string.Empty
-            };
-            AddProject.NewProjectId = Projects.Project.ReferenceId;
-             */
             string ProgramId = ProgramDetails.ProgramId;
             string ProgramFK = ProgramDetails.ProgramPK;
 
@@ -883,7 +888,6 @@ namespace Hangfire.Importing
                 RowAvailable = details.RowAvailableNameId!,
                 RegionWide = (int)details.RegionWideNameId!,
                 Tier = (int)details.TierNameId!,
-                //Tier = (details.Tier.Trim().Equals("Tier I", StringComparison.CurrentCultureIgnoreCase)) ? 1 : 2,
                 Rank = string.IsNullOrWhiteSpace(details.Rank) ? null : double.TryParse(details.Rank, out var rank) ? rank : null,
                 IsDeleted = false
             };
@@ -894,7 +898,6 @@ namespace Hangfire.Importing
                 ProgramId = ProgramDetails.ProgramId,
                 RevisionId = 0,
                 StageId = (EnumProgramStage)ProgramDetails.StageId,
-                //StageId = ProgramDetails.StageId,
                 StageName = ProgramDetails.StageName
             };
             return new SaveProjectResponse { IsValid = true, Message = string.Empty, Project = NewProject, ProjectRevision = NewProjectRevision, ProjectStage = ProjectStage, ImportReference = ImportRef };
@@ -949,21 +952,15 @@ namespace Hangfire.Importing
         public static SaveComponentCostPerYearResponse SaveComponentCostPerYear(this MYPSDbContext _db, ImportComponentDetailsExcel details, ImportComponentReference ComponentRef, string? Uacs)
         {
             DateTime? strStartDate = null, strEndDate = null;
-            if (details.StartDate != null)
+            if (!string.IsNullOrWhiteSpace(details.StartDate))
             {
-                if (details.StartDate.Trim().Length > 0)
-                {
-                    bool isValidStartDate = DateTime.TryParse(details.StartDate, out var startDate);
-                    if (isValidStartDate) strStartDate = startDate;
-                }
+                bool isValidStartDate = DateTime.TryParse(details.StartDate, out var startDate);
+                if (isValidStartDate) strStartDate = startDate;
             }
-            if (details.EndDate != null)
+            if (!string.IsNullOrWhiteSpace(details.EndDate))
             {
-                if (details.EndDate.Trim().Length > 0)
-                {
-                    bool isValidEndDate = DateTime.TryParse(details.EndDate, out var endDate);
-                    if (isValidEndDate) strEndDate = endDate;
-                }
+                bool isValidEndDate = DateTime.TryParse(details.EndDate, out var endDate);
+                if (isValidEndDate) strEndDate = endDate;
             }
             var NewComponentId = ComponentRef.NewComponentId;
             var ComponentCostPerYearProfile = new DBHelper.Models.Table.Project.ProjectComponentCostPerYear
