@@ -42,7 +42,7 @@ namespace WebAPI.Controllers.Auth
                 try
                 {
                     var hostEntry = await Dns.GetHostEntryAsync(ipAddress!);
-                    hostName = hostEntry.HostName;
+                    hostName = hostEntry.HostName.Replace(".","-");
                 }
                 catch
                 {
@@ -60,8 +60,24 @@ namespace WebAPI.Controllers.Auth
 
                 if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active."; return UnauthorizedUser("Invalid credentials. Please check your user ID and password and try again."); }
 
-                var request = new AuthenticatePIS(dto.UserName, dto.Password);
-                var employee = await APIRequest.XML(request);
+                // Local dev escape hatch. The PIS auth service lives at eptisa-dev.com,
+                // which only resolves on the Eptisa network — off VPN every login fails
+                // with "No such host is known". With PIS:BypassLogin set in
+                // appsettings.Development.json the password check is skipped; the
+                // vUsers lookup above still decides who may sign in. Never honoured
+                // outside Development, regardless of config.
+                bool bypassPIS = Appsetting.Environment == "Development" && Appsetting.PIS.BypassLogin;
+                string employee;
+                if (bypassPIS)
+                {
+                    Console.WriteLine($"[WARN] PIS:BypassLogin is ON — signing in '{dto.UserName}' without a password check.");
+                    employee = "Valid Login";
+                }
+                else
+                {
+                    var request = new AuthenticatePIS(verifyAccount.EmployeeId, dto.Password);
+                    employee = await APIRequest.XML(request);
+                }
                 if(employee.Contains("Valid Login"))
                 {
                     var claims = new List<Claim>
@@ -165,11 +181,11 @@ namespace WebAPI.Controllers.Auth
             }
         }
         [HttpPost]
-        public async Task<IActionResult> GetLoginLogs()
+        public async Task<IActionResult> GetLoginLogs(CancellationToken cancellationToken)
         {
             try
             {
-                var Logs = await _db.tLoginHistory.ToListAsync();
+                var Logs = await _db.tLoginHistory.ToListAsync(cancellationToken);
                 return Ok(new { LoginLogs = Logs });
             }
             catch (Exception ex) { 

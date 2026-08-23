@@ -53,9 +53,14 @@ const NotesForm: React.FC<NotesFormProps> = ({
   };
 
   const handleDeleteDoc = async (doc: ProjectSupportingDocs) => {
-    console.log('Deleting document:', doc);
+    const payload: ProjectSupportingDocs = {
+      ...doc,
+      ProjectId: initialData?.ProjectDetails?.ProjectId || doc.ProjectId,
+      StageName: initialData?.ProjectDetails?.StageName || '',
+    };
+    console.log('Deleting document:', payload);
     try {
-      const deletedDoc = await deleteDoc(doc); // Pass as array
+      const deletedDoc = await deleteDoc(payload);
       if (deletedDoc) {
         onDelete(doc);
         showToast({
@@ -101,7 +106,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {docs.map((doc, index) => (
+          {docs.filter((doc) => !doc.IsDeleted).map((doc, index) => (
             <TableRow key={`${doc.Id}-${index}-${doc.CreatedDate}`}>
               <TableCell className="w-lg text-center">
                 {doc.FileName && (
@@ -115,7 +120,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
                 )}
               </TableCell>
               <TableCell className="text-center">
-                <span className="text-xs text-gray-500 mt-1">{doc.DocumentType}</span>
+                <span className="text-xs text-gray-500 mt-1">{doc.Name}</span>
               </TableCell>
               <TableCell className="text-center">
                   <span title={doc.Description} className="text-xs text-gray-500 mt-1">{doc.Description}</span>

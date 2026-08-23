@@ -6,13 +6,16 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using System.Runtime.Loader;
 using Hangfire;
+using WebAPI.Services.Revision;
 
 namespace Main
 {
     public static class ServiceRegistration
     {
         #region Builder
-        public static IServiceCollection PrepareDatabaseConnection(this IServiceCollection Services)
+        public static IServiceCollection PrepareDatabaseConnection(
+            this IServiceCollection Services,
+            bool startHangfireServer = true)
         {
             // Pooled registration also provides IDbContextFactory<MYPSDbContext> for
             // short-lived, read-only contexts used to run independent lookup queries
@@ -42,7 +45,10 @@ namespace Main
                 .UseRecommendedSerializerSettings()
                 .UseSqlServerStorage(Appsetting.DbConnections.MYPSDb));
 
-            Services.AddHangfireServer();
+            if (startHangfireServer)
+            {
+                Services.AddHangfireServer();
+            }
 
             return Services;
         }
@@ -50,6 +56,7 @@ namespace Main
         {
             Services.AddHttpContextAccessor();
             Services.AddScoped<IMYPSExceptionHandler, ExceptionHandler>();
+            Services.AddScoped<IRevisionPcmaPublisher, RevisionPcmaPublisher>();
             Services.AddDistributedMemoryCache();
             Services.AddAuthentication(options =>
             {
@@ -99,7 +106,7 @@ namespace Main
                 });
             return Services;
         }
-        public static async Task<IServiceCollection> AuthRolesBasedOnDbAsync(this IServiceCollection services)
+        public static async Task<IServiceCollection> AuthRolesBasedOnDbAsync(this IServiceCollection services, CancellationToken cancellationToken)
         {
             try
             {
@@ -108,7 +115,7 @@ namespace Main
                 using (var scope = serviceProvider.CreateScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<MYPSDbContext>();
-                    var roles = await db.tGroups.Select(r => r.GroupName).ToListAsync();
+                    var roles = await db.tGroups.Select(r => r.GroupName).ToListAsync(cancellationToken);
                     if (roles != null)
                     {
                         services.AddAuthorization(options =>

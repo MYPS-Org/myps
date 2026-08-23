@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Text;
@@ -130,6 +132,17 @@ namespace Helpers
                 SqlException? sqlException =
                     FindSqlException(ex);
 
+                DbUpdateException? dbUpdateException =
+                    FindDbUpdateException(ex);
+
+                OperationDiagnosticInfo operationDiagnostic =
+                    BuildOperationDiagnostic(
+                        ex,
+                        rootException,
+                        sqlException,
+                        dbUpdateException,
+                        payloadInfo);
+
 
                 // =================================================
                 // BUILD LOG
@@ -141,6 +154,8 @@ namespace Helpers
                         ex,
                         rootException,
                         sqlException,
+                        dbUpdateException,
+                        operationDiagnostic,
                         payloadInfo,
                         userId);
 
@@ -161,8 +176,8 @@ namespace Helpers
 
                 string responseMessage =
                     _environment.IsDevelopment()
-                        ? rootException.Message
-                        : "An unexpected application error occurred.";
+                        ? $"{operationDiagnostic.FailureKind}: {operationDiagnostic.DeveloperMessage}"
+                        : operationDiagnostic.UserMessage ?? "An unexpected application error occurred.";
 
 
                 return new BadRequestObjectResult(
@@ -175,7 +190,7 @@ namespace Helpers
                             responseMessage,
 
                         Title =
-                            "Application Error"
+                            operationDiagnostic.FailureKind ?? "Application Error"
                     });
             }
             catch (Exception loggingException)
@@ -614,7 +629,7 @@ namespace Helpers
                     )
                     {
                         obj[propertyName] =
-                            "***REDACTED***";
+                            "[REDACTED]";
 
                         continue;
                     }
@@ -745,6 +760,37 @@ namespace Helpers
 
 
         // =========================================================
+        // FIND EF DB UPDATE EXCEPTION
+        // =========================================================
+
+        private static DbUpdateException? FindDbUpdateException(
+            Exception exception)
+        {
+            Exception? current =
+                exception;
+
+
+            while (current is not null)
+            {
+                if (
+                    current
+                    is DbUpdateException dbUpdateException
+                )
+                {
+                    return dbUpdateException;
+                }
+
+
+                current =
+                    current.InnerException;
+            }
+
+
+            return null;
+        }
+
+
+        // =========================================================
         // SQL ERROR DESCRIPTION
         // =========================================================
 
@@ -790,9 +836,938 @@ namespace Helpers
                 18456 =>
                     "SQL Server Login Failed",
 
+                245 =>
+                    "SQL Server Conversion Failed",
+
+                8114 =>
+                    "SQL Server Data Type Conversion Failed",
+
+                8115 =>
+                    "SQL Server Arithmetic Overflow",
+
                 _ =>
                     "SQL Server Error"
             };
+        }
+
+
+        // =========================================================
+        // DATABASE DIAGNOSTIC
+        // =========================================================
+
+        private static DatabaseDiagnosticInfo BuildDatabaseDiagnostic(
+            SqlException? sqlException,
+            DbUpdateException? dbUpdateException)
+        {
+            DatabaseDiagnosticInfo info =
+                new();
+
+
+            if (sqlException is not null)
+            {
+                SqlError? primaryError =
+                    sqlException.Errors.Count > 0
+                        ? sqlException.Errors[0]
+                        : null;
+
+
+                info.SqlNumber =
+                    primaryError?.Number
+                    ?? sqlException.Number;
+
+                info.SqlState =
+                    primaryError?.State
+                    ?? sqlException.State;
+
+                info.SqlClass =
+                    primaryError?.Class
+                    ?? sqlException.Class;
+
+                info.SqlProcedure =
+                    primaryError?.Procedure
+                    ?? sqlException.Procedure;
+
+                info.SqlLineNumber =
+                    primaryError?.LineNumber
+                    ?? sqlException.LineNumber;
+
+                info.Category =
+                    GetSqlErrorDescription(
+                        sqlException);
+
+
+                ApplySqlMessageDiagnostics(
+                    info,
+                    primaryError?.Message
+                    ?? sqlException.Message);
+
+
+                info.LikelyCause =
+                    BuildLikelyCause(
+                        info);
+
+                info.RecommendedAction =
+                    BuildRecommendedAction(
+                        info);
+            }
+
+
+            if (dbUpdateException is not null)
+            {
+                info.EntityEntries =
+                    BuildEfEntryDiagnostics(
+                        dbUpdateException);
+            }
+
+
+            return info;
+        }
+
+
+        // =========================================================
+        // OPERATION DIAGNOSTIC
+        // =========================================================
+
+        private OperationDiagnosticInfo BuildOperationDiagnostic(
+            Exception exception,
+            Exception rootException,
+            SqlException? sqlException,
+            DbUpdateException? dbUpdateException,
+            PayloadLogInfo payload)
+        {
+            OperationDiagnosticInfo info =
+                new();
+
+            Exception effectiveException =
+                rootException
+                ?? exception;
+
+            string message =
+                effectiveException.Message;
+
+            StackFrameInfo? appFrame =
+                GetFirstApplicationStackFrame(effectiveException)
+                ?? GetFirstApplicationStackFrame(exception);
+
+            if (appFrame is not null)
+            {
+                info.SourceFile =
+                    appFrame.File;
+
+                info.SourceLine =
+                    appFrame.Line;
+
+                info.Method =
+                    appFrame.Method;
+
+                info.DeclaringType =
+                    appFrame.DeclaringType;
+            }
+
+            if (dbUpdateException is not null)
+            {
+                info.FailureKind =
+                    "DatabaseSaveFailure";
+
+                info.OperationType =
+                    "SaveChanges";
+
+                info.IsDatabaseRelated =
+                    true;
+
+                info.IsDuringSaveChanges =
+                    true;
+
+                info.DeveloperMessage =
+                    "Entity Framework failed while saving tracked entity changes.";
+
+                info.UserMessage =
+                    "A database error occurred while saving the record.";
+
+                info.RecommendedFix =
+                    "Check SQL diagnostics and EF SAVECHANGES ENTRIES for the exact entity, table, column, and value.";
+
+                return info;
+            }
+
+            if (sqlException is not null)
+            {
+                info.FailureKind =
+                    "SqlServerFailure";
+
+                info.OperationType =
+                    "SqlCommand";
+
+                info.IsDatabaseRelated =
+                    true;
+
+                info.SqlErrorNumber =
+                    sqlException.Number;
+
+                info.SqlProcedure =
+                    string.IsNullOrWhiteSpace(sqlException.Procedure)
+                        ? null
+                        : sqlException.Procedure;
+
+                info.SqlLineNumber =
+                    sqlException.LineNumber;
+
+                info.DeveloperMessage =
+                    GetSqlErrorDescription(sqlException)
+                    ?? "SQL Server rejected the command.";
+
+                info.UserMessage =
+                    "A database error occurred while processing the request.";
+
+                info.RecommendedFix =
+                    "Review SQL SERVER ERROR and DATABASE DIAGNOSTIC SUMMARY for the failing object.";
+
+                return info;
+            }
+
+            if (
+                effectiveException is InvalidOperationException
+                &&
+                message.Contains(
+                    "Nullable object must have a value",
+                    StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                info.FailureKind =
+                    "NullableValueAccess";
+
+                info.OperationType =
+                    "ValidationOrMapping";
+
+                info.DeveloperMessage =
+                    "A nullable value was accessed using .Value while it was null.";
+
+                info.UserMessage =
+                    "A required value was missing or invalid.";
+
+                info.LikelyField =
+                    GuessNullableFieldFromPayload(
+                        payload,
+                        info);
+
+                info.LikelyCause =
+                    info.LikelyField is null
+                        ? "A nullable field was accessed before checking HasValue/null."
+                        : $"{info.LikelyField} is null but code accessed {info.LikelyField}.Value.";
+
+                info.RecommendedFix =
+                    info.LikelyField is null
+                        ? "Find the nullable .Value access at the failure line and add a null check before accessing .Value."
+                        : $"Check {info.LikelyField} == null before accessing {info.LikelyField}.Value.";
+
+                return info;
+            }
+
+            if (
+                effectiveException is InvalidOperationException
+                &&
+                message.Contains(
+                    "non-composable SQL",
+                    StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                info.FailureKind =
+                    "EfNonComposableSql";
+
+                info.OperationType =
+                    "StoredProcedureScalarQuery";
+
+                info.IsDatabaseRelated =
+                    true;
+
+                info.IsDuringQueryExecution =
+                    true;
+
+                info.DeveloperMessage =
+                    "EF Core tried to compose LINQ over a non-composable SQL command such as EXEC.";
+
+                info.UserMessage =
+                    "A database query failed while processing the request.";
+
+                info.LikelyCause =
+                    "A stored procedure EXEC was followed by SingleAsync/FirstAsync/Where or another composable LINQ operation.";
+
+                info.RecommendedFix =
+                    "Materialize the EXEC result first using AsEnumerable().Single(), ToList(), Dapper, or ADO.NET.";
+
+                info.ExpectedResultShape =
+                    "Single scalar result";
+
+                return info;
+            }
+
+            if (
+                effectiveException is TimeoutException
+                ||
+                message.Contains(
+                    "timeout",
+                    StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                info.FailureKind =
+                    "Timeout";
+
+                info.OperationType =
+                    "LongRunningOperation";
+
+                info.DeveloperMessage =
+                    "The operation exceeded its allowed execution time.";
+
+                info.UserMessage =
+                    "The request took too long to finish.";
+
+                info.RecommendedFix =
+                    "Check long-running SQL, external calls, locks, and command timeout settings.";
+
+                return info;
+            }
+
+            info.FailureKind =
+                effectiveException.GetType().Name;
+
+            info.OperationType =
+                "Application";
+
+            info.DeveloperMessage =
+                message;
+
+            info.UserMessage =
+                "An unexpected server error occurred.";
+
+            info.RecommendedFix =
+                "Use the failure location, payload summary, and stack trace to identify the failing code path.";
+
+            return info;
+        }
+
+
+        private static StackFrameInfo? GetFirstApplicationStackFrame(
+            Exception exception)
+        {
+            if (exception.StackTrace is null)
+            {
+                return null;
+            }
+
+            string[] lines =
+                exception.StackTrace.Split(
+                    Environment.NewLine,
+                    StringSplitOptions.RemoveEmptyEntries
+                    |
+                    StringSplitOptions.TrimEntries);
+
+            foreach (string line in lines)
+            {
+                if (
+                    !line.Contains(
+                        "project_myps",
+                        StringComparison.OrdinalIgnoreCase)
+                    &&
+                    !line.Contains(
+                        "WebAPI.",
+                        StringComparison.OrdinalIgnoreCase)
+                    &&
+                    !line.Contains(
+                        "Helpers.",
+                        StringComparison.OrdinalIgnoreCase)
+                    &&
+                    !line.Contains(
+                        "DBHelper.",
+                        StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    continue;
+                }
+
+                Match match =
+                    Regex.Match(
+                        line,
+                        @"at\s+(?<method>.+?)\s+in\s+(?<file>.+?):line\s+(?<line>\d+)",
+                        RegexOptions.IgnoreCase);
+
+                if (!match.Success)
+                {
+                    continue;
+                }
+
+                string method =
+                    match.Groups["method"].Value;
+
+                string? declaringType =
+                    null;
+
+                int parenIndex =
+                    method.IndexOf('(');
+
+                string methodWithoutParams =
+                    parenIndex >= 0
+                        ? method[..parenIndex]
+                        : method;
+
+                int lastDot =
+                    methodWithoutParams.LastIndexOf('.');
+
+                if (lastDot > 0)
+                {
+                    declaringType =
+                        methodWithoutParams[..lastDot];
+                }
+
+                return new StackFrameInfo
+                {
+                    Method =
+                        method,
+
+                    DeclaringType =
+                        declaringType,
+
+                    File =
+                        match.Groups["file"].Value,
+
+                    Line =
+                        int.TryParse(
+                            match.Groups["line"].Value,
+                            out int lineNumber)
+                            ? lineNumber
+                            : null
+                };
+            }
+
+            return null;
+        }
+
+
+        private static string? GuessNullableFieldFromPayload(
+            PayloadLogInfo payload,
+            OperationDiagnosticInfo info)
+        {
+            if (
+                string.IsNullOrWhiteSpace(payload.Json)
+                ||
+                payload.Json == "null"
+            )
+            {
+                return null;
+            }
+
+            try
+            {
+                using JsonDocument document =
+                    JsonDocument.Parse(payload.Json);
+
+                List<string> nullFields =
+                    [];
+
+                CollectNullFields(
+                    document.RootElement,
+                    nullFields,
+                    null);
+
+                if (nullFields.Count == 0)
+                {
+                    return null;
+                }
+
+                string locationText =
+                    $"{info.Method} {info.SourceFile}"
+                        .ToLowerInvariant();
+
+                foreach (string field in nullFields)
+                {
+                    string leaf =
+                        field
+                            .Split('.')
+                            .Last();
+
+                    if (
+                        locationText.Contains(
+                            leaf.ToLowerInvariant())
+                    )
+                    {
+                        return field;
+                    }
+                }
+
+                string[] commonRequiredDateFields =
+                [
+                    "DetailedDesignDate",
+                    "FeasibilityDate",
+                    "MYCAApprovalDate",
+                    "StartDate",
+                    "EndDate"
+                ];
+
+                foreach (string common in commonRequiredDateFields)
+                {
+                    string? match =
+                        nullFields.FirstOrDefault(
+                            x =>
+                                x.EndsWith(
+                                    common,
+                                    StringComparison.OrdinalIgnoreCase));
+
+                    if (match is not null)
+                    {
+                        return match;
+                    }
+                }
+
+                return nullFields.FirstOrDefault();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+
+        private static void CollectNullFields(
+            JsonElement element,
+            List<string> nullFields,
+            string? path)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (JsonProperty property in element.EnumerateObject())
+                    {
+                        string childPath =
+                            string.IsNullOrWhiteSpace(path)
+                                ? property.Name
+                                : $"{path}.{property.Name}";
+
+                        if (property.Value.ValueKind == JsonValueKind.Null)
+                        {
+                            nullFields.Add(
+                                childPath);
+                        }
+                        else
+                        {
+                            CollectNullFields(
+                                property.Value,
+                                nullFields,
+                                childPath);
+                        }
+                    }
+
+                    break;
+
+                case JsonValueKind.Array:
+                    int index =
+                        0;
+
+                    foreach (JsonElement item in element.EnumerateArray())
+                    {
+                        CollectNullFields(
+                            item,
+                            nullFields,
+                            $"{path}[{index}]");
+
+                        index++;
+                    }
+
+                    break;
+            }
+        }
+
+
+        private static void ApplySqlMessageDiagnostics(
+            DatabaseDiagnosticInfo info,
+            string sqlMessage)
+        {
+            if (string.IsNullOrWhiteSpace(sqlMessage))
+            {
+                return;
+            }
+
+
+            info.SqlMessage =
+                sqlMessage;
+
+
+            Match nullColumnMatch =
+                Regex.Match(
+                    sqlMessage,
+                    @"Cannot\s+insert\s+the\s+value\s+NULL\s+into\s+column\s+'(?<column>[^']+)'\s*,\s*table\s+'(?<table>[^']+)'",
+                    RegexOptions.IgnoreCase);
+
+            if (nullColumnMatch.Success)
+            {
+                info.ColumnName =
+                    nullColumnMatch.Groups["column"].Value;
+
+                info.TableName =
+                    nullColumnMatch.Groups["table"].Value;
+            }
+
+
+            Match truncationMatch =
+                Regex.Match(
+                    sqlMessage,
+                    @"truncated\s+in\s+table\s+'(?<table>[^']+)'\s*,\s*column\s+'(?<column>[^']+)'\s*\.\s*Truncated\s+value:\s+'(?<value>[^']*)'",
+                    RegexOptions.IgnoreCase);
+
+            if (truncationMatch.Success)
+            {
+                info.TableName =
+                    truncationMatch.Groups["table"].Value;
+
+                info.ColumnName =
+                    truncationMatch.Groups["column"].Value;
+
+                info.TruncatedValue =
+                    truncationMatch.Groups["value"].Value;
+            }
+
+
+            Match constraintMatch =
+                Regex.Match(
+                    sqlMessage,
+                    @"constraint\s+[""'](?<constraint>[^""']+)[""']",
+                    RegexOptions.IgnoreCase);
+
+            if (constraintMatch.Success)
+            {
+                info.ConstraintName =
+                    constraintMatch.Groups["constraint"].Value;
+            }
+
+
+            Match conflictLocationMatch =
+                Regex.Match(
+                    sqlMessage,
+                    @"table\s+[""'](?<table>[^""']+)[""']\s*,\s*column\s+[""'](?<column>[^""']+)[""']",
+                    RegexOptions.IgnoreCase);
+
+            if (conflictLocationMatch.Success)
+            {
+                info.ConflictingTableName =
+                    conflictLocationMatch.Groups["table"].Value;
+
+                info.ConflictingColumnName =
+                    conflictLocationMatch.Groups["column"].Value;
+            }
+
+
+            Match duplicateObjectMatch =
+                Regex.Match(
+                    sqlMessage,
+                    @"duplicate\s+key\s+in\s+object\s+'(?<object>[^']+)'",
+                    RegexOptions.IgnoreCase);
+
+            if (duplicateObjectMatch.Success)
+            {
+                info.ObjectName =
+                    duplicateObjectMatch.Groups["object"].Value;
+            }
+
+
+            Match duplicateValueMatch =
+                Regex.Match(
+                    sqlMessage,
+                    @"duplicate\s+key\s+value\s+is\s+\((?<value>[^)]*)\)",
+                    RegexOptions.IgnoreCase);
+
+            if (duplicateValueMatch.Success)
+            {
+                info.DuplicateKeyValue =
+                    duplicateValueMatch.Groups["value"].Value;
+            }
+
+
+            Match invalidObjectMatch =
+                Regex.Match(
+                    sqlMessage,
+                    @"Invalid\s+object\s+name\s+'(?<object>[^']+)'",
+                    RegexOptions.IgnoreCase);
+
+            if (invalidObjectMatch.Success)
+            {
+                info.ObjectName =
+                    invalidObjectMatch.Groups["object"].Value;
+            }
+
+
+            Match invalidColumnMatch =
+                Regex.Match(
+                    sqlMessage,
+                    @"Invalid\s+column\s+name\s+'(?<column>[^']+)'",
+                    RegexOptions.IgnoreCase);
+
+            if (invalidColumnMatch.Success)
+            {
+                info.ColumnName =
+                    invalidColumnMatch.Groups["column"].Value;
+            }
+        }
+
+
+        private static string BuildLikelyCause(
+            DatabaseDiagnosticInfo info)
+        {
+            return info.SqlNumber switch
+            {
+                515 =>
+                    $"A required database column received NULL: {FormatTableColumn(info.TableName, info.ColumnName)}.",
+
+                547 =>
+                    $"A foreign-key/check constraint rejected the data: {info.ConstraintName ?? "constraint name unavailable"}.",
+
+                2601 or 2627 =>
+                    $"A duplicate key was inserted for {info.ObjectName ?? info.TableName ?? "an indexed object"}.",
+
+                8152 or 2628 =>
+                    $"A string/binary value is longer than the target column: {FormatTableColumn(info.TableName, info.ColumnName)}.",
+
+                208 =>
+                    $"The SQL object does not exist or is not visible: {info.ObjectName ?? "object name unavailable"}.",
+
+                207 =>
+                    $"The SQL column does not exist in the queried object: {info.ColumnName ?? "column name unavailable"}.",
+
+                245 or 8114 =>
+                    "A value could not be converted to the target SQL data type.",
+
+                8115 =>
+                    "A numeric/date value overflowed the target SQL data type.",
+
+                1205 =>
+                    "The transaction was chosen as a SQL Server deadlock victim.",
+
+                _ =>
+                    "SQL Server rejected the command. Review SQL error details and EF entry diagnostics below."
+            };
+        }
+
+
+        private static string BuildRecommendedAction(
+            DatabaseDiagnosticInfo info)
+        {
+            return info.SqlNumber switch
+            {
+                515 =>
+                    $"Populate {FormatTableColumn(info.TableName, info.ColumnName)} before SaveChanges, make the column nullable, or configure a database/default value if NULL is valid.",
+
+                547 =>
+                    $"Verify the referenced parent row/check condition for constraint {info.ConstraintName ?? "(unknown)"}. Check FK values in the EF entry diagnostics.",
+
+                2601 or 2627 =>
+                    $"Check duplicate key value {info.DuplicateKeyValue ?? "(unknown)"}. Use an existing row, generate a unique key, or handle idempotent updates.",
+
+                8152 or 2628 =>
+                    $"Trim/validate the source value or increase the target column length for {FormatTableColumn(info.TableName, info.ColumnName)}.",
+
+                208 =>
+                    "Verify the table/view/function exists in the target database and that the connection string points to the expected database.",
+
+                207 =>
+                    "Verify EF/raw SQL column names against the deployed database schema.",
+
+                245 or 8114 =>
+                    "Validate DTO/entity values before saving and check mismatched EF property type vs SQL column type.",
+
+                8115 =>
+                    "Check numeric precision/scale, date range, and target SQL column type.",
+
+                1205 =>
+                    "Retry the transaction and review lock order/long-running queries.",
+
+                _ =>
+                    "Use the SQL message plus EF entity/property diagnostics to identify the failing table and value."
+            };
+        }
+
+
+        private static List<EfEntryDiagnosticInfo> BuildEfEntryDiagnostics(
+            DbUpdateException dbUpdateException)
+        {
+            List<EfEntryDiagnosticInfo> result =
+                [];
+
+
+            foreach (
+                EntityEntry entry
+                in dbUpdateException.Entries
+            )
+            {
+                EfEntryDiagnosticInfo entryInfo =
+                    new()
+                    {
+                        EntityType =
+                            entry.Metadata.ClrType.FullName
+                            ?? entry.Metadata.ClrType.Name,
+
+                        Table =
+                            entry.Metadata.GetTableName(),
+
+                        Schema =
+                            entry.Metadata.GetSchema(),
+
+                        State =
+                            entry.State.ToString()
+                    };
+
+
+                foreach (
+                    PropertyEntry property
+                    in entry.Properties
+                )
+                {
+                    string propertyName =
+                        property.Metadata.Name;
+
+                    bool isSensitive =
+                        SensitivePropertyNames.Contains(
+                            propertyName);
+
+
+                    entryInfo.Properties.Add(
+                        new EfPropertyDiagnosticInfo
+                        {
+                            Name =
+                                propertyName,
+
+                            Column =
+                                property.Metadata.GetColumnName(),
+
+                            IsModified =
+                                property.IsModified,
+
+                            IsPrimaryKey =
+                                property.Metadata.IsPrimaryKey(),
+
+                            IsForeignKey =
+                                property.Metadata.IsForeignKey(),
+
+                            IsNullable =
+                                property.Metadata.IsNullable,
+
+                            CurrentValue =
+                                isSensitive
+                                    ? "***REDACTED***"
+                                    : FormatDiagnosticValue(
+                                        property.CurrentValue),
+
+                            OriginalValue =
+                                isSensitive
+                                    ? "***REDACTED***"
+                                    : SafeGetOriginalValue(
+                                        property)
+                        });
+                }
+
+
+                result.Add(entryInfo);
+            }
+
+
+            return result;
+        }
+
+
+        private static string SafeGetOriginalValue(
+            PropertyEntry property)
+        {
+            try
+            {
+                return FormatDiagnosticValue(
+                    property.OriginalValue);
+            }
+            catch
+            {
+                return "[ORIGINAL VALUE NOT AVAILABLE]";
+            }
+        }
+
+
+        private static string FormatDiagnosticValue(
+            object? value)
+        {
+            if (value is null)
+            {
+                return "NULL";
+            }
+
+
+            string text =
+                value switch
+                {
+                    DateTime dateTime =>
+                        dateTime.ToString("O"),
+
+                    DateTimeOffset dateTimeOffset =>
+                        dateTimeOffset.ToString("O"),
+
+                    byte[] bytes =>
+                        $"ByteArray[{bytes.Length}]",
+
+                    _ =>
+                        Convert.ToString(value)
+                        ?? string.Empty
+                };
+
+
+            return TruncateForSingleLine(
+                text,
+                500);
+        }
+
+
+        private static string FormatTableColumn(
+            string? tableName,
+            string? columnName)
+        {
+            if (
+                string.IsNullOrWhiteSpace(tableName)
+                &&
+                string.IsNullOrWhiteSpace(columnName)
+            )
+            {
+                return "unknown table/column";
+            }
+
+
+            if (string.IsNullOrWhiteSpace(tableName))
+            {
+                return columnName!;
+            }
+
+
+            if (string.IsNullOrWhiteSpace(columnName))
+            {
+                return tableName!;
+            }
+
+
+            return $"{tableName}.{columnName}";
+        }
+
+
+        private static string TruncateForSingleLine(
+            string value,
+            int maximumLength)
+        {
+            string singleLine =
+                value
+                    .Replace("\r", "\\r")
+                    .Replace("\n", "\\n");
+
+
+            if (singleLine.Length <= maximumLength)
+            {
+                return singleLine;
+            }
+
+
+            return
+                singleLine[..maximumLength]
+                +
+                $"...[TRUNCATED {singleLine.Length:N0} CHARS]";
         }
 
 
@@ -875,6 +1850,8 @@ namespace Helpers
             Exception exception,
             Exception rootException,
             SqlException? sqlException,
+            DbUpdateException? dbUpdateException,
+            OperationDiagnosticInfo operationDiagnostic,
             PayloadLogInfo payload,
             string? userId)
         {
@@ -895,6 +1872,11 @@ namespace Helpers
             string? constraintName =
                 TryExtractConstraintName(
                     sqlException);
+
+            DatabaseDiagnosticInfo databaseDiagnostic =
+                BuildDatabaseDiagnostic(
+                    sqlException,
+                    dbUpdateException);
 
 
             // =====================================================
@@ -973,6 +1955,124 @@ namespace Helpers
             builder.AppendLine(
                 $"UserId: {userId ?? "Not Available"}");
 
+
+            builder.AppendLine();
+
+
+            // =====================================================
+            // ERROR SUMMARY
+            // =====================================================
+
+            builder.AppendLine(
+                "ERROR SUMMARY");
+
+            builder.AppendLine(
+                "-------------");
+
+            builder.AppendLine(
+                $"FailureKind: {operationDiagnostic.FailureKind ?? "Not Available"}");
+
+            builder.AppendLine(
+                $"OperationType: {operationDiagnostic.OperationType ?? "Not Available"}");
+
+            builder.AppendLine(
+                $"DeveloperMessage: {operationDiagnostic.DeveloperMessage ?? "Not Available"}");
+
+            builder.AppendLine(
+                $"UserMessage: {operationDiagnostic.UserMessage ?? "Not Available"}");
+
+            builder.AppendLine();
+
+
+            // =====================================================
+            // FAILURE LOCATION
+            // =====================================================
+
+            builder.AppendLine(
+                "FAILURE LOCATION");
+
+            builder.AppendLine(
+                "----------------");
+
+            builder.AppendLine(
+                $"DeclaringType: {operationDiagnostic.DeclaringType ?? "Not Available"}");
+
+            builder.AppendLine(
+                $"Method: {operationDiagnostic.Method ?? "Not Available"}");
+
+            builder.AppendLine(
+                $"SourceFile: {operationDiagnostic.SourceFile ?? "Not Available"}");
+
+            builder.AppendLine(
+                $"SourceLine: {operationDiagnostic.SourceLine?.ToString() ?? "Not Available"}");
+
+            builder.AppendLine();
+
+
+            // =====================================================
+            // FAILED OPERATION
+            // =====================================================
+
+            builder.AppendLine(
+                "FAILED OPERATION");
+
+            builder.AppendLine(
+                "----------------");
+
+            builder.AppendLine(
+                $"IsDatabaseRelated: {operationDiagnostic.IsDatabaseRelated}");
+
+            builder.AppendLine(
+                $"IsDuringSaveChanges: {operationDiagnostic.IsDuringSaveChanges}");
+
+            builder.AppendLine(
+                $"IsDuringQueryExecution: {operationDiagnostic.IsDuringQueryExecution}");
+
+            builder.AppendLine(
+                $"LikelyField: {operationDiagnostic.LikelyField ?? "Not Available"}");
+
+            builder.AppendLine(
+                $"LikelyCause: {operationDiagnostic.LikelyCause ?? "Not Available"}");
+
+            builder.AppendLine();
+
+            if (operationDiagnostic.IsDatabaseRelated)
+            {
+                builder.AppendLine(
+                    "SQL / EF DIAGNOSTICS");
+
+                builder.AppendLine(
+                    "--------------------");
+
+                builder.AppendLine(
+                    $"SqlErrorNumber: {operationDiagnostic.SqlErrorNumber?.ToString() ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"SqlProcedure: {operationDiagnostic.SqlProcedure ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"SqlLineNumber: {operationDiagnostic.SqlLineNumber?.ToString() ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"ExpectedResultShape: {operationDiagnostic.ExpectedResultShape ?? "Not Available"}");
+
+                builder.AppendLine();
+            }
+
+
+            // =====================================================
+            // RECOMMENDED FIX
+            // =====================================================
+
+            builder.AppendLine(
+                "RECOMMENDED FIX");
+
+            builder.AppendLine(
+                "---------------");
+
+            builder.AppendLine(
+                operationDiagnostic.RecommendedFix
+                ?? "Review stack trace, payload, and diagnostics.");
 
             builder.AppendLine();
 
@@ -1208,6 +2308,113 @@ namespace Helpers
 
 
             // =====================================================
+            // DATABASE DIAGNOSTIC SUMMARY
+            // =====================================================
+
+            if (
+                sqlException is not null
+                ||
+                dbUpdateException is not null
+            )
+            {
+                builder.AppendLine(
+                    "DATABASE DIAGNOSTIC SUMMARY");
+
+                builder.AppendLine(
+                    "---------------------------");
+
+                builder.AppendLine(
+                    $"Category: {databaseDiagnostic.Category ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"LikelyCause: {databaseDiagnostic.LikelyCause ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"RecommendedAction: {databaseDiagnostic.RecommendedAction ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"Table: {databaseDiagnostic.TableName ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"Column: {databaseDiagnostic.ColumnName ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"Constraint: {databaseDiagnostic.ConstraintName ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"ConflictingTable: {databaseDiagnostic.ConflictingTableName ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"ConflictingColumn: {databaseDiagnostic.ConflictingColumnName ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"Object: {databaseDiagnostic.ObjectName ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"DuplicateKeyValue: {databaseDiagnostic.DuplicateKeyValue ?? "Not Available"}");
+
+                builder.AppendLine(
+                    $"TruncatedValue: {databaseDiagnostic.TruncatedValue ?? "Not Available"}");
+
+                builder.AppendLine();
+            }
+
+
+            // =====================================================
+            // EF SAVECHANGES ENTRIES
+            // =====================================================
+
+            if (databaseDiagnostic.EntityEntries.Count > 0)
+            {
+                builder.AppendLine(
+                    "EF SAVECHANGES ENTRIES");
+
+                builder.AppendLine(
+                    "----------------------");
+
+
+                foreach (
+                    EfEntryDiagnosticInfo entry
+                    in databaseDiagnostic.EntityEntries
+                )
+                {
+                    builder.AppendLine(
+                        $"Entity: {entry.EntityType}");
+
+                    builder.AppendLine(
+                        $"Table: {entry.Schema ?? "dbo"}.{entry.Table ?? "Not Available"}");
+
+                    builder.AppendLine(
+                        $"State: {entry.State}");
+
+                    builder.AppendLine(
+                        "Properties:");
+
+
+                    foreach (
+                        EfPropertyDiagnosticInfo property
+                        in entry.Properties
+                    )
+                    {
+                        builder.AppendLine(
+                            "- " +
+                            $"Property={property.Name}, " +
+                            $"Column={property.Column ?? "Not Available"}, " +
+                            $"Current={property.CurrentValue}, " +
+                            $"Original={property.OriginalValue}, " +
+                            $"Modified={property.IsModified}, " +
+                            $"PK={property.IsPrimaryKey}, " +
+                            $"FK={property.IsForeignKey}, " +
+                            $"Nullable={property.IsNullable}");
+                    }
+
+
+                    builder.AppendLine();
+                }
+            }
+
+
+            // =====================================================
             // FOOTER
             // =====================================================
 
@@ -1257,6 +2464,143 @@ namespace Helpers
 
             public List<string> CollectionSummary { get; set; }
                 = [];
+        }
+
+
+        // =========================================================
+        // DATABASE DIAGNOSTIC MODELS
+        // =========================================================
+
+        private sealed class OperationDiagnosticInfo
+        {
+            public string? FailureKind { get; set; }
+
+            public string? OperationType { get; set; }
+
+            public string? DeveloperMessage { get; set; }
+
+            public string? UserMessage { get; set; }
+
+            public string? LikelyCause { get; set; }
+
+            public string? RecommendedFix { get; set; }
+
+            public string? DeclaringType { get; set; }
+
+            public string? Method { get; set; }
+
+            public string? SourceFile { get; set; }
+
+            public int? SourceLine { get; set; }
+
+            public bool IsDatabaseRelated { get; set; }
+
+            public bool IsDuringSaveChanges { get; set; }
+
+            public bool IsDuringQueryExecution { get; set; }
+
+            public int? SqlErrorNumber { get; set; }
+
+            public string? SqlProcedure { get; set; }
+
+            public int? SqlLineNumber { get; set; }
+
+            public string? ExpectedResultShape { get; set; }
+
+            public string? LikelyField { get; set; }
+        }
+
+
+        private sealed class StackFrameInfo
+        {
+            public string? Method { get; set; }
+
+            public string? DeclaringType { get; set; }
+
+            public string? File { get; set; }
+
+            public int? Line { get; set; }
+        }
+
+
+        private sealed class DatabaseDiagnosticInfo
+        {
+            public int? SqlNumber { get; set; }
+
+            public byte? SqlState { get; set; }
+
+            public byte? SqlClass { get; set; }
+
+            public string? SqlProcedure { get; set; }
+
+            public int? SqlLineNumber { get; set; }
+
+            public string? SqlMessage { get; set; }
+
+            public string? Category { get; set; }
+
+            public string? LikelyCause { get; set; }
+
+            public string? RecommendedAction { get; set; }
+
+            public string? TableName { get; set; }
+
+            public string? ColumnName { get; set; }
+
+            public string? ConstraintName { get; set; }
+
+            public string? ConflictingTableName { get; set; }
+
+            public string? ConflictingColumnName { get; set; }
+
+            public string? ObjectName { get; set; }
+
+            public string? DuplicateKeyValue { get; set; }
+
+            public string? TruncatedValue { get; set; }
+
+            public List<EfEntryDiagnosticInfo> EntityEntries { get; set; }
+                = [];
+        }
+
+
+        private sealed class EfEntryDiagnosticInfo
+        {
+            public string EntityType { get; set; }
+                = string.Empty;
+
+            public string? Table { get; set; }
+
+            public string? Schema { get; set; }
+
+            public string State { get; set; }
+                = string.Empty;
+
+            public List<EfPropertyDiagnosticInfo> Properties { get; set; }
+                = [];
+        }
+
+
+        private sealed class EfPropertyDiagnosticInfo
+        {
+            public string Name { get; set; }
+                = string.Empty;
+
+            public string? Column { get; set; }
+
+            public string CurrentValue { get; set; }
+                = string.Empty;
+
+            public string OriginalValue { get; set; }
+                = string.Empty;
+
+            public bool IsModified { get; set; }
+
+            public bool IsPrimaryKey { get; set; }
+
+            public bool IsForeignKey { get; set; }
+
+            public bool IsNullable { get; set; }
         }
 
 

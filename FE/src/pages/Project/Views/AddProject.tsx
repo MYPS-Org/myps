@@ -7,7 +7,7 @@ import ProjectForm from '../components/ProjectForm';
 
 const AddProject: React.FC = () => {
     const [searchParams] = useSearchParams();
-    const programId = searchParams.get('programId');
+    const programPK = searchParams.get('programPK');
     const stageName = searchParams.get('stageName');
 
     return (
@@ -15,7 +15,7 @@ const AddProject: React.FC = () => {
             // onSubmit={handleAddProject}
             // onSaveSection={handleSaveSection}
             mode="add"
-            initialProgramId={programId || undefined}
+            initialProgramPK={programPK || undefined}
             initialStageName={stageName || undefined}
         />
     );

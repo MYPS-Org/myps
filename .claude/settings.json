@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Test-NetConnection -ComputerName 192.168.50.200 -Port 1433 -WarningAction SilentlyContinue)",
+      "PowerShell(Get-Command sqlcmd -ErrorAction SilentlyContinue)",
+      "PowerShell(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -l 8 -Q \"SELECT @@VERSION\" -C)",
+      "mcp__plugin_context-mode_context-mode__ctx_execute_file",
+      "mcp__plugin_context-mode_context-mode__ctx_execute",
+      "mcp__plugin_context-mode_context-mode__ctx_search",
+      "Bash(git -C \"c:/Users/khen/source/repos/mf1027/project_myps\" log --follow --format=\"%h %ad %an %s\" --date=short -- memory/2026-08-11-exception-handler-db-diagnostics.md)",
+      "PowerShell(Test-NetConnection -ComputerName 192.168.50.200 -Port 1433 -WarningAction SilentlyContinue -InformationLevel Quiet)",
+      "PowerShell(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -l 8 -C -Q \"SELECT @@VERSION AS Ver\")",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT ROUTINE_NAME, ROUTINE_TYPE, DATA_TYPE FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME IN \\('fProjectDetails','fProjectFundingProfile','fProjectComponentCost','fProjectComponentCostPerYear','fProjectMajorWorkItem','fProjectMajorWorkLocations'\\)\" -s \"|\" -W)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT SPECIFIC_NAME, PARAMETER_NAME, DATA_TYPE, PARAMETER_MODE, ORDINAL_POSITION FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME IN \\('fProjectDetails','fProjectFundingProfile','fProjectComponentCost','fProjectComponentCostPerYear','fProjectMajorWorkItem','fProjectMajorWorkLocations'\\) ORDER BY SPECIFIC_NAME, ORDINAL_POSITION\" -s \"|\" -W)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT PARAMETER_NAME, PARAMETER_MODE, DATA_TYPE, PARAMETER_DEFAULT_VALUE FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'fProjectDetails'\" -s \"|\" -W)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"sp_helptext 'fProjectDetails'\" -s \"|\" -W -y 0)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SET NOCOUNT ON; EXEC sp_helptext 'fProjectDetails'\" -W -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT * FROM fProjectDetails\\('TEST'\\)\")",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P ***REMOVED*** -d myps_db -C -Q ' *)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT TOP 1 RegionStatus, COStatus FROM tRevisionDetails\")",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT TOP 1 TransactionId FROM tRevisionProjectComponentCost\")",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT TOP 1 ComponentId, TransactionId FROM tRevisionProjectMajorWorkLocations\")",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'vRevisionLists' ORDER BY ORDINAL_POSITION\" -s \"|\" -W -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'vRevisionRules' ORDER BY ORDINAL_POSITION\" -s \"|\" -W -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'tRevisionRules' ORDER BY ORDINAL_POSITION\" -s \"|\" -W -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT COUNT\\(*\\) FROM tRevisionRules\" -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SET NOCOUNT ON; EXEC sp_helptext 'fRevisionRuleFor'\" -W -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT TOP 3 Id, ReasonId, PCMA_Status, Package_Status, IsActive, LEN\\(Field\\) AS FieldLen FROM tRevisionRules ORDER BY Id\" -s \"|\" -W -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SET NOCOUNT ON; SELECT Field FROM tRevisionRules WHERE Id = 1\" -W -h -1 -y 0)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT COUNT\\(DISTINCT ReasonId\\) AS DistinctReasons, COUNT\\(DISTINCT PCMA_Status\\) AS DistinctPCMA, COUNT\\(DISTINCT Package_Status\\) AS DistinctPkg, SUM\\(CASE WHEN IsActive=1 THEN 1 ELSE 0 END\\) AS ActiveCount FROM tRevisionRules\" -s \"|\" -W -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -y 0 -Q \"SET NOCOUNT ON; SELECT Field FROM tRevisionRules WHERE Id = 1\")",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -s \"|\" -W -h -1 -i \"C:\\\\Users\\\\khen\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-khen-source-repos-mf1027-project-myps\\\\935f0d86-674e-4428-9ca4-7528db6bd5ff\\\\scratchpad\\\\rules_check.sql\")",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT 1\" -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'tRevision%' ORDER BY TABLE_NAME\" -h -1)",
+      "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -s \"|\" -W -h -1 -i \"C:\\\\Users\\\\khen\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-khen-source-repos-mf1027-project-myps\\\\935f0d86-674e-4428-9ca4-7528db6bd5ff\\\\scratchpad\\\\field_gap_check.sql\")"
+    ]
+  }
+}

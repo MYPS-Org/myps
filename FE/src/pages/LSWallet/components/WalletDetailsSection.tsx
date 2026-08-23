@@ -27,7 +27,7 @@ import React from 'react';
 import type { LSWallet } from '../Model.d';
 import type { ProjectEnums } from '../../Project/Model.d';
 import { useLocationFilters } from '../../Project/filteringLocations';
-import { getDisabledClass, formatDropdownOptions } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, toDateInputValue } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { DateInput } from '../../../components/tailwindui/date-input';
 
@@ -137,10 +137,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
 
   // ── Utility ──
 
-  const formatDateValue = (dateStr?: string | null): string => {
-    if (!dateStr) return '';
-    try { return new Date(dateStr).toISOString().split('T')[0]; } catch { return ''; }
-  };
+  const formatDateValue = (dateStr?: string | null): string => toDateInputValue(dateStr);
 
   // NOTE: Program selection (handleProgramChange) has moved to WalletProgramDetailsSection.
   // ProgramId / ProgramName / TypeName / YearStart / CurrentStage are all set there.
@@ -519,7 +516,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
           <div className="w-full flex flex-col text-left gap-2">
             <div className="flex flex-row gap-5 items-center">
               <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}>
-                Region Wide:
+                Regionwide:
               </label>
               <select
                 value={wallet.RegionWide ?? ''}
@@ -527,7 +524,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
                 className={`w-2/3 mt-1 px-3 py-2 border ${errors.RegionWide ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                 disabled={disabled}
               >
-                <option value="">Select Region Wide</option>
+                <option value="">Select Regionwide</option>
                 {REGION_WIDE_OPTIONS.map((opt) => (
                   <option key={opt.id} value={opt.value}>{opt.name}</option>
                 ))}

@@ -71,7 +71,8 @@ export const createExcessFromTerminated = (
   totalAmount: number,
   projectId: string,
   stageName: string,
-  createdBy?: string
+  createdBy?: string,
+  projectFK?: string
 ): ComponentCost | null => {
   if (totalAmount <= 0) {
     return null;
@@ -79,6 +80,7 @@ export const createExcessFromTerminated = (
 
   return addExcessComponent({
     projectId,
+    projectFK,
     stageName,
     amount: totalAmount,
     description: 'Excess from Terminated Components',
@@ -95,7 +97,8 @@ export const applyTerminationNoDisbursementAutomation = (
   components: ComponentCost[],
   projectId: string,
   stageName: string,
-  createdBy?: string
+  createdBy?: string,
+  projectFK?: string
 ): {
   shouldApply: boolean;
   updatedComponents: ComponentCost[];
@@ -126,7 +129,8 @@ export const applyTerminationNoDisbursementAutomation = (
     totalTerminatedAmount,
     projectId,
     stageName,
-    createdBy
+    createdBy,
+    projectFK
   );
 
   return {

@@ -2,7 +2,7 @@ import React from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { ProgramLatest } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
-import { getDisabledClass, formatDropdownOptions } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, toDateInputValue } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { DateInput } from '../../../components/tailwindui/date-input';
 import { useLocationFilters } from '../filteringLocations';
@@ -181,6 +181,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 onChange('OperatingUnit', newOU);
             }
         }
+        else if (field === 'Feasibility') {
+            onChange(field, value);
+            // Clear the date if Feasibility Study is not "Yes"
+            if (value !== 1) {
+                onChange('FeasibilityDate', null);
+            }
+        }
+        else if (field === 'DetailedDesign') {
+            onChange(field, value);
+            // Clear the date if Detailed Design is not "Yes"
+            if (value !== 1) {
+                onChange('DetailedDesignDate', null);
+            }
+        }
         else {
             onChange(field, value);
         }
@@ -319,7 +333,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 ))}
                             </select>
                             </div>
-                            {programDetails?.StageId === 3 && (
+                            {programDetails?.StageName === 'RBP' && (
                             <div className="flex flex-row gap-5 items-center">
                                 <label
                                 className={`w-1/3 text-sm font-medium ${
@@ -398,7 +412,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.MYCAApprovalDate ? 'text-red-500' : 'text-gray-600'}`}>MYCA Approval Date:</label>
                                 <DateInput
-                                    value={projectDetails?.MYCAApprovalDate ? new Date(projectDetails?.MYCAApprovalDate).toISOString().split('T')[0] : ''}
+                                    value={toDateInputValue(projectDetails?.MYCAApprovalDate)}
                                     onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={disabled}
@@ -577,7 +591,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='grid grid-cols-2 gap-5'>
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Region Wide:</label>
+                                <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Regionwide:</label>
                                 <select 
                                     value={projectDetails?.RegionWide} 
                                     onChange={(e) => handleInputChange('RegionWide', e.target.value ? parseInt(e.target.value) : undefined)}
@@ -759,7 +773,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.FeasibilityDate ? 'text-red-500' : 'text-gray-600'}`}>Feasibility Date:</label>
                                 <DateInput
-                                    value={projectDetails?.FeasibilityDate ? new Date(projectDetails?.FeasibilityDate).toISOString().split('T')[0] : ''}
+                                    value={toDateInputValue(projectDetails?.FeasibilityDate)}
                                     onChange={(e) => handleInputChange('FeasibilityDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.Feasibility === 1) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={!(projectDetails?.Feasibility === 1) || disabled}
@@ -792,7 +806,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.DetailedDesignDate ? 'text-red-500' : 'text-gray-600'}`}>Detailed Design Date:</label>
                                 <DateInput
-                                    value={projectDetails?.DetailedDesignDate ? new Date(projectDetails?.DetailedDesignDate).toISOString().split('T')[0] : ''}
+                                    value={toDateInputValue(projectDetails?.DetailedDesignDate)}
                                     onChange={(e) => handleInputChange('DetailedDesignDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.DetailedDesign) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={!(projectDetails?.DetailedDesign) || disabled}

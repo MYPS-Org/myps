@@ -7,6 +7,10 @@
     <Configurations>Debug;Release;Staging</Configurations>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="Models\Table\Revision\RevisionProjectDetails.cs" />
+  </ItemGroup>
+
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.66" />
@@ -26,11 +30,8 @@
     <None Include="Models\Table\ImportJobResult.cs" />
     <None Include="Models\Table\CodeTableTransactionLog.cs" />
     <None Include="Models\Table\Lookups\OptionSearchCategory.cs" />
-    <None Include="Models\Table\RevisionRules.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Models\Table\Revision\" />
+    <None Include="Models\Table\Revision\RevisionRules.cs" />
+    <None Include="Models\Table\Revision\RevisionProjectDetails.cs" />
   </ItemGroup>
 
 </Project>

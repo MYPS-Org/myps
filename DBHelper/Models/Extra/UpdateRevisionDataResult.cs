@@ -1,4 +1,4 @@
-﻿using DBHelper.Models.Table;
+﻿using DBHelper.Models.Table.Revision;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;

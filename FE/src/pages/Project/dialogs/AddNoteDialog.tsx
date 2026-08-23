@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { AddNotes, ProjectSupportingDocs, DropdownSupportingDocs } from '../Model.d';
 import { addDoc } from '../Service';
+import { toDateInputValue } from '../../../utils/GlobalFunctions';
 
 interface AddNoteDialogProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
     StageName: stageName || '',
     ProjectId: projectId,
     DocumentType: '',
+    DocTypeName: '', 
     Description: '',
     File: {
       Name: '',
@@ -43,6 +45,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         StageName: stageName || '',
         ProjectId: projectId,
         DocumentType: '',
+        DocTypeName: '',
         Description: '',
         File: {
           Name: '',
@@ -97,16 +100,22 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         console.log('Add document response:', response);
 
         if (response) {
+            // Mirror the backend's split of "Code:Name" (ProjectController.UploadSupportingDocs)
+            // so the row displays correctly before the next refetch.
+            const [docTypeFK] = formData.DocumentType.split(':');
             const newDoc: ProjectSupportingDocs = {
             Id: 0, // Will be set by server
             ProjectId: projectId,
-            DocumentType: formData.DocumentType,
+            DocumentType: formData.DocTypeName || formData.DocumentType,
+            Code: docTypeFK || '',
+            Name: formData.DocTypeName || '',
+            DocTypeFK: docTypeFK || '',
             Description: formData.Description,
             FileName: formData.File?.Name || '',
             FileExtension: formData.File?.Extension || '',
             FilePath: formData.File?.DataUrl || '',
             CreatedBy: '', // Adjust if needed
-            CreatedDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+            CreatedDate: toDateInputValue(new Date()), // Format as YYYY-MM-DD
             };
 
             console.log('Creating new document object:', newDoc);
@@ -116,6 +125,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
               StageName: '',
               ProjectId: projectId,
               DocumentType: '',
+              DocTypeName: '',
               Description: '',
               File: {
                 Name: '',
@@ -155,9 +165,19 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
             </button>
           </div>
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            <select 
-              value={formData.DocumentType} 
-              onChange={e => handleChange('DocumentType', e.target.value)} 
+            <select
+              value={formData.DocumentType}
+              onChange={e => {
+                const selectedValue = e.target.value;
+                const selectedOption = dropDownOptions?.find(
+                  (option: DropdownSupportingDocs) => option.Code + ':' + option.Name === selectedValue
+                );
+                setFormData(prev => ({
+                  ...prev,
+                  DocumentType: selectedValue,
+                  DocTypeName: selectedOption?.Name || '',
+                }));
+              }}
               className="w-full border rounded p-2">
                 <option value="" disabled>Select Document Type</option>
                 {dropDownOptions?.map((option: DropdownSupportingDocs) => (
@@ -171,7 +191,6 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
               onChange={e => handleChange('Description', e.target.value)}
               placeholder="Note description"
               className="w-full border rounded p-2"
-              required
             />
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">

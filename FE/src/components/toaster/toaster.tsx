@@ -43,6 +43,7 @@ export function Toaster({
   type = "success",
   size = "md",
   className,
+  actions,
 }: {
   onClose: () => void;
   message: string;
@@ -50,32 +51,48 @@ export function Toaster({
   size?: keyof typeof sizes;
   className?: string;
   timeOut?: number;
+  actions?: { label: string; href: string }[];
 }) {
   const styles = typeStyles[type];
 
   return (
     <div
       className={clsx(
-        "flex items-center gap-3 rounded-md p-4 shadow-md transition-all mb-2",
+        "rounded-md p-4 shadow-md transition-all mb-2",
         styles.bg,
         sizes[size],
         className,
       )}
     >
-      {type === "success" && <CheckCircleIcon className={clsx("size-6", styles.icon)} />}
-      {type === "error" && <XCircleIcon className={clsx("size-6", styles.icon)} />}
-      {type === "info" && <InformationCircleIcon className={clsx("size-6", styles.icon)} />}
-      {type === "warning" && <ExclamationCircleIcon className={clsx("size-6", styles.icon)} />}
-      <p className={clsx("text-sm font-medium flex-1", styles.text)}>{message}</p>
-      <button
-        onClick={onClose}
-        className={clsx(
-          "inline-flex rounded-md p-1.5 focus-visible:outline-none focus-visible:ring-2 hover:bg-black/5",
-          styles.ring
-        )}
-      >
-        <XMarkIcon className={clsx("size-5", styles.text)} />
-      </button>
+      <div className="flex items-center gap-3">
+        {type === "success" && <CheckCircleIcon className={clsx("size-6", styles.icon)} />}
+        {type === "error" && <XCircleIcon className={clsx("size-6", styles.icon)} />}
+        {type === "info" && <InformationCircleIcon className={clsx("size-6", styles.icon)} />}
+        {type === "warning" && <ExclamationCircleIcon className={clsx("size-6", styles.icon)} />}
+        <p className={clsx("text-sm font-medium flex-1", styles.text)}>{message}</p>
+        <button
+          onClick={onClose}
+          className={clsx(
+            "inline-flex rounded-md p-1.5 focus-visible:outline-none focus-visible:ring-2 hover:bg-black/5",
+            styles.ring
+          )}
+        >
+          <XMarkIcon className={clsx("size-5", styles.text)} />
+        </button>
+      </div>
+      {actions && actions.length > 0 && (
+        <div className="mt-2 pl-9 flex flex-col gap-1 items-start">
+          {actions.map((action) => (
+            <a
+              key={action.href}
+              href={action.href}
+              className={clsx("text-sm font-semibold underline", styles.text)}
+            >
+              {action.label}
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

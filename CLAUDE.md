@@ -11,3 +11,5 @@ This repo uses a 3-step pipeline for non-trivial work. Run them in order:
 Skip step 1-2 for trivial changes (typo fixes, single-line tweaks) — go straight to editing and `/code-review`.
 
 See `FE/CLAUDE.md` for frontend-specific conventions (HTTP/error handling, date inputs, validation patterns).
+
+See `e2e/CLAUDE.md` for Playwright test conventions and route/coverage context.

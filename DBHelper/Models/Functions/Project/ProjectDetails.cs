@@ -13,9 +13,8 @@ namespace DBHelper.Models.Functions.Project
         [Required]
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
-        [Required]
         [MaxLength(10)]
-        public string ProjectType { get; set; } = string.Empty;
+        public string? ProjectType { get; set; }
         [Required]
         [MaxLength(200)]
         public string ProgramFK { get; set; } = string.Empty;
@@ -106,5 +105,6 @@ namespace DBHelper.Models.Functions.Project
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;
+        public bool IsPublished { get; set; } = false;
     }
 }

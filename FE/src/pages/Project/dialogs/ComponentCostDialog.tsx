@@ -49,9 +49,15 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  // The backend always re-derives ProjectRevisionFK server-side (from the project's
+  // current revision) on save — it never trusts the value we send. We just need to
+  // carry through whatever value the backend already gave us on existing rows so new
+  // rows aren't missing the field.
+  const defaultProjectRevisionFK = componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK || 0;
   const [formData, setFormData] = useState<ComponentCost>({
     Id: 0,
     Source: '',
+    ProjectRevisionFK: defaultProjectRevisionFK,
     ProjectFK: '',
     ProjectId: ProjectId,
     ComponentType: '',
@@ -122,6 +128,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     const newPerYearCost: ComponentCostPerYear = {
       Id: 0,
       Source: '',
+      // Real ComponentCost.Id when editing an existing component; 0 for a
+      // brand-new component, which the backend correlates by ComponentId instead.
+      ComponentCostFK: formData.Id,
       ProjectFK: '',
       ProjectId: ProjectId,
       ComponentId: formData.ComponentId,
@@ -169,6 +178,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setFormData({
         Id: editingCost.Id ?? 0,
         Source: editingCost.Source ?? '',
+        ProjectRevisionFK: editingCost.ProjectRevisionFK ?? defaultProjectRevisionFK,
         ProjectFK: editingCost.ProjectFK ?? '',
         ProjectId: editingCost.ProjectId ?? ProjectId,
         ComponentType: editingCost.ComponentType ?? '',
@@ -193,6 +203,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setFormData({
         Id: 0,
         Source: '',
+        ProjectRevisionFK: defaultProjectRevisionFK,
         ProjectFK: '',
         ProjectId: ProjectId,
         ComponentType: '',
@@ -235,25 +246,42 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     }));
   };
 
-  const handleChangeComponentId = (value: string) => {
+  const handleComponentTypeSelect = (value: string) => {
+    if (value === '') {
+      handleChange('ComponentType', '');
+      handleChange('ComponentId', '');
+      return;
+    }
+
     const selectedComponent = componentTypes.find(type => type.ComponentName === value);
-    
+
     if (!selectedComponent) {
       return;
     }
 
     let generatedId = selectedComponent.ComponentId || '';
-    
-    // Only add number increment if the component type is "Civil Works"
+
+    // Only Civil Works may have multiple entries, via the incrementing "+n" suffix
+    // (e.g. "CW1", "CW2"). Every other component type (ROW, DR, EAO, EXC, SAV, CWD, ...)
+    // is single-use per project — block re-adding one that's already present.
     if (value.toLowerCase() === 'civil works') {
-      // Count how many existing componentCosts have the same ComponentType
-      console.log('Selected component:', componentCosts);
       const matchingCount = componentCosts.filter(item => item.ComponentType === value && !item.IsDeleted).length;
-      
-      // Create the new ID: "DR-1", "DR-2", etc.
       generatedId = `${selectedComponent.ComponentId}${matchingCount + 1}`;
+    } else {
+      const isDuplicate = componentCosts.some(
+        item => item.ComponentType === value && !item.IsDeleted && !(mode === 'edit' && item === editingCost)
+      );
+
+      if (isDuplicate) {
+        showToast({
+          type: 'error',
+          message: `A "${value}" component has already been added. Only Civil Works allows multiple entries.`
+        });
+        return;
+      }
     }
-    // ✅ Save into formData so it's actually submitted
+
+    handleChange('ComponentType', value);
     handleChange('ComponentId', generatedId);
   }
 
@@ -359,6 +387,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         const componentCostData: ComponentCost = {
           Id: formData.Id,
           Source: formData.Source,
+          ProjectRevisionFK: formData.ProjectRevisionFK,
           ProjectFK: formData.ProjectFK,
           ProjectId: formData.ProjectId,
           ComponentType: formData.ComponentType,
@@ -378,6 +407,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         const perYearCosts = componentCostPerYear
           .map(cost => ({
             ...cost,
+            ComponentCostFK: formData.Id,
             ComponentId: formData.ComponentId,
             CreatedBy: cost.CreatedBy || user?.UserId || '',
             UpdatedBy: user?.UserId || '',
@@ -400,6 +430,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         setFormData({
             Id: 0,
             Source: '',
+            ProjectRevisionFK: defaultProjectRevisionFK,
             ProjectFK: '',
             ProjectId: '',
             ComponentType: '',
@@ -449,11 +480,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <select 
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={formData.ComponentType}
-                        onChange={(e) => { 
-                            const value = e.target.value; 
-                            handleChange('ComponentType', value);
-                            handleChangeComponentId(value);
-                        }}
+                        onChange={(e) => handleComponentTypeSelect(e.target.value)}
                         required
                     >   
                     <option value="">Select Component Type</option>
@@ -518,7 +545,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     onChange={(e) => handleChange('Description', e.target.value)}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter description..."
+                    placeholder="Auto Generated Description upon saving major item location"
+                    disabled
                     />
                 </div>
 

@@ -2,12 +2,14 @@
 using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Functions.Revision;
+using DBHelper.Models.Procedures;
 using DBHelper.Models.Table.Infra;
 using DBHelper.Models.Table.Lookups;
 using DBHelper.Models.Table.Lookups.Project;
 using DBHelper.Models.Table.Permission;
 using DBHelper.Models.Table.Program;
 using DBHelper.Models.Table.Project;
+using DBHelper.Models.Table.Revision;
 using DBHelper.Models.Table.User;
 using DBHelper.Models.Views;
 using DBHelper.Models.Views.Program;
@@ -106,6 +108,10 @@ namespace DBHelper.Data
         public virtual DbSet<PaginationCount> PaginationCounts { get; set; }
         #endregion
 
+        #region Stored Procedures
+        public virtual DbSet<RecomputeProgramCost> pRecomputeProgramCost { get; set; }
+        #endregion
+
         #endregion
 
         #region Projects
@@ -188,9 +194,27 @@ namespace DBHelper.Data
         #endregion
 
         #region Revision
+        #region Tables
+        public DbSet<OptionRevisionHeader> tOptionRevisionHeader { get; set; }
+        public DbSet<OptionRevisionCategory> tOptionRevisionCategory { get; set; }
+        public DbSet<OptionRevisionReasons> tOptionRevisionReasons { get; set; }
+        public DbSet<OptionRevisionStatus> tOptionRevisionStatus { get; set; }
+        public DbSet<OptionRevisionDocuments> tOptionRevisionDocuments { get; set; }
+        #endregion
         #region Functions
         public DbSet<RevisionQueue> fRevisionQueue { get; set; }
+        public DbSet<RevisionDetail> fRevisionDetail { get; set; }
+        public DbSet<RevisionApprovalStatus> fRevisionApprovalStatus { get; set; }
+        public DbSet<OpenRevision> fOpenRevision { get; set; }
+        public DbSet<RevisionRuleFor> fRevisionRuleFor { get; set; }
         public DbSet<RevisionProjectDetails> fRevisionProjectDetails { get; set; }
+
+        public DbSet<RevisionFundingProfile> fRevisionFundingProfile { get; set; }
+        public DbSet<RevisionComponentCost> fRevisionComponentCost { get; set; }
+        public DbSet<RevisionComponentCostPerYear> fRevisionComponentCostPerYear { get; set; }
+
+        public DbSet<RevisionMajorWorkItem> fRevisionMajorWorkItem { get; set; }
+        public DbSet<RevisionMajorWorkLocations> fRevisionMajorWorkLocations { get; set; }
         #endregion
         #endregion
 
@@ -203,26 +227,21 @@ namespace DBHelper.Data
         #region Revisions
 
         #region Tables
-        public DbSet<Models.Table.RevisionDetails> tRevisionDetails { get; set; }
-        public DbSet<Models.Table.RevisionDocuments> tRevisionDocuments { get; set; }
-        public DbSet<Models.Table.RevisionForCorrectionDetails> tRevisionForCorrectionDetails { get; set; }
+        public DbSet<RevisionDetails> tRevisionDetails { get; set; }
+        public DbSet<RevisionApprovals> tRevisionApprovals { get; set; }
+        public DbSet<RevisionDocuments> tRevisionDocuments { get; set; }
+        public DbSet<RevisionForCorrectionDetails> tRevisionForCorrectionDetails { get; set; }
         public DbSet<Models.Table.RevisionRules> tRevisionRules { get; set; }
-        public DbSet<Models.Table.RevisionTransactionLog> tRevisionTransactionLog { get; set; }
-        public DbSet<Models.Table.RevisionProjects> tRevisionProjects { get; set; }
-        public DbSet<Models.Table.RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }
-        public DbSet<Models.Table.RevisionProjectComponentCost> tRevisionProjectComponentCost { get; set; }
-        public DbSet<Models.Table.RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
-        public DbSet<Models.Table.RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
-        public DbSet<Models.Table.RevisionDetailsComponentsStatus> tRevisionDetailsComponentsStatus { get; set; }
-        public DbSet<Models.Table.RevisionProjectComponentCostPerYear> tRevisionProjectComponentCostPerYear { get; set; }
+        public DbSet<RevisionProjects> tRevisionProjects { get; set; }
+        public DbSet<RevisionProjectSnapshot> tRevisionProjectSnapshot { get; set; }
+        public DbSet<RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }
+        public DbSet<RevisionProjectComponentCost> tRevisionProjectComponentCost { get; set; }
+        public DbSet<RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
+        public DbSet<RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
+        public DbSet<RevisionProjectComponentCostPerYear> tRevisionProjectComponentCostPerYear { get; set; }
         #endregion
 
         #region Lookups
-        public DbSet<OptionRevisionHeader> tOptionRevisionHeader { get; set; }
-        public DbSet<OptionRevisionReasons> tOptionRevisionReasons { get; set; }
-        public DbSet<OptionRevisionCategory> tOptionRevisionCategory { get; set; }
-        public DbSet<OptionRevisionStatus> tOptionRevisionStatus { get; set; }
-        public DbSet<OptionRevisionDocuments> tOptionRevisionDocuments { get; set; }
         #endregion
 
         #endregion
@@ -280,9 +299,6 @@ namespace DBHelper.Data
         public DbSet<Models.Views.UserViewPermission> vUserViewPermission { get; set; }
         public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }
         public DbSet<Models.Views.APIPermissions> vAPIPermissions { get; set; }
-        public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
-        public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
-        public DbSet<ProjectComponentCostStatus> vProjectComponentCostStatus { get; set; }
         #endregion
 
         #endregion
@@ -294,6 +310,7 @@ namespace DBHelper.Data
             modelBuilder.Entity<Models.Views.AdminAreas.AdminOfficeRegion>().HasNoKey().ToView("vAdminOfficeRegion");
             modelBuilder.Entity<UserVisibleProjects>().HasNoKey().ToView("fUserVisibleProjects");
             modelBuilder.Entity<UserVisiblePrograms>().HasNoKey().ToView("fUserVisiblePrograms");
+            modelBuilder.Entity<RevisionApprovalStatus>().HasNoKey().ToView("fRevisionApprovalStatus");
             modelBuilder.Entity<PaginationCount>().HasNoKey().ToView("PaginationCount");
             modelBuilder.Entity<Models.Views.Lumpsum.LSWalletBalance>().HasNoKey().ToView("vLSWalletBalance");
             // Wallet Component Cost → Costs Per Year

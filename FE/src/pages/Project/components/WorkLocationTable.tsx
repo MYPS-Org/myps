@@ -226,6 +226,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
     const newWorkLocation: MajorItemLocations = {
       Id: 0, // Temporary ID
+      WorkItemFK: majorItemOfWorks.Id, // Link to the parent MajorItemOfWork
       Source: majorItemOfWorks.Source,
       ProjectFK: majorItemOfWorks.ProjectFK,
       ProjectId: majorItemOfWorks.ProjectId,
@@ -304,6 +305,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       // Create new work location
       const newWorkLocation: MajorItemLocations = {
         Id: 0, // Temporary ID
+        WorkItemFK: majorItemOfWorks.Id, // Link to the parent MajorItemOfWork
         Source: majorItemOfWorks.Source,
         ProjectFK: majorItemOfWorks.ProjectFK,
         ProjectId: majorItemOfWorks.ProjectId,

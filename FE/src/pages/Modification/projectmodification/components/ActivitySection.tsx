@@ -14,8 +14,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
     return new Date(dateString).toLocaleString();
   };
 
-  const getTransactionIcon = (type: string) => {
-    switch (type.toLowerCase()) {
+  const getTransactionIcon = (type?: string) => {
+    switch (type?.toLowerCase()) {
       case 'create':
       case 'insert':
         return '';
@@ -29,8 +29,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
     }
   };
 
-  const getTransactionColor = (type: string) => {
-    switch (type.toLowerCase()) {
+  const getTransactionColor = (type?: string) => {
+    switch (type?.toLowerCase()) {
       case 'create':
       case 'insert':
         return 'bg-green-50 border-green-200 text-green-800';
@@ -62,7 +62,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
           <span className="font-medium ml-2">Column:</span> {log.AffectedColumn}
         </div>
         
-        {log.TypeOfTransaction.toLowerCase() === 'delete' && oldData && typeof oldData === 'object' ? (
+        {log.TypeOfTransaction?.toLowerCase() === 'delete' && oldData && typeof oldData === 'object' ? (
           <div className="space-y-1">
             <p className="text-xs font-medium text-gray-700">Deleted Record:</p>
             <div className="text-xs bg-red-50 p-2 rounded border-l-4 border-red-400">

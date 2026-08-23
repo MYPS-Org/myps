@@ -63,33 +63,34 @@ const popupRow = (label: string, value: unknown): string =>
   `<p style="margin: 4px 0;"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
 
 function buildConfiguredFieldsHtml(properties: ProjectFeatureProperties, fields: PopupFieldConfig[]): string {
-  const rows = fields
+  return fields
     .filter(({ key }) => properties[key] !== undefined && properties[key] !== null && properties[key] !== '')
-    .map(({ label, key }) => popupRow(label, properties[key]));
-
-  if (rows.length === 0) return '';
-
-  return `<div style="padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid #e5e7eb;">${rows.join('')}</div>`;
+    .map(({ label, key }) => popupRow(label, properties[key]))
+    .join('');
 }
 
 export function buildPopupHtml(properties: ProjectFeatureProperties, fields?: PopupFieldConfig[]): string {
-  const header = fields
+  // Rendered inside a header bar (myps-popup-header) so it sits to the left of
+  // MapLibre's absolutely-positioned close button instead of being overlapped by it.
+  const headerContent = fields
     ? buildConfiguredFieldsHtml(properties, fields)
-    : `<h3 style="margin: 0 0 8px 0; font-weight: bold; font-size: 14px;">${escapeHtml(properties.name || 'Project Location')}</h3>`;
+    : `<h3 style="margin: 0; font-weight: bold; font-size: 14px;">${escapeHtml(properties.name || 'Project Location')}</h3>`;
+
+  const bodyRows = [
+    properties.dsow ? popupRow('Scope', properties.dsow) : '',
+    properties.work_scope ? popupRow('Work Type', properties.work_scope) : '',
+    properties.length ? popupRow('Length', `${properties.length}m`) : '',
+    properties.target_amount ? popupRow('Target', `${properties.target_amount} ${properties.target_unit || ''}`) : '',
+    properties.cost_x ? popupRow('Cost', `₱${properties.cost_x.toLocaleString('en-PH')}`) : '',
+    properties.start_station_limit && properties.end_station_limit
+      ? popupRow('Station', `${properties.start_station_limit} - ${properties.end_station_limit}`)
+      : '',
+  ].join('');
 
   return `
-    <div style="padding: 10px; max-width: 300px;">
-      ${header}
-      ${properties.dsow ? popupRow('Scope', properties.dsow) : ''}
-      ${properties.work_scope ? popupRow('Work Type', properties.work_scope) : ''}
-      ${properties.length ? popupRow('Length', `${properties.length}m`) : ''}
-      ${properties.target_amount ? popupRow('Target', `${properties.target_amount} ${properties.target_unit || ''}`) : ''}
-      ${properties.cost_x ? popupRow('Cost', `₱${properties.cost_x.toLocaleString('en-PH')}`) : ''}
-      ${
-        properties.start_station_limit && properties.end_station_limit
-          ? popupRow('Station', `${properties.start_station_limit} - ${properties.end_station_limit}`)
-          : ''
-      }
+    <div style="max-width: 300px;">
+      ${headerContent ? `<div class="myps-popup-header">${headerContent}</div>` : ''}
+      ${bodyRows ? `<div style="padding: 8px 10px 10px;">${bodyRows}</div>` : ''}
     </div>
   `;
 }

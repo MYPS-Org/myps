@@ -1,5 +1,5 @@
 "use-client";
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, ProgramProjectFilter, ProgramProjects } from '../Model.d'; // Adjust the import path as necessary
@@ -44,6 +44,7 @@ const ProgramDetail: React.FC = () => {
         Name: '',
         StageId: 0,
         StageName: '',
+        StageDisplayName: '',
         IsSkipped: false,
         IsPublished: false,
         IsDeleted: false,
@@ -66,32 +67,43 @@ const ProgramDetail: React.FC = () => {
     }
   });
 
-  // ShowProjectsInProgram needs ProgramId/StageName (from the route) plus its own
-  // Navigation/PageCursorId cursor fields — neither of which the generic usePagination
-  // hook knows about — so adapt its PaginatedRequest calls into that shape here.
-  const pageCursorRef = useRef(0);
+  // Holds the ProgramPK from the latest /Program/ProgramDetails response (fetchProgramDetail
+  // below sets it). NOT the URL's route segment and NOT Details.ProgramId (a different,
+  // human-readable field) — the payload's ProgramId must carry the actual ProgramPK from the
+  // program-details response. A ref (not state) so fetchProgramProjects always reads the
+  // latest value the instant fetchProgramDetail resolves, without waiting on a re-render.
+  const programPKRef = useRef('');
+
+  // ShowProjectsInProgram needs ProgramId/StageName alongside the generic usePagination hook's
+  // PaginatedRequest — adapt it into that shape here. The hook already threads
+  // Navigation/PreviousFilteredId/NextFilteredId/PageCursorId correctly per request.
   const fetchProgramProjects = useCallback(
     async (params: PaginatedRequest<ProgramProjectFilter>) => {
       const response = await ShowProjectsInProgram({
         Filters: params.Filters,
         limit: params.limit,
         page: params.page,
-        Navigation: params.Direction ?? 0,
+        Navigation: params.Navigation ?? 0,
         PreviousFilteredId: params.PreviousFilteredId ?? 0,
         NextFilteredId: params.NextFilteredId ?? 0,
-        PageCursorId: pageCursorRef.current,
-        ProgramId: id?.[0] ?? '',
+        PageCursorId: params.PageCursorId ?? 0,
+        ProgramId: programPKRef.current,
         StageName: id?.[1] ?? '',
+        StageDisplayName: programEnums?.Details.StageDisplayName ?? '',
       });
-      pageCursorRef.current = response.Data.PageCursorId ?? 0;
       return response;
     },
     [id]
   );
 
+  // enabled: false — this list is fetched explicitly from the [id] effect below, right after
+  // fetchProgramDetail resolves and sets programPKRef.current, instead of pagination's own
+  // mount-fetch (which would fire before programPKRef has a value). This way it re-fetches on
+  // every stage change, not just once on mount.
   const pagination = usePagination<ProgramProjectFilter, ProgramProjects>(fetchProgramProjects, {
       initialFilters: { ProjectId: '' },
       limit: 10,
+      enabled: false,
   });
 
   const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
@@ -103,6 +115,7 @@ const ProgramDetail: React.FC = () => {
         Name: '',
         StageId: 0,
         StageName: '',
+        StageDisplayName: '',
         IsSkipped: false,
         IsPublished: false,
         IsDeleted: false,
@@ -137,6 +150,11 @@ const ProgramDetail: React.FC = () => {
       if (id && id.length === 2) {
         try {
           await fetchProgramDetail(id[0], id[1]);
+          // Recall the projects list once fetchProgramDetail has set programPKRef.current to
+          // the fresh ProgramPK from the program-details response — same trigger (`id`
+          // changing) and ordering as the program-details reload above, so it re-fetches on
+          // every stage change (e.g. "Proceed to Next Stage"), not just once on mount.
+          pagination.applyFilters(pagination.currentFilters ?? { ProjectId: '' });
         } catch (error) {
           console.error('Error fetching program details:', error);
         }
@@ -159,6 +177,9 @@ const ProgramDetail: React.FC = () => {
           UserGroup: (response.Data.Details.UserGroup || []).map(String),
         },
       };
+      // Set synchronously (ref, not state) so fetchProgramProjects — read moments later in the
+      // same [id] effect — sees the fresh ProgramPK without waiting on a re-render.
+      programPKRef.current = normalizedData.Details.ProgramPK;
       setProgramEnums(normalizedData);
       setDefaultProgramEnums(normalizedData); // Store the original data for comparison
 
@@ -175,15 +196,19 @@ const ProgramDetail: React.FC = () => {
         response.Data.Details.StageId,
         response.Data.Details.Type
       );
-      // Skip stays on the full, unfiltered list — it's a separate flow (HGABI→GAAR,
-      // GAAR→RDIP) gated by its own StageId check further down, not by isTerminalStage.
+      // Skip stays on the full, unfiltered list — it's a separate flow (HGABI→GAAR)
+      // gated by its own StageId check further down, not by isTerminalStage. GAAR(7)
+      // is intentionally excluded from that check: it's the terminal stage of the main
+      // track, so nothing (proceed or skip) should offer a path out of it anymore.
       const { skipStage } = getStageProgression(
         response.Data.Dropdowns.Stages,
         response.Data.Details.StageId,
         response.Data.Details.Type
       );
-      setNextStageName(nextStage ? nextStage.Name : '');
-      setSkipStageName(skipStage ? skipStage.Name : null);
+      // Display label only — Name/NameId (not DisplayName) is what gets sent as the
+      // payload for the actual stage transition (see handleNextStageSubmit, NextStageDialog).
+      setNextStageName(nextStage ? nextStage.DisplayName || nextStage.Name : '');
+      setSkipStageName(skipStage ? skipStage.DisplayName || skipStage.Name : null);
       setIsTerminalStage(reachedTerminalStage);
     } catch (error) {
       console.error('Error fetching program details:', error);
@@ -205,19 +230,21 @@ const ProgramDetail: React.FC = () => {
     };
 
   const handleAddProject = () => {
-    // Source ProgramId/StageName from the route (id[0]/id[1]) rather than programEnums.Details:
+    // Source ProgramPK/StageName from the route (id[0]/id[1]) rather than programEnums.Details:
     // the /Program/ProgramDetails response's Details object doesn't currently carry ProgramPK/StageName,
     // so those were coming through as "undefined" in the query string and AddProject's dropdown-match
-    // (componentDropdowns.Programs.find by ProgramId+StageName) never found the program.
-    const [programId, stageName] = id ?? [];
-    if (programId && stageName) {
-      navigate(`/projects/addproject?programId=${programId}&stageName=${stageName}`);
+    // (componentDropdowns.Programs.find by ProgramPK+StageName) never found the program.
+    // Note: id[0] is the route's ProgramPK segment (see Program.tsx's handleViewDetails(program.ProgramPK, ...)),
+    // not the human-readable ProgramId — passing it as ProgramPK keeps this consistent with the match downstream.
+    const [programPK, stageName] = id ?? [];
+    if (programPK && stageName) {
+      navigate(`/projects/addproject?programPK=${programPK}&stageName=${stageName}`);
     }
   };
 
-  const handleAddExistingProject = () => {
-    setIsBatchRestoreDialogOpen(true);
-  };
+  // const handleAddExistingProject = () => {
+  //   setIsBatchRestoreDialogOpen(true);
+  // };
 
   const handleBatchRestoreSubmit = async (programId: string, projectIds: string) => {
     try {
@@ -348,11 +375,15 @@ const ProgramDetail: React.FC = () => {
     setIsSkip(isSkip);
   };
 
-  const handleNextStageSubmit = async (data: { ProgramId: string; Stage: number; Name?: string }) => {
+  const handleNextStageSubmit = async (data: { ProgramId: string; ProgramPK: string; Stage: number; Name?: string }) => {
     try {
       const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.NameId === data.Stage);
       if (nextStageName) {
-        handleViewDetails(data.ProgramId, nextStageName.Name);
+        // Proceeding to the next stage doesn't change the program itself, only its
+        // StageName — the URL's ProgramPK segment (id[0]) stays the same. data.ProgramId is
+        // the human-readable code (e.g. "DESKTOP-9OG49KJ_...", used by the updateProgramStage
+        // payload), not the PK the route expects — using it here as the URL segment was the bug.
+        handleViewDetails(id?.[0] ?? '', nextStageName.Name);
       }
     } catch (error) {
       console.error('Error handling next stage submission:', error);
@@ -370,12 +401,17 @@ const ProgramDetail: React.FC = () => {
 
   const handleConfirmPublish = async() => {
     try {
-      await publishToPCMA(programEnums?.Details.ProgramPK);
+      await publishToPCMA(programEnums?.Details.ProgramId);
       showToast({
         type: 'success',
         message: 'Program published to PCMA successfully.',
       });
       await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
+      // Re-fetch the projects list so the Published/Publishable columns reflect the
+      // statuses PCMA just flipped server-side — fetchProgramDetail alone only refreshes
+      // the program header, not this separately-sourced table (same pattern as the
+      // mount-time [id] effect above).
+      pagination.applyFilters(pagination.currentFilters ?? { ProjectId: '' });
     } catch (error) {
       console.error('Error publishing program to PCMA:', error);
       showToast({
@@ -454,6 +490,7 @@ const ProgramDetail: React.FC = () => {
                   value={programEnums?.Details.Type}
                   onChange={(e) => handleChange('Type', Number(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  disabled
                 >
                   {programEnums?.Dropdowns.Types.map((type) => (
                     <option key={type.Id} value={type.Id}>
@@ -571,7 +608,7 @@ const ProgramDetail: React.FC = () => {
               )}
               {programEnums.IsActive &&
                 programEnums.Details &&
-                (programEnums?.Details?.StageId === 5 || programEnums?.Details?.StageId === 7) && (
+                (programEnums?.Details?.StageId === 2 || programEnums?.Details?.StageId === 4) && (
                   <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(true)}>
                     Proceed to {skipStageName}
                   </Button>
@@ -624,11 +661,11 @@ const ProgramDetail: React.FC = () => {
                 Add Project
               </Button>
             )}
-            {programEnums.IsActive && !isTerminalStage && (
+            {/* {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 &&  !isTerminalStage && (
               <Button color="blue" onClick={handleAddExistingProject}>
                 Add Existing Project
               </Button>
-            )}
+            )} */}
             <BatchActionsDropdown
               programId={programEnums?.Details.ProgramPK ?? ''}
               programName={programEnums?.Details.Name ?? ''}
@@ -644,7 +681,6 @@ const ProgramDetail: React.FC = () => {
               stageName={programEnums?.Details.StageName ?? ''}
               stageId={programEnums?.Details.StageId ?? 0}
               stages={programEnums?.Dropdowns.Stages || []}
-              onRefresh={() => fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName)}
               onLoadingChange={setIsLoading}
             />
           </div>
@@ -744,6 +780,9 @@ const ProgramDetail: React.FC = () => {
               onGoToPage={pagination.goToPage}
               onNext={pagination.goNext}
               onPrevious={pagination.goPrevious}
+              onFirst={pagination.goFirst}
+              onLast={pagination.goLast}
+              isLoading={pagination.isLoading}
           />
         </div>
       </div>

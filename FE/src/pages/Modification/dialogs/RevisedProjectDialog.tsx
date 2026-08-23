@@ -4,12 +4,12 @@ import { Button } from '../../../components/tailwindui/button';
 import { DateInput } from '../../../components/tailwindui/date-input';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from '../../Project/Model';
-import { submitModificationRequest, updateRevisionRequestStatus } from '../Service';
+import { submitModificationRequest } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useAtomValue } from 'jotai';
-import { transactionIdAtom } from '../store/routeContextStore';
+import { usePdfUpload } from '../hooks/usePdfUpload';
+import { normalizeTempIds } from '../../../utils/GlobalFunctions';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -40,7 +40,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     revisionCategory,
     revisionReason,
     reasonId,
-    categoryId: _categoryId,
+    categoryId,
     revisionGroupId: _revisionGroupId,
     projectStatus
 }) => {
@@ -48,55 +48,21 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     const { showToast } = useToast();
     const { user } = useAuth(); // Get user from auth context
     const [approvalDate, setApprovalDate] = useState<string>('');
-    const [approvalDocument, setApprovalDocument] = useState<{
-        Name: string;
-        Extension: string;
-        ContentType: string;
-        DataUrl: string;
-    } | null>(null);
+    const { file: approvalDocument, handleFileChange, reset: resetApprovalDocument } = usePdfUpload();
     const [revisionType] = useState<string>('');
     const [isCertified, setIsCertified] = useState<boolean>(false);
 
     // console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-    const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
-
-
     // Reset form when modal opens
     useEffect(() => {
         if (isOpen) {
             setApprovalDate('');
-            setApprovalDocument(null);
+            resetApprovalDocument();
             setIsCertified(false);
         }
     }, [isOpen]);
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            // Check if file is PDF
-            if (file.type !== 'application/pdf') {
-                showToast({
-                    type: 'error',
-                    message: 'Please select a PDF file only.'
-                });
-                e.target.value = ''; // Clear the input
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setApprovalDocument({
-                    Name: file.name,
-                    Extension: file.name.split('.').pop() || '',
-                    ContentType: file.type,
-                    DataUrl: reader.result as string,
-                });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -142,16 +108,11 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
         setIsSubmitting(true);
 
-        const isImplementingOffice = user?.UserGroupNames.find((x) => x === 'DPC' || x === 'RPC');
-        const isAuc = user?.UserGroupNames.find((x) => x === 'AUC');
-
-        const shouldCreateNewRevision = isImplementingOffice || (isAuc && !transactionId);
-
         try {
             // Prepare the payload
             const payload = {
                 RevisionDetails: {
-                    RevisionCategory: revisionCategory || revisionType,
+                    CategoryId: categoryId ?? null,
                     ReasonId:  reasonId || 0,
                     ApprovalDate: approvalDate,
                     ApprovedDocument: {
@@ -164,68 +125,34 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                     ConstructionStatus: projectStatus?.ConstructionStatus
                 },
                 ProjectDetails: project,
-                ComponentCosts: componentCosts,
-                ComponentCostPerYear: componentsCostPerYear || [],
-                MajorItemOfWorks: majorItemOfWorks,
-                MajorItemLocations: majorItemLocations,
-                FundingProfile: fundingProfile,
+                ComponentCosts: normalizeTempIds(componentCosts),
+                ComponentCostPerYear: normalizeTempIds(componentsCostPerYear || [], ['ComponentCostFK']),
+                MajorItemOfWorks: normalizeTempIds(majorItemOfWorks, ['ComponentCostFK']),
+                MajorItemLocations: normalizeTempIds(majorItemLocations, ['WorkItemFK']),
+                FundingProfile: normalizeTempIds(fundingProfile),
             };
 
             console.log('Submitting modification request with payload:', payload);
 
-            if (shouldCreateNewRevision) {
-                // Implementing Office: Submit new modification request
-                await submitModificationRequest(payload);
-                
-                showToast({
-                    type: 'success',
-                    message: 'Modification request submitted successfully.'
-                });
+            // This dialog only ever opens from the "Submit Revision Request" action (see
+            // RevisionActionButtons/revisionActions.ts) — Approve now goes through
+            // ApproveModifyDialog instead, so submitting here always creates a new revision.
+            await submitModificationRequest(payload);
 
-                // Reset form
-                setApprovalDate('');
-                setApprovalDocument(null);
-                setIsCertified(false);
+            showToast({
+                type: 'success',
+                message: 'Modification request submitted successfully.'
+            });
 
-                onClose();
-                // Navigate to the newly created revision view
-                // navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
-                navigate('/revision');
-            } else {
-                // AUC approving an existing revision
-                if (!transactionId) {
-                    showToast({
-                        type: 'error',
-                        message: 'Transaction ID is missing for approving the revision.'
-                    });
-                    return;
-                }
-                await updateRevisionRequestStatus(
-                    transactionId, 
-                    1,
-                    {
-                        Name: approvalDocument.Name,
-                        Extension: approvalDocument.Extension,
-                        ContentType: approvalDocument.ContentType,
-                        DataUrl: approvalDocument.DataUrl
-                    },
-                    approvalDate
-                ); // 1 = Approved
-                
-                showToast({
-                    type: 'success',
-                    message: 'Revision approved successfully.'
-                });
+            // Reset form
+            setApprovalDate('');
+            resetApprovalDocument();
+            setIsCertified(false);
 
-                // Reset form
-                setApprovalDate('');
-                setApprovalDocument(null);
-                setIsCertified(false);
-
-                onClose();
-                // Navigate back to modification list
-                navigate('/revision');
-            }
+            onClose();
+            // Navigate to the newly created revision view
+            // navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
+            navigate('/revision');
         } catch (error) {
             console.error('Error submitting modification request:', error);
             showToast({

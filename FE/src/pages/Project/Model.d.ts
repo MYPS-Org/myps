@@ -9,6 +9,9 @@ export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
   IsUnlock?: boolean;
+  // Whether the current user has permission to submit a revision request (ShowProjectDetails
+  // computes this from vUserActionPermission/vUserViewPermission; ReviseProject also returns it).
+  CanRevise?: boolean;
   ProgramDetails: ProgramLatest;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
@@ -104,12 +107,14 @@ export interface ProjectDetails {
 	LastUpdatedBy?: string;
 	LastUpdatedDate?: string;
 	Source: string;
+	IsPublished?: boolean;
 }
 export interface ProjectLists {
 	Id: number;
 	ProgramId: string;
 	ProgramName: string;
 	ProjectId: string;
+	ProjectPK: string;
 	RevisionNumber: number;
 	Description: string;
 	Category?: string;
@@ -150,7 +155,7 @@ export interface TransactionLog {
   Id: number;
   TransactionId: string;
   ReferenceId?: string;
-  TypeOfTransaction: string;
+  TypeOfTransaction?: string;
   AffectedTable: string;
   AffectedColumn: string;
   OldValue: string;
@@ -234,6 +239,7 @@ export interface InfraData {
 export interface AddNotes {
 	StageName: string;
 	DocumentType: string;
+	DocTypeName: string;
 	ProjectId: string,
 	Description: string,
 	File: FileEntity
@@ -248,6 +254,7 @@ export interface FileEntity {
 export interface FundingProfile {
 	Id: number;
 	Source: string;
+	ProjectRevisionFK: number;
 	ProjectFK: string;
 	ProjectId?: string;
 	StageName: string;
@@ -266,6 +273,7 @@ export interface FundingProfile {
 export interface ComponentCost {
 	Id: number;
 	Source: string;
+	ProjectRevisionFK: number;
 	ProjectFK: string;
 	ProjectId: string;
 	StageName?: string;
@@ -287,6 +295,7 @@ export interface ComponentCost {
 export interface ComponentCostPerYear {
 	Id: number;
 	Source: string;
+	ComponentCostFK: number; // FK -> ComponentCost.Id
 	ProjectFK: string;
 	ProjectId: string;
 	StageName?: string;
@@ -312,6 +321,7 @@ export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 export interface MajorItemOfWork {
 	Id: number;
 	Source: string;
+	ComponentCostFK: number; // FK -> ComponentCost.Id
 	ProjectFK: string;
 	ProjectId?: string;
 	StageName: string;
@@ -329,6 +339,7 @@ export interface MajorItemOfWork {
 }
 export interface MajorItemLocations {
 	Id: number;
+	WorkItemFK: number;
 	Source: string;
 	ProjectFK: string;
 	ProjectId?: string;
@@ -368,7 +379,11 @@ export interface ProjectNote {
 export interface ProjectSupportingDocs {
 	Id: number;
 	DocumentType: string;
+	Code: string;
+	Name: string;
+	DocTypeFK: string;
 	ProjectId: string;
+	StageName?: string;
 	FileName: string;
 	FileExtension: string;
 	FilePath: string;
@@ -658,6 +673,7 @@ export interface DtoProjectDetails {
   regionWide: string;
   tier: string;
   rank?: number | null;
+  
 }
 
 export interface DtoFundingProfile {

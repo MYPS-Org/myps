@@ -23,14 +23,14 @@ export const MajorItemOfWorksWithDropdownAtom = atom(get => {
     if (!items.length) return [];
 
     return items.map(item => {
-        const itemLocations = locations.filter(loc => loc.ParentId === item.ReferenceId);
+        const itemLocations = locations.filter(loc => loc.WorkItemFK === item.Id);
 
         return {
             ...item,
             TargetUnitId: item.TargetUnitId || 0,
             TargetUnit: item.TargetUnit || '',
             MajorItemLocations: itemLocations,
-            DropdownData: scopeOfWorks?.filter(s => s.InfraType.includes(item.InfraType)) ?? []
+            DropdownData: scopeOfWorks?.filter(s => s.InfraType.includes(item.InfraTypeFK)) ?? []
 
         }
     })

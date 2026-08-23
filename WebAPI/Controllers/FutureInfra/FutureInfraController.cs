@@ -42,11 +42,11 @@ namespace WebAPI.Controllers.Programs
         #region Future Roads
 
         [HttpPost]
-        public async Task<IActionResult> InitFilterFutureRoads()
+        public async Task<IActionResult> InitFilterFutureRoads(CancellationToken cancellationToken)
         {
             try
             {
-                var Classification = await _db.tFutureRoadsClassification.AsNoTracking().ToListAsync();
+                var Classification = await _db.tFutureRoadsClassification.AsNoTracking().ToListAsync(cancellationToken);
                 var response = new
                 {
                     Classifications = Classification
@@ -139,7 +139,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road name {dto.Name} already exist in the system. Please use other name", Title = "Invalid Road Name" });
                 }
-                var CheckIfUsedInRoadSection = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == checkRoad.RoadId).ToListAsync();
+                var CheckIfUsedInRoadSection = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == checkRoad.RoadId).ToListAsync(cancellationToken);
                 if (CheckIfUsedInRoadSection.Any())
                 {
                     HashSet<string> RoadSectionIds = CheckIfUsedInRoadSection.Select(x => x.RoadSectionId).ToHashSet<string>();
@@ -152,7 +152,7 @@ namespace WebAPI.Controllers.Programs
                             Title = "Road In Use"
                         });
                     }
-                    var CheckIfUsedInBridge = await _db.tFutureBridge.AsNoTracking().Where(x => RoadSectionIds.Contains(x.RoadSectionId)).ToListAsync();
+                    var CheckIfUsedInBridge = await _db.tFutureBridge.AsNoTracking().Where(x => RoadSectionIds.Contains(x.RoadSectionId)).ToListAsync(cancellationToken);
                     if (CheckIfUsedInBridge.Any())
                     {
                         HashSet<string> BridgeIds = CheckIfUsedInBridge.Select(x => x.BridgeId).ToHashSet<string>();
@@ -327,9 +327,9 @@ namespace WebAPI.Controllers.Programs
                         Title = "Invalid Network Status"
                     });
                 }
-                var RoadSectionIds = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == dto.RoadId).ToListAsync();
+                var RoadSectionIds = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == dto.RoadId).ToListAsync(cancellationToken);
                 HashSet<string> RoadIds = RoadSectionIds.Select(x => x.RoadSectionId).ToHashSet<string>();
-                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => RoadIds.Contains(x.InfraId)).ToListAsync();
+                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => RoadIds.Contains(x.InfraId)).ToListAsync(cancellationToken);
                 if (ValidateRoadSections.Count > 0)
                 {
                     return new BadRequestObjectResult(new
@@ -338,9 +338,9 @@ namespace WebAPI.Controllers.Programs
                         Title = "Road In Use"
                     });
                 }
-                var FutureBridgeIds = await _db.tFutureBridge.AsNoTracking().Where(x => RoadIds.Contains(x.RoadSectionId)).ToListAsync();
+                var FutureBridgeIds = await _db.tFutureBridge.AsNoTracking().Where(x => RoadIds.Contains(x.RoadSectionId)).ToListAsync(cancellationToken);
                 HashSet<string> BridgeIds = FutureBridgeIds.Select(x => x.BridgeId).ToHashSet<string>();
-                var ValidateBridgeIds = await _db.tProjectMajorWorkLocations.Where(x => BridgeIds.Contains(x.InfraId)).ToListAsync();
+                var ValidateBridgeIds = await _db.tProjectMajorWorkLocations.Where(x => BridgeIds.Contains(x.InfraId)).ToListAsync(cancellationToken);
                 if (ValidateBridgeIds.Count > 0)
                 {
                     return new BadRequestObjectResult(new
@@ -368,11 +368,11 @@ namespace WebAPI.Controllers.Programs
         #region Future Road Section
 
         [HttpPost]
-        public async Task<IActionResult> InitFilterFutureRoadSections()
+        public async Task<IActionResult> InitFilterFutureRoadSections(CancellationToken cancellationToken)
         {
             try
             {
-                var DEO = await _db.vAdminDEO.AsNoTracking().ToListAsync();
+                var DEO = await _db.vAdminDEO.AsNoTracking().ToListAsync(cancellationToken);
                 var response = new
                 {
                     DEOs = DEO
@@ -642,7 +642,7 @@ namespace WebAPI.Controllers.Programs
                         Title = "Invalid Network Status"
                     });
                 }
-                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => x.InfraId == dto.RoadSectionId).ToListAsync();
+                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => x.InfraId == dto.RoadSectionId).ToListAsync(cancellationToken);
                 if (ValidateRoadSections.Count > 0)
                 {
                     return new BadRequestObjectResult(new
@@ -651,9 +651,9 @@ namespace WebAPI.Controllers.Programs
                         Title = "Road In Use"
                     });
                 }
-                var FutureBridgeIds = await _db.tFutureBridge.AsNoTracking().Where(x => x.RoadSectionId == dto.RoadSectionId).ToListAsync();
+                var FutureBridgeIds = await _db.tFutureBridge.AsNoTracking().Where(x => x.RoadSectionId == dto.RoadSectionId).ToListAsync(cancellationToken);
                 HashSet<string> BridgeIds = FutureBridgeIds.Select(x => x.BridgeId).ToHashSet<string>();
-                var ValidateBridgeIds = await _db.tProjectMajorWorkLocations.Where(x => BridgeIds.Contains(x.InfraId)).ToListAsync();
+                var ValidateBridgeIds = await _db.tProjectMajorWorkLocations.Where(x => BridgeIds.Contains(x.InfraId)).ToListAsync(cancellationToken);
                 if (ValidateBridgeIds.Count > 0)
                 {
                     return new BadRequestObjectResult(new
@@ -681,11 +681,11 @@ namespace WebAPI.Controllers.Programs
         #region Future Bridge
 
         [HttpPost]
-        public async Task<IActionResult> InitFilterFutureBridge()
+        public async Task<IActionResult> InitFilterFutureBridge(CancellationToken cancellationToken)
         {
             try
             {
-                var DEO = await _db.vAdminDEO.AsNoTracking().ToListAsync();
+                var DEO = await _db.vAdminDEO.AsNoTracking().ToListAsync(cancellationToken);
                 var response = new
                 {
                     DEOs = DEO
@@ -992,7 +992,7 @@ namespace WebAPI.Controllers.Programs
                         Title = "Invalid Network Status"
                     });
                 }
-                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => x.InfraId == dto.BridgeId).ToListAsync();
+                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => x.InfraId == dto.BridgeId).ToListAsync(cancellationToken);
                 if (ValidateRoadSections.Count > 0)
                 {
                     return new BadRequestObjectResult(new

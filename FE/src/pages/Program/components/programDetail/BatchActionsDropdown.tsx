@@ -38,18 +38,21 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
     try {
       onLoadingChange(true);
       switch (action) {
-        case 'delete':
-          await batchDeleteProjects({ ProgramId: pid, ProjectIds: projectIds });
-          showToast({ type: 'success', message: 'Projects deleted successfully.' });
+        case 'delete': {
+          const response = await batchDeleteProjects({ ProgramId: pid, ProjectIds: projectIds });
+          showToast({ type: 'success', message: response.Data.Message });
           break;
-        case 'unpublish':
-          await batchRestrictPublishing({ ProgramId: pid, ProjectIds: projectIds });
-          showToast({ type: 'success', message: 'Projects publishing restricted successfully.' });
+        }
+        case 'unpublish': {
+          const response = await batchRestrictPublishing({ ProgramId: pid, ProjectIds: projectIds });
+          showToast({ type: 'success', message: response.Data.Message });
           break;
-        case 'publish':
-          await batchAllowPublishing({ ProgramId: pid, ProjectIds: projectIds });
-          showToast({ type: 'success', message: 'Projects publishing allowed successfully.' });
+        }
+        case 'publish': {
+          const response = await batchAllowPublishing({ ProgramId: pid, ProjectIds: projectIds });
+          showToast({ type: 'success', message: response.Data.Message });
           break;
+        }
         default:
           showToast({ type: 'success', message: 'Tags applied successfully to all projects.' });
       }

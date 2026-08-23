@@ -11,9 +11,13 @@ if (favicon) {
   favicon.href = MainResource.Images.ReportLogo;
   favicon.type = 'image/png';
 }
-// Initialize SignalR connection
+// Initialize SignalR connections
 signalRService.startConnection(`${import.meta.env.VITE_API_BASE_URL}/notificationHub`)
   .then(() => console.log('SignalR initialized'))
+  .catch(console.error);
+
+signalRService.startConnection(`${import.meta.env.VITE_API_BASE_URL}/hubs/import`, 'import')
+  .then(() => console.log('SignalR (import) initialized'))
   .catch(console.error);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
+import { toDateInputValue } from '../../../utils/GlobalFunctions';
 import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
@@ -49,12 +50,12 @@ import { defaultCoordinates } from '../utils/coordinates';
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';
-  initialProgramId?: string;
+  initialProgramPK?: string;
   initialStageName?: string;
   onRefresh?: () => void;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, initialStageName, onRefresh }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramPK, initialStageName, onRefresh }) => {
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -74,7 +75,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
   const isDisabled = Boolean(
     (initialData?.IsActive === false) ||
-    (Number(initialData?.ProgramDetails?.StageId) === 10 && Number(initialData?.ProgramDetails?.Status) === 1)
+    (initialData?.ProgramDetails?.StageName === 'GAA-R' && Number(initialData?.ProgramDetails?.Status) === 1)
   );
 
   // toggle state for Program Details section
@@ -104,6 +105,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     ProgramId: '',
     StageId: 0,
     StageName: '',
+    StageDisplayName: '',
     Name: '',
     Status: undefined,
     Type: '',
@@ -237,7 +239,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     loadMapData();
   }, [loadMapData]);
 
-  // Pre-selecting the program for initialProgramId/initialStageName happens inside
+  // Pre-selecting the program for initialProgramPK/initialStageName happens inside
   // ProgramDetailsForm (via its searchProgram() call + onChange), since
   // /Project/ShowProjectComponentDropdowns never returns a Programs list for us to match against here.
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
@@ -461,26 +463,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // #endregion
 
   // #region Major Items of Work
-  const handleAddMajorItem = (ComponentId: string) => {
-    // Generate a unique temporary ReferenceId for linking WorkLocations
-    
-    const newItem: MajorItemOfWorksWithDropdown = {
-      Id: 0, // Temporary ID
-      Source: projectDetails.Source || 'Base',
-      ProjectFK: projectDetails.ProjectFK,
-      ProjectId: '',
-      StageName: projectDetails.StageName,
-      ComponentId: ComponentId, // Use the provided ComponentId
-      YearOfWork: 0,
-      WorkTypeFK: 0,
-      InfraTypeFK: '',
-      TargetUnitId: 0,
-      TargetUnit: '',
-      CreatedBy: '',
-      MajorItemLocations: [], // Initialize empty work locations
-      DropdownData: [],
-      IsDeleted: false
-    };
+  const handleAddMajorItem = (newItem: MajorItemOfWorksWithDropdown) => {
     setMajorItems(prev => [...prev, newItem]);
     console.log('Added major item to staging:', newItem);
   };
@@ -550,8 +533,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
 // #region Funding Profiles
   const handleAddFundingProfile = () => {
+    // The backend always re-derives ProjectRevisionFK server-side from the project's
+    // current revision on save — it never trusts the client value. We just carry through
+    // whatever value the backend already gave us on an existing row.
+    const defaultProjectRevisionFK =
+      fundingProfiles.find(f => f.ProjectRevisionFK)?.ProjectRevisionFK ||
+      componentCosts.find(c => c.ProjectRevisionFK)?.ProjectRevisionFK ||
+      0;
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
+      ProjectRevisionFK: defaultProjectRevisionFK,
       ProjectFK: projectDetails.ProjectFK || '',
       ProjectId: projectDetails.ProjectId || '',
       StageName: initialData?.ProgramDetails?.StageName || '',
@@ -561,7 +552,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Percentage: 0,
       Amount: 0,
       CreatedBy: user?.UserId || '',
-      CreatedDate: new Date().toISOString().split('T')[0],
+      CreatedDate: toDateInputValue(new Date()),
       IsDeleted: false
     };
     setFundingProfiles(prev => [...prev, newProfile]);
@@ -833,6 +824,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ProjectFK: initialData?.ProjectDetails.ProjectFK || '',
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
           StageName: initialData?.ProgramDetails.StageName || '',
+          ComponentCostFK: item.ComponentCostFK,
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
           WorkTypeFK: item.WorkTypeFK,
@@ -849,6 +841,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           item.MajorItemLocations.forEach(location => {
             const workLocationPayload: MajorItemLocations = {
               ...location,
+              WorkItemFK: item.Id, // Link to MajorItem via Id
               ComponentId: item.ComponentId // Link to MajorItem via ComponentId
             };
             workLocationsForPayload.push(workLocationPayload);
@@ -866,6 +859,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
           Source: projectDetails.Source || 'Base',
+          ProjectRevisionFK: cost.ProjectRevisionFK,
           ProjectFK: projectDetails.ProjectFK,
           ProjectId: cost.ProjectId,
           StageName: initialData?.ProgramDetails?.StageName,
@@ -885,6 +879,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ProjectFK: projectDetails.ProjectFK,
           ProjectId: projectDetails.ProjectId,
           StageName: projectDetails.StageName,
+          ComponentCostFK: costPerYear.ComponentCostFK,
           ComponentId: costPerYear.ComponentId,
           Amount: costPerYear.Amount,
           Year: costPerYear.Year,
@@ -935,11 +930,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${initialData.ProgramDetails.StageName}`);
       }
 
-    } catch (error) {
-      showToast({
-          type: 'error',
-          message: 'Failed to fetch projects.'
-      });
+    } catch {
+      // httpClient interceptor already showed the API error toast
     } finally {
       setUpdateAllProject(false);
     }
@@ -1016,14 +1008,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
           <div className="flex flex-end fixed top-2 right-25 z-50 gap-2 items-center">
-              {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
+              {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageName !== 'GAA-R' && (
                 <>
                   <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
                     {updateUnlockProject ? 'Unlocking...' : 'UnLock Project'}
                   </Button>
                 </>
               )}
-              {mode === 'edit' && initialData?.ProgramDetails?.StageId !== 10 && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
+              {mode === 'edit' && initialData?.ProgramDetails?.StageName !== 'GAA-R' && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
                 <Button
                   color="blue"
                   className="cursor-pointer"
@@ -1040,7 +1032,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </Button> 
                 </>
               )}
-              {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && Number(initialData?.ProgramDetails?.Status) === 1 && (
+              {mode === 'edit' && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.ProjectDetails?.IsPublished && initialData?.CanRevise && (
                 <Menu as="div" className="relative inline-block text-left">
                   <MenuButton
                     as={Button}
@@ -1137,7 +1129,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 mode={mode}
                 initialData={initialData}
                 initialStageName={initialStageName}
-                initialProgramId={initialProgramId}
+                initialProgramPK={initialProgramPK}
               />
             </div>
           )}
@@ -1240,7 +1232,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             projectId={initialData?.ProjectDetails.ProjectId || ''}
             componentCosts={componentCosts}
             infraData={infraData}
-            onAdd={(componentId: string) => handleAddMajorItem(componentId)}
+            onAdd={handleAddMajorItem}
             onEdit={handleEditMajorItem}
             onDelete={handleDeleteMajorItem}
             dropDowns={componentDropdowns?.ScopeOfWorks}

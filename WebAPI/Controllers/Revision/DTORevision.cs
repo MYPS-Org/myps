@@ -1,8 +1,10 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using DBHelper.Models.Functions.Project;
+using DBHelper.Models.Functions.Revision;
 using DBHelper.Models.Table;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WebAPI.Controllers.Revision
 {
@@ -68,124 +70,194 @@ namespace WebAPI.Controllers.Revision
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
+        [MaxLength(8)]
+        public string Source { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string CostId { get; set; } = string.Empty;
+        public int ProjectRevisionFK { get; set; }
         [Required]
         [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? ComponentName { get; set; }
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
         public string? Description { get; set; }
         [Required]
-        public Double Total { get; set; }
-        [MaxLength(10)]
-        public string StageName { get; set; } = "GAA-R";
+        [Column(TypeName = "decimal(18,5)")]
+        public decimal Total { get; set; }
+        [MaxLength(20)]
+        public string? ConstructionStatusCode { get; set; }
+        [MaxLength(50)]
+        public string? ConstructionStatusName { get; set; }
+        public bool? IsPackaged { get; set; }
         [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        public DateTime CreatedDate { get; set; }
+        public string? CreatedBy { get; set; }
+        public DateTime? CreatedDate { get; set; }
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
-        public bool IsDeleted { get; set; } = false;
+        [MaxLength(100)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string ProjectFK { get; set; } = string.Empty;
+        [Required]
+        public bool IsDeleted { get; set; }
     }
     public class RevisionComponentCostPerYearDTO
     {
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string ComponentCostId { get; set; } = string.Empty;
+        public int ComponentCostFK { get; set; }
         [Required]
-        public Double Amount { get; set; }
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
+        [Column(TypeName = "decimal(18,5)")]
+        public decimal Amount { get; set; }
         [Required]
         public int Year { get; set; }
+        [MaxLength(50)]
+        public string? UACS { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public DateTime? DateOfApproval { get; set; }
         [Required]
-        public DateTime StartDate { get; set; } = DateTime.UtcNow;
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
         [Required]
-        public DateTime EndDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
         [Required]
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
     }
     public class RevisionMajorWorkItemDTO
     {
-        [Required]
+        [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string ProjectId { get; set; } = string.Empty;
+        [MaxLength(8)]
+        public string Source { get; set; } = string.Empty;
+        public int? ComponentCostFK { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string ReferenceId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(50)]
+        [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
         [Required]
         public int YearOfWork { get; set; }
         [Required]
-        public int WorkTypeId { get; set; }
+        public int WorkTypeFK { get; set; }
         [Required]
-        [MaxLength(50)]
-        public string InfraType { get; set; } = string.Empty;
-        public string? StageName { get; set; } = string.Empty;
-        public string? CreatedBy { get; set; } = string.Empty;
+        [MaxLength(10)]
+        public string InfraTypeFK { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
-        public string? UpdatedBy { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
-        public bool IsDeleted { get; set; } = false;
+        [MaxLength(100)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string ProjectFK { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? ProjectId { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
     }
     public class RevisionMajorWorkLocationsDTO
     {
-        [Required]
+        [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string ParentId { get; set; } = string.Empty;
+        [MaxLength(8)]
+        public string Source { get; set; } = string.Empty;
+        [Required]
+        public int WorkItemFK { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
+        public int YearOfWork { get; set; }
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
         public string? DetailedScope { get; set; }
         [Required]
         public int TargetUnitId { get; set; }
+        [Required]
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        public double? StartX { get; set; }
-        public double? StartY { get; set; }
-        public double? EndX { get; set; }
-        public double? EndY { get; set; }
-        [Required]
-        public Double PhysicalTarget { get; set; }
+        public Double? StartX { get; set; }
+        public Double? StartY { get; set; }
+        public Double? EndX { get; set; }
+        public Double? EndY { get; set; }
+        public Double? PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
         public string? EndStationLimit { get; set; }
-        public double? EndChainage { get; set; }
-        public double? StartChainage { get; set; }
+        public Double? StartChainage { get; set; }
+        public Double? EndChainage { get; set; }
         public Double? Length { get; set; }
-        public string? CreatedBy { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
-        public string? UpdatedBy { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
-        public bool IsDeleted { get; set; } = false;
+        [MaxLength(100)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string ProjectFK { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? ProjectId { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
     }
     public class RevisionFundingProfileDTO
     {
+        [Key]
         public int Id { get; set; }
         [Required]
-        public string ProjectId { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string ProjectFK { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? ProjectId { get; set; }
+        public int? ProjectRevisionFK { get; set; }
         [Required]
-        public string Source { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string SourceOrg { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
-        public string Agreement { get; set; } = string.Empty;
+        public string AgreementCode { get; set; } = string.Empty;
         [Required]
-        public double Amount { get; set; }
+        [Column(TypeName = "decimal(18,5)")]
+        public decimal Amount { get; set; }
         [Required]
-        public double Percentage { get; set; }
-        public bool IsDeleted { get; set; } = false;
+        public Double Percentage { get; set; }
+        [MaxLength(100)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(8)]
+        public string Source { get; set; } = string.Empty;
+        public bool? IsWalletDraw { get; set; }
+        [MaxLength(100)]
+        public string? CreatedBy { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
     }
     #endregion
     public class UpdateRevisionStatusDTO
@@ -193,10 +265,29 @@ namespace WebAPI.Controllers.Revision
         [Required]
         public string TransactionId { get; set; } = string.Empty;
         [Required]
-        public EnumRevisionStatus Status { get; set; }
+        public int Status { get; set; }
         public DateTime? ApprovalDate { get; set; }
         public string? Remarks { get; set; }
         public FileUpload? Document { get; set; } = new FileUpload();
+    }
+    public class ApproveRevisionDTO
+    {
+        [Required]
+        public string TransactionId { get; set; } = string.Empty;
+        public DateTime? ApprovalDate { get; set; }
+        public FileUpload? Document { get; set; } = new FileUpload();
+    }
+    public class RejectRevisionDTO
+    {
+        [Required]
+        public string TransactionId { get; set; } = string.Empty;
+        //public string? Remarks { get; set; }
+    }
+    public class ForCorrectionRevisionDTO
+    {
+        [Required]
+        public string TransactionId { get; set; } = string.Empty;
+        public string? Remarks { get; set; }
     }
     public class ResubmitRevisionDTO
     {
@@ -205,17 +296,17 @@ namespace WebAPI.Controllers.Revision
         [Required]
         public RevisionDetailsDTO RevisionDetails { get; set; } = new RevisionDetailsDTO();
         [Required]
-        public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
+        public RevisionProjectDetails ProjectDetails { get; set; } = new RevisionProjectDetails();
         [Required]
-        public List<RevisionComponentCostDTO> ComponentCosts { get; set; } = new List<RevisionComponentCostDTO>();
+        public List<RevisionComponentCost> ComponentCosts { get; set; } = new List<RevisionComponentCost>();
         [Required]
-        public List<RevisionComponentCostPerYearDTO> ComponentCostPerYear { get; set; } = new List<RevisionComponentCostPerYearDTO>();
+        public List<RevisionComponentCostPerYear> ComponentCostPerYear { get; set; } = new List<RevisionComponentCostPerYear>();
         [Required]
-        public List<RevisionMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<RevisionMajorWorkItemDTO>();
+        public List<RevisionMajorWorkItem> MajorItemOfWorks { get; set; } = new List<RevisionMajorWorkItem>();
         [Required]
-        public List<RevisionMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<RevisionMajorWorkLocationsDTO>();
+        public List<RevisionMajorWorkLocations> MajorItemLocations { get; set; } = new List<RevisionMajorWorkLocations>();
         [Required]
-        public List<RevisionFundingProfileDTO> FundingProfile { get; set; } = new List<RevisionFundingProfileDTO>();
+        public List<RevisionFundingProfile> FundingProfile { get; set; } = new List<RevisionFundingProfile>();
     }
     public class ProjectStatusDTO
     {

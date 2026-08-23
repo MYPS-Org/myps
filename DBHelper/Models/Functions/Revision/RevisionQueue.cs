@@ -20,10 +20,10 @@ namespace DBHelper.Models.Functions.Revision
         [MaxLength(100)]
         public string RevisionReason { get; set; } = string.Empty;
         [Required]
-        [MaxLength(17)]
+        [MaxLength(23)]
         public string RevisionStatus { get; set; } = string.Empty;
         [Required]
-        [MaxLength(11)]
+        [MaxLength(8)]
         public string CurrentStage { get; set; } = string.Empty;
         [Required]
         public DateTime RevisionDate { get; set; }

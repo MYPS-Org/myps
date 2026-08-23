@@ -107,22 +107,32 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       
       // Auto-generate name when Stage or YearStart changes
       if (field === 'Stage' || field === 'YearStart' || field === 'Type') {
+        // Trust Fund type auto-selects the TF stage; leaving Trust Fund resets it
+        if (field === 'Type') {
+          if (value === 3) {
+            newFormData.Stage = 12; // TF
+          } else if (prev.Type === 3) {
+            newFormData.Stage = 0;
+          }
+        }
+
         const selectedStage = Stage.find(stage => stage.NameId === (field === 'Stage' ? value : newFormData.Stage));
-        const stageName = selectedStage ? selectedStage.Name : '';
+        const stageName = selectedStage ? (selectedStage.DisplayName || selectedStage.Name) : '';
         const yearStart = field === 'YearStart' ? value : newFormData.YearStart;
         newFormData.Name = stageName + ' ' + yearStart;
-        // Auto-skip logic for stages 5-11
-        if (field === 'Stage' && selectedStage && selectedStage.NameId >= 5 && selectedStage.NameId <= 11) {
+        // Auto-skip logic: NEP through GAA-R (NameId 2-7), plus TF-R (NameId 13).
+        // RBP, RDIP, PIP, and TF are not auto-skipped.
+        if (
+          field === 'Stage' &&
+          selectedStage &&
+          ((selectedStage.NameId >= 2 && selectedStage.NameId <= 7) || selectedStage.NameId === 13)
+        ) {
           newFormData.IsSkipped = true;
           setSkipped(true);
         } else if (field === 'Stage') {
           newFormData.IsSkipped = false;
           setSkipped(false);
           newFormData.SkipReason = ''; // Clear reason when not skipping
-        }
-        if(field === 'Type' && value == 3) {
-          newFormData.Stage = 11; // Reset Stage if Type is 3
-          newFormData.Name = 'TF' + newFormData.YearStart;
         }
       }
 
@@ -173,7 +183,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="fixed z-10 inset-0 overflow-y-auto">
+    <Dialog open={isOpen} onClose={handleClose} className="fixed z-10 inset-0 overflow-y-auto">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
       {/* Full-screen container */}
@@ -271,7 +281,12 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                 <option className="text-gray-500" value="">
                   Select Stage
                 </option>
-                {Stage.map((stage) => (
+                {Stage.filter((stage) => {
+                  // TF/TF-R are not manually selectable; TF is auto-assigned when Type is Trust Fund
+                  if (stage.NameId === 12) return formData.Type === 3;
+                  if (stage.NameId === 13) return false;
+                  return true;
+                }).map((stage) => (
                   <option key={stage.Id} value={stage.NameId}>
                     {stage.Name}
                   </option>

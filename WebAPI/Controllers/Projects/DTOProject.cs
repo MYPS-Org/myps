@@ -39,6 +39,10 @@ namespace WebAPI.Controllers.Projects
         [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
+        [MaxLength(400)]
+        public string? AlternateId { get; set; }
+        [MaxLength(200)]
+        public string? MYId { get; set; }
         public string? ProjectType { get; set; }
         [Required]
         public string Description { get; set; } = string.Empty;
@@ -173,7 +177,7 @@ namespace WebAPI.Controllers.Projects
         // FK -> dbo.tProjectRevisions(Id)
         public int ProjectRevisionFK { get; set; }
         [Required]
-        [MaxLength(20)]
+        [MaxLength(100)]
         // FK -> dbo.tOptionProjectComponentType(ComponentId)
         public string ComponentType { get; set; } = string.Empty;
         [Required]

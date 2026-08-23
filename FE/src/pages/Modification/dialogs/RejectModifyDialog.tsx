@@ -5,7 +5,7 @@ import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import type { ProjectDetails } from '../../Project/Model';
-import { updateRevisionRequestStatus } from '../Service';
+import { rejectRevision } from '../Service';
 import { transactionIdAtom } from '../store/routeContextStore';
 import { useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
@@ -50,7 +50,10 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
         setIsSubmitting(true);
         
         try {
-            await updateRevisionRequestStatus(transactionId, 2, undefined, undefined, rejectionReason); // 2 = Rejected
+            // BE note: RejectRevisionDTO has no Remarks field yet, so rejectionReason isn't
+            // persisted server-side — still collected/required here for the UI/audit expectation
+            // and passed to onReject() for local handling.
+            await rejectRevision(transactionId);
             await onReject(rejectionReason);
             
             showToast({

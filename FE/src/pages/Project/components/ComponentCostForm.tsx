@@ -49,7 +49,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const relatedMajorItemsCount = useMemo(() => {
     if (!deletingComponent || !majorItems) return 0;
     return majorItems.filter(
-      item => item.ComponentId === deletingComponent.ComponentId && !item.IsDeleted
+      item => item.ComponentCostFK === deletingComponent.Id && !item.IsDeleted
     ).length;
   }, [deletingComponent, majorItems]);
 
@@ -316,8 +316,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           onClose={handleCloseModal}
           onSave={handleSaveCost}
           editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
-          editingCostPerYear={editingIndex !== null && componentCosts[editingIndex] ? 
-            componentCostPerYear.filter(cost => cost.ComponentId === componentCosts[editingIndex].ComponentId && !cost.IsDeleted) : 
+          editingCostPerYear={editingIndex !== null && componentCosts[editingIndex] ?
+            componentCostPerYear.filter(cost => cost.ComponentCostFK === componentCosts[editingIndex].Id && !cost.IsDeleted) :
             []}
           mode={modalMode}
           componentTypes={componentTypes}

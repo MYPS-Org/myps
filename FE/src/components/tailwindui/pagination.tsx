@@ -64,17 +64,20 @@ export function PaginationPage({
   onClick,
   className,
   current = false,
+  disabled = false,
   children,
-}: React.PropsWithChildren<{ onClick?: () => void; className?: string; current?: boolean }>) {
+}: React.PropsWithChildren<{ onClick?: () => void; className?: string; current?: boolean; disabled?: boolean }>) {
   return (
     <Button
       onClick={onClick}
+      disabled={disabled}
       plain
       aria-label={`Page ${children}`}
       aria-current={current ? 'page' : undefined}
       className={clsx(
         className,
-        'min-w-9 before:absolute before:-inset-px before:rounded-lg cursor-pointer',
+        'min-w-9 before:absolute before:-inset-px before:rounded-lg',
+        disabled ? 'cursor-default' : 'cursor-pointer',
         current && 'before:bg-zinc-950/5'
       )}
     >

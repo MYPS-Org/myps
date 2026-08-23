@@ -1,11 +1,14 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../../../Project/Model.d";
 import type { FormValidationError } from "../../../../utils/FormValidation";
 import type { FieldRules } from '../../Model';
-import { getDisabledClass, formatDropdownOptions } from '../../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, toDateInputValue } from '../../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../../components/ui/SearchableDropdown';
 import { EditableField } from '../../../../components/ui/EditableField';
 import { DateInput } from '../../../../components/tailwindui/date-input';
+// Cross-module reuse of Project's location filtering hook — same accepted exception as
+// LSWallet/components/WalletDetailsSection.tsx (pure, side-effect-free hook).
+import { useLocationFilters } from '../../../Project/filteringLocations';
 
 interface ProjectDetailsFormProps {
     projectDetails: ProjectDetails;
@@ -30,11 +33,16 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     errors = {},
     fieldRules,
 }) => {
-    const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
-    const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = useState<ProjectEnums['LegislativeDistricts']>([]);
-    const [ filteredDEOs, setFilteredDEOs ] = useState<ProjectEnums['DEOs']>([]);
-    const [ filteredIOs, setFilteredIOs ] = useState<ProjectEnums['ImplementingOffices']>([]);
-    const [ filteredOUs, setFilteredOUs ] = useState<ProjectEnums['OperatingUnits']>([]);
+    const isLumpSum = projectDetails?.IslandCode === 'LS';
+
+    const {
+        cities: filteredCities,
+        legislativeDistricts: filteredLegislativeDistricts,
+        deos: filteredDEOs,
+        ios: filteredIOs,
+        ous: filteredOUs,
+        regions: filteredRegions,
+    } = useLocationFilters(projectEnums, projectDetails, isLumpSum);
 
     // Helper function to check if a field is editable based on fieldRules from API
     const fieldPermissions = useMemo(() => {
@@ -58,98 +66,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
     // Function to check if a specific field is editable
     const isFieldEditable = (field: string) => fieldPermissions[field] === true;
-
-    const updateFilteredData = useCallback(() => {
-        if (!projectEnums) return;
-
-        let availableCities = projectEnums.Cities || [];
-        let availableLDs = projectEnums.LegislativeDistricts || [];
-        let availableDEOs = projectEnums.DEOs || [];
-        let availableIOs = projectEnums.ImplementingOffices || [];
-        let availableOUs = projectEnums.OperatingUnits || [];
-
-        // If province is selected, filter cities and LDs by province
-        if (projectDetails?.Province) {
-            // Use Id for filtering since you're storing Id values
-            const ProvinceGdbId = projectDetails.Province;
-            availableCities = projectEnums.Cities?.filter(
-                (city) => city.ProvinceCode === ProvinceGdbId
-            ) || [];
-            availableLDs = projectEnums.LegislativeDistricts?.filter(
-                (ld) => ld.ProvinceCode === ProvinceGdbId
-            ) || [];
-            availableDEOs = projectEnums.DEOs?.filter(
-                (deo) => deo.ProvinceCode === ProvinceGdbId
-            ) || [];
-        }
-        // If city is selected but no province, filter LDs by city's province
-        else if (projectDetails?.City) {
-            const selectedCity = projectEnums.Cities?.find((city) => city.Code === projectDetails.City);
-            if (selectedCity) {
-                availableLDs = projectEnums.LegislativeDistricts?.filter(
-                    (ld) => ld.ProvinceCode === selectedCity.ProvinceCode
-                ) || [];
-            }
-        }
-        // If LD is selected but no province/city, filter cities by LD's province
-        else if (projectDetails?.LegislativeDistrict) {
-            const selectedLD = projectEnums.LegislativeDistricts?.find((ld) => ld.Code === projectDetails.LegislativeDistrict);
-            if (selectedLD) {
-                availableCities = projectEnums.Cities?.filter(
-                    (city) => city.ProvinceCode === selectedLD.ProvinceCode
-                ) || [];
-            }
-        }
-        else if (projectDetails?.DEO) {
-            const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
-            if (selectedDEO) {
-                availableCities = projectEnums.Cities?.filter(
-                    (city) => city.ProvinceCode === selectedDEO.ProvinceCode
-                ) || [];
-            }
-        }
-
-        setFilteredCities(availableCities);
-        setFilteredLegislativeDistricts(availableLDs);
-        setFilteredDEOs(availableDEOs);
-
-        // Filter IOs based on DEO's RegionParticipantId or OrgType === 'UPMO'
-        if (projectDetails?.DEO) {
-            const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
-            if (selectedDEO) {
-                availableIOs = projectEnums.ImplementingOffices?.filter(
-                    (io) => (io.RegionParticipantId === selectedDEO.RegionParticipantId && io.OrgType === 'R') || io.OrgType === 'UPMO' ||  io.ParticipantId === selectedDEO.ParticipantId
-                ) || [];
-            }
-        } else {
-            // If no DEO selected, show only UPMO offices
-            availableIOs = projectEnums.ImplementingOffices?.filter((io) => io.OrgType === 'UPMO') || [];
-        }
-
-        setFilteredIOs(availableIOs);
-
-        // Filter OU based on selected IO
-        if(projectDetails?.ImplementingOffice) {
-            const selectedIO = projectEnums.ImplementingOffices?.find((io) => io.ParticipantId === projectDetails.ImplementingOffice);
-            if (selectedIO) {
-                // Show OUs that belong to the selected IO or are Central Office (CO)
-                availableOUs = projectEnums.OperatingUnits?.filter(
-                    (ou) => ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' || ou.OrgType === 'CO')
-                ) || [];
-            }
-        } else {
-            // If no IO selected, show all OUs
-            availableOUs = projectEnums.OperatingUnits || [];
-        }
-        setFilteredOUs(availableOUs);
-    }, [projectEnums, projectDetails?.Province, projectDetails?.City, projectDetails?.LegislativeDistrict, projectDetails?.DEO, projectDetails?.ImplementingOffice]);
-
-    // Initialize filtered data when projectEnums change
-    useEffect(() => {
-        if (projectEnums) {
-            updateFilteredData();
-        }
-    }, [projectEnums, updateFilteredData]);
 
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
             if (field === 'Province') {
@@ -256,10 +172,37 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 onChange(field, value);
             }
             else if (field === 'Region') {
-                // Auto-populate IslandCode from the selected region's real geographic island code
+                // Auto-populate IslandCode/ProjectType from the selected region's real geographic island code.
+                // Mirrors handleBoxClick, which drives both fields together for the LS/NP override.
                 const selectedRegion = projectEnums?.Regions?.find((region) => region.ParticipantId === value);
                 onChange('IslandCode', selectedRegion?.IslandCode);
+                onChange('ProjectType', selectedRegion?.IslandCode);
                 onChange(field, value);
+            }
+            else if (field === 'ImplementingOffice') {
+                // When IO changes, clear OU if it doesn't belong to the new IO
+                let newOU = projectDetails?.OperatingUnit;
+
+                if (newOU && value) {
+                    const selectedIO = projectEnums?.ImplementingOffices?.find((io) => io.ParticipantId === value.toString());
+                    if (selectedIO) {
+                        const ouBelongsToIO = projectEnums?.OperatingUnits?.find(
+                            (ou) => ou.ParticipantId === newOU &&
+                            (ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' && ou.OrgType === 'CO'))
+                        );
+                        if (!ouBelongsToIO) {
+                            newOU = '';
+                        }
+                    }
+                } else if (!value) {
+                    // If IO is cleared, also clear OU
+                    newOU = '';
+                }
+
+                onChange(field, value);
+                if (newOU !== projectDetails?.OperatingUnit) {
+                    onChange('OperatingUnit', newOU);
+                }
             }
             else {
                 onChange(field, value);
@@ -275,6 +218,15 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         // Clicking Lump Sum/Non Project overrides IslandCode regardless of the Region-derived value,
         // and drives ProjectType the same way.
         onChange('ProjectType', newValue);
+
+        // When switching to Lump Sum, clear geographic fields that are no longer required
+        if (newValue === 'LS') {
+            onChange('Province', undefined);
+            onChange('City', undefined);
+            onChange('LegislativeDistrict', undefined);
+            onChange('DEO', undefined);
+            onChange('Region', undefined);
+        }
     };
 
     const regionWideData = [
@@ -357,38 +309,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className='grid grid-cols-3 gap-5'>
 
-                        <div className='w-full flex flex-col text-left gap-2'>
-                            <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>External ID:</label>
-                                <EditableField field="ExternalId" isFieldEditable={isFieldEditable}>
-                                    {(editable) => (
-                                    <input 
-                                        type="text"
-                                        value={projectDetails?.ExternalId || ''}
-                                        onChange={(e) => handleInputChange('ExternalId', e.target.value)}
-                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.ExternalId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
-                                        disabled={!editable}
-                                    />
-                                    )}
-                                </EditableField>
-                            </div>
-                        </div>
-                        <div className='w-full flex flex-col text-left gap-2'>
-                            <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.UACS ? 'text-red-500' : 'text-gray-600'}`}>OA Project Code (UACS):</label>
-                                <EditableField field="UACS" isFieldEditable={isFieldEditable}>
-                                    {(editable) => (
-                                    <input 
-                                        type="text" 
-                                        value={projectDetails?.UACS || ''}
-                                        onChange={(e) => handleInputChange('UACS', e.target.value)}
-                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.UACS ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
-                                        disabled={!editable}
-                                    />
-                                    )}
-                                </EditableField>
-                            </div>
-                        </div>
+                        {/* ExternalId and UACS were removed from ProjectDetails — see Project/components/ProjectDetailsForm.tsx */}
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className='flex flex-row gap-5 items-center'>
@@ -472,7 +393,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <EditableField field='MYCAApprovalDate' isFieldEditable={isFieldEditable}>
                                     {(editable) => (
                                         <DateInput
-                                            value={projectDetails?.MYCAApprovalDate ? new Date(projectDetails?.MYCAApprovalDate).toISOString().split('T')[0] : ''}
+                                            value={toDateInputValue(projectDetails?.MYCAApprovalDate)}
                                             onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                             className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!isFieldEditable('MYCAApprovalDate'))} rounded-md truncate`}
                                             disabled={!editable}
@@ -518,7 +439,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <EditableField field="Province" isFieldEditable={isFieldEditable}>
                                         {(editable) => (
                                         <SearchableDropdown
-                                            options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
+                                            options={formatDropdownOptions(projectEnums?.Provinces || [], 'Code', 'Name', 'Id')}
                                             value={projectDetails?.Province || ''}
                                             onChange={(value) => handleInputChange('Province', value === '' ? undefined : value.toString())}
                                             placeholder="Select Province"
@@ -540,7 +461,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <EditableField field="City" isFieldEditable={isFieldEditable}>
                                         {(editable) => (
                                         <SearchableDropdown
-                                            options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
+                                            options={formatDropdownOptions(filteredCities || [], 'Code', 'Name', 'Id')}
                                             value={projectDetails?.City || ''}
                                             onChange={(value) => handleInputChange('City', value === '' ? undefined : value.toString())}
                                             placeholder="Select City/Municipality"
@@ -562,7 +483,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <EditableField field="LegislativeDistrict" isFieldEditable={isFieldEditable}>
                                         {(editable) => (
                                         <SearchableDropdown
-                                            options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
+                                            options={formatDropdownOptions(filteredLegislativeDistricts || [], 'Code', 'Name', 'Id')}
                                             value={projectDetails?.LegislativeDistrict || ''}
                                             onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : value.toString())}
                                             placeholder="Select Legislative District"
@@ -616,12 +537,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <EditableField field="Region" isFieldEditable={isFieldEditable}>
                                         {(editable) => (
                                         <SearchableDropdown
-                                            options={formatDropdownOptions(
-                                                projectEnums?.DEOs?.filter(x => x.ParticipantId === projectDetails?.DEO) || [],
-                                                'RegionParticipantId',
-                                                'RegionName',
-                                                'Id'
-                                            )}
+                                            options={formatDropdownOptions(filteredRegions, 'ParticipantId', 'Name')}
                                             value={projectDetails?.Region || ''}
                                             onChange={(value) => handleInputChange('Region', value === '' ? undefined : value.toString())}
                                             placeholder="Select Regional Office"
@@ -674,7 +590,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                             value={projectDetails?.OperatingUnit || ''}
                                             onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
                                             placeholder="Select Operating Unit"
-                                            disabled={!editable || !projectDetails?.ImplementingOffice}
+                                            disabled={!editable || (!isLumpSum && !projectDetails?.ImplementingOffice)}
                                             error={!!errors.OperatingUnit}
                                             allowClear={true}
                                             searchPlaceholder="Search operating units..."
@@ -886,7 +802,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <EditableField field="FeasibilityDate" isFieldEditable={isFieldEditable}>
                                     {(editable) => (
                                     <DateInput
-                                        value={projectDetails?.FeasibilityDate ? new Date(projectDetails?.FeasibilityDate).toISOString().split('T')[0] : ''}
+                                        value={toDateInputValue(projectDetails?.FeasibilityDate)}
                                         onChange={(e) => handleInputChange('FeasibilityDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                         className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.Feasibility === 1) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(!editable)} rounded-md truncate`}
                                         disabled={!(projectDetails?.Feasibility === 1) || !editable}
@@ -927,7 +843,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <EditableField field="DetailedDesignDate" isFieldEditable={isFieldEditable}>
                                     {(editable) => (
                                     <DateInput
-                                        value={projectDetails?.DetailedDesignDate ? new Date(projectDetails?.DetailedDesignDate).toISOString().split('T')[0] : ''}
+                                        value={toDateInputValue(projectDetails?.DetailedDesignDate)}
                                         onChange={(e) => handleInputChange('DetailedDesignDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                         className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.DetailedDesign) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(!editable)} rounded-md truncate`}
                                         disabled={!(projectDetails?.DetailedDesign) || !editable}

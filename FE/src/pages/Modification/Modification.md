@@ -72,18 +72,6 @@ Modification/
     useDeleteWorkLocationDialog.ts     # Wrapper hook for delete work location dialog atoms
     useTransactionId.ts                # Reads transactionId from URL param, writes to atom
 
-  rules/
-    RuleManager.ts                     # Dispatches to correct rule set based on category string
-    AllowedFields.ts                   # Default rule set (Modification, many categories)
-    AdjustmentFields.ts                # Rule set for Adjustment category (reason-specific fields)
-    ChangeInAuthority.ts               # Rule set for Change in Authority
-    AdditionalFund.ts                  # Rule set for Additional Funding
-    Termination.ts                     # Rule set for Termination
-    NIAbandonmentForSavings.ts         # Rule set for NI Abandonment for Savings
-    NIDelisted.ts                      # Rule set for NI Delisted
-    NIReversion.ts                     # Rule set for NI Reversion
-    ModeOfImplementation.ts            # Rule set for Mode of Implementation
-
   conditions/
     ExcessComponentAutomation.ts       # Detect project cost > component total, prompt EXC creation
     AddExcessComponent.ts              # Helper to construct EXC ComponentCost object
@@ -94,9 +82,6 @@ Modification/
   utils/
     revisionNavigation.ts              # Route builders per RevisionGroupId, TransactionId parser
     pcmaStatusHelper.ts                # Derive PCMA + Package status from ComponentsStatus array
-
-  state/
-    modState.ts                        # (empty placeholder)
 
   components/
     AdjustmentRulesTester.tsx          # Dev-only rules tester UI
@@ -165,12 +150,12 @@ All calls use `httpClient.post<T>()`.
 
 | Function | Endpoint | Body | Return |
 |---|---|---|---|
-| `fetchRevisionData(projectId, header, category, reason)` | `POST /Revision/ReviseProject/` | `{ ProjectId, RevisionHeader, RevisionCategory, RevisionReason }` | `RevisionProjectPayload` |
-| `fetchReviseProjectDetails(transactionId)` | `POST /Revision/ViewReviseProject/` | `{ TransactionId }` | `RevisionProjectPayload` |
-| `fetchModificationList(data)` | `POST /Revision/RevisionRequests/` | `RevisionPagination` | `PaginationResponse<RevisionLists>` |
-| `submitModificationRequest(payload)` | `POST Revision/RequestRevision` | Full payload (see below) | `{ TransactionId: string }` |
-| `ResubmitRevisionRequest(payload)` | `POST Revision/ResubmitRevision` | Full payload + TransactionId | `{ TransactionId: string }` |
-| `updateRevisionRequestStatus(txId, status, doc?, date?, remarks?)` | `POST /Revision/UpdateRevisionStatus/` | `{ TransactionId, Status, Document?, ApprovalDate?, Remarks? }` | — |
+| `fetchRevisionData(projectId, header, category, reason)` | `POST /Revision/ReviseProject` | `{ ProjectId, RevisionHeader, RevisionCategory, RevisionReason }` | `RevisionProjectPayload` |
+| `fetchReviseProjectDetails(transactionId)` | `POST /Revision/ViewReviseProject` | `{ TransactionId }` | `RevisionProjectPayload` |
+| `fetchModificationList(data)` | `POST /Revision/RevisionRequests` | `RevisionPagination` (cursor pagination — see below) | `PaginationResponse<RevisionLists>` |
+| `submitModificationRequest(payload)` | `POST /Revision/RequestRevision` | Full payload (see below) | `ApiTransactionResult` (`{ Title, Message, TransactionId }`) |
+| `ResubmitRevisionRequest(payload)` | `POST /Revision/ResubmitRevision` | Full payload + TransactionId | `ApiTransactionResult` |
+| `updateRevisionRequestStatus(txId, status, doc?, date?, remarks?)` | `POST /Revision/UpdateRevisionStatus` | `{ TransactionId, Status: EnumRevisionStatus, Document?, ApprovalDate?, Remarks? }` | `ApiMessageResult` |
 | `getLabelField(payload)` | `POST /IORevision/GetLabelField/` | `{ categoryDesc, reasonId, projectId }` | — |
 
 ### Submit Payload Structure
@@ -178,9 +163,10 @@ All calls use `httpClient.post<T>()`.
 ```ts
 {
   RevisionDetails: {
+    CategoryId?: number | null;
     ReasonId: number;
     ApprovalDate: string;
-    ApprovedDocument: { Name, Extension, ContentType, DataUrl };
+    ApprovedDocument: FileUpload; // { Name, Extension, ContentType, DataUrl }
   };
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
@@ -193,13 +179,20 @@ All calls use `httpClient.post<T>()`.
 
 Resubmit adds a `TransactionId` field at the top level.
 
-### Status Codes (`updateRevisionRequestStatus`)
+### Cursor Pagination (`RevisionPagination` / `RevisionFilter`)
 
-| Code | Meaning |
+`RevisionPagination` is now `PaginatedRequest<RevisionFilter>` (the same keyset-cursor convention used by `Project`/`Program` list pages — see `FE/src/types/Pagination.d.ts` and `FE/src/hooks/usePagination.ts`). `ModifcationList.tsx` uses the shared `usePagination` hook + `PaginationBar` component instead of hand-rolled page state. `RevisionFilter` fields: `TransactionId`, `ProjectId`, `RevisionType`, `RevisionStatus`, `CurrentStage` (only `ProjectId` is currently wired to a search input).
+
+### Status Codes (`EnumRevisionStatus`, `Model.d.ts`)
+
+Exposed as a `const` object + type (not a real TS `enum` — this project's tsconfig sets `erasableSyntaxOnly`, which disallows enums since they emit non-erasable runtime code):
+
+| Value | Meaning |
 |---|---|
-| 1 | Approved |
-| 2 | Disapproved (Rejected) |
-| 3 | For Review / Return for Corrections |
+| `EnumRevisionStatus.Pending` (0) | Pending |
+| `EnumRevisionStatus.Approved` (1) | Approved |
+| `EnumRevisionStatus.Rejected` (2) | Disapproved (Rejected) |
+| `EnumRevisionStatus.ForCorrection` (3) | For Review / Return for Corrections |
 
 ---
 
@@ -250,6 +243,12 @@ interface FieldRules {
 interface FieldRuleSection {
   Fields: Record<string, boolean>;  // field name → editable (true/false)
   CRUD: CRUDRules;                   // CanAdd, CanDelete, Message
+}
+
+interface CRUDRules {
+  Message?: string;
+  CanAdd: boolean;   // real boolean — was previously (incorrectly) typed/compared as string
+  CanDelete: boolean;
 }
 ```
 
@@ -458,35 +457,9 @@ Loaded when reviewing an existing revision from the list.
 
 ## Rules System
 
-### `RuleManager.ts`
+Field editability is driven **exclusively** by the API's `Rules.Field` JSON, parsed into `fieldRulesAtom` (see `store/fieldPermissionStore.ts` above). There is no client-side rule engine.
 
-Static class. `getRuleSet(category)` normalizes the category string (lowercase, remove spaces/special chars) and switches to the correct rule module.
-
-**Category → Rule Set mapping:**
-
-| Category key | Rule Set |
-|---|---|
-| `adjustment` | `AdjustmentFields` |
-| `modification` | `AllowedFields` |
-| `changeinauthority` | `ChangeInAuthority` |
-| `additionalfund` | `AdditionalFund` |
-| `niabandonment` | `NIAbandonment` |
-| `nidelisted` | `NIDelisted` |
-| `nireversion` | `NIReversion` |
-| `termination` | `Termination` |
-| Everything else | `AllowedFields` (placeholder) |
-
-> Note: Most rule logic is now API-driven via `fieldRulesAtom`. `RuleManager` is used for local/dev testing and legacy code. Production field control uses `fieldRulesAtom` populated from `data.Rules.Field` JSON.
-
-### Case-Based Field Permissions (frontend fallback)
-
-Each rule set exports `getEditableFieldsForCase(caseType, reason?)`:
-
-- **CaseA** — most permissive; all project detail + component + major item + physical target fields editable
-- **CaseB** — limited: Description, EmergencyMode, Origin + component cost editing + work location values (not CRUD)
-- **CaseC** — no fields editable
-
-`AdjustmentFields` adds `reasonSpecificFields` — per-reason overrides that further restrict or allow specific fields within a case. Example: reason "Move funds between existing Project Components" allows only `EditComponentCost`, `AddComponentCost`, and related cost fields.
+> The `rules/` folder (`RuleManager.ts`, `AllowedFields.ts`, `AdjustmentFields.ts`, `ChangeInAuthority.ts`, `AdditionalFund.ts`, `Termination.ts`, `NIAbandonmentForSavings.ts`, `NIDelisted.ts`, `NIReversion.ts`, `ModeOfImplementation.ts`) and the unrouted `TestAllowedFields.tsx` demo page previously implemented a duplicate, hardcoded Case A/B/C rule engine. It was never wired into `useFieldPermissions`/`fieldRulesAtom` (confirmed via a repo-wide reference check) and was removed as dead code — production field control has always come from `fieldRulesAtom`, populated from `data.Rules.Field`.
 
 ---
 
@@ -542,11 +515,11 @@ Both read `transactionIdAtom` for existing revision identification. PDF file val
 
 | Dialog | Status Code | Required Input | Navigation after success |
 |---|---|---|---|
-| `ApproveModifyDialog` | 1 | None | `onSuccess()` or `/revision` |
-| `RejectModifyDialog` | 2 | Rejection reason (text, required) | `onSuccess()` or `/revision` |
-| `ForReviewModifyDialog` | 3 | Review comments (text, required) | `onSuccess()` or `/revision` |
+| `ApproveModifyDialog` | `EnumRevisionStatus.Approved` | CO (`AUC` group) approval requires a PDF document; RO (`RPC` group) requires none | `onSuccess()` or `/revision` |
+| `RejectModifyDialog` | `EnumRevisionStatus.Rejected` | Rejection reason (text, required) | `onSuccess()` or `/revision` |
+| `ForReviewModifyDialog` | `EnumRevisionStatus.ForCorrection` | Review comments (text, required) | `onSuccess()` or `/revision` |
 
-All three read `transactionIdAtom` directly via `useAtomValue`. All call `updateRevisionRequestStatus(txId, statusCode, ...)`.
+All three read `transactionIdAtom` directly via `useAtomValue`. All call `updateRevisionRequestStatus(txId, status, ...)`. `ApproveModifyDialog` detects RO vs CO via `useAuth()`'s `user.UserGroupNames` (same pattern as `RevisedProjectDialog`/`ResubmitRevisionDialog`).
 
 ### `TerminationDialog`
 
@@ -594,6 +567,9 @@ Two exports:
 - **Filename typo**: `ModifcationList.tsx` is missing an `i` — should be `ModificationList.tsx`. File is referenced correctly in routes.
 - **`ModificationDetails.tsx`**: Appears to duplicate `ModifyProject.tsx` functionality. Both load `ProjectForm` with the same data-fetching pattern. Likely an early split that wasn't fully differentiated.
 - **`ModifiyProjectDialog.tsx`**: Legacy dialog mostly stubbed out. Dropdown renders a select with no options. Was the original Adjustment dialog; superseded by the `ProjectForm` approach.
-- **API-first field rules**: The `RuleManager` / `AllowedFields` frontend rules are a fallback and dev-testing tool. In production, field editability is always driven by `Rules.Field` from the API (parsed into `fieldRulesAtom`). If `Rules.Field` is missing or malformed, the system attempts to repair it by counting mismatched braces.
+- **API-first field rules**: Field editability is always driven by `Rules.Field` from the API (parsed into `fieldRulesAtom`). If `Rules.Field` is missing or malformed, the system attempts to repair it by counting mismatched braces. The formerly-documented `RuleManager`/`AllowedFields` client-side fallback engine has been removed (see Rules System above) — it was dead code, never wired into this flow.
 - **TransactionId atom timing**: `transactionIdAtom` is written by `ViewRevision` on mount. Approval dialogs that open before the atom is set will have an empty string — guarded by checking `transactionId` before calling API.
 - **`majorItemLocations.atom.ts` duplication**: `MajorItemLocationsAtom` is exported from both `majorItemLocations.atom.ts` and `majorItemOfWorks.atom.ts`. Components should import from `majorItemOfWorks.atom.ts` to ensure the same atom instance is shared with `MajorItemOfWorksWithDropdownAtom`.
+- **`RevisionDetails.RegionStatus`/`COStatus` never existed post-migration — verified and fixed 2026-08-18**: `ViewReviseProject`'s `RevisionDetails` payload comes from `fRevisionDetail()`, shaped by `DBHelper/Models/Functions/Revision/RevisionDetail.cs` — it has no `RegionStatus`/`COStatus`/`CreatedBy` at all (only `CurrentStage` and `RevisionCreatedBy`). The FE `RevisionDetails` type in `Model.ts` and `getRevisionActions()` were both still written against the pre-migration shape, so every role-gated action button (`Approve`/`For Correction`/`Disapprove`/`Re-Submit Revision`) silently read `undefined` and could never show for the cases that depended on `RegionStatus`/`COStatus`/`CreatedBy`. Fixed by retyping `RevisionDetails` to the real shape and switching `getRevisionActions()` to gate on `ProjectStatus.RevisionStatus` (the one status string the API does return) instead. Known limitation: that string is collapsed server-side (`ApprovalStatus.ROStatus`/`COStatus` are computed in `RevisionController.ViewReviseProject` but never serialized into the response) and can't distinguish "awaiting RPC (region)" from "awaiting AUC (central office)" — AUC and RPC currently share one pending-approval gate as a result. Splitting that correctly requires a backend change to return both statuses.
+- **Published-project gate — removed from code, doc was stale**: `getRevisionActions()` no longer has an `isPublished` gate (removed in commit `08d012fb`, "Refactor PDF upload handling ... align with normalized revision API"); the "Submit Revision Request to RO/CO" actions are no longer client-side gated on publish status. The backend's `Project Not Published` error is still surfaced verbatim as a blocking notice in `ModificationDetails.tsx`.
+- **Blocked revision groups (9 = Termination, 13 = Mode-of-Implementation) and LS/wallet Projects**: These are enforced server-side. `ModificationDetails.tsx` shows the backend's exact `Title`/`Message` (`Revision Type Temporarily Blocked`, `Revision Reason Requires Confirmation`, `Pending Modification Request`, `Project Not Published`) as an in-page blocking notice instead of a generic redirect. The Revision Type/Category/Reason selection UI itself lives in the `Project` module, outside this folder.

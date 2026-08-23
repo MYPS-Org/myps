@@ -123,7 +123,9 @@ navigate(`/programs/programdetails/${program.ProgramId}:${program.StageName}`);
 
 | Function | Endpoint | Payload |
 |----------|----------|---------|
-| `importProjects(ImportProjectDTO)` | `POST /Importing/ImportProject/` | full import DTO |
+| `startImportProjectJob({ ProgramId, StageName, File })` | `POST /Importing/ImportProject` (`multipart/form-data`) | used by the live `ImportProjectsJobDialog`; returns `{ JobId, HangfireJobId, Message, Title }` |
+| `getImportJobStatus(jobId)` | `GET /Importing/GetImportStatus` | `silent: true` poll; returns `ImportJobStatus` |
+| `importProjects(ImportProjectDTO)` | `POST /Importing/ImportProject/` | **legacy, unused by any live component** — full client-parsed DTO as a JSON body; the endpoint now only accepts `multipart/form-data`, so this call would fail (415/binding error) if invoked. Kept only for `ImportProjectsDialog`'s possible later reuse |
 | `batchDeleteProjects({ ProgramId, ProjectIds })` | `POST /Program/BatchDelete` | comma/newline-separated IDs string |
 | `batchAllowPublishing({ ProgramId, ProjectIds })` | `POST /Program/BatchAllowPublish` | comma/newline-separated IDs string |
 | `batchRestrictPublishing({ ProgramId, ProjectIds })` | `POST /Program/BatchRestrictPublish` | comma/newline-separated IDs string |
@@ -211,7 +213,7 @@ AIP/AIP02 payloads include all filter fields; RBP/RBPTier/RBPComponents/RDIP sen
 | Condition | Button |
 |-----------|--------|
 | `IsActive && !isTerminalStage` | Proceed to {nextStageName} |
-| `IsActive && (StageId === 5 \|\| StageId === 7)` | Proceed to {skipStageName} |
+| `IsActive && StageId === 5` | Proceed to {skipStageName} |
 | `IsActive` | Update (disabled if no changes) |
 
 `isTerminalStage` is not a fixed StageId — it's `true` when the program's current stage is the last one in its stage track (see Stage Model below), computed positionally from the live `Dropdowns.Stages` list so it stays correct even if stages are added/removed/reordered via the Program Stage code table.
@@ -242,7 +244,8 @@ IsActive && !isTerminalStage
 - **Props:** `isOpen`, `onClose`, `onSubmit`, `programEnums`
 - **Auto-name generation:** `StageName + " " + YearStart` (e.g., `"BP 2025"`)
 - **Sub Name field:** appended on submit as `Name + " " + AddedName`
-- **Type = 3 (TF) special case:** auto-sets Stage to 11; name becomes `"TF{YearStart}"`
+- **Type = 3 (TF) special case:** auto-sets Stage to 12 (TF) and disables the Stage select; name becomes `"TF {YearStart}"` (same `stageName + " " + yearStart` pattern as every other stage). Switching away from Type 3 resets Stage back to 0 and re-enables the select.
+- **TF/TF-R (NameId 12/13) are excluded from manual Stage selection** — TF is only shown (and disabled) when Type is Trust Fund; TF-R never appears in this dialog.
 - **Skip logic:** Stages NameId 5–11 auto-set `IsSkipped = true`
 - **On success:** navigates to `programdetails/{newId}:{StageName}`
 
@@ -282,12 +285,13 @@ IsActive && !isTerminalStage
 ### `ImportProjectsJobDialog` (live — wired into `ActionsDropdown`)
 
 - Accepts `.xlsx` / `.xlsm` via drag-and-drop or file picker
-- No client-side parsing — the whole workbook is validated and written to the DB server-side, asynchronously
-- Flow: `startImportProjectJob()` posts a single `multipart/form-data` request (`ProgramId`, `StageName`, `File`) straight to `/Importing/ImportProject` — the backend saves the upload to disk and enqueues the Hangfire job in that same call, returning `JobId` — then polls `getImportJobStatus()` (`/Importing/GetImportStatus`, `silent: true` so it doesn't flash the global preloader) every 2.5s until a terminal status
+- No client-side parsing, no in-dialog progress/result UI — the whole workbook is validated and written to the DB server-side, asynchronously, entirely in the background
+- Flow: `startImportProjectJob()` posts a single `multipart/form-data` request (`ProgramId`, `StageName`, `File`) straight to `/Importing/ImportProject` — the backend saves the upload to disk and enqueues the Hangfire job in that same call, returning `JobId`
 - The `multipart/form-data` POST needs `headers: { 'Content-Type': 'multipart/form-data' }` passed explicitly in `Service.ts` — `httpClient`'s axios instance defaults to `application/json`, and axios's own `transformRequest` will silently `JSON.stringify` a `FormData` body if the resolved Content-Type still says `application/json` at request time. Setting it to `multipart/form-data` (no boundary) short-circuits that check; axios/the browser then strips and replaces it with the real multipart boundary right before sending.
-- Terminal states: `Completed`, `CompletedWithErrors`, `Failed`, `Cancelled` — shows `ValidCount`/`WarningCount`/`ErrorCount` plus download links for the always-present text report and the error-only Excel report (`TextFileUrl`/`ExcelFileUrl`, one-shot downloads — the backend deletes each file after it's served once)
 - A 400 "Import In Progress" response (system-wide import lock) resets the dialog back to idle so the user can retry later; the `httpClient` interceptor already toasts the message, so the dialog does not toast it again
-- On `Completed`/`CompletedWithErrors`, calls `onImported()` so the caller (`ActionsDropdown`) can refresh the project table
+- On success, the dialog **fires a "queued" info toast, records the `JobId` into `pendingImportJobsAtom`, and closes itself immediately** — it does not wait around for the job to finish. `FE/src/components/ImportJobNotifier.tsx` (mounted once, app-wide, in `App.tsx` — not part of this module) picks the job up from there: it joins that job's SignalR group on the dedicated `/hubs/import` connection, and when `ImportHub` pushes a terminal `ImportStatusChanged` (`Completed`/`CompletedWithErrors`/`Failed`/`Cancelled`), it shows a toast with the pass/fail counts and, when a report was generated, a "View Report" action link (`FE/src/components/toaster/toaster.tsx`'s `Toaster` gained an optional `action` for exactly this). This means the user can queue an import, keep working (even navigate elsewhere in the app), and still get notified whenever it actually finishes.
+- No component-level polling remains in this flow — `getImportJobStatus()` (`Service.ts`) still exists but is now only used by `ImportJobNotifier` as a one-shot reconnect fallback (SignalR groups don't survive a dropped connection, so on reconnect it rejoins every still-pending job and re-checks status once in case the terminal event fired while disconnected).
+- Requires `Main/Program.cs`'s `AddSignalR(...)` to explicitly `.AddJsonProtocol(options => options.PayloadSerializerOptions.PropertyNamingPolicy = null)` — SignalR's `JsonHubProtocol` camelCases payloads by default, independently of the `AddControllers().AddJsonOptions(...)` override that already keeps REST responses PascalCase; without this, `ImportStatusChanged` would arrive with lowercase keys and every field the FE reads (`event.JobId`, `event.Status`, ...) would be `undefined`.
 
 ### `ImportProjectsDialog` (present but unused — kept for possible later reuse)
 
@@ -367,12 +371,14 @@ Programs run on one of two independent stage tracks, split by `Details.Type`:
 
 | Track | Stages (by Name, sorted by Id) | Who's on it |
 |-------|-------------------------------|-------------|
-| Main | BP → NEP → NEP-E → HGAB → HGAB-I → GAA → GAA-R → RBP → RDIP → PIP | Any program where `Type !== 3` |
+| Main | BP → NEP → NEP-E → HGAB → HGAB-I → GAA → GAA-R | Any program where `Type !== 3` |
 | Trust Fund | TF → TF-R | Programs where `Type === 3` (see `AddProgramDialog`'s Type=3 handling) |
+
+RBP, RDIP, and PIP (NameId 8, 9, 11) are excluded from the "Proceed to next stage" progression entirely (`MAIN_PROGRESSION_EXCLUDED_STAGE_IDS` in `ProgramDetail.tsx`), so **GAA-R (NameId 7) is the terminal stage of the Main track** — reaching it shows the Publish/Add Project buttons, not another Proceed button.
 
 Within a program's track, `isTerminalStage` is true when its `StageId` is the last stage of that track (no further stage exists to proceed to) — this is what gates the Publish/Add Project/Add Existing Project buttons instead of a hardcoded StageId.
 
-The skip button (`StageId === 5 || StageId === 7`, i.e. HGAB-I and GAA-R) is a separate, curated business rule — not derived positionally — and is unrelated to `isTerminalStage`.
+The skip button (`StageId === 5`, i.e. HGAB-I → GAA-R) is a separate, curated business rule — not derived positionally — and is unrelated to `isTerminalStage`. It intentionally does **not** fire at GAA-R(7) anymore, since GAA-R is terminal and must not offer any further proceed/skip path.
 
 `IsActive` controls whether the detail page allows editing.
 

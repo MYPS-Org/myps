@@ -84,7 +84,7 @@ const TYPE_META: Record<string, { label: string; dot: string; badge: string; bor
   },
 };
 
-const TypeIcon: React.FC<{ type: string }> = ({ type }) => {
+const TypeIcon: React.FC<{ type?: string }> = ({ type }) => {
   const t = normaliseType(type);
   if (t === 'create') return (
     <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">

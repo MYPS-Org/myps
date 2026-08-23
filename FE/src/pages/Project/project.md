@@ -407,7 +407,7 @@ GIS calls use native `fetch()` against `VITE_API_GIS_URL`.
 
 ### `AddProject.tsx`
 
-Reads `programId` and `stageName` from URL query params (`useSearchParams`), then renders `<ProjectForm mode="add" initialProgramId={...} initialStageName={...} />`.
+Reads `programPK` and `stageName` from URL query params (`useSearchParams`), then renders `<ProjectForm mode="add" initialProgramPK={...} initialStageName={...} />`.
 
 ### `EditProject.tsx`
 
@@ -427,7 +427,7 @@ Reads `programId` and `stageName` from URL query params (`useSearchParams`), the
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';         // default: 'add'
-  initialProgramId?: string;
+  initialProgramPK?: string;
   initialStageName?: string;
   onRefresh?: () => void;
 }
@@ -445,7 +445,7 @@ interface ProjectFormProps {
 | `fundingProfiles` | `FundingProfile[]` | Funding source rows |
 | `docs` | `ProjectSupportingDocs[]` | Uploaded supporting documents |
 | `maxAmountCost` | `number` | Passed from ComponentCostForm; used for budget validation |
-| `isDisabled` | `boolean` | `IsActive === false` OR `StageId === 10 && Status === 1` |
+| `isDisabled` | `boolean` | `IsActive === false` OR `StageName === 'GAA-R' && Status === 1` |
 
 ### Section Collapse States
 
@@ -492,11 +492,13 @@ handleUpdateProject()
 
 | Button | Condition |
 |---|---|
-| **Unlock Project** | mode=edit, IsActive=true, IsUnlock=true, StageId ≠ 10 |
-| **Itemized Lump Sum** | mode=edit, StageId ≠ 10, ProjectId ends with "LS" |
+| **Unlock Project** | mode=edit, IsActive=true, IsUnlock=true, StageName ≠ 'GAA-R' |
+| **Itemized Lump Sum** | mode=edit, StageName ≠ 'GAA-R', ProjectId ends with "LS" |
 | **Update Project** | mode=edit, IsActive=true, ProgramDetails.Status ≠ 1 |
-| **Revise Project** (dropdown) | mode=edit, StageId=10, Status=1 |
+| **Revise Project** (dropdown) | mode=edit, StageName='GAA-R', Status=1 |
 | **Save Project** (add mode) | always shown in add mode |
+
+> Gated on `ProgramDetails.StageName` (not `StageId`) since the underlying `tOptionProgramStage.Id` values are admin-editable and have shifted before — see `documents/plans/fix-program-stage-progression-gating.md` and `documents/plans/fix-projectform-gaar-stage-gating.md`.
 
 ### Cascade Delete — ComponentCost
 

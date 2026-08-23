@@ -56,8 +56,10 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             // First check: must match RevisionGroupId
             if (reason.RevisionGroupId !== selectedRevisionGroupId) return false;
             
-            // Second check: if category is selected, must match CategoryId
-            if (selectedCategory && !reason.CategoryId?.includes(selectedCategory)) return false;
+            // Second check: if category is selected, and this reason is restricted to specific
+            // categories, it must match. Reasons with no CategoryId entries are unrestricted
+            // and apply to any category in the group.
+            if (selectedCategory && reason.CategoryId && reason.CategoryId.length > 0 && !reason.CategoryId.includes(selectedCategory)) return false;
             
             return true;
         });
@@ -106,8 +108,8 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             const revisionTypeName = selectedHeader?.RevisionName || 'Revision';
             
             // Get category name if category was selected, otherwise use revision type name
-            const categoryName = selectedCategory 
-                ? filteredCategories.find(cat => cat.Id === selectedCategory)?.CategoryName || ''
+            const categoryName = selectedCategory
+                ? filteredCategories.find(cat => cat.CategoryId === selectedCategory)?.CategoryName || ''
                 : '';
             
             // Use category name if available, otherwise use revision type name
@@ -224,7 +226,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                             >
                                 <option value="">Select Category</option>
                                 {filteredCategories.map((cat) => (
-                                    <option key={cat.Id} value={cat.Id}>
+                                    <option key={cat.Id} value={cat.CategoryId}>
                                         {cat.CategoryName}
                                     </option>
                                 ))}
