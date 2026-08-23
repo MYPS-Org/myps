@@ -150,6 +150,7 @@ namespace DBHelper.Data
 
         public DbSet<Models.Functions.Project.ProjectMajorWorkItem> fProjectMajorWorkItem { get; set; }
         public DbSet<Models.Functions.Project.ProjectMajorWorkLocations> fProjectMajorWorkLocations { get; set; }
+        public DbSet<Models.Functions.Project.ProjectStageTargets> fProjectStageTargets { get; set; }
         #endregion
 
         #region Lookups

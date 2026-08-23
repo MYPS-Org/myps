@@ -631,6 +631,68 @@ export interface ProjectRevisionList {
 }
 // #endregion Project Revisions
 
+// #region Component Targets
+
+/** Matches the anonymous shape returned by /Project/ShowProjectTargetComponents.
+ * One entry per distinct component the project has carried across all of its stages —
+ * the top-level rows of the Component Targets accordion. */
+export interface ProjectTargetComponent {
+	/** Bare component id, e.g. "CW1" — the accordion's row label. The project-qualified
+	 * "{ProjectId}-{ComponentId}" form lives on ProjectStageTarget, where it varies per stage. */
+	ComponentId: string;
+	ComponentDescription?: string;
+	/** How many Program Stages this component appears in. */
+	StageCount: number;
+}
+
+export interface ProjectStageTargetFilter {
+	ComponentId?: string;
+	StageName?: string;
+}
+
+/** Request contract for /Project/ShowProjectStageTargets — project-scoped, so it carries
+ * ProjectId alongside the cursor fields, same shape as ShowProjectsInProgramRequest. */
+export interface ShowProjectStageTargetsRequest {
+	Filters?: ProjectStageTargetFilter;
+	limit: number;
+	page: number;
+	Navigation: number;
+	PreviousFilteredId: number;
+	NextFilteredId: number;
+	PageCursorId: number;
+	ProjectId: string;
+}
+
+/** Matches DBHelper.Models.Functions.Project.ProjectStageTargets (dbo.fProjectStageTargets).
+ * One row per project component / work item per Program Stage. */
+export interface ProjectStageTarget {
+	/** Dense ROW_NUMBER — the keyset pagination key, not a work item id. */
+	Id: number;
+	WorkItemId: number;
+	ProjectPK: string;
+	ProjectId?: string;
+	StageId: number;
+	StageName?: string;
+	/** Composed stage label, e.g. "NEP 2026 OO-1" — stage, program start year, Organizational Outcome. */
+	Source?: string;
+	/** 'Base' or 'Revision' — row provenance. Not displayed; available for future use. */
+	Provenance?: string;
+	ComponentId: string;
+	/** "{ProjectId}-{ComponentId}", e.g. "P01000001LZ-CW1". */
+	ComponentCode?: string;
+	ComponentDescription?: string;
+	TypeOfWork?: string;
+	/** Sum of the work item's work-location physical targets at this stage. */
+	Target?: number | null;
+	TargetUnit?: string;
+}
+
+export interface ProjectStageTargetsPaginationResponse extends PaginationResponse<ProjectStageTarget> {
+	PageCursorId?: number | null;
+}
+
+// #endregion Component Targets
+
 // #endregion Enums
 
 // #region Import

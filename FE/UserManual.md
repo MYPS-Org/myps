@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.8
-**Date:** June 10, 2026
+**Version:** 3.9
+**Date:** August 23, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -32,6 +32,7 @@
 | 3.6 | June 2, 2026 | RP | RP | Section 5.2.5 rewritten: "Add Existing Project" button now opens Batch Restore dialog — users enter project IDs to restore deleted projects back to the program; Section 5.2.7 updated: "View AIP Report" renamed to "Generate Reports" throughout; Section 5.6 updated: Toggle Active feature added across all Code Tables sub-tabs — Active column and toggle button added to every table; Section 5.7 updated: Plantilla Office Name field added to Add User and Update User dialogs |
 | 3.7 | June 8, 2026 | RP | RP | Section 3.1 updated: login error messages revised — invalid credentials message and session-expired message updated to match current backend responses; Section 5.2.2 updated: Program Type and Program Stage fields now marked required (*) with frontend validation messages added; Section 5.7 updated: "Region Code" field in Add User dialog renamed to "Region" (now shows region name, not code), User ID and Region fields are now always disabled (fully read-only); Users list OFFICE column now displays PlantillaOfficeName (full office name) |
 | 3.8 | June 10, 2026 | RP | RP | Gap analysis follow-up: Section 3.1 added "Username is required" / "Password is required" inline validation messages to Common Outcomes and Appendix B; Section 5.3.5 added Auto-generated ID Prefix reference table for all 16 work location infrastructure types; Section 5.4.6 added "Mode of Implementation — New Project Record" behavior (creates a new `-A` suffixed project record) and a note on the remaining revision types relying on standard field-editability rules; Section 5.5.3 added mention of the project group map view |
+| 3.9 | August 23, 2026 | RP | RP | Section 5.3.6 added: Component Targets — a new read-only panel on the project details page, below Major Items of Work, listing each project component and expanding to that component's physical target at every Program Stage the project has undergone (Source, Component ID, Component Description, Type of Work, Target, Target Unit), with pagination controls; component rows are labelled with the bare Component ID while the expanded rows show the project-qualified form; former Sections 5.3.6 Supporting Documents and 5.3.7 Project Location Map renumbered to 5.3.7 and 5.3.8 |
 
 ### Consultant
 
@@ -1368,7 +1369,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 [Insert Screenshot: Work Locations — Bridge type with Select Infrastructure dialog]
 [Insert Screenshot: Work Locations — Local/Other type with auto-generated ID]
 
-**On Success:** Work location data is saved and linked to the selected Major Item of Work. Valid coordinate data is displayed on the Project Location Map (Section 5.3.7).
+**On Success:** Work location data is saved and linked to the selected Major Item of Work. Valid coordinate data is displayed on the Project Location Map (Section 5.3.8).
 
 **Common Outcomes & What to Do:**
 
@@ -1383,7 +1384,55 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 ---
 
-#### 5.3.6 Supporting Documents
+#### 5.3.6 Component Targets
+
+**Purpose:** Review the physical target recorded for each project component at every Program Stage the project has passed through — for example, how a component's target changed between NEP and GAA-R. This is a read-only history view; targets themselves are entered under Work Locations (Section 5.3.5).
+
+**Who uses this:** DEO, RO, PS Admin (read-only view)
+
+**Prerequisites:** The project must have at least one Major Item of Work with work locations recorded in one or more stages. Users who cannot see the project cannot see its targets.
+
+**Component Targets Table Columns:**
+
+| Column | Description |
+|---|---|
+| Component ID | The component code (e.g. `CW1`, `ROW`). Click it to expand the component's per-stage targets. |
+| Component Description | The component's description. |
+| Stages | How many Program Stages this component appears in. |
+
+**Expanded Targets Table Columns (per component):**
+
+| Column | Description |
+|---|---|
+| Source | The stage the figure comes from, shown as stage, program year, and Organizational Outcome (e.g. `NEP 2026 OO-1`). |
+| Component ID | `{Project ID}-{Component ID}`, repeated per row. |
+| Component Description | The component description as it stood at that stage. |
+| Type of Work | The scope of work recorded for the work item. |
+| Target | The total physical target — the sum of the work item's work-location targets — shown with thousands separators and two decimals (e.g. `1,250.00`). A dash (`—`) means no target has been recorded. |
+| Target Unit | The unit the target is measured in (e.g. `km`, `l.m.`, `sq.m.`). |
+
+**Step-by-Step:**
+
+1. Scroll to the **Component Targets** section, directly below Major Items of Work.
+2. Click a **Component ID** to expand it. Its targets for every stage are listed, in stage order (BP → NEP → NEP-E → HGAB → HGAB-I → GAA → GAA-R). Inside the expanded table the component is shown in full as `{Project ID}-{Component ID}` (e.g. `P01000001LZ-CW1`); this can differ between stages, because a project's ID changes once it moves past the BP stage.
+3. Use the pagination controls below the table — **First**, **Previous**, page numbers, **Next**, **Last** — to move through the list when a component has more rows than fit on one page.
+4. Click the same Component ID again to collapse it, or click another to switch. Only one component is expanded at a time.
+
+[Insert Screenshot: Component Targets — collapsed component list]
+[Insert Screenshot: Component Targets — one component expanded, showing per-stage targets]
+
+**Common Outcomes & What to Do:**
+
+| Message / Situation | What it Means | What You Should Do |
+|---|---|---|
+| *"No component targets available for this project"* | The project has no components with work items in any stage. | Add a Major Item of Work (Section 5.3.4) and its Work Locations (Section 5.3.5). |
+| *"No targets available for this component"* | The component exists but has no work items recorded in any stage. | Add a Major Item of Work for that component. |
+| A row's **Target** shows `—` | The work item has no work locations, so there is nothing to total. | Add Work Locations to that Major Item of Work if a target is expected. |
+| A component appears with fewer stages than expected | The component was added partway through the project's stage progression, or was removed in a later stage. | This is informational; no action is needed. |
+
+---
+
+#### 5.3.7 Supporting Documents
 
 **Purpose:** Attach PDF supporting documents (approvals, feasibility studies, design documents) to the project record.
 
@@ -1412,7 +1461,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 ---
 
-#### 5.3.7 Project Location Map (GIS)
+#### 5.3.8 Project Location Map (GIS)
 
 **Purpose:** Display an interactive geographic map showing all work locations entered for the project, plotted as colored line or point features on a basemap. Provides a spatial overview of where project activities will take place.
 
