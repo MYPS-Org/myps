@@ -4,13 +4,16 @@ import {
   DocumentArrowUpIcon,
   XMarkIcon,
   ArrowPathIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '../../../components/tailwindui/button';
 import { useCallback, useRef, useState } from 'react';
 import { useSetAtom } from 'jotai';
 import { pendingImportJobsAtom } from '../../../atoms/importJobs.atom';
-import { startImportProjectJob } from '../Service';
+import { startImportProjectJob, startUpdateProjectJob } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
+
+type ImportJobMode = 'import' | 'update';
 
 interface ImportProjectsJobDialogProps {
   isOpen: boolean;
@@ -18,21 +21,27 @@ interface ImportProjectsJobDialogProps {
   programId: string;
   programName: string;
   stageName: string;
+  /** 'import' (default) inserts new projects only; 'update' replaces the existing
+   * project set for this Program+Stage with the file's contents. */
+  mode?: ImportJobMode;
 }
 
 const ACCEPTED_EXTENSIONS = ['xlsx', 'xlsm'];
 
-// The import runs entirely in the background (Hangfire job), so this dialog's only
-// job is to get the file queued. It closes itself right after that succeeds —
-// ImportJobNotifier (mounted app-wide) picks up the job from there via SignalR and
-// reports the result as a toast, so there's nothing left here worth watching for.
+// The import/update job runs entirely in the background (Hangfire job), so this
+// dialog's only job is to get the file queued. It closes itself right after that
+// succeeds — ImportJobNotifier (mounted app-wide) picks up the job from there via
+// SignalR and reports the result as a toast, so there's nothing left here worth
+// watching for.
 const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
   isOpen,
   onClose,
   programId,
   programName,
   stageName,
+  mode = 'import',
 }) => {
+  const isUpdateMode = mode === 'update';
   const { showToast } = useToast();
   const setPendingJobs = useSetAtom(pendingImportJobsAtom);
   const [dragging, setDragging] = useState(false);
@@ -62,21 +71,23 @@ const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
     setSubmitting(true);
 
     try {
-      const jobResponse = await startImportProjectJob({
+      const startJob = isUpdateMode ? startUpdateProjectJob : startImportProjectJob;
+      const jobResponse = await startJob({
         ProgramId: programId,
         StageName: stageName,
         File: file,
       });
 
       setPendingJobs((prev) => [...prev, jobResponse.Data.JobId]);
-      showToast({ type: 'info', message: `Import queued for ${file.name} — you'll be notified here when it finishes.` });
+      const verb = isUpdateMode ? 'Update' : 'Import';
+      showToast({ type: 'info', message: `${verb} queued for ${file.name} — you'll be notified here when it finishes.` });
       setSubmitting(false);
       resetAndClose();
     } catch {
       // httpClient interceptor already toasted the API error (e.g. "Import In Progress")
       setSubmitting(false);
     }
-  }, [programId, stageName, showToast, setPendingJobs]);
+  }, [programId, stageName, isUpdateMode, showToast, setPendingJobs]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -106,7 +117,7 @@ const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <DocumentArrowUpIcon className="h-6 w-6 text-blue-600" />
-              Import Projects
+              {isUpdateMode ? 'Update Projects' : 'Import Projects'}
             </DialogTitle>
             <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
               <XMarkIcon className="h-5 w-5" />
@@ -121,6 +132,16 @@ const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
               <span className="font-medium">Program:</span> {programName}
               {programId && <span className="ml-3 text-blue-500 text-xs">({programId})</span>}
             </div>
+
+            {isUpdateMode && !submitting && (
+              <div className="flex gap-2 bg-amber-50 border border-amber-200 rounded-md px-4 py-2 text-sm text-amber-800">
+                <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-500" />
+                <span>
+                  This replaces existing projects for this program's <strong>{stageName}</strong> stage
+                  with the ones in your file. Projects not included in the file are left untouched.
+                </span>
+              </div>
+            )}
 
             {submitting ? (
               <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">

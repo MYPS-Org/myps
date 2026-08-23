@@ -263,6 +263,27 @@ export const startImportProjectJob = async (data: { ProgramId: string; StageName
     }
 };
 
+// Same job-queue contract as startImportProjectJob, but hits the Update endpoint —
+// the backend soft-deletes the existing project set for this Program+Stage before
+// re-inserting the file's contents (see ImportProjectJobService.ProcessUpdate).
+export const startUpdateProjectJob = async (data: { ProgramId: string; StageName: string; File: File }) => {
+    try {
+        const formData = new FormData();
+        formData.append('ProgramId', data.ProgramId);
+        formData.append('StageName', data.StageName);
+        formData.append('File', data.File);
+
+        const response = await httpClient.post<{ JobId: string; HangfireJobId: string; Message: string; Title: string }>('/Importing/UpdateProject', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            preloaderMessage: 'Uploading and queuing update...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error starting update job:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
 export const getImportJobStatus = async (jobId: string) => {
     try {
         const response = await httpClient.get<ImportJobStatus>('/Importing/GetImportStatus', { jobId }, {
