@@ -15,7 +15,7 @@ namespace Hangfire.Importing
         public string? MYId { get; set; }
         public string? UACS { get; set; }
         public string? MYCAApprovalDate { get; set; }
-        public string? Description { get; set; }
+        public string Description { get; set; } = string.Empty;
         public string Province { get; set; } = string.Empty;
         public string City { get; set; } = string.Empty;
         public string LegislativeDistrict { get; set; } = string.Empty;
@@ -66,7 +66,7 @@ namespace Hangfire.Importing
         public string Agreement { get; set; } = string.Empty;
         public Double Percentage { get; set; }
         //public Double Amount { get; set; }
-        public string Amount { get; set; }
+        public string Amount { get; set; } = string.Empty;
         public string? ErrorMessage { get; set; } = string.Empty;
 
         public string? SourceOrg { get; set; }
@@ -78,12 +78,12 @@ namespace Hangfire.Importing
         public string ComponentType { get; set; } = string.Empty;
         public string ComponentId { get; set; } = string.Empty;
         public string? Description { get; set; } = string.Empty;
-        public string Cost { get; set; }
+        public string Cost { get; set; } = string.Empty;
         public string? StartDate { get; set; }
         public string? EndDate { get; set; }
         public string InfraType { get; set; } = string.Empty;
         public string WorkTypeId { get; set; } = string.Empty;
-        public string ActiveYear { get; set; }
+        public string ActiveYear { get; set; } = string.Empty;
         public string? ErrorMessage { get; set; } = string.Empty;
 
         public int? ScopeOfWorkEnum { get; set; }
@@ -101,13 +101,13 @@ namespace Hangfire.Importing
         public string? StartY { get; set; } //Double
         public string? EndX { get; set; } //Double
         public string? EndY { get; set; } //Double
-        public string PhysicalTarget { get; set; } //Double
+        public string? PhysicalTarget { get; set; } //Double
         public string? StartStation { get; set; }
         public string? EndStation { get; set; }
         public string? StartChainage { get; set; } //Double
         public string? EndChainage { get; set; } //Double
         public string? Length { get; set; } //Double
-        public string ActivityYear { get; set; }
+        public string ActivityYear { get; set; } = string.Empty;
         public string? ErrorMessage { get; set; } = string.Empty;
 
         public int? TargetUnitId { get; set; }
