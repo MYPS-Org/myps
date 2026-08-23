@@ -1259,48 +1259,5 @@ namespace Hangfire.Importing
             return affected;
         }
         #endregion
-        public static async Task<string> GenerateProjectID(this MYPSDbContext _db, GenerateProjectIDParams request, CancellationToken cancellationToken)
-        {
-            string FirstSegment = request.StageName.GenerateProjec1stSegment();
-            string SecondSegment = request.YearStart.GenerateProjec2ndSegment();
-
-            //var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
-            //    .Where(x => x.Category == Category.CategoryId
-            //        && x.ProjectSuffix == FirstSegment
-            //        && x.IslandCode == IslandCode
-            //        && x.YearStart == ProgramDetails.YearStart)
-            //    .OrderByDescending(x => x.MaxId)
-            //    .FirstOrDefault();
-            //int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
-
-
-            //int nextId = Math.Max(maxExisting + 1, Category.Minimum);
-            //string ThirdSegment = nextId.ToString("D5");
-
-            var param = new Dictionary<string, object>
-            {
-                { "@ProjectSuffix", FirstSegment },
-                { "@CategoryId", request.CategoryId },
-                { "@YearStart", request.YearStart },
-                { "@IslandCode", request.IslandCode }
-            };
-            var results = await _db.Database
-            .SqlQuery<string>($@"EXEC dbo.pGenerateThirdSegment 
-                @ProjectSuffix = {FirstSegment}, 
-                @CategoryId = {request.CategoryId}, 
-                @YearStart = {request.YearStart}, 
-                @IslandCode = {request.IslandCode}")
-            .ToListAsync(cancellationToken);
-
-            string ThirdSegment = results.Single();
-
-            //string ThirdSegment = await Sql.NormalQuery<string>(
-            //    Appsetting.DbConnections.MYPSDb,
-            //    "EXEC pGenerateThirdSegment @ProjectSuffix, @CategoryId, @YearStart, @IslandCode",
-            //    param
-            //).FirstOrDefaultAsync() ?? string.Empty;
-
-            return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{request.IslandCode}".Replace("-", "");
-        }
     }
 }

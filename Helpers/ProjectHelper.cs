@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
+using System.Text.RegularExpressions;
 using static Helpers.ProjectHelper;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
@@ -249,51 +250,146 @@ namespace Helpers
         //        }
         //    }
         //}
+        private static readonly HashSet<string> ValidIslandCodes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            string.Empty,
+            "LZ",
+            "VS",
+            "MN"
+        };
+
+        private static readonly Regex ThirdSegmentPattern = new(@"^\d{5}$", RegexOptions.Compiled);
+        private static readonly Regex ProjectIdPattern = new(@"^(BP|MY|P)\d{8}([A-Za-z]{2})?$", RegexOptions.Compiled);
+
         public static async Task<string> GenerateProjectID(this MYPSDbContext _db, GenerateProjectIDParams request, CancellationToken cancellationToken)
         {
-            string FirstSegment = request.StageName.GenerateProjec1stSegment();
-            string SecondSegment = request.YearStart.GenerateProjec2ndSegment();
+            ArgumentNullException.ThrowIfNull(_db);
+            ArgumentNullException.ThrowIfNull(request);
 
-            //var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
-            //    .Where(x => x.Category == Category.CategoryId
-            //        && x.ProjectSuffix == FirstSegment
-            //        && x.IslandCode == IslandCode
-            //        && x.YearStart == ProgramDetails.YearStart)
-            //    .OrderByDescending(x => x.MaxId)
-            //    .FirstOrDefault();
-            //int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
+            string FirstSegment = GenerateProjectPrefixStrict(request.StageName);
+            string SecondSegment = GenerateProjectYearSegmentStrict(request.YearStart);
+            string IslandCode = NormalizeProjectIslandCode(request.IslandCode);
 
-
-            //int nextId = Math.Max(maxExisting + 1, Category.Minimum);
-            //string ThirdSegment = nextId.ToString("D5");
-
-
-            var param = new Dictionary<string, object>
+            if (request.CategoryId <= 0)
             {
-                { "@ProjectSuffix", FirstSegment },
-                { "@CategoryId", request.CategoryId },
-                { "@YearStart", request.YearStart },
-                { "@IslandCode", request.IslandCode }
-            };
+                throw new ArgumentOutOfRangeException(
+                    nameof(request.CategoryId),
+                    "Project ID generation failed: CategoryId must be greater than zero.");
+            }
+
+            if (request.Count != 1)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(request.Count),
+                    "Project ID generation failed: this generator currently supports exactly one Project ID per call.");
+            }
+
+            bool categoryExists = await _db.tOptionProjectCategory
+                .AsNoTracking()
+                .AnyAsync(x => x.CategoryId == request.CategoryId, cancellationToken);
+
+            if (!categoryExists)
+            {
+                throw new InvalidOperationException(
+                    $"Project ID generation failed: CategoryId '{request.CategoryId}' does not exist in tOptionProjectCategory.");
+            }
+
             var results = await _db.Database
-            .SqlQuery<string>($@"EXEC dbo.pGenerateThirdSegment 
-                @ProjectSuffix = {FirstSegment}, 
-                @CategoryId = {request.CategoryId}, 
-                @YearStart = {request.YearStart}, 
-                @IslandCode = {request.IslandCode}")
-            .ToListAsync(cancellationToken);
+                .SqlQuery<string>($@"EXEC dbo.pGenerateThirdSegment 
+                    @ProjectSuffix = {FirstSegment}, 
+                    @CategoryId = {request.CategoryId}, 
+                    @YearStart = {request.YearStart}, 
+                    @IslandCode = {IslandCode}")
+                .ToListAsync(cancellationToken);
 
-            string ThirdSegment = results.Single();
+            if (results.Count != 1)
+            {
+                throw new InvalidOperationException(
+                    $"Project ID generation failed: dbo.pGenerateThirdSegment returned {results.Count} rows for CategoryId '{request.CategoryId}', StagePrefix '{FirstSegment}', YearStart '{request.YearStart}', IslandCode '{IslandCode}'. Expected exactly one row.");
+            }
 
-            //string ThirdSegment = await Sql.NormalQuery<string>(
-            //    Appsetting.DbConnections.MYPSDb,
-            //    "EXEC pGenerateThirdSegment @ProjectSuffix, @CategoryId, @YearStart, @IslandCode",
-            //    param
-            //).FirstOrDefaultAsync() ?? string.Empty;
+            string ThirdSegment = results[0]?.Trim() ?? string.Empty;
 
+            if (!ThirdSegmentPattern.IsMatch(ThirdSegment))
+            {
+                throw new InvalidOperationException(
+                    $"Project ID generation failed: dbo.pGenerateThirdSegment returned invalid third segment '{ThirdSegment}'. Expected exactly five digits.");
+            }
 
+            string ProjectId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{IslandCode}";
 
-            return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{request.IslandCode}".Replace("-", "");
+            if (!ProjectIdPattern.IsMatch(ProjectId))
+            {
+                throw new InvalidOperationException(
+                    $"Project ID generation failed: generated ProjectId '{ProjectId}' has an invalid format.");
+            }
+
+            bool duplicateExists = await _db.tProjects
+                .AsNoTracking()
+                .AnyAsync(x => x.ProjectPK == ProjectId, cancellationToken);
+
+            if (duplicateExists)
+            {
+                throw new InvalidOperationException(
+                    $"Project ID generation failed: generated ProjectId '{ProjectId}' already exists in tProjects.ProjectPK. The allocator counter may be out of sync; verify dbo.pGenerateThirdSegment, dbo.tProjectIdSequence, and dbo.pReserveProjectIdBlock before retrying.");
+            }
+
+            return ProjectId;
+        }
+
+        private static string GenerateProjectPrefixStrict(string StageName)
+        {
+            if (string.IsNullOrWhiteSpace(StageName))
+            {
+                throw new ArgumentException(
+                    "Project ID generation failed: StageName is required.",
+                    nameof(StageName));
+            }
+
+            var stageGroups = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "BP", new[] { "BP", "RBP", "UPMO", "UBP" } },
+                { "MY", new[] { "RDIP", "UDIP", "PIP" } },
+                { "P",  new[] { "NEP", "HGAB", "GAA", "GAA-R" } }
+            };
+
+            var stageName = StageName.Trim();
+            var prefix = stageGroups.FirstOrDefault(g => g.Value.Contains(stageName, StringComparer.OrdinalIgnoreCase)).Key;
+
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                throw new ArgumentException(
+                    $"Project ID generation failed: StageName '{StageName}' is not configured for ProjectId prefix generation.",
+                    nameof(StageName));
+            }
+
+            return prefix;
+        }
+
+        private static string GenerateProjectYearSegmentStrict(int endYear)
+        {
+            if (endYear < 2017)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(endYear),
+                    "Project ID generation failed: YearStart must be 2017 or later.");
+            }
+
+            return (endYear - 2016).ToString("D3");
+        }
+
+        private static string NormalizeProjectIslandCode(string islandCode)
+        {
+            string normalized = (islandCode ?? string.Empty).Trim().ToUpperInvariant();
+
+            if (!ValidIslandCodes.Contains(normalized))
+            {
+                throw new ArgumentException(
+                    $"Project ID generation failed: IslandCode '{islandCode}' is not supported. Expected blank, LZ, VS, or MN.",
+                    nameof(islandCode));
+            }
+
+            return normalized;
         }
         public static string GenerateProjec1stSegment(this string StageName)
         {
