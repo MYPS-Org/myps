@@ -425,8 +425,12 @@ const ProgramDetail: React.FC = () => {
     setIsNextStageDialogOpen(false);
   };
 
-  const handleViewProject = (projectId: string, stageName: string) => {
+  const handleViewProject = (projectId: string) => {
     try {
+      // Use the program's own StageName (programEnums.Details.StageName) rather than the
+      // project row's StageName from ShowProjectsInProgram — same pattern as ProjectForm.tsx's
+      // post-save navigate, which sources StageName from ProgramDetails, not the project record.
+      const stageName = programEnums?.Details.StageName;
       if (projectId && stageName) {
         navigate(`/projects/project-details/${projectId}:${stageName}`);
       }
@@ -729,7 +733,7 @@ const ProgramDetail: React.FC = () => {
               {pagination.data.lists ? pagination.data.lists.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
-                    <button onClick={() => handleViewProject(project.ProjectId, project.StageName)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
+                    <button onClick={() => handleViewProject(project.ProjectId)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
                       {project.ProjectId}
                     </button>
                   </TableCell>

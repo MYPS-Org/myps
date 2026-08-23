@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronRightIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface CheckboxItem {
   id: any;
@@ -21,6 +21,7 @@ interface CheckboxListProps {
   searchPlaceholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
+  maxVisibleChips?: number; // Max selected chips to show before collapsing into "+N more" (default: 12)
 }
 
 const CheckboxList: React.FC<CheckboxListProps> = ({
@@ -36,9 +37,17 @@ const CheckboxList: React.FC<CheckboxListProps> = ({
   searchPlaceholder = 'Search...',
   emptyMessage = 'No items available',
   disabled = false,
+  maxVisibleChips = 12,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Selected items shown as chips below the header so they're visible without
+  // expanding the dropdown.
+  const selectedItems = useMemo(
+    () => items.filter(item => selectedIds.includes(item[idKey] ?? '')),
+    [items, selectedIds, idKey]
+  );
 
   // Group items if groupBy is provided
   const groupedItems = useMemo(() => {
@@ -157,6 +166,37 @@ const CheckboxList: React.FC<CheckboxListProps> = ({
           </div>
         )}
       </div>
+
+      {selectedItems.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 p-3 border-b border-gray-200 bg-white">
+          {selectedItems.slice(0, maxVisibleChips).map((item) => {
+            const itemId = item[idKey];
+            return (
+              <span
+                key={itemId}
+                className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs border border-blue-200"
+              >
+                {item[nameKey]}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => onToggle(itemId ?? '')}
+                    className="text-blue-400 hover:text-blue-600 focus:outline-none"
+                    aria-label={`Remove ${item[nameKey]}`}
+                  >
+                    <XMarkIcon className="w-3 h-3" />
+                  </button>
+                )}
+              </span>
+            );
+          })}
+          {selectedItems.length > maxVisibleChips && (
+            <span className="inline-flex items-center px-2 py-0.5 text-xs text-gray-500">
+              +{selectedItems.length - maxVisibleChips} more
+            </span>
+          )}
+        </div>
+      )}
 
       <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
         isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
