@@ -1,7 +1,7 @@
 import { httpClient, gisClient, type ApiResponse } from "../../services/httpClient";
 import type { ProgramList, ProgramLatest } from "../Program/Model";
 import { fetchProgram } from "../Program/Service";
-import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, Dropdowns, ProjectFormPayload, ProjectFilter, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO, SearchProgram } from "./Model.d";
+import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, Dropdowns, ProjectFormPayload, ProjectFilter, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO, SearchProgram, ProjectTargetComponent, ShowProjectStageTargetsRequest, ProjectStageTargetsPaginationResponse } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: PaginatedRequest<ProjectFilter>) => {
@@ -220,6 +220,34 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
             Status: 200,
             Message: "No revisions found"
         }
+    }
+};
+// #endregion
+
+// #region Component Targets
+// Backs the Component Targets panel on the project details page: the accordion's
+// component rows, then one component's per-stage targets.
+export const fetchProjectTargetComponents = async (projectPK: string) => {
+    try {
+        const response = await httpClient.post<{ Components: ProjectTargetComponent[] }>(`/Project/ShowProjectTargetComponents`, { ProjectId: projectPK }, {
+            preloaderMessage: 'Loading component targets...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching component targets:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
+export const fetchProjectStageTargets = async (data: ShowProjectStageTargetsRequest) => {
+    try {
+        const response = await httpClient.post<ProjectStageTargetsPaginationResponse>(`/Project/ShowProjectStageTargets`, data, {
+            preloaderMessage: 'Loading stage targets...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching stage targets:', ErrorResponse);
+        throw ErrorResponse;
     }
 };
 // #endregion

@@ -30,6 +30,7 @@ import ProgramDetailsForm from './ProgramDetailsForm';
 import ProjectDetailsForm from './ProjectDetailsForm';
 import ComponentCostForm from './ComponentCostForm';
 import MajorItemOfWorksForm from './MajorItemOfWorksForm';
+import ComponentTargetsForm from './ComponentTargetsForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
@@ -1241,6 +1242,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             disabled={isDisabled}
             deo={projectDetails.DEO}
           />
+        </div>
+      </div>
+
+      {/* Component Targets Section — read-only, so no `disabled` prop: it is unaffected
+          by lock/revise state. Grouped by component, expanding to per-stage targets. */}
+      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+        <div className="px-4 py-6 sm:p-8">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold leading-7 text-gray-900">Component Targets</h3>
+          </div>
+          <ComponentTargetsForm projectPK={initialData?.ProjectDetails.ProjectFK || ''} />
         </div>
       </div>
 

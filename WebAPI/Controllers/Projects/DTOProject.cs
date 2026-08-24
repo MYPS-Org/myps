@@ -25,6 +25,32 @@ namespace WebAPI.Controllers.Projects
         [Required]
         public string ProjectId { get; set; } = string.Empty;
     }
+    /// <summary>
+    /// Request for the Component Targets accordion's top-level rows — the distinct
+    /// components the project has carried across every Program Stage.
+    /// </summary>
+    public class ShowProjectTargetComponentsDTO
+    {
+        // ProjectPK, same convention as ShowProjectStagesDTO.ProjectId.
+        [Required]
+        public string ProjectId { get; set; } = string.Empty;
+    }
+    /// <summary>
+    /// Request for one component's per-stage targets. Keyset-paginated, so it carries
+    /// the cursor fields via EnumPagination alongside the project it belongs to.
+    /// </summary>
+    public class ShowProjectStageTargetsDTO : EnumPagination<ShowProjectStageTargetsFilterDTO>
+    {
+        // ProjectPK, matching ShowProjectStagesDTO.ProjectId — the FE sends
+        // ProjectDetails.ProjectFK.
+        [Required]
+        public string ProjectId { get; set; } = string.Empty;
+    }
+    public class ShowProjectStageTargetsFilterDTO
+    {
+        public string ComponentId { get; set; } = string.Empty;
+        public string StageName { get; set; } = string.Empty;
+    }
     public class AddProjectDTO : AddProjectDetails
     {
         [Required]
