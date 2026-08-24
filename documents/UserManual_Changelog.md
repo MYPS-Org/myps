@@ -1,4 +1,117 @@
-# UserManual.md — Changelog v3.8 → v3.9
+# UserManual.md — Changelog v3.8 → v3.10 (FE/UserManual.md)
+
+**Date:** August 24, 2026
+**Branch:** merging-branch-import-to-revision (commits up to `96a4f9e5`, plus uncommitted manual edits)
+**Source:** User request — "update our user manual base on the big changes we have here" (scope: entire application), following the `report-importing` → `merging-branch-import-to-revision` merge
+
+> **Target file note:** This entry covers `FE/UserManual.md` — the file `generate-user-manual`,
+> `update-user-manual`, and this skill's own instructions name as canonical. All prior entries in
+> this changelog (below) tracked `documents/UserManual.md` instead, which had independently
+> reached **v3.9** (June 14, 2026) while `FE/UserManual.md` was still at v3.8. To avoid two
+> different manuals both claiming "v3.9," this update bumps `FE/UserManual.md` straight to
+> **v3.10** and adds a placeholder v3.9 row to its Revision History table pointing back to this
+> note, rather than silently reusing "3.9" for unrelated content. **The two files remain
+> unreconciled** — `documents/UserManual.md` v3.9 and `FE/UserManual.md` v3.10 now have diverging
+> content and neither has been merged into the other. Flagged for the user to decide which file
+> should be treated as canonical going forward.
+
+---
+
+## 1. Document Header
+
+| Field | v3.8 | v3.10 |
+|-------|------|-------|
+| Version | 3.8 | 3.10 |
+| Date | June 10, 2026 | August 24, 2026 |
+
+---
+
+## 2. Section 5.2.7 — Import Projects (fully rewritten) + new Update Projects action
+
+**Old:** A 3-line stub — "Open a program → Actions → Import Projects → select the Excel template file" — with a single "On Success" line, no Field Reference, no Common Outcomes.
+
+**New:** Rewritten to describe the current asynchronous, job-based flow:
+- Added a Field Reference table for the drag-and-drop upload dialog (`.xlsx`/`.xlsm` only).
+- Documented that the dialog uploads and closes immediately, and the import runs as a Hangfire background job.
+- Documented the queued-confirmation toast and the three possible completion toasts (success / completed-with-issues / failed), including the **View Report** (text summary) and **View Errors** (Excel workbook of failed rows) action links shown on a completed-with-issues result.
+- Added a Common Outcomes table covering the wrong-file-extension message and the single-import-at-a-time lock message (*"Import is currently in use by &lt;user&gt;. Please try again later."*).
+- **New subsection added:** "Update Projects" — a second Actions-menu entry that replaces (rather than adds to) the existing project set for the program's current stage from a file, with its own warning banner and step-by-step. Also added to the Actions row of the 5.2.3 "Available Actions" table.
+
+> Source commits: `5732ef88` (Implement async job-based import for projects), `00e347dc` (Refactor project import flow to multipart/form-data direct upload), `b9dbed0f` (Refactor import job handling with SignalR notifications and toast actions), `d292afab` (Add update project functionality and enhance import dialog), `2517c76b` (Importing Project: Update projects thru importing), `554d39d0` (Remove programId from ExportConfirmDialog/ActionsDropdown). Also read directly from `FE/src/pages/Program/dialogs/ImportProjectsJobDialog.tsx`, `FE/src/components/ImportJobNotifier.tsx`, `FE/src/pages/Program/components/programDetail/ActionsDropdown.tsx`, and `WebAPI/Controllers/Importing/ImportingController.cs` (lock message, `TextFileUrl`/`ExcelFileUrl` semantics) to verify exact toast/error text. See also `documents/plans/program-import-job-dialog.md` and `documents/plans/merge-report-importing-into-revision.md`.
+
+---
+
+## 3. Section 5.2.1 — Filter Programs Dialog ("Program Group" → "Program Type") and Active Filters chips
+
+| # | Old | New | Reason |
+|---|-----|-----|--------|
+| 1 | Toolbar row: "Opens the Filter Programs dialog for Year Start, **Program Group**, and Program Stage filters" | "...for Start Year, **Program Type**, and Program Stage filters" | The filter dialog's second field was renamed from a program-group filter to a program-type filter in code |
+| 2 | `UI-UX-004-F03` \| Program Group \| "Filter by the program group the program belongs to" \| Dropdown: All Groups | `UI-UX-004-F03` \| Program Type \| "Filter by the program's type classification" \| Dropdown: All Types | Same — field renamed `GroupName`/`Group` → `Type` in `ProgramFilter`, dropdown now lists Program Types, not Groups |
+| 3 | `UI-UX-004-A05` \| Apply | `UI-UX-004-A05` \| **Apply Filters** | Button label in code is "Apply Filters," not "Apply" |
+| 4 | Step-by-step: "Click **Apply** to refresh the list..." | "Click **Apply Filters** to refresh the list..." | Matches corrected button label |
+| 5 | *(not documented)* | **New:** an "Active Filters" chip panel appears in the dialog once any filter is set, listing each active value (Start Year / Type / Stage) as a chip | New UI element added to the dialog |
+
+> Source commits: `a67dfdf2` (add filter dialog for program list), `2a7eadaf` (enhance program management with new dialogs and batch tagging), `9b839dd0` (refactor code structure), `4a027116` (implement shared pagination hook and update Program list), `dce1723d` (enhance pagination and filtering in Program and Project components). Verified against current `FE/src/pages/Program/dialogs/FilterDialogProgramList.tsx`.
+
+---
+
+## 4. Section 5.8.4 — Import Dialog (Infra Management) fully rewritten
+
+**Old:** A 3-group / 6-item checkbox tree with tri-state group checkboxes — "Import Road Network Data from RBIA" (Roads, Road Section, Bridges — active; Region — pending), "Import Lookup tables from Admin Areas" (City/Municipality, Legislative District — pending), "Import Lookup tables from Internal Org" (DEO, Implementing Office — pending). Included an "Import Status Summary" table and a Common Outcomes row explaining the pending items produce no data.
+
+**New:** Replaced with the current flat, 2-option list, both fully connected (no more pending items):
+- "Import Infrastructure Inventory from RBIA" — now imports Roads, Road Sections, Bridges, **and** Region in one combined GIS call.
+- "Import Admin Areas from AAMS and Internal Org Units from IOMS" — now imports City/Municipality, Legislative District, DEO, and Implementing Office in one combined call.
+
+The "Start Import" button was also renamed to "Import" (still shows "Importing..." while running). The "Import Status Summary" table and the now-inapplicable "pending items" Common Outcomes row were removed, since there are no longer any inactive items in the dialog.
+
+> Source commits: `3cdbb032` (update API endpoints for future road/bridge operations, enhance import dialog), `81fa1606` (add `importAdminOrgLookups`, PUT requests for road/bridge imports), `a7f20373` (consolidate infrastructure imports into a single endpoint), `eec85968` (use `UserId` instead of `UserName`), `4d90d5ba` (simplify ImportDialog by removing unused import types and groups). Verified against current `FE/src/pages/Rbia/Dialogs/ImportDialog.tsx` and `FE/src/pages/Rbia/Service.ts` (`importAllInfrastructure`, `importAdminOrgLookups` — both now hit live `gisClient.put` endpoints).
+
+---
+
+## 5. Revision History Table (FE/UserManual.md)
+
+**New rows added:**
+- v3.9 — placeholder row noting the version-number collision with `documents/UserManual.md` (see target-file note above); not applicable to this file's content.
+- v3.10 — one-line summary of all changes in sections 2–4 above.
+
+---
+
+## 6. Scope note — other frontend changes reviewed but not documented
+
+As part of this global-scope pass, the following areas were also reviewed against `FE/UserManual.md`'s existing content and found to require **no manual change**:
+
+- **Pagination refactor** (`usePagination` hook, `PaginationBar` component) across Program, Project, and Modification list/picker views — internal keyset-pagination rework; same on-screen controls and behavior the manual already describes (e.g. Section 5.3.5's "Page Size" field for the Select Infrastructure dialog was already accurate).
+- **AddInfraDialog** (Project module) — internal refactor to the shared pagination hook; no new fields or controls beyond what Section 5.3.5 already documents.
+- **AddProgramDialog** Trust-Fund auto-stage logic — internal `NameId` values changed (11→12 for TF, plus a new non-selectable TF-R stage), but the user-visible behavior (Type = TF auto-locks Stage and computes the name) is unchanged from what Section 5.2.2 already documents.
+- Not reviewed in this pass (deferred — large, mostly backend/internal-refactor diffs not obviously user-facing): Modification/Revision list internals, Project form components (`ProjectForm.tsx`, `ProjectDetailsForm.tsx`, `ProgramDetailsForm.tsx`, `ComponentCostDialog.tsx`, `MajorItemOfWorksForm.tsx`), and the Excel-import flow added for LS Wallet (`bd2aba99`), which is not yet covered by any existing manual section.
+
+---
+
+## 7. Commits Covered
+
+| Commit | Message | Impact |
+|--------|---------|--------|
+| `5732ef88` | feat: Implement async job-based import for projects | Section 2 |
+| `00e347dc` | feat: Refactor project import flow to use multipart/form-data | Section 2 |
+| `b9dbed0f` | feat: Refactor import job handling with SignalR notifications and toast actions | Section 2 |
+| `d292afab` | Add update project functionality and enhance import dialog | Section 2 |
+| `2517c76b` | Importing Project: Update projects thru importing | Section 2 |
+| `554d39d0` | refactor: Remove programId from ExportConfirmDialog and ActionsDropdown components | Section 2 |
+| `a67dfdf2` | feat: add filter dialog for program list and update program pagination handling | Section 3 |
+| `2a7eadaf` | feat: enhance program management with new dialogs and batch tagging functionality | Section 3 |
+| `9b839dd0` | Refactor code structure for improved readability and maintainability | Section 3 |
+| `4a027116` | feat: implement shared pagination hook and update Program list | Section 3 |
+| `dce1723d` | feat: enhance pagination and filtering in Program and Project components | Section 3 |
+| `3cdbb032` | refactor: update API endpoints for future road and bridge operations, enhance import dialog functionality | Section 4 |
+| `81fa1606` | Add importAdminOrgLookups function and update import methods to use PUT requests | Section 4 |
+| `a7f20373` | Refactor import functions to consolidate infrastructure imports into a single endpoint | Section 4 |
+| `eec85968` | Update user identification in handleImport function to use UserId instead of UserName | Section 4 |
+| `4d90d5ba` | refactor: Simplify ImportDialog by removing unused import types and groups | Section 4 |
+
+---
+
+# UserManual.md — Changelog v3.8 → v3.9 (documents/UserManual.md)
 
 **Date:** June 14, 2026
 **Branch:** main (uncommitted)
@@ -10,6 +123,11 @@
 > As of this entry, `documents/UserManual.md` is the **canonical** manual going forward: it has
 > been re-synced from `FE/UserManual.md` v3.8 (bringing in those v3.8 changes), and this entry's
 > v3.9 changes are layered on top of that synced content.
+>
+> **2026-08-24 update:** This "canonical going forward" claim was not followed through —
+> `FE/UserManual.md` continued to be the file actively maintained by the `generate-user-manual`
+> and `update-user-manual` skills, and has since been updated independently to v3.10 (see the
+> entry above). The two files are unreconciled as of this changelog entry.
 
 ---
 
@@ -89,7 +207,7 @@ changed — only the leftmost `Field Ref No.` column values.
 | # | Old | New | Reason |
 |---|-----|-----|--------|
 | 1 | `"Please select a category."` | `"Please select an item in the list."` (with note) | Category is a native `<select required>` — `showToast('Please select a category.')` in `RevisionDialog.tsx` is dead code |
-| 2 | `"Please select a reason."` | `"Please select an item in the list."` (with note) | Same — Reason select |
+| 2 | `"Please select a reason."` | `"Please select an item in the list."` (same note) | Same — Reason select |
 
 > Source: `FE/src/pages/Project/dialogs/RevisionDialog.tsx:219-252` — applies new Rule 2.
 
@@ -111,206 +229,3 @@ changed — only the leftmost `Field Ref No.` column values.
 | 4 | Section 5.4 Major Items of Work table, "Component" row: "Component ID the major item is linked to (e.g., `DR1`)" | "...(e.g., `CW1`)" | Same correction for consistency |
 
 > Source: `FE/src/pages/Project/dialogs/ComponentCostDialog.tsx:243-350` (Civil Works `CW1`/`CW2`... increment logic) and `FE/src/pages/Project/dialogs/AddMajorItemDialog.tsx:161-162` (`EAO` as a fixed component type code) — editorial correction, no version bump (still v3.9).
-
----
-
-## 10. Section 5.3.5 — Work Locations (Common Outcomes) — Road chainage validation correction
-
-| # | Old | New | Reason |
-|---|-----|-----|--------|
-| 1 | Two separate rows: *"Start and End Chainage are required for Roads."* ("A Road work location row has missing chainage values.") and *"End Chainage must be greater than Start Chainage for Roads."* (shown whenever End Chainage ≤ Start Chainage, including the default `0`/`0`) | Merged into one row: *"Start and End Chainage are required for Roads."*, clarified as only firing when Start/End Chainage is cleared (left empty) — Start/End Chainage both default to `0` and do **not** trigger this message on their own. | The `EndChainage <= StartChainage` check conflicted with the separate `"Length must be greater than or equal to 0."` rule and incorrectly flagged the default `0`/`0` Road row as an error. This check was removed from `validateLength` in `WorkLocationTable.tsx`; only the "required" (null/undefined) check remains. |
-
-> Source: `FE/src/pages/Project/components/WorkLocationTable.tsx` (`validateLength`) — also reverts the related `ProjectForm.tsx` save/update business-validation check added and then removed in the same working session; editorial/feature correction, no version bump (still v3.9).
-
----
-
-## 11. Commits Covered
-
-| Commit | Message | Impact |
-|--------|---------|--------|
-| *(uncommitted)* | — | Sections 1–8 above are uncommitted working-tree edits to `documents/UserManual.md`, `documents/UserManual_Rules.md`, and the `.claude/skills/{generate-user-manual,update-user-manual,gap-analysis}/SKILL.md` files |
-| *(uncommitted)* | — | Section 9 above is a further uncommitted edit to `documents/UserManual.md` correcting `DR1` → `CW1`/`EAO` Component ID examples in Section 5.3.3 |
-| *(uncommitted)* | — | Section 10 above is a further uncommitted edit to `documents/UserManual.md` correcting the Road chainage validation messages in Section 5.3.5 |
-
----
-
-# UserManual.md — Changelog v3.7 → v3.8
-
-**Date:** June 10, 2026
-**Branch:** claude-skill (commit `5e9a098`)
-**Source:** Gap analysis follow-up — see `documents/MYPS_Gap_Analysis_Report.md`
-
----
-
-## 1. Document Header
-
-| Field | v3.7 | v3.8 |
-|-------|------|------|
-| Version | 3.7 | 3.8 |
-| Date | June 8, 2026 | June 10, 2026 |
-
----
-
-## 2. Section 3.1 — Login Common Outcomes & Appendix B
-
-**New rows added:**
-
-| Area | Message | Trigger | How to Fix |
-|------|---------|---------|------------|
-| Section 3.1 / Appendix B | `"Username is required"` | Sign In clicked with USERNAME field empty | Enter your username before clicking Sign In |
-| Section 3.1 / Appendix B | `"Password is required"` | Sign In clicked with PASSWORD field empty | Enter your password before clicking Sign In |
-
-> Source: `FE/src/pages/login/Page.tsx:75,101` — gap analysis finding "Login — Empty Field Validation" (MEDIUM)
-
----
-
-## 3. Section 5.3.5 — Work Locations (Infrastructure ID Prefixes)
-
-| # | Old | New | Reason |
-|---|-----|-----|--------|
-| 1 | InfraId logic table, "All other types" example: `e.g., LR-00001` with parenthetical `(Local Road LR, Local Bridge LB, LFCS, LWW, etc.)` | Example updated to `e.g., LRD00001`; parenthetical simplified to `(Local Road, Local Bridge, etc.)` | Corrected to match actual generated format |
-| 2 | Step-by-step "Adding a Work Location for Local / Other Infrastructure Types": `(e.g., LR-00001)` | `(e.g., LRD00001)` with reference to new prefix table | Same correction, consistency |
-
-**New subsection added:** "Auto-generated ID Prefixes by Infrastructure Type" — a 14-row reference table covering all auto-generated infrastructure types (Accessibility Facility, Consultancy, Flood Control Structures, Hospitals, Local Bridges, Local Roads, Local Flood Control Structures, Multi-Purpose Buildings, Non-Infra, Other Buildings, Rain Water Collector, School Buildings, Septage & Sewerage Plants, Water Supply Systems).
-
-> Source: `FE/src/utils/infraIdGenerator.ts:29-91` (`prefixMappings`) — gap analysis finding "Work Location Infrastructure ID Prefixes" (LOW)
-
----
-
-## 4. Section 5.4.6 — Specific Revision Type Behaviors
-
-**New subsections added** (after "Excess Component Warning", before "Copy Major Item of Work"):
-
-| Subsection | Description |
-|------------|--------------|
-| "Mode of Implementation — New Project Record" | Documents that submitting a Mode of Implementation revision creates a **new project record** with the original Project ID plus an `-A` suffix (e.g., `P01234567` → `P01234567-A`); includes a Step-by-Step and "On Success" note |
-| "Other Revision Types (Additional Funding, Adjustment, Change in Authority to Implement, Change in Funding, Change of Creditor, Expired Funding, For Savings — Partial Unutilized Balance, Multi-Year Costing Changes)" | Brief note that these 8 types have no special dialogs/behaviors and rely on the standard Field Editability Rules (Section 5.4.5) |
-
-> Source: `WebAPI/Controllers/Revision/RevisionController.cs:790,1359` (`RevisionGroupId == 13` → `{ProjectId}-A`) — gap analysis finding "Revision Type Field Editability (9 of 12 types)" (MEDIUM). Per the `update-user-manual` Core Principle, the other 8 types were not itemized individually since their behavior is fully covered by the existing generic Section 5.4.5 rules (server-driven, not special-cased in code).
-
----
-
-## 5. Section 5.5.3 — Project Group Details
-
-**New line added:** "**Map:** A map showing the general geographic location of the projects in the group is displayed alongside the group fields."
-
-> Source: ATP S05-TC002 — gap analysis finding "Project Group Details — Map Section" (LOW)
-
----
-
-## 6. Revision History Table (FE/UserManual.md)
-
-**New row added** for v3.8 summarizing all changes above.
-
----
-
-## Commits Covered
-
-| Commit | Message | Impact |
-|--------|---------|--------|
-| `5e9a098` | Add User Manual Changelog for version 3.7 | Working-tree commit that also carries the v3.7 → v3.8 edits described above (made directly to `FE/UserManual.md`, not yet a separate commit) |
-
----
-
-# UserManual.md — Changelog v3.6 → v3.7
-
-**Date:** June 8, 2026
-**Branch:** main (commits up to `d692dc9`)
-
----
-
-## 1. Document Header
-
-| Field | v3.6 | v3.7 |
-|-------|------|------|
-| Version | 3.6 | 3.7 |
-| Date | June 2, 2026 | June 8, 2026 |
-
----
-
-## 2. Section 3.1 — Login Common Outcomes
-
-| # | Old Message | New Message | Reason |
-|---|-------------|-------------|--------|
-| 1 | `"Invalid username or password."` | `"Invalid credentials. Please check your user ID and password and try again."` | Backend response updated in `AuthenticationController.cs` (`LoginLog.IsValid = false` path) |
-| 2 | `"Unauthorized."` | `"Your session has expired. Please sign in to continue."` | Backend now returns a descriptive session-expired message from `CoreController.cs` and the inactive-account path in `AuthenticationController.cs` |
-
----
-
-## 3. Section 5.2.2 — Add Program
-
-### 3a. Field Reference table
-
-| Field Ref No. | Change |
-|---------------|--------|
-| UI-UX-005-F04 | Label updated: `Program Type` → `Program Type *` (required marker added) |
-| UI-UX-005-F05 | Label updated: `Program Stage` → `Program Stage *` (required marker added) |
-
-### 3b. Common Outcomes — new rows added
-
-| Message | Trigger | Source commit |
-|---------|---------|---------------|
-| `"Program Type is required."` | Submit clicked with Program Type blank | `4877303` |
-| `"Program Stage is required."` | Submit clicked with Program Stage blank (Type ≠ TF) | `4877303` |
-
----
-
-## 4. Section 5.7.2 — Users
-
-### 4a. Users List — Field Reference
-
-| Field Ref No. | Column | Change |
-|---------------|--------|--------|
-| UI-UX-0116-F04 | OFFICE | Description updated from `"Plantilla office of the user"` → `"Full name of the plantilla office of the user (PlantillaOfficeName)"` — the column now renders `PlantillaOfficeName` (full name) instead of `PlantillaOffice` (code) |
-
-> Source commit: `ce6d826` — `UsersTab.tsx` changed `user.PlantillaOffice` → `user.PlantillaOfficeName`
-
-### 4b. Add New User Dialog — Field Reference
-
-| Field Ref No. | Field | Change |
-|---------------|-------|--------|
-| UI-UX-0117-F02 | USER ID | Description updated: field is now always disabled (not just read-only after PIS lookup) |
-| UI-UX-0117-F04 | REGION CODE → **REGION** | Label renamed; description changed from "Regional office code" to "Regional office name — always read-only (disabled)" |
-
-> Source commits: `d619e6e` (disabled User ID and Region Code), `d386064` (renamed field label, switched from `regCode` to `regName`)
-
-### 4c. Step-by-Step: Adding a User
-
-| Step | Change |
-|------|--------|
-| Step 3 | "Region Code" → "Region" in the list of PIS auto-filled fields |
-
----
-
-## 5. Appendix B — Consolidated Validation Messages
-
-### 5a. Updated rows
-
-| Area | Old | New |
-|------|-----|-----|
-| Login | `Invalid username or password` | `Invalid credentials. Please check your user ID and password and try again.` |
-| Login | `Unauthorized` | `Your session has expired. Please sign in to continue.` |
-
-### 5b. New rows added
-
-| Area | Message |
-|------|---------|
-| Add Program | `Program Type is required.` |
-| Add Program | `Program Stage is required.` |
-
----
-
-## Commits Covered
-
-| Commit | Message | Impact |
-|--------|---------|--------|
-| `9438642` | Update user authentication message | Login error messages (Section 3.1, Appendix B) |
-| `4877303` | Add validation for Program Type and Stage in AddProgramDialog | Section 5.2.2 field reference + Common Outcomes |
-| `d619e6e` | Add disable for userid and region code | Section 5.7.2 Add User dialog field reference |
-| `d386064` | Update region code to region name | Section 5.7.2 field label + step-by-step |
-| `7c90eb6` | Fix issues in showing region code instead of plantilla office | Related to `d386064` |
-| `ce6d826` | Update UsersTab to use PlantillaOfficeName | Section 5.7.2 Users list OFFICE column |
-| `eedddd4` | Enhance UsersTab for improved user data display | UI-only truncation/tooltip changes — no manual text change needed |
-| `d692dc9` | Fix getting cut off | CSS line-height fix — no manual text change needed |
-| `13342bd` | Error handling in add existing project | Backend-only fix — existing Section 5.2.5 error messages already accurate |
-| `feb1572` | Added required sub name | Frontend `required` attribute — already documented in Section 5.2.2 |
