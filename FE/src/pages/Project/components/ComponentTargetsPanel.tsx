@@ -54,11 +54,22 @@ const ComponentTargetsPanel: React.FC<ComponentTargetsPanelProps> = ({ projectPK
 
     return (
         <div>
+            {/*
+              No overflow container of its own: this panel renders inside a cell of the
+              parent CollapsibleTable, so it shares that table's horizontal scrollbar,
+              which sits at the bottom of the whole accordion. Wrapping a nested
+              scroller around this table would strand a second scrollbar mid-panel.
+              The long text columns wrap instead. Table sets whitespace-nowrap at its
+              root, so each wrapping cell opts out with whitespace-normal; the width cap
+              sits on an inner div rather than the cell, because auto table layout does
+              not reliably honour max-width on a td. That is what keeps the table narrow
+              enough to usually need no scrolling at all.
+            */}
             <Table className="mb-0">
                 <TableHead>
                     <TableRow>
-                        <TableHeader justify="center" className="text-xs">Source</TableHeader>
-                        <TableHeader justify="center" className="text-xs">Component ID</TableHeader>
+                        <TableHeader justify="center" className="text-xs">Stage Name</TableHeader>
+                        <TableHeader justify="center" className="text-xs">Project Description</TableHeader>
                         <TableHeader justify="center" className="text-xs">Component Description</TableHeader>
                         <TableHeader justify="center" className="text-xs">Type of Work</TableHeader>
                         <TableHeader justify="center" className="text-xs">Target</TableHeader>
@@ -69,14 +80,20 @@ const ComponentTargetsPanel: React.FC<ComponentTargetsPanelProps> = ({ projectPK
                     {pagination.data.lists.length > 0 ? (
                         pagination.data.lists.map((target) => (
                             <TableRow key={target.Id}>
-                                <TableCell className="text-sm text-gray-600 text-center">{target.Source?.trim() || '—'}</TableCell>
-                                <TableCell className="font-medium text-sm text-center">
-                                    {target.ComponentCode || target.ComponentId || '—'}
+                                <TableCell className="font-medium text-sm text-center">{target.StageDisplayName?.trim() || target.StageName?.trim() || '—'}</TableCell>
+                                <TableCell className="text-sm text-gray-600">
+                                    <div className="max-w-64 whitespace-normal break-words">{target.ProjectDescription || '—'}</div>
                                 </TableCell>
-                                <TableCell className="text-sm text-gray-600">{target.ComponentDescription || '—'}</TableCell>
-                                <TableCell className="text-sm text-gray-600">{target.TypeOfWork || '—'}</TableCell>
+                                <TableCell className="text-sm text-gray-600">
+                                    <div className="max-w-64 whitespace-normal break-words">{target.ComponentDescription || '—'}</div>
+                                </TableCell>
+                                <TableCell className="text-sm text-gray-600">
+                                    <div className="max-w-48 whitespace-normal break-words">{target.TypeOfWork || '—'}</div>
+                                </TableCell>
                                 <TableCell className="text-sm font-medium text-right">{formatTarget(target.Target)}</TableCell>
-                                <TableCell className="text-sm text-gray-600 text-center">{target.TargetUnit || '—'}</TableCell>
+                                <TableCell className="text-sm text-gray-600 text-center">
+                                    <div className="mx-auto max-w-24 whitespace-normal break-words">{target.TargetUnit || '—'}</div>
+                                </TableCell>
                             </TableRow>
                         ))
                     ) : (

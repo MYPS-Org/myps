@@ -3,9 +3,10 @@
 
     Backs the "Component Targets" panel on the project details page:
     project -> component -> its targets at every Program Stage the project has
-    undergone, mirroring the legacy desktop app's per-project Targets tab
-    (Source, Component ID, Component Description, Type of Work, Target,
-    Target Unit).
+    undergone, derived from the legacy desktop app's per-project Targets tab.
+    The panel shows Stage Name, Project Description, Component Description,
+    Type of Work, Target and Target Unit; the legacy Source and Component ID
+    columns are kept in the result set for callers that want them.
 
     Deployment:
       This repo has no migration runner for database objects. Apply this
@@ -69,9 +70,20 @@ RETURN
         wi.Id                                       AS WorkItemId,
         @ProjectFK                                  AS ProjectPK,
         pd.ProjectId                                AS ProjectId,
+        -- The project description as it stands at this stage -- the same value the
+        -- Project Stages accordion on /projects shows. fProjectStages resolves each
+        -- stage to its effective revision, so this tracks a description edited
+        -- mid-programme rather than pinning every row to the latest one.
+        s.Description                               AS ProjectDescription,
         s.StageId                                   AS StageId,
         s.StageName                                 AS StageName,
-        -- Legacy "Source" is a composed stage label, e.g. "NEP 2026 OO-1":
+        -- The stage's long form, e.g. "NEP-Errata" for NEP-E. fProjectStages reads it
+        -- from dbo.tOptionProgramStage.DisplayName, which is what the panel shows;
+        -- StageName above is the short code, kept for the StageName filter.
+        s.StageDisplayName                          AS StageDisplayName,
+        -- Legacy "Source" is a composed stage label, e.g. "NEP 2026 OO-1". The panel
+        -- shows StageDisplayName above instead; the composed form is kept for other
+        -- callers. It is built from:
         -- stage short name + program start year + the project's Organizational
         -- Outcome (parsed from the category).
         -- NOT to be confused with wi.Source, which is the Base/Revision

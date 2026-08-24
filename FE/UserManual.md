@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.9
-**Date:** August 23, 2026
+**Version:** 3.10
+**Date:** August 25, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -33,6 +33,7 @@
 | 3.7 | June 8, 2026 | RP | RP | Section 3.1 updated: login error messages revised — invalid credentials message and session-expired message updated to match current backend responses; Section 5.2.2 updated: Program Type and Program Stage fields now marked required (*) with frontend validation messages added; Section 5.7 updated: "Region Code" field in Add User dialog renamed to "Region" (now shows region name, not code), User ID and Region fields are now always disabled (fully read-only); Users list OFFICE column now displays PlantillaOfficeName (full office name) |
 | 3.8 | June 10, 2026 | RP | RP | Gap analysis follow-up: Section 3.1 added "Username is required" / "Password is required" inline validation messages to Common Outcomes and Appendix B; Section 5.3.5 added Auto-generated ID Prefix reference table for all 16 work location infrastructure types; Section 5.4.6 added "Mode of Implementation — New Project Record" behavior (creates a new `-A` suffixed project record) and a note on the remaining revision types relying on standard field-editability rules; Section 5.5.3 added mention of the project group map view |
 | 3.9 | August 23, 2026 | RP | RP | Section 5.3.6 added: Component Targets — a new read-only panel on the project details page, below Major Items of Work, listing each project component and expanding to that component's physical target at every Program Stage the project has undergone (Source, Component ID, Component Description, Type of Work, Target, Target Unit), with pagination controls; component rows are labelled with the bare Component ID while the expanded rows show the project-qualified form; former Sections 5.3.6 Supporting Documents and 5.3.7 Project Location Map renumbered to 5.3.7 and 5.3.8 |
+| 3.10 | August 25, 2026 | RP | RP | Section 5.3.6 Component Targets updated: in the expanded per-component table the **Source** column was replaced by **Stage Name** (the stage's full display name, e.g. `NEP-Errata` rather than `NEP-E`) and the **Component ID** column was replaced by **Project Description** (the project's description as it stood at that stage); the Project Description, Component Description, Type of Work and Target Unit columns now wrap long text onto multiple lines instead of forcing the panel to scroll sideways |
 
 ### Consultant
 
@@ -1449,8 +1450,8 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 | Column | Description |
 |---|---|
-| Source | The stage the figure comes from, shown as stage, program year, and Organizational Outcome (e.g. `NEP 2026 OO-1`). |
-| Component ID | `{Project ID}-{Component ID}`, repeated per row. |
+| Stage Name | The Program Stage the figure comes from, in full (e.g. `NEP-Errata`, `HGAB-Amendments`, `GAA-Revisions`) rather than the short code. |
+| Project Description | The project's description as it stood at that stage. It can differ between stages if the description was edited along the way. |
 | Component Description | The component description as it stood at that stage. |
 | Type of Work | The scope of work recorded for the work item. |
 | Target | The total physical target — the sum of the work item's work-location targets — shown with thousands separators and two decimals (e.g. `1,250.00`). A dash (`—`) means no target has been recorded. |
@@ -1459,9 +1460,10 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 **Step-by-Step:**
 
 1. Scroll to the **Component Targets** section, directly below Major Items of Work.
-2. Click a **Component ID** to expand it. Its targets for every stage are listed, in stage order (BP → NEP → NEP-E → HGAB → HGAB-I → GAA → GAA-R). Inside the expanded table the component is shown in full as `{Project ID}-{Component ID}` (e.g. `P01000001LZ-CW1`); this can differ between stages, because a project's ID changes once it moves past the BP stage.
-3. Use the pagination controls below the table — **First**, **Previous**, page numbers, **Next**, **Last** — to move through the list when a component has more rows than fit on one page.
-4. Click the same Component ID again to collapse it, or click another to switch. Only one component is expanded at a time.
+2. Click a **Component ID** to expand it. Its targets for every stage are listed, in stage order (BP → NEP → NEP-E → HGAB → HGAB-I → GAA → GAA-R). Each row names its stage under **Stage Name**, alongside the project description that applied at that stage.
+3. Long text in the Project Description, Component Description, Type of Work and Target Unit columns wraps onto several lines so the whole row stays visible. If the panel is still wider than the screen, use the horizontal scroll bar at the bottom of the Component Targets section.
+4. Use the pagination controls below the table — **First**, **Previous**, page numbers, **Next**, **Last** — to move through the list when a component has more rows than fit on one page.
+5. Click the same Component ID again to collapse it, or click another to switch. Only one component is expanded at a time.
 
 [Insert Screenshot: Component Targets — collapsed component list]
 [Insert Screenshot: Component Targets — one component expanded, showing per-stage targets]
