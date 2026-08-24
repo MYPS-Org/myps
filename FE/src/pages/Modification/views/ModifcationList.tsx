@@ -184,6 +184,7 @@ const ModificationList: React.FC = () => {
                             <TableRow>
                                 <TableHeader>Revision Type</TableHeader>
                                 <TableHeader>Project ID</TableHeader>
+                                <TableHeader>No. Revision</TableHeader>
                                 <TableHeader>Reason</TableHeader>
                                 <TableHeader>Date</TableHeader>
                                 <TableHeader>Status</TableHeader>
@@ -201,7 +202,9 @@ const ModificationList: React.FC = () => {
                                 pagination.data.lists.map((revision) => (
                                     <TableRow key={revision.Id}>
                                         <TableCell className="font-medium">{revision.RevisionType}</TableCell>
-                                        <TableCell>{revision.TransactionId}</TableCell>
+                                        <TableCell>{parseTransactionId(revision.TransactionId).projectId}</TableCell>
+                                        <TableCell>{parseTransactionId(revision.TransactionId).revision}</TableCell>
+                                        <TableCell>{revision.RevisionReason}</TableCell>
                                         <TableCell>{revision.RevisionReason}</TableCell>
                                         <TableCell>{revision.RevisionDate ? new Date(revision.RevisionDate).toLocaleDateString() : '-'}</TableCell>
                                         <TableCell>
