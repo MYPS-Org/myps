@@ -179,6 +179,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 onChange('ProjectType', selectedRegion?.IslandCode);
                 onChange(field, value);
             }
+            else if (field === 'Feasibility') {
+                onChange(field, value);
+                // Clear the date if Feasibility Study is not "Yes"
+                if (value !== 1) {
+                    onChange('FeasibilityDate', null);
+                }
+            }
+            else if (field === 'DetailedDesign') {
+                onChange(field, value);
+                // Clear the date if Detailed Design is not "Yes"
+                if (value !== 1) {
+                    onChange('DetailedDesignDate', null);
+                }
+            }
             else if (field === 'ImplementingOffice') {
                 // When IO changes, clear OU if it doesn't belong to the new IO
                 let newOU = projectDetails?.OperatingUnit;
@@ -228,12 +242,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             onChange('Region', undefined);
         }
     };
-
-    const regionWideData = [
-        { id: 1, enum: 1, name: "Region Wide" },
-        { id: 2, enum: 2, name: "Non-Region Wide" },
-        { id: 3, enum: 3, name: "Region Wide AIP ignores DEO" },
-    ];
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -322,8 +330,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
                                         disabled={!editable}
                                     >
-                                        <option value={1}>Tier I</option>
-                                        <option value={2}>Tier II</option>
+                                        {projectEnums?.Tiers?.map((tier) => (
+                                            <option key={tier.Id} value={tier.NameId}>
+                                                {tier.Name}
+                                            </option>
+                                        ))}
                                     </select>
                                     )}
                                 </EditableField>
@@ -615,9 +626,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={!editable}
                                     >
                                      <option value={0}>Select Region Wide</option>
-                                        {regionWideData.map((region) => (
-                                            <option key={region.id} value={region.enum}>
-                                                {region.name}
+                                        {projectEnums?.RegionWides?.map((region) => (
+                                            <option key={region.Id} value={region.NameId}>
+                                                {region.Name}
                                             </option>
                                         ))}
                                     </select>
