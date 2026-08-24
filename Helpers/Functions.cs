@@ -260,7 +260,7 @@ namespace Helpers
                     Directory.CreateDirectory(folder);
 
                 // Layer 5: Write to disk
-                System.IO.File.WriteAllBytes(filePath, fileBytes);
+                System.IO.File.WriteAllBytesAsync(filePath, fileBytes);
                 return true;
             }
             catch (Exception e)

@@ -36,6 +36,7 @@ UsersIcon,
 ServerStackIcon,
 UserIcon,
 UserGroupIcon,
+DocumentChartBarIcon,
 } from '@heroicons/react/20/solid'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext' // for getting data friom context
@@ -140,20 +141,10 @@ const currentPath = (localStorage.getItem('currentPath') != undefined) ? localSt
 					<SidebarLabel>Projects</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown> */}
-			{/* <SidebarDropdown
-				 hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/programs')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/projects')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/multiyear')?.RouteName || '')} 
-				label="Reports"
-				defaultOpen={false}
-				className="text-gray-500"
-				>
+			<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports')?.RouteName || '')} href="/reports" current={currentPath === '/reports'}>
 				<DocumentChartBarIcon />
-				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/programs')?.RouteName || '')} href="/reports/programs" current={currentPath === '/reports/programs'}>
-					<SidebarLabel>Programs</SidebarLabel>
-				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/projects')?.RouteName || '')} href="/reports/projects" current={currentPath === '/reports/projects'}>
-					<SidebarLabel>Projects</SidebarLabel>
-				</SidebarDropdownItem>
-			</SidebarDropdown> */}
+				<SidebarLabel className="text-gray-500">Reports</SidebarLabel>
+			</SidebarItem>
 			<SidebarDropdown
 				hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/settings')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/code-tables')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/settings/security')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/user-management')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/infrastructure-management')?.RouteName || '')}
 				label="Settings"

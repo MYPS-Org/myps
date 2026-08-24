@@ -4135,7 +4135,9 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded.", Title = "File Upload Error" });
                 }
-                string FilePath = Path.Combine(Appsetting.Resources.SupportingDocs, ProjectRevision.ProjectId!, dto.File.Name);
+                string SupportingDocsDir = Path.Combine(Appsetting.Resources.SupportingDocs, ProjectRevision.ProjectId!);
+                string FilePath = Path.Combine(SupportingDocsDir, dto.File.Name);
+
                 if (!dto.File.ValidateFileSize(50))
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file exceeds the maximum allowed size of 50 MB.", Title = "File Size Exceeded" });
@@ -4150,17 +4152,25 @@ namespace WebAPI.Controllers.Projects
                 var AddSupporting = new ProjectSupportingDocs()
                 {
                     DocTypeFK = docType,
+                    DocTypeName = dto.DocTypeName,
                     ProjectRevisionFK = ProjectRevisionFK,
                     FileName = dto.File.Name,
                     FileExtension = dto.File.Extension,
                     FilePath = FilePath,
-                    Description = Regex.Replace(dto.Description, @"\s+", " "),
+                    Description = !string.IsNullOrEmpty(dto.Description) ? Regex.Replace(dto.Description, @"\s+", " ") : string.Empty,
                     CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjectSupportingDocs.AddAsync(AddSupporting);
                 await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
+
+                if (!dto.File.UploadFile(FilePath))
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
+                }
+
                 return Ok(new { Message = "Supporting Docs added successfully.", Title = "Add Success." });
             }
             catch (Exception ex)

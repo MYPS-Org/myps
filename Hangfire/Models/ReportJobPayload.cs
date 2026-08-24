@@ -10,7 +10,7 @@ namespace Hangfire.Models
     {
         public string JobId { get; set; } = Guid.NewGuid().ToString("N");
         public string ReportName { get; set; }
-        public string QueryString { get; set; } // pre-built query string
+        public string QueryString { get; set; } // JSON (new) or url-encoded params (legacy in-flight jobs)
         public string RequestedBy { get; set; }
     }
 }

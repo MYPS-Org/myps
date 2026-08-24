@@ -21,6 +21,7 @@ interface CheckboxListProps {
   searchPlaceholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
+  defaultExpanded?: boolean;
   maxVisibleChips?: number; // Max selected chips to show before collapsing into "+N more" (default: 12)
 }
 
@@ -37,9 +38,10 @@ const CheckboxList: React.FC<CheckboxListProps> = ({
   searchPlaceholder = 'Search...',
   emptyMessage = 'No items available',
   disabled = false,
+  defaultExpanded = false,
   maxVisibleChips = 12,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Selected items shown as chips below the header so they're visible without
