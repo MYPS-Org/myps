@@ -234,7 +234,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                         
                         <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
-                                *Date of Approval :
+                                *Date of Request :
                             </label>
                             <DateInput
                                 value={approvalDate}
