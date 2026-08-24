@@ -5,116 +5,31 @@ import { XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../contexts/AuthContext';
 import { importAllInfrastructure, importAdminOrgLookups } from '../Service';
 
-// Keep these exports so Rbia.tsx doesn't break — they're no longer used internally
-// but may be referenced elsewhere.
-export type ImportType =
-  | 'roads'
-  | 'road-section'
-  | 'bridges'
-  | 'region-data-security'
-  | 'city-municipality-legislative-district'
-  | 'deo-implementing-office';
+// ── Import options ────────────────────────────────────────────────────────────
 
-export const IMPORT_LABELS: Record<ImportType, string> = {
-  'roads': 'Roads',
-  'road-section': 'Road Section',
-  'bridges': 'Bridges',
-  'region-data-security': 'Region',
-  'city-municipality-legislative-district': 'City/Municipality, Legislative District',
-  'deo-implementing-office': 'DEO, Implementing Office',
-};
+type ImportOptionId = 'infra-inventory' | 'admin-org-lookups';
 
-// ── Tree structure ────────────────────────────────────────────────────────────
-
-interface ImportItem {
-  id: ImportType;
+interface ImportOption {
+  id: ImportOptionId;
   label: string;
 }
 
-interface ImportGroup {
-  id: string;
-  label: string;
-  items: ImportItem[];
-}
-
-const IMPORT_GROUPS: ImportGroup[] = [
-  {
-    id: 'road-network',
-    label: 'Import Road Network Data from RBIA',
-    items: [
-      { id: 'roads', label: 'Roads' },
-      { id: 'road-section', label: 'Road Section' },
-      { id: 'bridges', label: 'Bridges' },
-      { id: 'region-data-security', label: 'Region' },
-    ],
-  },
-  {
-    id: 'admin-areas',
-    label: 'Import Lookup tables from Admin Areas',
-    items: [
-      { id: 'city-municipality-legislative-district', label: 'City/Municipality, Legislative District' },
-    ],
-  },
-  {
-    id: 'internal-org',
-    label: 'Import Lookup tables from Internal Org',
-    items: [
-      { id: 'deo-implementing-office', label: 'DEO, Implementing Office' },
-    ],
-  },
+const IMPORT_OPTIONS: ImportOption[] = [
+  { id: 'infra-inventory', label: 'Import Infrastructure Inventory from RBIA' },
+  { id: 'admin-org-lookups', label: 'Import Admin Areas from AAMS and Internal Org Units from IOMS' },
 ];
-
-// ── Helper: compute group check state ────────────────────────────────────────
-
-type CheckState = 'all' | 'some' | 'none';
-
-function groupCheckState(group: ImportGroup, selected: Set<ImportType>): CheckState {
-  const checkedCount = group.items.filter((i) => selected.has(i.id)).length;
-  if (checkedCount === 0) return 'none';
-  if (checkedCount === group.items.length) return 'all';
-  return 'some';
-}
-
-// ── Indeterminate checkbox ────────────────────────────────────────────────────
-
-const IndeterminateCheckbox: React.FC<{
-  state: CheckState;
-  onChange: () => void;
-  id?: string;
-}> = ({ state, onChange, id }) => {
-  const ref = React.useRef<HTMLInputElement>(null);
-
-  React.useEffect(() => {
-    if (ref.current) {
-      ref.current.indeterminate = state === 'some';
-      ref.current.checked = state === 'all';
-    }
-  }, [state]);
-
-  return (
-    <input
-      ref={ref}
-      id={id}
-      type="checkbox"
-      className="h-4 w-4 rounded border-gray-400 text-blue-600 cursor-pointer accent-blue-600"
-      onChange={onChange}
-    />
-  );
-};
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface ImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Kept for API compatibility with Rbia.tsx — not used internally */
-  importType?: ImportType | null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
-  const [selected, setSelected] = useState<Set<ImportType>>(new Set());
+  const [selected, setSelected] = useState<Set<ImportOptionId>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
   const { user } = useAuth();
 
@@ -124,24 +39,11 @@ const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
     onClose();
   };
 
-  const toggleItem = (id: ImportType) => {
+  const toggleItem = (id: ImportOptionId) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleGroup = (group: ImportGroup) => {
-    const state = groupCheckState(group, selected);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (state === 'all') {
-        group.items.forEach((i) => next.delete(i.id));
-      } else {
-        group.items.forEach((i) => next.add(i.id));
-      }
       return next;
     });
   };
@@ -152,20 +54,8 @@ const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
     const userName = user?.UserId ?? '';
     try {
       const tasks: Promise<unknown>[] = [];
-      // Roads, Road Section, Bridges, and Region all share the same GIS "import all
-      // infrastructure" endpoint — call it once if any are checked.
-      const wantsInfrastructure =
-        selected.has('roads') ||
-        selected.has('road-section') ||
-        selected.has('bridges') ||
-        selected.has('region-data-security');
-      if (wantsInfrastructure) tasks.push(importAllInfrastructure(userName));
-      // City/Municipality+Legislative District and DEO+Implementing Office share the
-      // GIS admin/org lookup import endpoint — call it once if any are checked.
-      const wantsAdminOrgLookups =
-        selected.has('city-municipality-legislative-district') ||
-        selected.has('deo-implementing-office');
-      if (wantsAdminOrgLookups) tasks.push(importAdminOrgLookups(userName));
+      if (selected.has('infra-inventory')) tasks.push(importAllInfrastructure(userName));
+      if (selected.has('admin-org-lookups')) tasks.push(importAdminOrgLookups(userName));
       await Promise.all(tasks);
       handleClose();
     } catch (error) {
@@ -196,40 +86,20 @@ const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
 
           {/* Body */}
           <div className="px-6 py-5 space-y-4">
-            <p className="text-sm text-gray-500 font-medium">Road Network to Import</p>
+            <p className="text-sm text-gray-500 font-medium">Data to Import</p>
 
             <div className="border border-gray-200 rounded-md divide-y divide-gray-100">
-              {IMPORT_GROUPS.map((group) => {
-                const state = groupCheckState(group, selected);
-                return (
-                  <div key={group.id} className="p-3">
-                    {/* Group row */}
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <IndeterminateCheckbox
-                        state={state}
-                        onChange={() => toggleGroup(group)}
-                        id={`group-${group.id}`}
-                      />
-                      <span className="text-sm font-semibold text-gray-800">{group.label}</span>
-                    </label>
-
-                    {/* Child items */}
-                    <div className="mt-2 ml-6 space-y-1.5">
-                      {group.items.map((item) => (
-                        <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-gray-400 text-blue-600 cursor-pointer accent-blue-600"
-                            checked={selected.has(item.id)}
-                            onChange={() => toggleItem(item.id)}
-                          />
-                          <span className="text-sm text-gray-700">{item.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+              {IMPORT_OPTIONS.map((option) => (
+                <label key={option.id} className="flex items-center gap-2 p-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-400 text-blue-600 cursor-pointer accent-blue-600"
+                    checked={selected.has(option.id)}
+                    onChange={() => toggleItem(option.id)}
+                  />
+                  <span className="text-sm font-semibold text-gray-800">{option.label}</span>
+                </label>
+              ))}
             </div>
           </div>
 
