@@ -77,6 +77,7 @@ export interface ProgramDetails {
 	IsSkipped: boolean;
 	CreatedBy: string;
 	CreatedDate: string;
+	CanPublish: boolean;
 }
 
 export interface StageList {

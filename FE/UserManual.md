@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.8
-**Date:** June 10, 2026
+**Version:** 3.10
+**Date:** August 24, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -32,6 +32,8 @@
 | 3.6 | June 2, 2026 | RP | RP | Section 5.2.5 rewritten: "Add Existing Project" button now opens Batch Restore dialog — users enter project IDs to restore deleted projects back to the program; Section 5.2.7 updated: "View AIP Report" renamed to "Generate Reports" throughout; Section 5.6 updated: Toggle Active feature added across all Code Tables sub-tabs — Active column and toggle button added to every table; Section 5.7 updated: Plantilla Office Name field added to Add User and Update User dialogs |
 | 3.7 | June 8, 2026 | RP | RP | Section 3.1 updated: login error messages revised — invalid credentials message and session-expired message updated to match current backend responses; Section 5.2.2 updated: Program Type and Program Stage fields now marked required (*) with frontend validation messages added; Section 5.7 updated: "Region Code" field in Add User dialog renamed to "Region" (now shows region name, not code), User ID and Region fields are now always disabled (fully read-only); Users list OFFICE column now displays PlantillaOfficeName (full office name) |
 | 3.8 | June 10, 2026 | RP | RP | Gap analysis follow-up: Section 3.1 added "Username is required" / "Password is required" inline validation messages to Common Outcomes and Appendix B; Section 5.3.5 added Auto-generated ID Prefix reference table for all 16 work location infrastructure types; Section 5.4.6 added "Mode of Implementation — New Project Record" behavior (creates a new `-A` suffixed project record) and a note on the remaining revision types relying on standard field-editability rules; Section 5.5.3 added mention of the project group map view |
+| 3.9 | June 14, 2026 | RP | RP | *(This version number was independently used by a separate, drifted copy of the manual at `documents/UserManual.md` — see `documents/UserManual_Changelog.md`. Not applicable to this file.)* |
+| 3.10 | August 24, 2026 | RP | RP | Import-to-revision merge follow-up: Section 5.2.7 "Import Projects" fully rewritten for the new asynchronous, job-based upload (drag-and-drop dialog closes immediately; result reported via a toast notification anywhere in the app, with "View Report" / "View Errors" download links); added new "Update Projects" action, which replaces a program stage's existing project set from a file instead of only adding new ones; documented the single-import-at-a-time "Import is currently in use" restriction. Section 5.2.1 updated: the Filter Programs dialog's "Program Group" filter was replaced with a "Program Type" filter, and an Active Filters chip summary was added. Section 5.8.4 fully rewritten: the Import Road Network dialog's 3-group/6-item checkbox tree was replaced with two flat, fully-active import options ("Import Infrastructure Inventory from RBIA" and "Import Admin Areas from AAMS and Internal Org Units from IOMS") — the previous pending/not-yet-connected items are now live |
 
 ### Consultant
 
@@ -425,7 +427,7 @@ The following table maps each active sidebar item to its route and source compon
 | UI-UX-004-F01 | Search Programs | Text input to filter the list by program name | Text; press Enter or click Search to apply |
 | UI-UX-004-A01 | Search | Submits the name search and refreshes the list | Button (blue); enabled when input has text |
 | UI-UX-004-A02 | Clear | Clears the active name search and reloads all programs | Button (red); visible only when a search term or name filter is active |
-| UI-UX-004-A03 | Filters | Opens the Filter Programs dialog for Year Start, Program Group, and Program Stage filters | Button (yellow); displays a count badge when any filter is active |
+| UI-UX-004-A03 | Filters | Opens the Filter Programs dialog for Start Year, Program Type, and Program Stage filters | Button (yellow); displays a count badge when any filter is active |
 | UI-UX-004-A04 | Add Program | Opens the Add Program dialog (see Section 5.2.2) | Button (blue) |
 
 ---
@@ -435,10 +437,12 @@ The following table maps each active sidebar item to its route and source compon
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | UI-UX-004-F02 | Start Year | Filter programs by fiscal start year | Dropdown: All Years, 2000 – (current year + 10) |
-| UI-UX-004-F03 | Program Group | Filter by the program group the program belongs to | Dropdown: All Groups, values from Code Tables |
+| UI-UX-004-F03 | Program Type | Filter by the program's type classification | Dropdown: All Types, values from Code Tables |
 | UI-UX-004-F04 | Program Stage | Filter by budget stage | Dropdown: All Stages, values from Code Tables |
-| UI-UX-004-A05 | Apply | Applies the selected filters and refreshes the list | Button |
-| UI-UX-004-A06 | Clear Filters | Resets Year Start, Group, and Stage filters (preserves any active name search) | Button; visible only when at least one filter is active |
+| UI-UX-004-A05 | Apply Filters | Applies the selected filters and refreshes the list | Button |
+| UI-UX-004-A06 | Clear Filters | Resets Start Year, Type, and Stage filters (preserves any active name search) | Button |
+
+> **Active Filters:** Whenever at least one filter is set, the dialog shows an **Active Filters** panel listing each active value as a chip (e.g. "Start Year: 2026", "Type: Budget Proposal", "Stage: GAA") so you can review the current filter combination before applying it.
 
 ---
 
@@ -488,8 +492,8 @@ When a program row is expanded, a nested table lists all budget stages under tha
 **Step-by-Step: Filtering Programs**
 
 1. Click the **Filters** button.
-2. In the Filter Programs dialog, select any combination of **Start Year**, **Program Group**, and **Program Stage**.
-3. Click **Apply** to refresh the list with the selected filters.
+2. In the Filter Programs dialog, select any combination of **Start Year**, **Program Type**, and **Program Stage**. The **Active Filters** panel updates live as you choose values.
+3. Click **Apply Filters** to refresh the list with the selected filters.
 4. To remove all filters without closing the dialog, click **Clear Filters**.
 5. A count badge on the **Filters** button shows how many filters are currently active.
 
@@ -626,7 +630,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 | Add Project | Open the project creation form |
 | Add Existing Project | Link an existing project to this program |
 | Batch Actions | Batch delete or manage publishing for multiple projects |
-| Actions | Download template, import projects, export projects, generate reports |
+| Actions | Download template, import projects, update projects, export projects, generate reports |
 
 [Insert Screenshot: Program Details Screen]
 
@@ -770,13 +774,56 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Import Projects**
 
+**Purpose:** Bulk-add new projects to the program's current stage from a filled-in Excel template. The import runs as a background job — you can navigate away and keep working; a toast notification reports the result wherever you are in the system once it finishes.
+
+**Field Reference — Import Projects Dialog:**
+
+| Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
+|---|---|---|---|
+| IMP-PRJ-F01 | Drag & drop area | Drop zone for the import file, or click to browse | Accepts `.xlsx` / `.xlsm` only |
+| IMP-PRJ-A01 | Cancel | Close the dialog without uploading | Button; disabled while a file is uploading |
+
 **Step-by-Step:**
 
 1. Open a program.
 2. Click **Actions** → **Import Projects**.
-3. Select the filled-in Excel template file.
+3. Drag and drop the filled-in Excel template onto the drop zone, or click the drop zone to browse and select the file.
+4. The dialog uploads the file and closes automatically — the import continues to run in the background.
 
-**On Success:** Projects from the Excel file are uploaded and appear in the program's project list.
+**On Success:** A blue info toast confirms the import was queued (*"Import queued for &lt;filename&gt; — you'll be notified here when it finishes."*). When the job finishes, a toast reports the result, even if you have since navigated to a different page:
+
+| Result | Toast |
+|---|---|
+| All rows imported without issues | Green success toast: *"Import completed: N valid, N warning(s)."* |
+| Some rows had issues but the import still completed | Amber warning toast: *"Import completed with issues: N valid, N warning(s), N error(s)."* — includes **View Report** and **View Errors** action links |
+| The import could not complete | Red error toast: *"Import failed: &lt;reason&gt;."* |
+
+**View Report** downloads a text summary of the import run. **View Errors** downloads an Excel workbook listing only the rows that failed, so they can be corrected and re-imported.
+
+**Common Outcomes & What to Do:**
+
+| Message / Situation | What it Means | What You Should Do |
+|---|---|---|
+| *"Only .xlsx or .xlsm files are accepted."* | The selected/dropped file has the wrong extension. | Re-select the correct filled-in template file. |
+| *"Import is currently in use by &lt;user&gt;. Please try again later."* | Only one import or update can run at a time system-wide, and another user's job hasn't finished yet. | Wait and retry once the other job completes. |
+
+---
+
+**Update Projects**
+
+**Purpose:** Replace the existing set of projects for the program's current stage with the contents of a filled-in Excel template, in one background job. Use this to bulk-correct or refresh project data already in a program instead of re-importing duplicates.
+
+**Who uses this:** DEO, RO, PS Admin
+
+**Step-by-Step:**
+
+1. Open a program.
+2. Click **Actions** → **Update Projects**.
+3. Read the on-screen warning: *"This replaces existing projects for this program's [Stage] stage with the ones in your file. Projects not included in the file are left untouched."*
+4. Drag and drop the filled-in Excel template onto the drop zone, or click the drop zone to browse and select the file.
+5. The dialog uploads the file and closes automatically — the update runs in the background and reports its result as a toast the same way **Import Projects** does (see above).
+
+> **Note:** Only projects listed in the file are updated. Existing projects in the program's stage that are not included in the file are left unchanged — they are not deleted.
 
 ---
 
@@ -3086,38 +3133,18 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-IMP-A01 | ✕ (close) | Close the dialog and discard all selections | Button |
-| UI-UX-0128-IMP-G01 | **Import Road Network Data from RBIA** (group) | Group header checkbox — selects or deselects all items in this group at once; shows a dash (−) when only some items are checked | Tri-state checkbox |
-| UI-UX-0128-IMP-I01 | Roads | Import national road records from the GIS | Item checkbox; **active** — connected to GIS |
-| UI-UX-0128-IMP-I02 | Road Section | Import road section records from the GIS | Item checkbox; **active** — connected to GIS |
-| UI-UX-0128-IMP-I03 | Bridges | Import bridge records from the GIS | Item checkbox; **active** — connected to GIS |
-| UI-UX-0128-IMP-I04 | Region | Import region reference data | Item checkbox; **pending** — present in UI but not yet connected to GIS |
-| UI-UX-0128-IMP-G02 | **Import Lookup tables from Admin Areas** (group) | Group header checkbox | Tri-state checkbox |
-| UI-UX-0128-IMP-I05 | City/Municipality, Legislative District | Import administrative division lookup data | Item checkbox; **pending** — not yet connected |
-| UI-UX-0128-IMP-G03 | **Import Lookup tables from Internal Org** (group) | Group header checkbox | Tri-state checkbox |
-| UI-UX-0128-IMP-I06 | DEO, Implementing Office | Import internal organizational unit lookup data | Item checkbox; **pending** — not yet connected |
-| UI-UX-0128-IMP-A02 | Start Import | Execute the import for all checked items | Button (blue); disabled when no items are selected; shows "Importing..." while running |
+| UI-UX-0128-IMP-A01 | ✕ (close) | Close the dialog and discard the selection | Button |
+| UI-UX-0128-IMP-I01 | Import Infrastructure Inventory from RBIA | Imports Roads, Road Sections, Bridges, and Region reference data from the RBIA GIS in one combined call | Checkbox |
+| UI-UX-0128-IMP-I02 | Import Admin Areas from AAMS and Internal Org Units from IOMS | Imports City/Municipality, Legislative District, DEO, and Implementing Office lookup data from AAMS/IOMS in one combined call | Checkbox |
+| UI-UX-0128-IMP-A02 | Import | Executes the import for all checked options | Button (blue); disabled when no option is selected; shows "Importing..." while running |
 
-**Import Status Summary:**
-
-| Item | Connected to External Source | Effect when selected |
-|------|------------------------------|---------------------|
-| Roads | Yes (RBIA GIS) | Pulls all national road records from GIS into MYPS |
-| Road Section | Yes (RBIA GIS) | Pulls all road section records from GIS into MYPS |
-| Bridges | Yes (RBIA GIS) | Pulls all bridge records from GIS into MYPS |
-| Region | No (pending) | Checkbox is displayed but no import will occur |
-| City/Municipality, Legislative District | No (pending) | Checkbox is displayed but no import will occur |
-| DEO, Implementing Office | No (pending) | Checkbox is displayed but no import will occur |
-
-**Step-by-Step: Importing Road Network Data**
+**Step-by-Step: Importing Road Network / Reference Data**
 
 1. Click the blue **Import** button (top-right of the Infrastructure Administration page, with an upload icon).
-2. The **Import Road Network** dialog opens, showing the three groups and their items.
-3. To select all items in a group, click the **group-level checkbox**. The checkbox turns to a dash (−) when only some items in the group are checked.
-4. To select individual items, click each item's checkbox independently.
-5. Select **Roads**, **Road Section**, and/or **Bridges** as needed (these are the currently active import sources).
-6. Click **Start Import**. The button label changes to "Importing..." while the operation runs. All selected items are processed in parallel.
-7. The dialog closes automatically when all imports complete.
+2. The **Import Road Network** dialog opens, showing the two import options.
+3. Tick **Import Infrastructure Inventory from RBIA**, **Import Admin Areas from AAMS and Internal Org Units from IOMS**, or both.
+4. Click **Import**. The button label changes to "Importing..." while the operation runs. Selected options are processed in parallel.
+5. The dialog closes automatically when the import completes.
 
 [Insert Screenshot: Import Road Network Dialog]
 
@@ -3127,9 +3154,8 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
-| Start Import button is disabled | No items are selected | Tick at least one item checkbox before clicking Start Import |
+| Import button is disabled | No option is selected | Tick at least one option before clicking Import |
 | Dialog closes but tab counts did not update | Counts are loaded once on page open | Navigate away and back to the Infrastructure Administration page to refresh the counts |
-| Region / City-Municipality / DEO items selected but no new data appears | These import sources are not yet connected | This is expected; these items show in the dialog but are pending implementation |
 
 ---
 
