@@ -185,6 +185,35 @@ namespace WebAPI.Controllers.CrystalReport
             });
         }
 
+        // ── Poll endpoint: catches jobs whose SignalR broadcast was missed ──
+        // A Hangfire worker can pick up and finish a job (especially the
+        // direct-to-Excel reports) before the browser's dedicated hub
+        // connection finishes JoinJobGroup — that broadcast lands in an empty
+        // group and is gone for good, since SignalR doesn't replay missed
+        // group messages. This lets the client check for a terminal status
+        // it may have missed instead of waiting on a notification that
+        // already fired.
+        [HttpGet("status/{jobId}")]
+        public async Task<IActionResult> GetJobStatusAsync(string jobId, CancellationToken ct)
+        {
+            var job = await _db.tReportJobResult
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.JobId == jobId, ct);
+
+            if (job == null)
+                return NotFound(new { Message = "Report job not found." });
+
+            return Ok(new
+            {
+                job.JobId,
+                job.Status,
+                job.Message,
+                DownloadUrl = job.Status == "Completed" && !string.IsNullOrEmpty(job.FileName)
+                    ? $"/api/reports/download?fileName={job.FileName}"
+                    : null
+            });
+        }
+
         //// ── Download the generated PDF and delete it from temp ─────────────
         [HttpGet("download")]
         public async Task<IActionResult> Download(

@@ -13,6 +13,7 @@ import {
   fetchFilterPrograms,
   queueReportGeneration,
   fetchReportFile,
+  fetchReportJobStatus,
 } from './Service';
 import type {
   ReportOptions,
@@ -115,6 +116,39 @@ const Reports: React.FC = () => {
     if (!currentJob) return;
 
     const { jobId } = currentJob;
+    let settled = false;
+
+    const applyStatus = (event: ReportStatusEvent) => {
+      if (event.JobId !== jobId || settled) return;
+
+      setCurrentJob({ jobId, status: event.Status, message: event.Message });
+
+      if (event.Status === 'Completed' && event.DownloadUrl) {
+        const fileName = new URL(event.DownloadUrl, window.location.origin).searchParams.get('fileName');
+        if (fileName) downloadReportFile(fileName);
+      }
+
+      if (event.Status === 'Completed' || event.Status === 'Failed' || event.Status === 'Cancelled') {
+        settled = true;
+        setIsGenerating(false);
+        if (event.Status === 'Failed' || event.Status === 'Cancelled') {
+          showToast({ type: 'error', message: event.Message });
+        }
+      }
+    };
+
+    // Best-effort catch-up check for a terminal status the SignalR group
+    // broadcast may have already missed (see below) — SignalR stays the
+    // primary, low-latency path, this only fills the gap.
+    const checkStatus = async () => {
+      try {
+        const status = await fetchReportJobStatus(jobId);
+        applyStatus(status);
+      } catch {
+        // Job may not be persisted yet, or the request failed transiently —
+        // the SignalR listener is still active and will catch it normally.
+      }
+    };
 
     // Dedicated connection to the report-job hub, joined for the lifetime of
     // this job only. Kept separate from the shared notification hub
@@ -125,27 +159,25 @@ const Reports: React.FC = () => {
       .withAutomaticReconnect()
       .build();
 
-    connection.on('ReportStatusChanged', (event: ReportStatusEvent) => {
-      if (event.JobId !== jobId) return;
+    connection.on('ReportStatusChanged', applyStatus);
 
-      setCurrentJob({ jobId, status: event.Status, message: event.Message });
-
-      if (event.Status === 'Completed' && event.DownloadUrl) {
-        const fileName = new URL(event.DownloadUrl, window.location.origin).searchParams.get('fileName');
-        if (fileName) downloadReportFile(fileName);
-      }
-
-      if (event.Status === 'Completed' || event.Status === 'Failed' || event.Status === 'Cancelled') {
-        setIsGenerating(false);
-        if (event.Status === 'Failed' || event.Status === 'Cancelled') {
-          showToast({ type: 'error', message: event.Message });
-        }
-      }
+    // A dropped connection loses server-side group membership — rejoin and
+    // recheck in case the job finished while disconnected.
+    connection.onreconnected(() => {
+      connection
+        .invoke('JoinJobGroup', jobId)
+        .then(checkStatus)
+        .catch((error) => console.error('Error rejoining report status hub:', error));
     });
 
     connection
       .start()
       .then(() => connection.invoke('JoinJobGroup', jobId))
+      // A Hangfire worker can pick up and finish a job (especially the
+      // direct-to-Excel reports) before this join completes — that broadcast
+      // would land in an empty group and be lost for good, so check once for
+      // a status we may have already missed.
+      .then(checkStatus)
       .catch((error) => console.error('Error connecting to report status hub:', error));
 
     return () => {
