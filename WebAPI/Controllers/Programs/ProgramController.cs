@@ -429,9 +429,11 @@ namespace WebAPI.Controllers.Programs
                 var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync(cancellationToken);
                 string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
                 var Security = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync(cancellationToken);
+                var Permissions = await _db.vUserActionPermission.FirstOrDefaultAsync(x => x.PermissionAction == "PublishProgram" && x.UserId == _Session.UserId && x.IsActive);
                 var response = new
                 {
                     IsActive = (CurrentProgramVersion.StageName == ProgramStage.StageName) ? true : false,
+                    CanPublish = Permissions != null ? true : false,
                     Details = ProgramRevision,
                     //Projects = ProjectLists,
                     Dropdowns = new
