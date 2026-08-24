@@ -67,7 +67,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
             if (newDEO) {
                 const deoBelongsToProvince = projectEnums?.DEOs?.find(
-                    (deo) => deo.ParticipantId === newDEO && deo.RegionCode === newProvince
+                    (deo) => deo.ParticipantId === newDEO && deo.ProvinceCode === newProvince
                 );
                 if (!deoBelongsToProvince) {
                     newDEO = undefined;
