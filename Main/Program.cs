@@ -1,12 +1,12 @@
 using Hangfire;
 using Hangfire.Hubs;
+using Hangfire.Services;
 using Helpers;
 using Main;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using OfficeOpenXml;
 using WebAPI.MicroService;
-using Hangfire.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -113,9 +113,10 @@ builder.Services.AddHttpClient("ReportService", client =>
     client.Timeout = TimeSpan.FromMinutes(10); // report rendering can be slow
 });
 
+builder.Services.AddScoped<IExcelReportGenerator, ExcelReportGenerator>();
+
 // Hangfire job service
 builder.Services.AddTransient<ReportJobService>();
-
 
 var app = builder.Build();
 

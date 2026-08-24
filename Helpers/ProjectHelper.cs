@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
+using System.Text.RegularExpressions;
 using static Helpers.ProjectHelper;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
@@ -128,127 +129,93 @@ namespace Helpers
             public int YearStart { get; set; }
             public int Count { get; set; } = 1;
         }
-        //public static async Task<string> GenerateProjectId(this MYPSDbContext db, GenerateProjectIDParams request, CancellationToken cancellationToken)
+        //private static readonly HashSet<string> ValidIslandCodes = new(StringComparer.OrdinalIgnoreCase)
         //{
-        //    ArgumentNullException.ThrowIfNull(db);
+        //    string.Empty,
+        //    "LZ",
+        //    "VS",
+        //    "MN"
+        //};
+
+        //private static readonly Regex ThirdSegmentPattern = new(@"^\d{5}$", RegexOptions.Compiled);
+        //private static readonly Regex ProjectIdPattern = new(@"^(BP|MY|P)\d{8}([A-Za-z]{2})?$", RegexOptions.Compiled);
+
+        //public static async Task<string> GenerateProjectID(this MYPSDbContext _db, GenerateProjectIDParams request, CancellationToken cancellationToken)
+        //{
+        //    ArgumentNullException.ThrowIfNull(_db);
         //    ArgumentNullException.ThrowIfNull(request);
 
-        //    string FirstSegment = request.StageName.GenerateProjec1stSegment();
-        //    string SecondSegment = request.YearStart.GenerateProjec2ndSegment();
+        //    string FirstSegment = GenerateProjectPrefixStrict(request.StageName);
+        //    string SecondSegment = GenerateProjectYearSegmentStrict(request.YearStart);
+        //    string IslandCode = NormalizeProjectIslandCode(request.IslandCode);
+
         //    if (request.CategoryId <= 0)
         //    {
         //        throw new ArgumentOutOfRangeException(
         //            nameof(request.CategoryId),
-        //            "Category ID must be greater than zero.");
+        //            "Project ID generation failed: CategoryId must be greater than zero.");
         //    }
 
-        //    if (string.IsNullOrWhiteSpace(FirstSegment))
-        //    {
-        //        throw new ArgumentException(
-        //            "Suffix is required.",
-        //            nameof(FirstSegment));
-        //    }
-
-        //    if (string.IsNullOrWhiteSpace(request.IslandCode))
-        //    {
-        //        throw new ArgumentException(
-        //            "Island code is required.",
-        //            nameof(request.IslandCode));
-        //    }
-
-        //    if (request.YearStart <= 0)
+        //    if (request.Count != 1)
         //    {
         //        throw new ArgumentOutOfRangeException(
-        //            nameof(request.YearStart),
-        //            "Year start must be greater than zero.");
+        //            nameof(request.Count),
+        //            "Project ID generation failed: this generator currently supports exactly one Project ID per call.");
         //    }
 
-        //    var parameters = new DynamicParameters();
+        //    bool categoryExists = await _db.tOptionProjectCategory
+        //        .AsNoTracking()
+        //        .AnyAsync(x => x.CategoryId == request.CategoryId, cancellationToken);
 
-        //    parameters.Add(
-        //        "@CategoryId",
-        //        request.CategoryId,
-        //        DbType.Int32,
-        //        ParameterDirection.Input);
-
-        //    parameters.Add(
-        //        "@Suffix",
-        //        FirstSegment.Trim(),
-        //        DbType.String,
-        //        ParameterDirection.Input);
-
-        //    parameters.Add(
-        //        "@IslandCode",
-        //        request.IslandCode.Trim(),
-        //        DbType.String,
-        //        ParameterDirection.Input);
-
-        //    parameters.Add(
-        //        "@YearStart",
-        //        request.YearStart,
-        //        DbType.Int32,
-        //        ParameterDirection.Input);
-
-        //    // This method generates one ID only.
-        //    parameters.Add(
-        //        "@Count",
-        //        1,
-        //        DbType.Int32,
-        //        ParameterDirection.Input);
-
-        //    parameters.Add(
-        //        "@RangeStart",
-        //        dbType: DbType.Int32,
-        //        direction: ParameterDirection.Output);
-
-        //    parameters.Add(
-        //        "@RangeEnd",
-        //        dbType: DbType.Int32,
-        //        direction: ParameterDirection.Output);
-
-        //    var connection = db.Database.GetDbConnection();
-        //    var shouldCloseConnection = connection.State != ConnectionState.Open;
-
-        //    try
+        //    if (!categoryExists)
         //    {
-        //        if (shouldCloseConnection)
-        //        {
-        //            await connection.OpenAsync(cancellationToken);
-        //        }
-
-        //        var transaction = db.Database.CurrentTransaction?
-        //            .GetDbTransaction();
-
-        //        var command = new CommandDefinition(
-        //            commandText: "dbo.pReserveProjectIdBlock",
-        //            parameters: parameters,
-        //            transaction: transaction,
-        //            commandTimeout: 120,
-        //            commandType: CommandType.StoredProcedure,
-        //            cancellationToken: cancellationToken);
-
-        //        await connection.ExecuteAsync(command);
-
-        //        var rangeStart = parameters.Get<int>("@RangeStart");
-        //        var rangeEnd = parameters.Get<int>("@RangeEnd");
-
-        //        if (rangeStart <= 0 || rangeEnd < rangeStart)
-        //        {
-        //            throw new InvalidOperationException(
-        //                "The project ID reservation procedure returned an invalid range.");
-        //        }
-
-        //        // Confirm that this is the intended permanent project ID format.
-        //        return $"{FirstSegment}{SecondSegment}{rangeStart:D5}{request.IslandCode}";
+        //        throw new InvalidOperationException(
+        //            $"Project ID generation failed: CategoryId '{request.CategoryId}' does not exist in tOptionProjectCategory.");
         //    }
-        //    finally
+
+        //    var results = await _db.Database
+        //        .SqlQuery<string>($@"EXEC dbo.pGenerateThirdSegment 
+        //            @ProjectSuffix = {FirstSegment}, 
+        //            @CategoryId = {request.CategoryId}, 
+        //            @YearStart = {request.YearStart}, 
+        //            @IslandCode = {IslandCode}")
+        //        .ToListAsync(cancellationToken);
+
+        //    if (results.Count != 1)
         //    {
-        //        if (shouldCloseConnection)
-        //        {
-        //            await connection.CloseAsync();
-        //        }
+        //        throw new InvalidOperationException(
+        //            $"Project ID generation failed: dbo.pGenerateThirdSegment returned {results.Count} rows for CategoryId '{request.CategoryId}', StagePrefix '{FirstSegment}', YearStart '{request.YearStart}', IslandCode '{IslandCode}'. Expected exactly one row.");
         //    }
+
+        //    string ThirdSegment = results[0]?.Trim() ?? string.Empty;
+
+        //    if (!ThirdSegmentPattern.IsMatch(ThirdSegment))
+        //    {
+        //        throw new InvalidOperationException(
+        //            $"Project ID generation failed: dbo.pGenerateThirdSegment returned invalid third segment '{ThirdSegment}'. Expected exactly five digits.");
+        //    }
+
+        //    string ProjectId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{IslandCode}";
+
+        //    if (!ProjectIdPattern.IsMatch(ProjectId))
+        //    {
+        //        throw new InvalidOperationException(
+        //            $"Project ID generation failed: generated ProjectId '{ProjectId}' has an invalid format.");
+        //    }
+
+        //    bool duplicateExists = await _db.tProjects
+        //        .AsNoTracking()
+        //        .AnyAsync(x => x.ProjectPK == ProjectId, cancellationToken);
+
+        //    if (duplicateExists)
+        //    {
+        //        throw new InvalidOperationException(
+        //            $"Project ID generation failed: generated ProjectId '{ProjectId}' already exists in tProjects.ProjectPK. The allocator counter may be out of sync; verify dbo.pGenerateThirdSegment, dbo.tProjectIdSequence, and dbo.pReserveProjectIdBlock before retrying.");
+        //    }
+
+        //    return ProjectId;
         //}
+
         public static async Task<string> GenerateProjectID(this MYPSDbContext _db, GenerateProjectIDParams request, CancellationToken cancellationToken)
         {
             string FirstSegment = request.StageName.GenerateProjec1stSegment();
@@ -295,6 +262,60 @@ namespace Helpers
 
             return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{request.IslandCode}".Replace("-", "");
         }
+        private static string GenerateProjectPrefixStrict(string StageName)
+        {
+            if (string.IsNullOrWhiteSpace(StageName))
+            {
+                throw new ArgumentException(
+                    "Project ID generation failed: StageName is required.",
+                    nameof(StageName));
+            }
+
+            var stageGroups = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "BP", new[] { "BP", "RBP", "UPMO", "UBP" } },
+                { "MY", new[] { "RDIP", "UDIP", "PIP" } },
+                { "P",  new[] { "NEP", "HGAB", "GAA", "GAA-R" } }
+            };
+
+            var stageName = StageName.Trim();
+            var prefix = stageGroups.FirstOrDefault(g => g.Value.Contains(stageName, StringComparer.OrdinalIgnoreCase)).Key;
+
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                throw new ArgumentException(
+                    $"Project ID generation failed: StageName '{StageName}' is not configured for ProjectId prefix generation.",
+                    nameof(StageName));
+            }
+
+            return prefix;
+        }
+
+        private static string GenerateProjectYearSegmentStrict(int endYear)
+        {
+            if (endYear < 2017)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(endYear),
+                    "Project ID generation failed: YearStart must be 2017 or later.");
+            }
+
+            return (endYear - 2016).ToString("D3");
+        }
+
+        //private static string NormalizeProjectIslandCode(string islandCode)
+        //{
+        //    string normalized = (islandCode ?? string.Empty).Trim().ToUpperInvariant();
+
+        //    if (!ValidIslandCodes.Contains(normalized))
+        //    {
+        //        throw new ArgumentException(
+        //            $"Project ID generation failed: IslandCode '{islandCode}' is not supported. Expected blank, LZ, VS, or MN.",
+        //            nameof(islandCode));
+        //    }
+
+        //    return normalized;
+        //}
         public static string GenerateProjec1stSegment(this string StageName)
         {
             var stageGroups = new Dictionary<string, string[]>

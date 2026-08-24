@@ -229,7 +229,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                     <div className='space-y-2'>
                         <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
-                                *Date of Approval :
+                                *Date of Request :
                             </label>
                             <DateInput
                                 value={approvalDate}

@@ -58,6 +58,7 @@ const ProgramDetail: React.FC = () => {
         CreatedDate: '',
     },
     IsActive: false,
+    CanPublish: false,
     Dropdowns: {
       Statuses: [],
       Stages: [],
@@ -129,6 +130,7 @@ const ProgramDetail: React.FC = () => {
         CreatedDate: '',
     },
     IsActive: false,
+    CanPublish: false,
     Dropdowns: {
       Statuses: [],
       Stages: [],
@@ -655,7 +657,7 @@ const ProgramDetail: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
           <div className="flex items-center gap-4">
-            {programEnums.IsActive && isTerminalStage && defaultProgramEnums.Details.Status === 1 && (
+            {programEnums.IsActive && isTerminalStage && defaultProgramEnums.Details.Status === 1 && defaultProgramEnums.CanPublish && (
               <Button color="yellow" onClick={handlePublishToPCMA}>
                 Publish Program
               </Button>

@@ -1682,7 +1682,7 @@ namespace WebAPI.Controllers.CodeTable
                 {
                     tablename = "Revision Rules";
                     transactionLog.AffectedTable = "tRevisionRules";
-                    var data = JsonConvert.DeserializeObject<DBHelper.Models.Table.RevisionRules>(dto.Json);
+                    var data = JsonConvert.DeserializeObject<DBHelper.Models.Table.Revision.RevisionRules>(dto.Json);
                     #region Validation
                     if (data == null)
                     {

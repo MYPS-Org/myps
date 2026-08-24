@@ -383,3 +383,5 @@ graphify-out/
 # e2e test
 e2e/playwright-report/
 e2e/.env
+# generated report output (runtime temp folder)
+Main/Resources/Reports/*.pdf

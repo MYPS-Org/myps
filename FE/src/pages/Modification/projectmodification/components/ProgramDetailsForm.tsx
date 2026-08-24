@@ -43,6 +43,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
         ProgramId: '',
         StageId: 0,
         StageName: '',
+        StageDisplayName: '',
         Name: '',
         Status: undefined,
         Type: '',
@@ -130,6 +131,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
               />
           </div>
+          {/* <input type="hidden" value={programDetails.StageName || ''} /> */}
 
           {/* <div className='flex flex-row text-left gap-5 items-center'>
               <label className="flex-1/3 text-gray-600">User Group:</label>

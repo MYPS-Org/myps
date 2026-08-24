@@ -232,7 +232,7 @@ namespace DBHelper.Data
         public DbSet<RevisionApprovals> tRevisionApprovals { get; set; }
         public DbSet<RevisionDocuments> tRevisionDocuments { get; set; }
         public DbSet<RevisionForCorrectionDetails> tRevisionForCorrectionDetails { get; set; }
-        public DbSet<Models.Table.RevisionRules> tRevisionRules { get; set; }
+        public DbSet<DBHelper.Models.Table.Revision.RevisionRules> tRevisionRules { get; set; }
         public DbSet<RevisionProjects> tRevisionProjects { get; set; }
         public DbSet<RevisionProjectSnapshot> tRevisionProjectSnapshot { get; set; }
         public DbSet<RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }
@@ -240,6 +240,8 @@ namespace DBHelper.Data
         public DbSet<RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
         public DbSet<RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
         public DbSet<RevisionProjectComponentCostPerYear> tRevisionProjectComponentCostPerYear { get; set; }
+
+        public DbSet<RevisionPCMAComponent> tRevisionPCMAComponent { get; set; }
         #endregion
 
         #region Lookups

@@ -72,9 +72,7 @@ Full route table, from `FE/src/components/Routes.tsx` (source of truth — this 
 | RevisionDetails | `/revision/:modificationType/:project` | `pages/Modification/views/ModificationDetails` |
 | ProjectGroupList | `/project-groups` | `pages/ProjectGroups/Views/ProjectGroup` |
 | ProjectGroupDetails | `/project-groups/:groupId` | `pages/ProjectGroups/Views/ProjectGroupDetails` |
-| MultiYearReports | `/reports/multiyear` | `pages/Reports/MultiYearReports` |
-| ProgramReports | `/reports/programs` | `pages/Reports/ProgramReports` |
-| ProjectReports | `/reports/projects` | `pages/Reports/ProjectReports` |
+| Reports | `/reports` | `pages/Reports/Reports` |
 | Settings | `/settings` | `pages/Settings/Settings` |
 | CodeTables | `/code-tables` | `pages/CodeTables/Views/CodeTables` |
 | LumpSumList | `/lumpsum` | `pages/LSWallet/Views/LSWalletList` |
@@ -98,7 +96,7 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 | ProjectDetails | — | No |
 | RevisionList / RevisionView / RevisionDetails | — | No |
 | ProjectGroupList / ProjectGroupDetails | — | No |
-| MultiYearReports / ProgramReports / ProjectReports | — | No |
+| Reports | — | No |
 | Settings / CodeTables | — | No |
 | LumpSumList / AddWallet / LumpSumDetails | — | No |
 

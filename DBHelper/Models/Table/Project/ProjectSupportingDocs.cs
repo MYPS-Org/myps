@@ -18,6 +18,9 @@ namespace DBHelper.Models.Table.Project
         // FK -> dbo.tProjectRevisions(Id)
         public int ProjectRevisionFK { get; set; }
         [Required]
+        [MaxLength(500)]
+        public string DocTypeName { get; set; } = string.Empty;
+        [Required]
         [MaxLength(10)]
         // FK -> dbo.tOptionSupportingDocs(Code)
         public string DocTypeFK { get; set; } = string.Empty;
@@ -30,9 +33,8 @@ namespace DBHelper.Models.Table.Project
         [Required]
         [MaxLength(500)]
         public string FilePath { get; set; } = string.Empty;
-        [Required]
         [MaxLength(1000)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; }
         [Required]
         [MaxLength(200)]
         public string CreatedBy { get; set; } = string.Empty;

@@ -9,7 +9,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace WebAPI.Controllers.CrystalReport
 {
@@ -41,23 +43,102 @@ namespace WebAPI.Controllers.CrystalReport
             _db = db;
         }
 
-        // ── Queue report generation and return JobId immediately ───────────
-        [HttpGet("{reportName}")]
-        public async Task<IActionResult> Get(
-            string reportName,
-            [FromQuery] Dictionary<string, string> query,
+        [HttpGet("options")]
+        public async Task<IActionResult> GetOptionsAsync(CancellationToken ct)
+        {
+            var programYears = await _db.vProgramLatest
+                .AsNoTracking()
+                .Select(p => p.StartYear)
+                .Distinct()
+                .OrderByDescending(y => y)
+                .ToListAsync(ct);
+
+            var programStages = await _db.tOptionProgramStage
+                .AsNoTracking()
+                .Where(s => s.IsActive)
+                .OrderBy(s => s.StageHierarchy)
+                .ThenBy(s => s.Name)
+                .Select(s => new ProgramStageOptionDTO
+                {
+                    Id = s.Id,
+                    NameId = s.NameId,
+                    Name = s.Name,
+                    DisplayName = s.DisplayName
+                })
+                .ToListAsync(ct);
+
+            var regionalOffices = await _db.tOptionAdminAreaRegion
+                .AsNoTracking()
+                .Where(r => !r.Deprecated)
+                .OrderBy(r => r.Name)
+                .Select(r => new RegionalOfficeOptionDTO
+                {
+                    Id = r.ParticipantId,
+                    Name = r.Name,
+                    Code = r.Code
+                })
+                .ToListAsync(ct);
+
+            return Ok(new ReportOptionsDTO
+            {
+                ReportTypes = ReportCatalog.SupportedReports,
+                ProgramYears = programYears,
+                ProgramStages = programStages,
+                RegionalOffices = regionalOffices
+            });
+        }
+
+        [HttpGet("filter-programs")]
+        public async Task<IActionResult> FilterProgramsAsync(
+            [FromQuery] FilterProgramsDTO query,
             CancellationToken ct)
         {
-            string User = _Session.UserId;
+            var programs = await _db.vProgramLatest
+                .AsNoTracking()
+                .Where(p => p.StartYear == query.YearStart
+                         && p.StageName == query.ProgramStage)
+                .OrderBy(p => p.Name)
+                .Select(p => new FilterProgramItemDTO
+                {
+                    Id = p.ProgramId,
+                    Name = p.Name
+                })
+                .ToListAsync(ct);
 
-            var queryString = string.Join("&",
-                query.Select(kv =>
-                    $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+            return Ok(programs);
+        }
+
+        // ── Queue report generation and return JobId immediately ───────────
+        [HttpPost("{reportName}")]
+        public async Task<IActionResult> QueueReportGenerationJobAsync(
+            string reportName,
+            [FromBody] JsonElement body,
+            CancellationToken ct)
+        {
+            if (!ReportCatalog.IsSupported(reportName))
+            {
+                return BadRequest(new
+                {
+                    Title = "Unsupported report",
+                    Message = $"'{reportName}' is not a supported report type."
+                });
+            }
+
+            if (!ReportRequestMapper.TryMap(reportName, body, out var legacyParams, out var mapError))
+            {
+                return BadRequest(new
+                {
+                    Title = "Validation failed",
+                    Message = mapError ?? "Invalid report request."
+                });
+            }
+
+            string User = _Session.UserId;
 
             var payload = new ReportJobPayload
             {
                 ReportName = reportName,
-                QueryString = queryString,
+                QueryString = JsonSerializer.Serialize(legacyParams),
                 RequestedBy = User
             };
 
@@ -104,7 +185,7 @@ namespace WebAPI.Controllers.CrystalReport
             });
         }
 
-        // ── Download the generated PDF and delete it from temp ─────────────
+        //// ── Download the generated PDF and delete it from temp ─────────────
         [HttpGet("download")]
         public async Task<IActionResult> Download(
             [FromQuery] string fileName,
@@ -117,11 +198,37 @@ namespace WebAPI.Controllers.CrystalReport
             if (!System.IO.File.Exists(filePath))
                 return NotFound(new { Message = "Report file not found or already downloaded." });
 
-            var pdfBytes = await System.IO.File.ReadAllBytesAsync(filePath, ct);
+            var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath, ct);
             System.IO.File.Delete(filePath); // delete after download
 
-            return File(pdfBytes, "application/pdf", safeName);
+            var contentType = Path.GetExtension(safeName).ToLowerInvariant() switch
+            {
+                ".pdf" => "application/pdf",
+                ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                _ => "application/octet-stream"
+            };
+
+            return File(fileBytes, contentType, safeName);
         }
+
+        //// ── Download the generated PDF and delete it from temp ─────────────
+        //[HttpGet("download")]
+        //public async Task<IActionResult> Download(
+        //    [FromQuery] string fileName,
+        //    CancellationToken ct)
+        //{
+        //    var safeName = Path.GetFileName(fileName);
+        //    var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Reports");
+        //    var filePath = Path.Combine(tempFolder, safeName);
+
+        //    if (!System.IO.File.Exists(filePath))
+        //        return NotFound(new { Message = "Report file not found or already downloaded." });
+
+        //    var pdfBytes = await System.IO.File.ReadAllBytesAsync(filePath, ct);
+        //    System.IO.File.Delete(filePath); // delete after download
+
+        //    return File(pdfBytes, "application/pdf", safeName);
+        //}
 
         //// ── Optional: direct/synchronous render (no Hangfire) ─────────────
         //// Keep this for cases where the caller needs the PDF immediately

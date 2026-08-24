@@ -1,22 +1,17 @@
-﻿using Castle.MicroKernel.Internal;
-using DBHelper.Data;
+﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Functions.Program;
-using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Table;
 using DBHelper.Models.Table.Program;
 using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views.Program;
-using DBHelper.Models.Views.Project;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.CodeAnalysis;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using System.ComponentModel;
 using System.Security.Claims;
 using WebAPI.MicroService;
 namespace WebAPI.Controllers.Programs
@@ -27,7 +22,7 @@ namespace WebAPI.Controllers.Programs
     {
         public ProgramController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
         #region Program Lists
-        
+
         [HttpPost]
         public async Task<IActionResult> InitFilterProgram(CancellationToken cancellationToken)
         {
@@ -155,7 +150,7 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> ShowProgramStages([FromBody] ShowProgramStagesDTO dto, CancellationToken cancellationToken)
         {
@@ -215,14 +210,14 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                if(dto.Type == EnumProgramType.TrustFund)
+                if (dto.Type == EnumProgramType.TrustFund)
                 {
                     dto.Stage = EnumProgramStage.TF;
                 }
@@ -416,7 +411,7 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramRevision.ProgramPK, cancellationToken);
-                if(CurrentProgramVersion == null)
+                if (CurrentProgramVersion == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the System.", Title = "Program not found" });
                 }
@@ -429,9 +424,11 @@ namespace WebAPI.Controllers.Programs
                 var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync(cancellationToken);
                 string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
                 var Security = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync(cancellationToken);
+                var Permissions = await _db.vUserActionPermission.FirstOrDefaultAsync(x => x.PermissionAction == "PublishProgram" && x.UserId == _Session.UserId && x.IsActive);
                 var response = new
                 {
                     IsActive = (CurrentProgramVersion.StageName == ProgramStage.StageName) ? true : false,
+                    CanPublish = Permissions != null ? true : false,
                     Details = ProgramRevision,
                     //Projects = ProjectLists,
                     Dropdowns = new
@@ -604,7 +601,7 @@ namespace WebAPI.Controllers.Programs
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
-                if(ProgramDetails.StageName != dto.StageName)
+                if (ProgramDetails.StageName != dto.StageName)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} is not in the '{dto.StageName}' stage. Please ensure you are updating the correct stage of the program.", Title = "Update Failed" });
                 }
@@ -781,7 +778,7 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 var ValidateStage = await _db.tOptionProgramStage.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == (int)dto.Stage);
-                if(ValidateStage == null)
+                if (ValidateStage == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid.", Title = "Invalid Stage" });
                 }
@@ -804,13 +801,14 @@ namespace WebAPI.Controllers.Programs
                     StageName = currentVersion.StageName.ToString(),
                     _Session = _Session
                 }, cancellationToken);
-                if(!ValidateProgramId.IsValid) {
+                if (!ValidateProgramId.IsValid)
+                {
                     return new BadRequestObjectResult(new { Message = ValidateProgramId.Message, Title = ValidateProgramId.Title });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
-                if(ProgramStage.StageId == dto.Stage)
+                if (ProgramStage.StageId == dto.Stage)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} is already in the '{dto.Stage}' stage. Please ensure you are updating to a different stage.", Title = "Update Failed" });
                 }

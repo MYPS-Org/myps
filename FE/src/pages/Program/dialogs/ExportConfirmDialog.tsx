@@ -7,7 +7,6 @@ interface ExportConfirmDialogProps {
   onClose: () => void;
   onConfirm: () => void;
   programName: string;
-  programId: string;
   stageName: string;
 }
 
@@ -16,7 +15,6 @@ const ExportConfirmDialog: React.FC<ExportConfirmDialogProps> = ({
   onClose,
   onConfirm,
   programName,
-  programId,
   stageName,
 }) => {
   const handleConfirm = () => {
@@ -48,7 +46,6 @@ const ExportConfirmDialog: React.FC<ExportConfirmDialogProps> = ({
                 {/* Program Info */}
                 <div className="bg-gray-50 rounded-md p-3 space-y-1 text-sm">
                   <p><span className="font-medium text-gray-700">Program:</span> {programName}</p>
-                  <p><span className="font-medium text-gray-700">Program ID:</span> {programId}</p>
                   <p><span className="font-medium text-gray-700">Stage:</span> {stageName}</p>
                 </div>
 

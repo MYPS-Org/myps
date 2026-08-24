@@ -213,6 +213,66 @@ namespace Hangfire.Services
                         ErrorProjectDetails, ErrorFundingProfile, ErrorComponentDetails, ErrorMajorItemsOfWork);
 
                     jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Update mode: disregard any ProjectId that doesn't already exist ────
+                    // UpdateProject only refreshes existing projects — a ProjectId with no
+                    // prior tProjectRevisions match under this Program is dropped from the
+                    // run entirely (never created), and matching rows for it in the other
+                    // three sheets are dropped too so nothing ends up pointing at a project
+                    // that was never saved. Each dropped row is surfaced as an error so it's
+                    // visible in the job result rather than silently vanishing.
+                    if (isUpdate)
+                    {
+                        var KnownProjectIds = await _db.tProjectRevisions
+                            .Where(x => x.ProgramFK == IsValidProgram.ProgramDetails.ProgramPK)
+                            .Select(x => x.AlternateId)
+                            .Distinct()
+                            .ToListAsync(jobCancellationToken.ShutdownToken);
+
+                        var KnownProjectIdSet = new HashSet<string>(KnownProjectIds, StringComparer.OrdinalIgnoreCase);
+
+                        var DisregardedIds = new HashSet<string>(
+                            ValidProjectDetails.Concat(WarningProjectDetails)
+                                .Select(x => x.ProjectId)
+                                .Where(id => !KnownProjectIdSet.Contains(id)),
+                            StringComparer.OrdinalIgnoreCase);
+
+                        if (DisregardedIds.Count > 0)
+                        {
+                            foreach (var item in ValidProjectDetails.Concat(WarningProjectDetails).Where(x => DisregardedIds.Contains(x.ProjectId)))
+                            {
+                                item.ErrorMessage = "Update: ProjectId does not exist for this Program and was disregarded.";
+                                ErrorProjectDetails.Add(item);
+                            }
+                            ValidProjectDetails.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
+                            WarningProjectDetails.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
+
+                            foreach (var item in ValidFundingProfile.Concat(WarningFundingProfile).Where(x => DisregardedIds.Contains(x.ProjectId)))
+                            {
+                                item.ErrorMessage = "Update: parent ProjectId was disregarded.";
+                                ErrorFundingProfile.Add(item);
+                            }
+                            ValidFundingProfile.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
+                            WarningFundingProfile.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
+
+                            foreach (var item in ValidComponentDetails.Concat(WarningComponentDetails).Where(x => DisregardedIds.Contains(x.ProjectId)))
+                            {
+                                item.ErrorMessage = "Update: parent ProjectId was disregarded.";
+                                ErrorComponentDetails.Add(item);
+                            }
+                            ValidComponentDetails.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
+                            WarningComponentDetails.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
+
+                            foreach (var item in ValidMajorItemsOfWork.Concat(WarningMajorItemsOfWork).Where(x => DisregardedIds.Contains(x.ProjectId)))
+                            {
+                                item.ErrorMessage = "Update: parent ProjectId was disregarded.";
+                                ErrorMajorItemsOfWork.Add(item);
+                            }
+                            ValidMajorItemsOfWork.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
+                            WarningMajorItemsOfWork.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
+                        }
+                    }
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Sorting ────────────────────────────────────────────
                     ErrorProjectDetails.Sort((a, b) => string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase));
                     ErrorFundingProfile.Sort((a, b) => string.Compare(a.ProjectId, b.ProjectId, StringComparison.OrdinalIgnoreCase));
@@ -228,6 +288,25 @@ namespace Hangfire.Services
                         c = string.Compare(a.ComponentId, b.ComponentId, StringComparison.OrdinalIgnoreCase); if (c != 0) return c;
                         return string.Compare(a.InfrastructureId, b.InfrastructureId, StringComparison.OrdinalIgnoreCase);
                     });
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Guard: duplicate ProjectId within this same file ────────────────
+                    // SaveProjectDetails resolves identity by AlternateId, so two rows sharing
+                    // the same ProjectId in one file would make the second row "reuse" the
+                    // revision the first row just inserted moments earlier, leaving the first
+                    // row's revision active and un-deleted (the scoped soft-delete above only
+                    // covers PRIOR data, not duplicates created mid-run). Fail fast instead.
+                    var DuplicateProjectIds = ValidProjectDetails.Concat(WarningProjectDetails)
+                        .GroupBy(x => x.ProjectId, StringComparer.OrdinalIgnoreCase)
+                        .Where(g => g.Count() > 1)
+                        .Select(g => g.Key)
+                        .ToList();
+
+                    if (DuplicateProjectIds.Count > 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Duplicate ProjectId(s) found within the import file: {string.Join(", ", DuplicateProjectIds)}. Each ProjectId must appear only once per file.");
+                    }
 
                     // ── Update mode: soft-delete only the projects present in this file ──
                     // Scoped to the same ProjectIds that are about to be re-inserted below
@@ -272,10 +351,20 @@ namespace Hangfire.Services
                         }
                         _db.SaveChanges();
 
-                        Projects.ProjectRevision.CreatedBy = jobRecord.RequestedBy;
-                        Projects.ProjectRevision.CreatedDate = Functions.CurrentDate();
-
-                        _db.tProjectRevisions.Add(Projects.ProjectRevision);
+                        // ── Retained revision (found for this exact Program+Stage+ProjectId): entity is
+                        // already tracked by EF with its fields refreshed inside SaveProjectDetails — no
+                        // Add(), just stamp UpdatedBy/UpdatedDate and let SaveChanges persist it in place.
+                        if (Projects.IsNewRevision)
+                        {
+                            Projects.ProjectRevision.CreatedBy = jobRecord.RequestedBy;
+                            Projects.ProjectRevision.CreatedDate = Functions.CurrentDate();
+                            _db.tProjectRevisions.Add(Projects.ProjectRevision);
+                        }
+                        else
+                        {
+                            Projects.ProjectRevision.UpdatedBy = jobRecord.RequestedBy;
+                            Projects.ProjectRevision.UpdatedDate = Functions.CurrentDate();
+                        }
                         _db.SaveChanges();
 
                         Projects.ImportReference.NewProjectId = Projects.ProjectRevision.Id;
@@ -284,13 +373,11 @@ namespace Hangfire.Services
                         ProjectReference.Add(Projects.ImportReference);
                         projects.Add(Projects.Project);
 
-                        Projects.ProjectStage.RevisionId = Projects.ProjectRevision.Id;
-
-                        // Id == 0 means SaveProjectDetails built a brand-new stage row (new project,
-                        // or an existing project's first row for this particular stage) — otherwise
-                        // it's a tracked existing row and the RevisionId change above is enough.
-                        if (Projects.ProjectStage.Id == 0)
+                        // Only a brand-new revision needs its stage's RevisionId (re)pointed — a
+                        // retained revision keeps the same Id, so its stage row is already correct.
+                        if (Projects.IsNewRevision)
                         {
+                            Projects.ProjectStage.RevisionId = Projects.ProjectRevision.Id;
                             Projects.ProjectStage.CreatedBy = jobRecord.RequestedBy;
                             Projects.ProjectStage.CreatedDate = Functions.CurrentDate();
                             _db.tProjectStages.Add(Projects.ProjectStage);

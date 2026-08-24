@@ -300,7 +300,7 @@ namespace WebAPI.Controllers.Revision
                     "Not Packaged" :
                     "Packaged";
                 #endregion
-                DBHelper.Models.Table.RevisionRules? SelectedRules = null;
+                DBHelper.Models.Table.Revision.RevisionRules? SelectedRules = null;
                 if (RevisionDetails.RevisionCreatedBy == _Session.UserId && (ApprovalStatus.ROStatus == 3 || ApprovalStatus.COStatus == 3))
                 {
                     SelectedRules = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.IsActive && x.ReasonId == RevisionRoot.ReasonId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus, cancellationToken);
@@ -1897,13 +1897,60 @@ namespace WebAPI.Controllers.Revision
                         return new BadRequestObjectResult(new { Message = "Approved document file size exceeds the maximum limit of 50 MB.", Title = "File Size Exceeded" });
                     }
                     #endregion
-                    if (RevisionGroupId == 9)
-                    {
-                        return new BadRequestObjectResult(new { Message = "Termination revisions are not yet supported by the normalized schema because the former component-status evidence table is no longer available.", Title = "Revision Type Temporarily Blocked" });
-                    }
                     if (RevisionGroupId == 13)
                     {
                         return new BadRequestObjectResult(new { Message = "Continuation revisions are not yet supported by the normalized schema because the exact continuation ReasonId and project-fork rules are not yet confirmed.", Title = "Revision Type Temporarily Blocked" });
+
+                        //var ProjectDetails = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
+                        //if (ProjectDetails == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Project details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project details not found" });
+                        //}
+                        //string NewProjectId = $"{ProjectDetails.ProjectId}-A";
+                        //ProjectDetails.ProjectId = NewProjectId;
+                        //var FundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                        //if (FundingProfile == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Revision funding profile not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision funding profile not found" });
+                        //}
+                        //FundingProfile.ForEach(x => { x.ProjectId = NewProjectId; });
+                        //var ComponentCost = await _db.tRevisionProjectComponentCost.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                        //if (ComponentCost == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision component cost not found" });
+                        //}
+                        //ComponentCost.ForEach(x => { x.ProjectId = NewProjectId; });
+                        //var MajorWorkItems = await _db.tRevisionProjectMajorWorkItem.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                        //if (MajorWorkItems == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work item not found" });
+                        //}
+                        //MajorWorkItems.ForEach(x => { x.ProjectId = NewProjectId; });
+                        //var MajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                        //if (MajorWorkLocations == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Revision major work location not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work location not found" });
+                        //}
+                        ////MajorWorkLocations.Select(x => { x.ProjectId = $"{ProjectDetails.ProjectId}-A"; return x; }).ToList();
+                        //var getProgramId = await _db.tProjects.FirstOrDefaultAsync(x => x.ReferenceId == $"B{ProjectDetails.ProjectId}");
+                        //if (getProgramId == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Program details not found for the given project reference ID,\n\n<b>Project Reference ID:</b> <i><u>B{ProjectDetails.ProjectId}</u></i> ", Title = "Program details not found" });
+                        //}
+                        //var AddFromProjectHeader = new DBHelper.Models.Table.Projects
+                        //{
+                        //    ProgramId = getProgramId.ProgramId,
+                        //    ReferenceId = $"{ProjectDetails.ProjectId} -A",
+                        //    CreatedBy = _Session.UserId,
+                        //    CreatedDate = CurrentDate,
+                        //    IsDeleted = false
+                        //};
+                        //_db.tRevisionProjects.Update(ProjectDetails);
+                        //_db.tRevisionProjectFundingProfile.UpdateRange(FundingProfile);
+                        //_db.tRevisionProjectComponentCost.UpdateRange(ComponentCost);
+                        //_db.tRevisionProjectMajorWorkItem.UpdateRange(MajorWorkItems);
+                        //_db.tRevisionProjectMajorWorkLocations.UpdateRange(MajorWorkLocations);
+                        //_db.tProjects.Add(AddFromProjectHeader);
                     }
 
                     string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
@@ -1920,6 +1967,20 @@ namespace WebAPI.Controllers.Revision
                     {
                         OldRevisionProjects.IsActive = false;
                     }
+
+                    var entities = await _db.fRevisionComponentCost.FromSqlInterpolated($@"
+                                    SELECT *
+                                    FROM fRevisionComponentCost({SelectedProjectRevision.TransactionId}) fp
+                                    WHERE fp.IsDeleted = 0").ToListAsync();
+
+                    await _db.tRevisionPCMAComponent.AddRangeAsync(entities.Select(x => new RevisionPCMAComponent
+                    {
+                        TransactionId = dto.TransactionId,
+                        ComponentId = x.ComponentId,
+                        ConstructionStatusCode = int.Parse(x.ConstructionStatusCode!),
+                        ConstructionStatusName = x.ConstructionStatusName!,
+                        IsPackaged = x.IsPackaged ?? false
+                    }));
 
                     await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                     {
@@ -2168,6 +2229,8 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = $"For Correction revision status does not exist in revision requests,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Transaction ID not found" });
                 }
+                bool isROCorrection = ExistingStatus.ROStatus == 3;
+                bool isCOCorrection = ExistingStatus.COStatus == 3;
                 var ExistingRevisionProject = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
                 if (ExistingRevisionProject == null)
                 {
@@ -2230,6 +2293,17 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
 
+                var ValidateProgram = await _db.ValidateProgramId(new ProgramHelperParams
+                {
+                    ProgramId = dto.ProjectDetails.ProgramId,
+                    StageName = StageName,
+                    _Session = _Session,
+                }, cancellationToken);
+                if (!ValidateProgram.IsValid)
+                {
+                    return new BadRequestObjectResult(new { Message = ValidateProgram.Message, Title = ValidateProgram.Title });
+                }
+
                 var RevisionReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.IsActive, cancellationToken);
                 if (RevisionReason == null)
                 {
@@ -2282,6 +2356,79 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionReason.Reason}. Please contact Administrator.", Title = "No Rules Exists" });
                 }
                 string RevisionTransactionId = $"{dto.ProjectDetails.ProjectId}-{DocumentNaming.SecondSegmentName}";
+
+                var BlankFunding = dto.FundingProfile.Where(x => x.Amount <= 0).ToList();
+                if (!BlankFunding.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid amount(s). Please check and try again.", Title = "Invalid Funding Profile Amount" });
+                }
+                var BlankFundingSource = dto.FundingProfile.Where(x => string.IsNullOrEmpty(x.SourceOrg)).ToList();
+                if (!BlankFundingSource.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid source(s). Please check and try again.", Title = "Invalid Funding Profile Source" });
+                }
+                var BlankFundingAgreement = dto.FundingProfile.Where(x => string.IsNullOrEmpty(x.AgreementCode)).ToList();
+                if (!BlankFundingAgreement.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid agreement(s). Please check and try again.", Title = "Invalid Funding Profile Agreement" });
+                }
+
+                var BlankComponentCost = dto.ComponentCosts.Where(x => x.Total < 1 && x.Id == 0).ToList();
+                if (!BlankComponentCost.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Component Cost contains invalid amount(s). Please check and try again.", Title = "Invalid Component Cost Amount" });
+                }
+                var BlankComponentType = dto.ComponentCosts.Where(x => string.IsNullOrEmpty(x.ComponentType)).ToList();
+                if (!BlankComponentType.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Component Cost contains invalid component type(s). Please check and try again.", Title = "Invalid Component Cost Type" });
+                }
+                var DuplicateComponentId = dto.ComponentCosts.Where(x => x.Id == 0).GroupBy(x => x.ComponentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                if (DuplicateComponentId.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Component Cost contains duplicate component IDs: {string.Join(", ", DuplicateComponentId)}. Please check and try again.", Title = "Duplicate Component IDs" });
+                }
+                var DuplicateMajorItemComponentId = dto.MajorItemOfWorks.Where(x => x.Id == 0).GroupBy(x => x.ComponentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                if (DuplicateMajorItemComponentId.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Major Work Item contains duplicate component IDs: {string.Join(", ", DuplicateMajorItemComponentId)}. Please check and try again.", Title = "Duplicate Major Work Item Component IDs" });
+                }
+                var DuplicateMajorItemLocations = dto.MajorItemLocations
+                    .Where(x => !x.IsDeleted && !string.IsNullOrEmpty(x.StartStationLimit) && !string.IsNullOrEmpty(x.EndStationLimit) && x.Id == 0)
+                    .Select((item, index) => new { Item = item, Index = index })
+                    .GroupBy(x => new
+                    {
+                        DetailedScope = (x.Item.DetailedScope ?? string.Empty).Trim().ToUpperInvariant(),
+                        StartStation = x.Item.StartStationLimit!.Trim().ToUpperInvariant(),
+                        EndStation = x.Item.EndStationLimit!.Trim().ToUpperInvariant()
+                    })
+                    .Where(g => g.Count() > 1)
+                    .Select(g => new
+                    {
+                        DetailedScope = g.Key.DetailedScope,
+                        StartStationLimit = g.Key.StartStation,
+                        EndStationLimit = g.Key.EndStation,
+                        Count = g.Count(),
+                        Rows = g.Select(x => new
+                        {
+                            Id = x.Item.Id,
+                            ComponentId = x.Item.ComponentId,
+                            InfraId = x.Item.InfraId,
+                            DetailedScopeOriginal = x.Item.DetailedScope,
+                            StartStationLimitOriginal = x.Item.StartStationLimit,
+                            EndStationLimitOriginal = x.Item.EndStationLimit
+                        }).ToList()
+                    })
+                    .ToList();
+                if (DuplicateMajorItemLocations.Any())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Duplicate MajorItemLocations",
+                        Message = "Found duplicate MajorItemLocations by DetailedScope + StartStationLimit + EndStationLimit.",
+                        Duplicates = DuplicateMajorItemLocations
+                    });
+                }
                 #endregion
                 #region ProjectRevision
                 var ProjectDetailsRules = jsonRules.ProjectDetailsRules.GetType()
@@ -2532,6 +2679,10 @@ namespace WebAPI.Controllers.Revision
                     {
                         var ComponentId = component.Id;
                         var SelectedComponent = ExistingFundingProfile.FirstOrDefault(x => x.Id == ComponentId);
+                        if (SelectedComponent == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = $"Revision funding profile row not found. Id: {ComponentId}.", Title = "Revision Funding Profile not found" });
+                        }
                         var OldSelectedFunding = new RevisionProjectFundingProfile
                         {
                             Id = SelectedComponent.Id,
@@ -2763,7 +2914,7 @@ namespace WebAPI.Controllers.Revision
                         }
                     }
                 }
-                if (jsonRules.ComponentCostRules.CRUD.CanAdd)
+                if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
                 {
                     var NewCost = dto.ComponentCosts.Where(x => x.Id == 0);
                     Logs.AddRange(NewCost.Select(x => new RevisionTransactionLog
@@ -2942,6 +3093,10 @@ namespace WebAPI.Controllers.Revision
                     foreach (var item in UpdateMajorItemOfWorks)
                     {
                         var UpdateMajorWorkItem = ExistingMajorWorkItem.FirstOrDefault(x => x.Id == item.Id);
+                        if (UpdateMajorWorkItem == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = $"Revision major work item row not found. Id: {item.Id}.", Title = "Revision Major Work Item not found" });
+                        }
                         var OldSelectedComponent = new RevisionProjectMajorWorkItem
                         {
                             TransactionId = dto.TransactionId,
@@ -3065,6 +3220,10 @@ namespace WebAPI.Controllers.Revision
                     foreach (var location in UpdateMajorWorkLocations)
                     {
                         var UpdateMajorWorkLocation = ExistingMajorWorkLocations.FirstOrDefault(x => x.Id == location.Id);
+                        if (UpdateMajorWorkLocation == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = $"Revision major work location row not found. Id: {location.Id}.", Title = "Revision Major Work Location not found" });
+                        }
                         var OldSelectedComponent = new RevisionProjectMajorWorkLocations
                         {
                             TransactionId = dto.TransactionId,
@@ -3087,7 +3246,7 @@ namespace WebAPI.Controllers.Revision
                         };
                         if (UpdateMajorWorkLocation != null)
                         {
-                            if (MajorWorkItemRules.Count > 0)
+                            if (MajorItemLocationsRules.Count > 0)
                             {
                                 var UpdateAndGenerateLogs = MajorItemLocationsRules.UpdateRevisionData(User, dto.TransactionId, "tRevisionProjectMajorWorkLocations", CurrentDate, location, UpdateMajorWorkLocation);
                                 Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
@@ -3391,15 +3550,26 @@ namespace WebAPI.Controllers.Revision
 
                 if (roApproval != null)
                 {
-                    // Initial submission:
-                    // RO creator is automatically approved.
-                    roApproval.Status = isROCreator ? 1 : 0;
-                    roApproval.LastUpdatedDate = CurrentDate;
+                    if (isROCorrection)
+                    {
+                        // RO creator follows the same auto-approval behavior as initial submission.
+                        roApproval.Status = isROCreator ? 1 : 0;
+                        roApproval.Approver = isROCreator ? _Session.UserId : null;
+                        roApproval.ApprovedDate = isROCreator ? CurrentDate : null;
+                        roApproval.LastUpdatedDate = CurrentDate;
+                    }
+                    else if (isCOCorrection)
+                    {
+                        // CO correction resubmit keeps the RO approval already earned.
+                        roApproval.LastUpdatedDate = CurrentDate;
+                    }
                 }
 
                 if (coApproval != null)
                 {
                     coApproval.Status = 0;
+                    coApproval.Approver = null;
+                    coApproval.ApprovedDate = null;
                     coApproval.LastUpdatedDate = CurrentDate;
                 }
                 _db.tRevisionApprovals.UpdateRange(approvals);
@@ -3410,6 +3580,32 @@ namespace WebAPI.Controllers.Revision
                 //    x.Status = 0;
                 //    x.LastUpdatedDate = CurrentDate;
                 //});
+                string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
+                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.RevisionDetailFK == ExistingRevision.Id && DocumentName.Contains(x.DocumentName)).Count() + 1;
+                string NewDocName = $"{DocumentName}-{NewUploadedDocument}.{dto.RevisionDetails.ApprovedDocument.Extension}";
+                string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, NewDocName);
+                string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
+                if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
+                {
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
+                }
+                uploadedIoDocumentResourcePath = ResourcePath;
+
+                ExistingRevision.IODocApprovalDate = dto.RevisionDetails.ApprovalDate;
+                ExistingRevision.IODocPath = FilePath;
+
+                var ExistingSnapshot = await _db.tRevisionProjectSnapshot.FirstOrDefaultAsync(x => x.RevisionDetailFK == ExistingRevision.Id, cancellationToken);
+                if (ExistingSnapshot == null)
+                {
+                    await _db.tRevisionProjectSnapshot.AddAsync(ToRevisionProjectSnapshot(ExistingRevision.Id, dto.ProjectDetails), cancellationToken);
+                }
+                else
+                {
+                    ApplyRevisionProjectSnapshot(ExistingSnapshot, dto.ProjectDetails);
+                    _db.tRevisionProjectSnapshot.Update(ExistingSnapshot);
+                }
+
+                ApplyRevisionRootForeignKeys(ExistingRevision.Id, SaveNewFundingProfile, SaveNewComponentCost);
                 _db.tRevisionDetails.Update(ExistingRevision);
                 //_db.tRevisionApprovals.UpdateRange(ResubmitApprovals);
                 _db.tRevisionProjects.Update(ExistingRevisionProject);
@@ -3421,22 +3617,7 @@ namespace WebAPI.Controllers.Revision
 
                 await _db.tRevisionProjectFundingProfile.AddRangeAsync(SaveNewFundingProfile);
                 await _db.tRevisionProjectComponentCost.AddRangeAsync(SaveNewComponentCost);
-                await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(SaveNewComponentCostPerYear);
-                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(SaveNewMajorWorkItem);
-                await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(SaveNewMajorWorkLocations);
                 await _db.tTransactionLog.AddRangeAsync(Logs.Select(ToTransactionLog));
-
-
-                string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
-                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.RevisionDetailFK == ExistingRevision.Id && DocumentName.Contains(x.DocumentName)).Count() + 1;
-                string NewDocName = $"{DocumentName}-{NewUploadedDocument}.{dto.RevisionDetails.ApprovedDocument.Extension}";
-                string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, NewDocName);
-                string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
-                if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
-                {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
-                }
-                uploadedIoDocumentResourcePath = ResourcePath;
                 await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                 {
                     RevisionDetailFK = ExistingRevision.Id,
@@ -3444,6 +3625,17 @@ namespace WebAPI.Controllers.Revision
                     DocumentName = NewDocName,
                     IsApprovedDocument = false
                 });
+                await _db.SaveChangesAsync(cancellationToken);
+
+                var RevisionComponents = ExistingComponent.Concat(SaveNewComponentCost).ToList();
+                ApplyRevisionChildForeignKeys(RevisionComponents, SaveNewComponentCostPerYear, SaveNewMajorWorkItem, new List<RevisionProjectMajorWorkLocations>());
+                await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(SaveNewComponentCostPerYear);
+                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(SaveNewMajorWorkItem);
+                await _db.SaveChangesAsync(cancellationToken);
+
+                var RevisionWorkItems = ExistingMajorWorkItem.Concat(SaveNewMajorWorkItem).ToList();
+                ApplyRevisionChildForeignKeys(RevisionComponents, new List<RevisionProjectComponentCostPerYear>(), RevisionWorkItems, SaveNewMajorWorkLocations);
+                await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(SaveNewMajorWorkLocations);
                 await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 uploadedIoDocumentResourcePath = null;
@@ -3509,6 +3701,44 @@ namespace WebAPI.Controllers.Revision
                 Rank = projectRevision.Rank,
                 IsDeleted = false
             };
+        }
+
+        private static RevisionProjectSnapshot ToRevisionProjectSnapshot(int revisionDetailFK, RevisionProjectDetails projectRevision)
+        {
+            var snapshot = new RevisionProjectSnapshot { RevisionDetailFK = revisionDetailFK };
+            ApplyRevisionProjectSnapshot(snapshot, projectRevision);
+            return snapshot;
+        }
+
+        private static void ApplyRevisionProjectSnapshot(RevisionProjectSnapshot snapshot, RevisionProjectDetails projectRevision)
+        {
+            snapshot.ProjectId = projectRevision.ProjectId;
+            snapshot.AlternateId = projectRevision.AlternateId;
+            snapshot.MYCAApprovalDate = projectRevision.MYCAApprovalDate;
+            snapshot.Description = projectRevision.Description;
+            snapshot.Region = projectRevision.Region;
+            snapshot.Province = projectRevision.Province;
+            snapshot.City = projectRevision.City;
+            snapshot.LegislativeDistrict = projectRevision.LegislativeDistrict;
+            snapshot.DEO = projectRevision.DEO;
+            snapshot.OperatingUnit = projectRevision.OperatingUnit;
+            snapshot.ImplementingOffice = projectRevision.ImplementingOffice;
+            snapshot.IslandCode = projectRevision.IslandCode;
+            snapshot.Category = projectRevision.Category;
+            snapshot.Thrust = projectRevision.Thrust;
+            snapshot.Origin = projectRevision.Origin;
+            snapshot.Agency = projectRevision.Agency;
+            snapshot.ImplementationMode = projectRevision.ImplementationMode;
+            snapshot.EmergencyMode = projectRevision.EmergencyMode;
+            snapshot.RegionWide = projectRevision.RegionWide;
+            snapshot.Feasibility = projectRevision.Feasibility;
+            snapshot.FeasibilityDate = projectRevision.FeasibilityDate;
+            snapshot.DetailedDesign = projectRevision.DetailedDesign;
+            snapshot.DetailedDesignDate = projectRevision.DetailedDesignDate;
+            snapshot.RowAvailable = projectRevision.RowAvailable;
+            snapshot.Tier = projectRevision.Tier;
+            snapshot.Rank = projectRevision.Rank;
+            snapshot.IsDeleted = projectRevision.IsDeleted;
         }
 
         private static void ApplyRevisionRootForeignKeys(

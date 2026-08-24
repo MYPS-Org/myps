@@ -14,9 +14,7 @@ import Rbia from '../pages/Rbia/Views/Rbia';
 import ModificationList from '../pages/Modification/views/ModifcationList';
 import ModificationDetails from '../pages/Modification/views/ModificationDetails';
 import ViewRevision from '../pages/Modification/views/ViewRevision';
-import MultiYearReports from '../pages/Reports/MultiYearReports';
-import ProgramReports from '../pages/Reports/ProgramReports';
-import ProjectReports from '../pages/Reports/ProjectReports';
+import Reports from '../pages/Reports/Reports';
 // NOTE: LSWalletList and LSWalletDetail do not exist yet — they are built in
 // the junior-engineer pass that follows this senior-engineer pass. The imports
 // below will cause a TypeScript/Vite error until those View files are created.
@@ -57,9 +55,7 @@ const protectedRoutes: AppRoute[] = [
   // #endregion Project Group Routes
 
   // #region Reports Routes
-  { RouteName: 'MultiYearReports', path: '/reports/multiyear', element: <MultiYearReports /> },
-  { RouteName: 'ProgramReports', path: '/reports/programs', element: <ProgramReports /> },
-  { RouteName: 'ProjectReports', path: '/reports/projects', element: <ProjectReports /> },
+  { RouteName: 'Reports', path: '/reports', element: <Reports /> },
   // #endregion Reports Routes
 
   // #region Settings Routes

@@ -112,6 +112,7 @@ export interface ProgramDetailsWithStages {
 export interface ProgramDetailsEnums{
   Details: ProgramDetails;
   IsActive: boolean;
+  CanPublish: boolean;
   Dropdowns: {
     Stages: TableEnums[];
     Statuses: TableEnums[];

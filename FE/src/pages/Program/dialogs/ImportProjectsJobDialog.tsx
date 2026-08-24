@@ -129,8 +129,7 @@ const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
 
             {/* Program info */}
             <div className="bg-blue-50 border border-blue-100 rounded-md px-4 py-2 text-sm text-blue-800">
-              <span className="font-medium">Program:</span> {programName}
-              {programId && <span className="ml-3 text-blue-500 text-xs">({programId})</span>}
+`              <span className="font-medium">Program:</span> {programName}`
             </div>
 
             {isUpdateMode && !submitting && (

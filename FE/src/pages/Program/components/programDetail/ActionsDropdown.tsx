@@ -207,7 +207,6 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
           onClose={() => setIsExportDialogOpen(false)}
           onConfirm={handleConfirmExportProjects}
           programName={programName}
-          programId={programId}
           stageName={stageName}
         />
       )}

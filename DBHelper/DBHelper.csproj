@@ -26,12 +26,5 @@
     <PackageReference Include="System.Data.SqlClient" Version="4.9.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="Models\Table\ImportJobResult.cs" />
-    <None Include="Models\Table\CodeTableTransactionLog.cs" />
-    <None Include="Models\Table\Lookups\OptionSearchCategory.cs" />
-    <None Include="Models\Table\Revision\RevisionRules.cs" />
-    <None Include="Models\Table\Revision\RevisionProjectDetails.cs" />
-  </ItemGroup>
 
 </Project>

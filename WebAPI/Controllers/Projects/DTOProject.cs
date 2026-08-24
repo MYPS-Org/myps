@@ -333,11 +333,12 @@ namespace WebAPI.Controllers.Projects
     }
     public class AddSupportingDocsDTO : ProjectDetailsDTO
     {
+        //[Required]
+        //[MaxLength(200)]
+        public string? Description { get; set; }
         [Required]
-        [MaxLength(200)]
-        public string Description { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(200)]
+        [MaxLength(500)]
+        public string DocTypeName { get; set; } = string.Empty;
         public string DocumentType { get; set; } = string.Empty;
         [Required]
         public FileUpload File { get; set; } = new FileUpload();
