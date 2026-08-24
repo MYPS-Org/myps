@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
@@ -199,6 +199,21 @@ namespace WebAPI.Controllers.CodeTable
                     case "RevisionStatus":
                         AffectedTable = "tOptionRevisionStatus";
                         break;
+                    case "AdminAreaRegion":
+                        AffectedTable = "tOptionAdminAreaRegion";
+                        break;
+                    case "AdminAreaProvince":
+                        AffectedTable = "tOptionAdminAreaProvince";
+                        break;
+                    case "AdminAreaCity":
+                        AffectedTable = "tOptionAdminAreaCityMunicipality";
+                        break;
+                    case "AdminAreaDistrict":
+                        AffectedTable = "tOptionAdminAreaCongressionalDistrict";
+                        break;
+                    case "AdminAreaDEO":
+                        AffectedTable = "tOptionAdminOffice";
+                        break;
                 }
                 var CodeTableLists = await _db.tCodeTableTransactionLog.Where(x => x.AffectedTable == AffectedTable).ToListAsync(cancellationToken);
                 return Ok(new
@@ -263,7 +278,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionProgramStage.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -291,7 +306,7 @@ namespace WebAPI.Controllers.CodeTable
                         data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
                         await _db.tOptionProgramStage.AddAsync(data);
                     }
-                    else if (dto.TransactionType == CodeTransactionType.Update)
+                    else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
                     {
                         if (CheckUpdate.Name != data.Name)
                         {
@@ -320,7 +335,7 @@ namespace WebAPI.Controllers.CodeTable
                     {
                         transactionLog.NewValue = string.Empty;
                         transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate);
-                        _db.tOptionProgramStage.Remove(data);
+                        _db.tOptionProgramStage.Remove(CheckUpdate!);
                     }
                 }
                 else if (dto.Code == "ProgramStatus")
@@ -338,7 +353,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfAlreadyUse = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Status == (EnumProgramStatus)data.NameId);
-                    if (CheckIfAlreadyUse == null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
+                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -347,7 +362,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionProgramStatus.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -403,7 +418,7 @@ namespace WebAPI.Controllers.CodeTable
                     {
                         transactionLog.NewValue = string.Empty;
                         transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate);
-                        _db.tOptionProgramStatus.Remove(data);
+                        _db.tOptionProgramStatus.Remove(CheckUpdate);
                     }
                 }
                 else if (dto.Code == "ProgramType")
@@ -420,17 +435,8 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Program Type has been selected, please select a program type."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.Type == (EnumProgramType)data.NameId);
-                    if (CheckIfAlreadyUse == null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Program Type In Use",
-                            Message = "The selected program type is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionProgramType.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -446,6 +452,18 @@ namespace WebAPI.Controllers.CodeTable
                             Title = "Program Type Not Found",
                             Message = $"The program type with id {data.Id} is not found, please select another program type."
                         });
+                    }
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
+                    {
+                        var CheckIfAlreadyUse = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.Type == (EnumProgramType)CheckUpdate.Id);
+                        if (CheckIfAlreadyUse != null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Program Type In Use",
+                                Message = "The selected program type is currently in use and cannot be updated or deleted."
+                            });
+                        }
                     }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
@@ -513,7 +531,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -610,7 +628,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckDescriptionIfExists = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.ThrustDescription == data.ThrustDescription);
-                    if (CheckDescriptionIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckDescriptionIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckDescriptionIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -619,7 +637,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfPAPKeyExist = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == data.PAPKey);
-                    if (CheckIfPAPKeyExist != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckIfPAPKeyExist != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckIfPAPKeyExist.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -742,7 +760,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -751,7 +769,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfNameIdExist = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == data.NameId);
-                    if (CheckIfNameIdExist != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckIfNameIdExist != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckIfNameIdExist.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -832,7 +850,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -915,7 +933,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionFundingAgreement.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -924,7 +942,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfCodeExist = await _db.tOptionFundingAgreement.AsNoTracking().FirstOrDefaultAsync(x => x.Code == data.Code);
-                    if (CheckIfCodeExist != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckIfCodeExist != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckIfCodeExist.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1030,7 +1048,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionFundingSource.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1039,7 +1057,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfOrganizationExist = await _db.tOptionFundingSource.AsNoTracking().FirstOrDefaultAsync(x => x.Organization == data.Organization);
-                    if (CheckIfOrganizationExist != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckIfOrganizationExist != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckIfOrganizationExist.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1122,7 +1140,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefaultAsync(x => x.WorkCategory == data.WorkCategory);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1208,13 +1226,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.MaxAmount}";
                             CheckUpdate.MaxAmount = data.MaxAmount;
                         }
-                        if (CheckUpdate.MinAmount != data.MinAmount)
-                        {
-                            transactionLog.AffectedColumn = "MinAmount";
-                            transactionLog.NewValue = $"{data.MinAmount}";
-                            transactionLog.OldValue = $"{CheckUpdate.MinAmount}";
-                            CheckUpdate.MinAmount = data.MinAmount;
-                        }
                         if (CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
@@ -1255,7 +1266,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionInfraType.AsNoTracking().FirstOrDefaultAsync(x => x.InfraName == data.InfraName);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1264,7 +1275,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfInfraCodeExist = await _db.tOptionInfraType.AsNoTracking().FirstOrDefaultAsync(x => x.InfraCode == data.InfraCode);
-                    if (CheckIfInfraCodeExist != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckIfInfraCodeExist != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckIfInfraCodeExist.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1348,7 +1359,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionProjectComponentType.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentName == data.ComponentName);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1357,7 +1368,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfComponentIdExist = await _db.tOptionProjectComponentType.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentId == data.ComponentId);
-                    if (CheckIfComponentIdExist != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckIfComponentIdExist != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckIfComponentIdExist.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1445,7 +1456,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionName == data.RevisionName);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1521,7 +1532,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1597,7 +1608,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.Reason == data.Reason);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1702,7 +1713,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.PCMA_Status == data.PCMA_Status && x.Package_Status == data.Package_Status && x.Field == data.Field);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1766,13 +1777,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Field!;
                             CheckUpdate.Field = data.Field;
                         }
-                        //if (CheckUpdate.IsActive != data.IsActive)
-                        //{
-                        //    transactionLog.AffectedColumn = "IsActive";
-                        //    transactionLog.NewValue = data.IsActive ? "True" : "False";
-                        //    transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
-                        //    CheckUpdate.IsActive = data.IsActive;
-                        //}
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tRevisionRules.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -1806,7 +1817,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.SecondSegmentName == data.SecondSegmentName);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1915,7 +1926,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionStatus.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
-                    if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1980,13 +1991,41 @@ namespace WebAPI.Controllers.CodeTable
                     transactionLog.AffectedTable = "tOptionAdminAreaRegion";
                     var data = JsonConvert.DeserializeObject<OptionAdminAreaRegion>(dto.Json);
                     if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-                    var existing = await _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+
+                    var existing = await _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id, cancellationToken);
                     if (existing == null && dto.TransactionType != CodeTransactionType.Create)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"Region with Id {data.Id} was not found." });
+
+                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    {
+                        var duplicateRegion = await _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && (x.ParticipantId == data.ParticipantId || x.Code == data.Code || x.Name == data.Name), cancellationToken);
+                        if (duplicateRegion != null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Region Already Exists",
+                                Message = "A Region with the same ParticipantId, Code, or Name already exists. Please provide a unique Region."
+                            });
+                        }
+                    }
+
+                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.ParticipantId != data.ParticipantId))
+                    {
+                        var isReferenced = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.Region == existing.ParticipantId, cancellationToken);
+                        if (isReferenced)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Region Already in Use",
+                                Message = "This Region is already referenced by one or more Projects and cannot be deleted or have its ParticipantId changed."
+                            });
+                        }
+                    }
+
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminAreaRegion.AddAsync(data);
+                        await _db.tOptionAdminAreaRegion.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
@@ -2046,13 +2085,53 @@ namespace WebAPI.Controllers.CodeTable
                     transactionLog.AffectedTable = "tOptionAdminAreaProvince";
                     var data = JsonConvert.DeserializeObject<OptionAdminAreaProvince>(dto.Json);
                     if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-                    var existing = await _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+
+                    var existing = await _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id, cancellationToken);
                     if (existing == null && dto.TransactionType != CodeTransactionType.Create)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"Province with Id {data.Id} was not found." });
+
+                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    {
+                        var parentRegionExists = await _db.tOptionAdminAreaRegion.AsNoTracking().AnyAsync(x => x.ParticipantId == data.RegionParticipantId, cancellationToken);
+                        if (!parentRegionExists)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Invalid Region",
+                                Message = $"The RegionParticipantId '{data.RegionParticipantId}' does not exist. Please select a valid Region."
+                            });
+                        }
+
+                        var duplicateProvince = await _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && (x.Code == data.Code || x.Name == data.Name), cancellationToken);
+                        if (duplicateProvince != null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Province Already Exists",
+                                Message = "A Province with the same Code or Name already exists. Please provide a unique Province."
+                            });
+                        }
+                    }
+
+                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.Code != data.Code || existing.RegionParticipantId != data.RegionParticipantId))
+                    {
+                        var isReferencedByProject = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.Province == existing.Code, cancellationToken);
+                        var isReferencedByCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().AnyAsync(x => x.ProvinceCode == existing.Code, cancellationToken);
+                        var isReferencedByDistrict = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().AnyAsync(x => x.ProvinceCode == existing.Code, cancellationToken);
+                        if (isReferencedByProject || isReferencedByCity || isReferencedByDistrict)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Province Already in Use",
+                                Message = "This Province is already referenced by Projects, Cities, or Districts and cannot be deleted or have its Code or Region changed."
+                            });
+                        }
+                    }
+
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminAreaProvince.AddAsync(data);
+                        await _db.tOptionAdminAreaProvince.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
@@ -2105,13 +2184,51 @@ namespace WebAPI.Controllers.CodeTable
                     transactionLog.AffectedTable = "tOptionAdminAreaCityMunicipality";
                     var data = JsonConvert.DeserializeObject<OptionAdminAreaCityMunicipality>(dto.Json);
                     if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-                    var existing = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+
+                    var existing = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id, cancellationToken);
                     if (existing == null && dto.TransactionType != CodeTransactionType.Create)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"City/Municipality with Id {data.Id} was not found." });
+
+                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    {
+                        var parentProvinceExists = await _db.tOptionAdminAreaProvince.AsNoTracking().AnyAsync(x => x.Code == data.ProvinceCode, cancellationToken);
+                        if (!parentProvinceExists)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Invalid Province",
+                                Message = $"The ProvinceCode '{data.ProvinceCode}' does not exist. Please select a valid Province."
+                            });
+                        }
+
+                        var duplicateCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && (x.Code == data.Code || (x.Name == data.Name && x.ProvinceCode == data.ProvinceCode)), cancellationToken);
+                        if (duplicateCity != null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "City/Municipality Already Exists",
+                                Message = "A City/Municipality with the same Code, or the same Name within the selected Province, already exists."
+                            });
+                        }
+                    }
+
+                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.Code != data.Code || existing.ProvinceCode != data.ProvinceCode))
+                    {
+                        var isReferenced = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.City == existing.Code, cancellationToken);
+                        if (isReferenced)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "City/Municipality Already in Use",
+                                Message = "This City/Municipality is already referenced by one or more Projects and cannot be deleted or have its Code or Province changed."
+                            });
+                        }
+                    }
+
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminAreaCityMunicipality.AddAsync(data);
+                        await _db.tOptionAdminAreaCityMunicipality.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
@@ -2164,13 +2281,51 @@ namespace WebAPI.Controllers.CodeTable
                     transactionLog.AffectedTable = "tOptionAdminAreaCongressionalDistrict";
                     var data = JsonConvert.DeserializeObject<OptionAdminAreaCongressionalDistrict>(dto.Json);
                     if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-                    var existing = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+
+                    var existing = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id, cancellationToken);
                     if (existing == null && dto.TransactionType != CodeTransactionType.Create)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"District with Id {data.Id} was not found." });
+
+                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    {
+                        var parentProvinceExists = await _db.tOptionAdminAreaProvince.AsNoTracking().AnyAsync(x => x.Code == data.ProvinceCode, cancellationToken);
+                        if (!parentProvinceExists)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Invalid Province",
+                                Message = $"The ProvinceCode '{data.ProvinceCode}' does not exist. Please select a valid Province."
+                            });
+                        }
+
+                        var duplicateDistrict = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && (x.Code == data.Code || (x.Name == data.Name && x.ProvinceCode == data.ProvinceCode)), cancellationToken);
+                        if (duplicateDistrict != null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Congressional District Already Exists",
+                                Message = "A Congressional District with the same Code, or the same Name within the selected Province, already exists."
+                            });
+                        }
+                    }
+
+                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.Code != data.Code || existing.ProvinceCode != data.ProvinceCode))
+                    {
+                        var isReferenced = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.LegislativeDistrict == existing.Code, cancellationToken);
+                        if (isReferenced)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Congressional District Already in Use",
+                                Message = "This Congressional District is already referenced by one or more Projects and cannot be deleted or have its Code or Province changed."
+                            });
+                        }
+                    }
+
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminAreaCongressionalDistrict.AddAsync(data);
+                        await _db.tOptionAdminAreaCongressionalDistrict.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
@@ -2223,13 +2378,76 @@ namespace WebAPI.Controllers.CodeTable
                     transactionLog.AffectedTable = "tOptionAdminOffice";
                     var data = JsonConvert.DeserializeObject<OptionAdminOffice>(dto.Json);
                     if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-                    var existing = await _db.tOptionAdminOffice.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id && x.OfficeType == "DEO");
+
+                    var existing = await _db.tOptionAdminOffice.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id && x.OfficeType == "DEO", cancellationToken);
                     if (existing == null && dto.TransactionType != CodeTransactionType.Create)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"DEO with Id {data.Id} was not found." });
+
+                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    {
+                        if (!string.Equals(data.OfficeType, "DEO", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Invalid Office Type",
+                                Message = "AdminAreaDEO only accepts OfficeType 'DEO'."
+                            });
+                        }
+
+                        var duplicateOffice = await _db.tOptionAdminOffice.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && x.OfficeType == "DEO" && (x.ParticipantId == data.ParticipantId || x.Name == data.Name), cancellationToken);
+                        if (duplicateOffice != null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "DEO Already Exists",
+                                Message = "A DEO with the same ParticipantId or Name already exists. Please provide a unique DEO."
+                            });
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(data.RegionParticipantId))
+                        {
+                            var regionExists = await _db.tOptionAdminAreaRegion.AsNoTracking().AnyAsync(x => x.ParticipantId == data.RegionParticipantId, cancellationToken);
+                            if (!regionExists)
+                            {
+                                return new BadRequestObjectResult(new
+                                {
+                                    Title = "Invalid Region",
+                                    Message = $"The RegionParticipantId '{data.RegionParticipantId}' does not exist. Please select a valid Region."
+                                });
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(data.ParentParticipantId))
+                        {
+                            var parentOfficeExists = await _db.tOptionAdminOffice.AsNoTracking().AnyAsync(x => x.ParticipantId == data.ParentParticipantId, cancellationToken);
+                            if (!parentOfficeExists)
+                            {
+                                return new BadRequestObjectResult(new
+                                {
+                                    Title = "Invalid Parent Office",
+                                    Message = $"The ParentParticipantId '{data.ParentParticipantId}' does not exist. Please select a valid parent office."
+                                });
+                            }
+                        }
+                    }
+
+                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.ParticipantId != data.ParticipantId))
+                    {
+                        var isReferenced = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.DEO == existing.ParticipantId || x.OperatingUnit == existing.ParticipantId || x.ImplementingOffice == existing.ParticipantId, cancellationToken);
+                        if (isReferenced)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "DEO Already in Use",
+                                Message = "This DEO is already referenced by one or more Projects and cannot be deleted or have its ParticipantId changed."
+                            });
+                        }
+                    }
+
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminOffice.AddAsync(data);
+                        await _db.tOptionAdminOffice.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
@@ -2246,6 +2464,20 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = data.ParticipantId!;
                             transactionLog.OldValue = existing.ParticipantId!;
                             existing.ParticipantId = data.ParticipantId;
+                        }
+                        if (existing.RegionParticipantId != data.RegionParticipantId)
+                        {
+                            transactionLog.AffectedColumn = "RegionParticipantId";
+                            transactionLog.NewValue = data.RegionParticipantId ?? string.Empty;
+                            transactionLog.OldValue = existing.RegionParticipantId ?? string.Empty;
+                            existing.RegionParticipantId = data.RegionParticipantId;
+                        }
+                        if (existing.ParentParticipantId != data.ParentParticipantId)
+                        {
+                            transactionLog.AffectedColumn = "ParentParticipantId";
+                            transactionLog.NewValue = data.ParentParticipantId ?? string.Empty;
+                            transactionLog.OldValue = existing.ParentParticipantId ?? string.Empty;
+                            existing.ParentParticipantId = data.ParentParticipantId;
                         }
                         if (existing.Deprecated != data.Deprecated)
                         {
@@ -2275,7 +2507,7 @@ namespace WebAPI.Controllers.CodeTable
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Title = "Udpate Success",
+                    Title = "Update Success",
                     Message = $"{tablename} updated successfully."
                 });
             }
@@ -2287,3 +2519,6 @@ namespace WebAPI.Controllers.CodeTable
         }
     }
 }
+
+
+
