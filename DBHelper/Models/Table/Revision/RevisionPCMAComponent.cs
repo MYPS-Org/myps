@@ -1,9 +1,13 @@
-﻿using DBHelper.Models.Enums;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table.Revision
 {
-    public class RevisionDetailsComponentsStatus
+    public class RevisionPCMAComponent
     {
         [Key]
         public int Id { get; set; }
@@ -18,6 +22,6 @@ namespace DBHelper.Models.Table.Revision
         [MaxLength(20)]
         public string ConstructionStatusName { get; set; } = string.Empty;
         [Required]
-        public bool IsPackaged { get; set; } = false;
+        public bool IsPackaged { get; set; }
     }
 }

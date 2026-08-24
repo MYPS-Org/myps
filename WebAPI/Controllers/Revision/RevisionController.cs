@@ -300,7 +300,7 @@ namespace WebAPI.Controllers.Revision
                     "Not Packaged" :
                     "Packaged";
                 #endregion
-                DBHelper.Models.Table.RevisionRules? SelectedRules = null;
+                DBHelper.Models.Table.Revision.RevisionRules? SelectedRules = null;
                 if (RevisionDetails.RevisionCreatedBy == _Session.UserId && (ApprovalStatus.ROStatus == 3 || ApprovalStatus.COStatus == 3))
                 {
                     SelectedRules = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.IsActive && x.ReasonId == RevisionRoot.ReasonId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus, cancellationToken);
@@ -1897,13 +1897,60 @@ namespace WebAPI.Controllers.Revision
                         return new BadRequestObjectResult(new { Message = "Approved document file size exceeds the maximum limit of 50 MB.", Title = "File Size Exceeded" });
                     }
                     #endregion
-                    if (RevisionGroupId == 9)
-                    {
-                        return new BadRequestObjectResult(new { Message = "Termination revisions are not yet supported by the normalized schema because the former component-status evidence table is no longer available.", Title = "Revision Type Temporarily Blocked" });
-                    }
                     if (RevisionGroupId == 13)
                     {
                         return new BadRequestObjectResult(new { Message = "Continuation revisions are not yet supported by the normalized schema because the exact continuation ReasonId and project-fork rules are not yet confirmed.", Title = "Revision Type Temporarily Blocked" });
+
+                        //var ProjectDetails = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
+                        //if (ProjectDetails == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Project details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project details not found" });
+                        //}
+                        //string NewProjectId = $"{ProjectDetails.ProjectId}-A";
+                        //ProjectDetails.ProjectId = NewProjectId;
+                        //var FundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                        //if (FundingProfile == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Revision funding profile not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision funding profile not found" });
+                        //}
+                        //FundingProfile.ForEach(x => { x.ProjectId = NewProjectId; });
+                        //var ComponentCost = await _db.tRevisionProjectComponentCost.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                        //if (ComponentCost == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision component cost not found" });
+                        //}
+                        //ComponentCost.ForEach(x => { x.ProjectId = NewProjectId; });
+                        //var MajorWorkItems = await _db.tRevisionProjectMajorWorkItem.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                        //if (MajorWorkItems == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work item not found" });
+                        //}
+                        //MajorWorkItems.ForEach(x => { x.ProjectId = NewProjectId; });
+                        //var MajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                        //if (MajorWorkLocations == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Revision major work location not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work location not found" });
+                        //}
+                        ////MajorWorkLocations.Select(x => { x.ProjectId = $"{ProjectDetails.ProjectId}-A"; return x; }).ToList();
+                        //var getProgramId = await _db.tProjects.FirstOrDefaultAsync(x => x.ReferenceId == $"B{ProjectDetails.ProjectId}");
+                        //if (getProgramId == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = $"Program details not found for the given project reference ID,\n\n<b>Project Reference ID:</b> <i><u>B{ProjectDetails.ProjectId}</u></i> ", Title = "Program details not found" });
+                        //}
+                        //var AddFromProjectHeader = new DBHelper.Models.Table.Projects
+                        //{
+                        //    ProgramId = getProgramId.ProgramId,
+                        //    ReferenceId = $"{ProjectDetails.ProjectId} -A",
+                        //    CreatedBy = _Session.UserId,
+                        //    CreatedDate = CurrentDate,
+                        //    IsDeleted = false
+                        //};
+                        //_db.tRevisionProjects.Update(ProjectDetails);
+                        //_db.tRevisionProjectFundingProfile.UpdateRange(FundingProfile);
+                        //_db.tRevisionProjectComponentCost.UpdateRange(ComponentCost);
+                        //_db.tRevisionProjectMajorWorkItem.UpdateRange(MajorWorkItems);
+                        //_db.tRevisionProjectMajorWorkLocations.UpdateRange(MajorWorkLocations);
+                        //_db.tProjects.Add(AddFromProjectHeader);
                     }
 
                     string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
@@ -1920,6 +1967,20 @@ namespace WebAPI.Controllers.Revision
                     {
                         OldRevisionProjects.IsActive = false;
                     }
+
+                    var entities = await _db.fRevisionComponentCost.FromSqlInterpolated($@"
+                                    SELECT *
+                                    FROM fRevisionComponentCost({SelectedProjectRevision.TransactionId}) fp
+                                    WHERE fp.IsDeleted = 0").ToListAsync();
+
+                    await _db.tRevisionPCMAComponent.AddRangeAsync(entities.Select(x => new RevisionPCMAComponent
+                    {
+                        TransactionId = dto.TransactionId,
+                        ComponentId = x.ComponentId,
+                        ConstructionStatusCode = int.Parse(x.ConstructionStatusCode!),
+                        ConstructionStatusName = x.ConstructionStatusName!,
+                        IsPackaged = x.IsPackaged ?? false
+                    }));
 
                     await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                     {
