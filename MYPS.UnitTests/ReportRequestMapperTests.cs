@@ -34,18 +34,44 @@ public class ReportRequestMapperTests
     }
 
     [Fact]
-    public void Map_Aip_DefaultsDisplayParams()
+    public void Map_Aip_MapsRequiredFields()
     {
         var ok = ReportRequestMapper.TryMap(
             "aip-official",
-            Body("""{"yearStart":2026,"programIds":["p1"]}"""),
+            Body("""{"yearStart":2026,"programIds":["p1"],"regionCode":"OI237","reportType":"Official","reportTypeTitle":"AIP Official"}"""),
             out var legacy,
             out var error);
 
         Assert.True(ok, error);
-        Assert.Equal("", legacy["ReportType"]);
-        Assert.Equal("", legacy["ReportTypeTitle"]);
-        Assert.False(legacy.ContainsKey("region"));
+        Assert.Equal("OI237", legacy["region"]);
+        Assert.Equal("Official", legacy["ReportType"]);
+        Assert.Equal("AIP Official", legacy["ReportTypeTitle"]);
+    }
+
+    [Fact]
+    public void Map_Aip_MissingRegionCode_Fails()
+    {
+        var ok = ReportRequestMapper.TryMap(
+            "aip-official",
+            Body("""{"yearStart":2026,"programIds":["p1"]}"""),
+            out _,
+            out var error);
+
+        Assert.False(ok);
+        Assert.Contains("regionCode", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Map_Aip_MissingReportType_Fails()
+    {
+        var ok = ReportRequestMapper.TryMap(
+            "aip-official",
+            Body("""{"yearStart":2026,"programIds":["p1"],"regionCode":"OI237"}"""),
+            out _,
+            out var error);
+
+        Assert.False(ok);
+        Assert.Contains("reportType", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -92,6 +118,6 @@ public class ReportRequestMapperTests
             out var error);
 
         Assert.False(ok);
-        Assert.Equal("Invalid request body.", error);
+        Assert.StartsWith("Invalid request body:", error);
     }
 }

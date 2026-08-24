@@ -198,6 +198,11 @@ const Reports: React.FC = () => {
       return;
     }
 
+    if (!regionCode) {
+      showToast({ type: 'error', message: 'Please select a Regional Office before generating.' });
+      return;
+    }
+
     try {
       setIsGenerating(true);
       setCurrentJob(null);
@@ -289,14 +294,16 @@ const Reports: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Regional Office</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Regional Office <span className="text-red-500">*</span>
+              </label>
               <select
                 value={regionCode}
                 onChange={(e) => setRegionCode(e.target.value)}
                 className={selectClass}
                 disabled={isLoadingOptions}
               >
-                <option value="">All regions</option>
+                <option value="">Select a regional office</option>
                 {options?.RegionalOffices.map((region) => (
                   <option key={region.Id} value={region.Code}>
                     {region.Name}
