@@ -81,16 +81,16 @@ const ComponentTargetsPanel: React.FC<ComponentTargetsPanelProps> = ({ projectPK
                         pagination.data.lists.map((target) => (
                             <TableRow key={target.Id}>
                                 <TableCell className="font-medium text-sm text-center">{target.StageDisplayName?.trim() || target.StageName?.trim() || '—'}</TableCell>
-                                <TableCell className="text-sm text-gray-600">
-                                    <div className="max-w-64 whitespace-normal break-words">{target.ProjectDescription || '—'}</div>
+                                <TableCell className="text-sm text-gray-600 text-center">
+                                    <div className="mx-auto max-w-64 whitespace-normal break-words">{target.ProjectDescription || '—'}</div>
                                 </TableCell>
-                                <TableCell className="text-sm text-gray-600">
-                                    <div className="max-w-64 whitespace-normal break-words">{target.ComponentDescription || '—'}</div>
+                                <TableCell className="text-sm text-gray-600 text-center">
+                                    <div className="mx-auto max-w-64 whitespace-normal break-words">{target.ComponentDescription || '—'}</div>
                                 </TableCell>
-                                <TableCell className="text-sm text-gray-600">
-                                    <div className="max-w-48 whitespace-normal break-words">{target.TypeOfWork || '—'}</div>
+                                <TableCell className="text-sm text-gray-600 text-center">
+                                    <div className="mx-auto max-w-48 whitespace-normal break-words">{target.TypeOfWork || '—'}</div>
                                 </TableCell>
-                                <TableCell className="text-sm font-medium text-right">{formatTarget(target.Target)}</TableCell>
+                                <TableCell className="text-sm font-medium text-center">{formatTarget(target.Target)}</TableCell>
                                 <TableCell className="text-sm text-gray-600 text-center">
                                     <div className="mx-auto max-w-24 whitespace-normal break-words">{target.TargetUnit || '—'}</div>
                                 </TableCell>

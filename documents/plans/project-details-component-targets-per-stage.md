@@ -398,8 +398,8 @@ Stage Name, Project Description, Component Description, Type of Work, Target, Ta
   are still emitted (the controller selects `v.*`) but are no longer displayed; the composed
   `"NEP 2026 OO-1"` label and its `ps`/`oo` OUTER APPLYs were kept rather than removed, so the legacy
   label stays available to other callers.
-- `ComponentTargetsPanel.tsx` — headers and cells swapped; Stage Name renders the stage centred
-  in the old Component ID cell's style, Project Description renders `target.ProjectDescription` left-aligned.
+- `ComponentTargetsPanel.tsx` — headers and cells swapped; Stage Name renders the stage in the old
+  Component ID cell's style, Project Description renders `target.ProjectDescription`.
   Both fall back to `—`. Column count is unchanged, so the empty-state `colSpan={6}` still holds.
 - No DTO or endpoint change: `ShowProjectStageTargets` returns the read model as-is.
 - `dotnet build WebAPI` — 0 errors. `tsc --noEmit -p tsconfig.app.json` — clean; `eslint` on the touched
@@ -440,3 +440,14 @@ horizontal scroll bar at the bottom of the panel.
   and every Stage Name cell falls back to the short code.
 - Not verified in a running app: no database was available this session, so the DisplayName values
   (`NEP-Errata` etc.) and the wrapped layout are unconfirmed against real data.
+
+### Follow-up: centre-align the expanded table — 2026-08-25
+
+User request: centre every column and row inside the accordion. All six body cells in
+`ComponentTargetsPanel` now carry `text-center` (Target moved off `text-right`); the headers were
+already `justify="center"`. The four wrapping columns also needed `mx-auto` on their inner width-cap
+div — `text-center` centres the text inside that div, but the div itself is a block narrower than the
+cell, so without `mx-auto` a wrapped description sits centred within a box hugging the left edge.
+
+The accordion's own top-level rows (Component ID / Component Description / Stages) were left as they
+were — the request has consistently meant the expanded per-stage table.
