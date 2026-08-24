@@ -892,10 +892,10 @@ namespace Hangfire.Services
             ws1.Cells["Y1"].Value = "Detailed Design";
             ws1.Cells["Z1"].Value = "Detailed Design Date";
             ws1.Cells["AA1"].Value = "Rank";
-            ws1.Cells["AB1"].Value = "Error Msgs";
+            ws1.Cells["AB1"].Value = "Error(s) and Warning(s)";
 
             StyleHeaders(ws1, "A1:AB1",
-                red: ["A1", "E1", "F1", "G1", "I1", "J1", "K1", "L1", "M1", "N1", "O1", "P1", "Q1", "R1", "S1", "T1", "U1", "V1", "W1", "Y1"],
+                red: ["A1", "E1", "F1", "G1", "I1", "J1", "K1", "L1", "M1", "N1", "O1", "P1", "Q1", "R1", "S1", "T1", "U1", "V1", "W1", "Y1", "AB1"],
                 blue: ["B1", "C1", "D1", "H1", "X1", "Z1", "AA1"]);
 
             for (int i = 0; i < ErrorProjectDetails.Count; i++)
@@ -937,10 +937,10 @@ namespace Hangfire.Services
             ws2.Cells["B1"].Value = "Source(s)";
             ws2.Cells["C1"].Value = "Agreement(s)";
             ws2.Cells["D1"].Value = "Amount";
-            ws2.Cells["E1"].Value = "Error Msgs";
+            ws2.Cells["E1"].Value = "Error(s) and Warning(s)";
 
             StyleHeaders(ws2, "A1:E1",
-                red: ["A1", "B1", "C1", "D1"],
+                red: ["A1", "B1", "C1", "D1", "E1"],
                 blue: Array.Empty<string>());
 
             for (int i = 0; i < ErrorFundingProfile.Count; i++)
@@ -965,10 +965,10 @@ namespace Hangfire.Services
             ws3.Cells["H1"].Value = "Infrastructure Type";
             ws3.Cells["I1"].Value = "Type of Work";
             ws3.Cells["J1"].Value = "Activity Year";
-            ws3.Cells["K1"].Value = "Error Msgs";
+            ws3.Cells["K1"].Value = "Error(s) and Warning(s)";
 
             StyleHeaders(ws3, "A1:K1",
-                red: ["A1", "B1", "C1", "E1", "H1", "I1", "J1"],
+                red: ["A1", "B1", "C1", "E1", "H1", "I1", "J1", "K1"],
                 blue: ["D1", "F1", "G1"]);
 
             for (int i = 0; i < ErrorComponentDetails.Count; i++)
@@ -1006,10 +1006,10 @@ namespace Hangfire.Services
             ws4.Cells["O1"].Value = "End Chainage (m)";
             ws4.Cells["P1"].Value = "Length (meters)";
             ws4.Cells["Q1"].Value = "Activity Year";
-            ws4.Cells["R1"].Value = "Error Msgs";
+            ws4.Cells["R1"].Value = "Error(s) and Warning(s)";
 
             StyleHeaders(ws4, "A1:R1",
-                red: ["A1", "B1", "C1", "D1", "F1", "G1", "H1", "I1", "J1", "K1"],
+                red: ["A1", "B1", "C1", "D1", "F1", "G1", "H1", "I1", "J1", "K1", "R1"],
                 blue: ["E1", "L1", "M1", "N1", "O1", "P1", "Q1"]);
 
             for (int i = 0; i < ErrorMajorItemsOfWork.Count; i++)
