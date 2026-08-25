@@ -157,7 +157,7 @@ namespace WebAPI.Controllers.GlobalSearch
                         FROM DistinctProjects AS project
                         CROSS APPLY dbo.fProjectDetails(project.ProjectPK, project.StageId) AS result
                         INNER JOIN ValidFilters AS filter
-                            ON filter.ProjectPK = result.ProjectPK
+                            ON filter.ProjectPK = result.ProjectFK
                         """,
                             filtersParameter)
                         .AsNoTracking()
@@ -248,7 +248,7 @@ namespace WebAPI.Controllers.GlobalSearch
                         FROM DistinctProjects AS project
                         CROSS APPLY dbo.fProjectDetails(project.ProjectPK, project.StageId) AS result
                         INNER JOIN ValidFilters AS filter
-                            ON filter.ProjectPK = result.ProjectPK
+                            ON filter.ProjectPK = result.ProjectFK
                         """,
                             filtersParameter)
                         .AsNoTracking()
@@ -431,7 +431,7 @@ namespace WebAPI.Controllers.GlobalSearch
                         FROM DistinctProjects AS project
                         CROSS APPLY dbo.fProjectDetails(project.ProjectPK, project.StageId) AS result
                         INNER JOIN ValidFilters AS filter
-                            ON filter.ProjectPK = result.ProjectPK
+                            ON filter.ProjectPK = result.ProjectFK
                         """,
                             filtersParameter)
                         .AsNoTracking()
