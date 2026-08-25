@@ -13,7 +13,7 @@ interface ComponentTargetsFormProps {
  * Read-only panel listing every component the project has carried, across every Program
  * Stage it has undergone. Expanding a component reveals that component's targets per stage.
  *
- * Grouping by component rather than by stage is what makes the Source column meaningful:
+ * Grouping by component rather than by stage is what makes the Stage Name column meaningful:
  * each row inside a component names the stage its figure came from, so the expansion reads
  * as "how did this component's target move across stages".
  */

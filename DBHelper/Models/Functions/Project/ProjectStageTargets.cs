@@ -25,12 +25,26 @@ namespace DBHelper.Models.Functions.Project
         public string ProjectPK { get; set; } = string.Empty;
         [MaxLength(200)]
         public string? ProjectId { get; set; }
+        /// <summary>
+        /// The project's description at this stage, as dbo.fProjectStages resolves it
+        /// (dbo.tProjects -> the stage's effective revision). Shown in the panel in place
+        /// of the legacy Component ID column.
+        /// </summary>
+        public string? ProjectDescription { get; set; }
         public int StageId { get; set; }
         [MaxLength(100)]
         public string? StageName { get; set; }
         /// <summary>
+        /// The stage's long form from dbo.tOptionProgramStage.DisplayName, e.g.
+        /// "NEP-Errata" where <see cref="StageName"/> is "NEP-E". This is what the panel's
+        /// Stage Name column shows; the short code stays available for filtering.
+        /// </summary>
+        [MaxLength(100)]
+        public string? StageDisplayName { get; set; }
+        /// <summary>
         /// Composed stage label, e.g. "NEP 2026 OO-1" — stage short name, program start
-        /// year, and the project's Organizational Outcome. Matches the legacy Targets tab.
+        /// year, and the project's Organizational Outcome. The panel shows
+        /// <see cref="StageDisplayName"/> instead; kept for callers that want the legacy label.
         /// </summary>
         [MaxLength(120)]
         public string? Source { get; set; }

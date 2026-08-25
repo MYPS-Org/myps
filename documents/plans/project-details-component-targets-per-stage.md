@@ -380,3 +380,74 @@ Files changed:
 - `documents/docs/README.md`
 
 Not part of this task (pre-existing local working-tree changes, left untouched): `FE/.env.development`, `Main/appsettings.Development.json`, `FE/package-lock.json`.
+
+### Follow-up: Stage Name and Project Description columns — 2026-08-25
+
+User request: inside the component accordion, replace **Source** with **Stage Name** (as shown in the
+Project Stages accordion on `/projects`) and replace **Component ID** with **Project Description**.
+This supersedes acceptance criteria lines for the expanded table's column set: the six columns are now
+Stage Name, Project Description, Component Description, Type of Work, Target, Target Unit.
+
+- `Project.StageTargets.sql` — added `s.Description AS ProjectDescription`, taken from the
+  `dbo.fProjectStages(@ProjectFK)` row already driving the fan-out. That is the same value the
+  `/projects` Project Stages accordion shows in its Description column, and it resolves per stage
+  (a description edited mid-programme shows the value in force at each stage) rather than pinning
+  every row to the project's current record. Note that `dbo.tProjects` itself has no `Description`
+  column — it lives on `dbo.tProjectRevisions`, which `fProjectStages` resolves.
+- `ProjectStageTargets.cs` / `Model.d.ts` — added `ProjectDescription`. `Source` and `ComponentCode`
+  are still emitted (the controller selects `v.*`) but are no longer displayed; the composed
+  `"NEP 2026 OO-1"` label and its `ps`/`oo` OUTER APPLYs were kept rather than removed, so the legacy
+  label stays available to other callers.
+- `ComponentTargetsPanel.tsx` — headers and cells swapped; Stage Name renders the stage in the old
+  Component ID cell's style, Project Description renders `target.ProjectDescription`.
+  Both fall back to `—`. Column count is unchanged, so the empty-state `colSpan={6}` still holds.
+- No DTO or endpoint change: `ShowProjectStageTargets` returns the read model as-is.
+- `dotnet build WebAPI` — 0 errors. `tsc --noEmit -p tsconfig.app.json` — clean; `eslint` on the touched
+  files — only the 2 pre-existing `no-explicit-any` findings in `Model.d.ts`.
+- **Redeploy the TVF.** `Project.StageTargets.sql` must be re-applied by hand to any database that
+  already has `fProjectStageTargets`, or the panel's Project Description column comes back empty.
+
+### Follow-up: stage display names and column wrapping — 2026-08-25
+
+User request, same session as the column swap above: show the stage's DisplayName in the Stage Name
+column (`NEP-E` → `NEP-Errata`, `HGAB-I` → `HGAB-Amendments`, `GAA-R` → `GAA-Revisions`), wrap the
+Project Description / Component Description / Type of Work / Target Unit columns, and keep the
+horizontal scroll bar at the bottom of the panel.
+
+- `Project.StageTargets.sql` — added `s.StageDisplayName AS StageDisplayName`, again straight off the
+  `dbo.fProjectStages(@ProjectFK)` row. `fProjectStages` sources it from
+  `dbo.tOptionProgramStage.DisplayName`; `/programs` already renders the same field in its stages
+  accordion (`Program.tsx`). `StageName` is still emitted — `ShowProjectStageTargets` filters on it.
+- `ProjectStageTargets.cs` / `Model.d.ts` — added `StageDisplayName`. The panel falls back to
+  `StageName` when the lookup row has no DisplayName, so a lookup gap degrades to the short code
+  rather than an em dash.
+- `ComponentTargetsPanel.tsx` — the four text columns wrap. Two details worth keeping:
+  - `Table` sets `whitespace-nowrap` on its scroll container, so each wrapping cell must opt out
+    with `whitespace-normal` explicitly; it is not the default.
+  - The width cap lives on an inner `div` (`max-w-64` / `max-w-48` / `max-w-24`), not on the
+    `TableCell`. Auto table layout does not reliably honour `max-width` on a `td`, so capping the
+    cell alone would let a long description stretch the table instead of wrapping. The existing
+    `truncate max-w-*` cells elsewhere in the app work only because `truncate` removes the cell's
+    minimum content width — that trick does not carry over to wrapped text.
+- Scroll bar: unchanged by design. The panel renders inside a `TableCell` of the parent
+  `CollapsibleTable`, so it has no scroll container of its own and shares the accordion's, which sits
+  at the bottom of the whole section. A nested `overflow-x-auto` around this table would strand a
+  second scroll bar mid-panel. A comment in the component records this so it is not "fixed" later.
+  In practice the wrapping usually removes the need to scroll at all.
+- `dotnet build WebAPI` — 0 errors. `tsc --noEmit -p tsconfig.app.json` — clean. `eslint` — only the
+  2 pre-existing `no-explicit-any` findings in `Model.d.ts`.
+- **Re-apply `Project.StageTargets.sql`** for this change too: without it `StageDisplayName` is absent
+  and every Stage Name cell falls back to the short code.
+- Not verified in a running app: no database was available this session, so the DisplayName values
+  (`NEP-Errata` etc.) and the wrapped layout are unconfirmed against real data.
+
+### Follow-up: centre-align the expanded table — 2026-08-25
+
+User request: centre every column and row inside the accordion. All six body cells in
+`ComponentTargetsPanel` now carry `text-center` (Target moved off `text-right`); the headers were
+already `justify="center"`. The four wrapping columns also needed `mx-auto` on their inner width-cap
+div — `text-center` centres the text inside that div, but the div itself is a block narrower than the
+cell, so without `mx-auto` a wrapped description sits centred within a box hugging the left edge.
+
+The accordion's own top-level rows (Component ID / Component Description / Stages) were left as they
+were — the request has consistently meant the expanded per-stage table.

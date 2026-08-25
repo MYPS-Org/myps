@@ -671,9 +671,14 @@ export interface ProjectStageTarget {
 	WorkItemId: number;
 	ProjectPK: string;
 	ProjectId?: string;
+	/** The project's description at this stage — the panel column that replaced Component ID. */
+	ProjectDescription?: string;
 	StageId: number;
+	/** Stage short code, e.g. "NEP-E". Used for filtering; the panel displays StageDisplayName. */
 	StageName?: string;
-	/** Composed stage label, e.g. "NEP 2026 OO-1" — stage, program start year, Organizational Outcome. */
+	/** Stage long form from tOptionProgramStage.DisplayName, e.g. "NEP-Errata" — the panel's Stage Name column. */
+	StageDisplayName?: string;
+	/** Composed stage label, e.g. "NEP 2026 OO-1". Not displayed; kept for other callers. */
 	Source?: string;
 	/** 'Base' or 'Revision' — row provenance. Not displayed; available for future use. */
 	Provenance?: string;
