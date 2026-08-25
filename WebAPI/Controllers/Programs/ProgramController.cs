@@ -1841,7 +1841,14 @@ namespace WebAPI.Controllers.Programs
                 //     "P00000125LZ"
                 // ]
                 //
-                // JsonConvert is already being used elsewhere in your controller.
+                // Deliberately NOT pRecomputeProjectPublishable: that procedure
+                // unconditionally recomputes IsPublishable from the 7 GAA-R rules for
+                // every matched project, regardless of its current value -- it can
+                // DEMOTE a project that is currently IsPublishable=true/IsPublished=false
+                // (eligible, just not yet published) back to false if its data no longer
+                // perfectly satisfies all 7 rules. pAllowProjectPublishing cannot do that
+                // by construction: it only ever grants (never sets IsPublishable=0 for a
+                // project that fails validation). Confirmed 2026-08-25 (operator).
                 // ====================================================================
 
                 var projectIdsJson =
@@ -2315,14 +2322,14 @@ namespace WebAPI.Controllers.Programs
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramRevisions = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
-                char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
+                char[] delimiters = { ';', ',', '.', '&', ' ', '\n', '\r', '\t' };
                 var projectIds = dto.ProjectIds
                     .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .ToArray();
 
                 // Resolve the revision IDs that belong to this program across all of its stages
-                // via tProjectStages, so we can restore projects regardless of which stage they were deleted on.char[] delimiters = { ';', ',', '.', '&', ' ', '\n', '\r', '\t' };
+                // via tProjectStages, so we can restore projects regardless of which stage they were deleted on.
 
 
                 var latestDeletedRevisionsQuery =
@@ -2342,7 +2349,7 @@ namespace WebAPI.Controllers.Programs
                     .ExecuteUpdateAsync(
                         setters => setters.SetProperty(
                             revision => revision.IsDeleted,
-                            true),
+                            false),
                         cancellationToken);
 
 
