@@ -11,10 +11,12 @@ import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
 const CODE = 'AdminAreaRegion';
 
-interface FormState { GdbId: string; Name: string; ParticipantId: string; IslandCode: string; }
-const EMPTY_FORM: FormState = { GdbId: '', Name: '', ParticipantId: '', IslandCode: '' };
+interface FormState { Name: string; Code: string; ParticipantId: string; IslandCode: string; }
+const EMPTY_FORM: FormState = { Name: '', Code: '', ParticipantId: '', IslandCode: '' };
 
 const ITEMS_PER_PAGE = 15;
+
+const isActive = (item: AdminAreaRegion) => item.Deprecated !== true;
 
 const RegionTable: React.FC = () => {
   const { data, loading, refetch } = useAdminAreaContext();
@@ -30,7 +32,7 @@ const RegionTable: React.FC = () => {
   const rows: AdminAreaRegion[] = data?.Regions ?? [];
   const filtered = rows.filter(r =>
     r.Name.toLowerCase().includes(search.toLowerCase()) ||
-    r.GdbId.toLowerCase().includes(search.toLowerCase()) ||
+    r.Code.toLowerCase().includes(search.toLowerCase()) ||
     r.ParticipantId.toLowerCase().includes(search.toLowerCase())
   );
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
@@ -40,12 +42,12 @@ const RegionTable: React.FC = () => {
 
   const startEdit = (r: AdminAreaRegion) => {
     setEditId(r.Id);
-    setEditForm({ GdbId: r.GdbId, Name: r.Name, ParticipantId: r.ParticipantId, IslandCode: r.IslandCode });
+    setEditForm({ Name: r.Name, Code: r.Code, ParticipantId: r.ParticipantId, IslandCode: r.IslandCode });
   };
   const cancelEdit = () => setEditId(null);
 
   const requestToggleActive = (item: AdminAreaRegion) => {
-    const currentActive = item.IsActive !== false;
+    const currentActive = isActive(item);
     const nextActive = !currentActive;
     confirm.request({
       mode: 'edit',
@@ -56,7 +58,7 @@ const RegionTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, GdbId: item.GdbId, Name: item.Name, ParticipantId: item.ParticipantId, IslandCode: item.IslandCode, IsActive: nextActive }));
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, Name: item.Name, ParticipantId: item.ParticipantId, Code: item.Code, IslandCode: item.IslandCode, Deprecated: !nextActive }));
           showToast({ type: 'success', message: `Region ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
         } catch {
@@ -73,8 +75,8 @@ const RegionTable: React.FC = () => {
       mode: 'add',
       tableName: 'Region',
       fields: [
-        { label: 'GdbId',         value: addForm.GdbId, mono: true },
         { label: 'Name',          value: addForm.Name },
+        { label: 'Code',          value: addForm.Code, mono: true },
         { label: 'ParticipantId', value: addForm.ParticipantId, mono: true },
         { label: 'IslandCode',    value: addForm.IslandCode, mono: true },
       ],
@@ -97,8 +99,8 @@ const RegionTable: React.FC = () => {
       mode: 'edit',
       tableName: 'Region',
       fields: [
-        { label: 'GdbId',         value: editForm.GdbId, mono: true },
         { label: 'Name',          value: editForm.Name },
+        { label: 'Code',          value: editForm.Code, mono: true },
         { label: 'ParticipantId', value: editForm.ParticipantId, mono: true },
         { label: 'IslandCode',    value: editForm.IslandCode, mono: true },
       ],
@@ -136,7 +138,7 @@ const RegionTable: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h4 className="text-lg font-semibold text-gray-900">Regions</h4>
-          <p className="text-sm text-gray-500 mt-0.5">Manage region GDB IDs and participant IDs</p>
+          <p className="text-sm text-gray-500 mt-0.5">Manage region codes and participant IDs</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -156,7 +158,7 @@ const RegionTable: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableHeader className="w-16">Id</TableHeader>
-              <TableHeader className="w-32">GDB ID</TableHeader>
+              <TableHeader className="w-32">Code</TableHeader>
               <TableHeader>Name</TableHeader>
               <TableHeader className="w-36">Participant ID</TableHeader>
               <TableHeader className="w-24">Island Code</TableHeader>
@@ -174,14 +176,14 @@ const RegionTable: React.FC = () => {
                 {addForm !== null && (
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
-                    <TableCell><input autoFocus value={addForm.GdbId} onChange={e => setAddForm(f => f && ({ ...f, GdbId: e.target.value }))} placeholder="GDB ID *" className={inp('add')} /></TableCell>
+                    <TableCell><input autoFocus value={addForm.Code} onChange={e => setAddForm(f => f && ({ ...f, Code: e.target.value }))} placeholder="Code *" className={inp('add')} /></TableCell>
                     <TableCell><input value={addForm.Name} onChange={e => setAddForm(f => f && ({ ...f, Name: e.target.value }))} placeholder="Region name *" className={inp('add')} /></TableCell>
                     <TableCell><input value={addForm.ParticipantId} onChange={e => setAddForm(f => f && ({ ...f, ParticipantId: e.target.value }))} placeholder="Participant ID *" className={inp('add')} /></TableCell>
-                    <TableCell><input value={addForm.IslandCode} onChange={e => setAddForm(f => f && ({ ...f, IslandCode: e.target.value }))} placeholder="Code *" className={inp('add')} /></TableCell>
+                    <TableCell><input value={addForm.IslandCode} onChange={e => setAddForm(f => f && ({ ...f, IslandCode: e.target.value }))} placeholder="Island Code *" className={inp('add')} /></TableCell>
                     <TableCell />
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button color="indigo" className="p-1.5" onClick={requestAdd} disabled={!addForm.GdbId.trim() || !addForm.Name.trim() || !addForm.ParticipantId.trim() || !addForm.IslandCode.trim()}>
+                        <Button color="indigo" className="p-1.5" onClick={requestAdd} disabled={!addForm.Code.trim() || !addForm.Name.trim() || !addForm.ParticipantId.trim() || !addForm.IslandCode.trim()}>
                           <CheckIcon className="h-3.5 w-3.5" />
                         </Button>
                         <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
@@ -196,18 +198,18 @@ const RegionTable: React.FC = () => {
                     {editId === item.Id ? (
                       <>
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell><input value={editForm.GdbId} onChange={e => setEditForm(f => ({ ...f, GdbId: e.target.value }))} className={inp('edit')} /></TableCell>
+                        <TableCell><input value={editForm.Code} onChange={e => setEditForm(f => ({ ...f, Code: e.target.value }))} className={inp('edit')} /></TableCell>
                         <TableCell><input value={editForm.Name} onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))} className={inp('edit')} /></TableCell>
                         <TableCell><input value={editForm.ParticipantId} onChange={e => setEditForm(f => ({ ...f, ParticipantId: e.target.value }))} className={inp('edit')} /></TableCell>
                         <TableCell><input value={editForm.IslandCode} onChange={e => setEditForm(f => ({ ...f, IslandCode: e.target.value }))} className={inp('edit')} /></TableCell>
                         <TableCell className="text-center">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
-                              item.IsActive !== false
+                              isActive(item)
                                 ? 'bg-green-50 text-green-700 border-green-200'
                                 : 'bg-gray-100 text-gray-500 border-gray-300'
                             }`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
-                              {item.IsActive !== false ? 'Active' : 'Inactive'}
+                              <span className={`h-1.5 w-1.5 rounded-full ${isActive(item) ? 'bg-green-500' : 'bg-gray-400'}`} />
+                              {isActive(item) ? 'Active' : 'Inactive'}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -220,22 +222,22 @@ const RegionTable: React.FC = () => {
                     ) : (
                       <>
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell><span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.GdbId}</span></TableCell>
+                        <TableCell><span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.Code}</span></TableCell>
                         <TableCell className="font-medium text-gray-900">{item.Name}</TableCell>
                         <TableCell><span className="font-mono text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{item.ParticipantId}</span></TableCell>
                         <TableCell><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{item.IslandCode}</span></TableCell>
                         <TableCell className="text-center">
                           <button
                             onClick={() => requestToggleActive(item)}
-                            title={item.IsActive !== false ? 'Click to deactivate' : 'Click to activate'}
+                            title={isActive(item) ? 'Click to deactivate' : 'Click to activate'}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border cursor-pointer transition-colors shadow-sm ${
-                              item.IsActive !== false
+                              isActive(item)
                                 ? 'bg-green-100 text-green-800 border-green-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
                                 : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300'
                             }`}
                           >
-                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
-                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                            <span className={`h-1.5 w-1.5 rounded-full ${isActive(item) ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {isActive(item) ? 'Active' : 'Inactive'}
                           </button>
                         </TableCell>
                         <TableCell>

@@ -129,53 +129,48 @@ export interface ProgramEnums {
 
 export interface AdminAreaRegion {
     Id: number;
-    GdbId: string;
     Name: string;
     ParticipantId: string;
+    Code: string;
     IslandCode: string;
-    IsActive?: boolean;
+    Deprecated?: boolean;
 }
 
 export interface AdminAreaProvince {
     Id: number;
-    GdbId: string;
     Name: string;
-    Code?: string;
+    Code: string;
     RegionParticipantId: string;
-    RegionName: string;
-    IsActive?: boolean;
+    Deprecated?: boolean;
 }
 
 export interface AdminAreaCity {
     Id: number;
-    GdbId: string;
     Name: string;
-    Code?: string;
-    ProvinceGdbId: string;
-    ProvinceName: string;
-    IsActive?: boolean;
+    Code: string;
+    ProvinceCode: string;
+    Deprecated?: boolean;
 }
 
 export interface AdminAreaDistrict {
     Id: number;
-    GdbId: string;
     Name: string;
-    Code?: string;
-    ProvinceGdbId: string;
-    ProvinceName: string;
-    IsActive?: boolean;
+    Code: string;
+    ProvinceCode: string;
+    Deprecated?: boolean;
 }
 
 export interface AdminAreaDEO {
     Id: number;
-    GdbId?: string;
     Name: string;
     ParticipantId: string;
-    ProvinceGdbId: string;
-    ProvinceName?: string;
-    RegionParticipantId: string;
-    RegionName: string;
-    IsActive?: boolean;
+    OfficeType: string;
+    ProvinceCode?: string;
+    RegionParticipantId?: string;
+    RegionCode?: string;
+    RegionName?: string;
+    ParentParticipantId?: string;
+    ParentName?: string;
 }
 
 export interface AdminAreaData {
