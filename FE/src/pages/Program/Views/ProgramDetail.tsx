@@ -673,7 +673,7 @@ const ProgramDetail: React.FC = () => {
               </Button>
             )} */}
             <BatchActionsDropdown
-              programId={programEnums?.Details.ProgramPK ?? ''}
+              programId={programEnums?.Details.ProgramId ?? ''}
               programName={programEnums?.Details.Name ?? ''}
               isActive={programEnums.IsActive}
               isTerminalStage={isTerminalStage}
