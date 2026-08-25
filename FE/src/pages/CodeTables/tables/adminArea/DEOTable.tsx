@@ -12,17 +12,14 @@ import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 const CODE = 'AdminAreaDEO';
 
 interface FormState {
-  GdbId: string;
   Name: string;
   ParticipantId: string;
-  ProvinceGdbId: string;
-  ProvinceName: string;
+  OfficeType: string;
   RegionParticipantId: string;
   RegionName: string;
 }
 const EMPTY_FORM: FormState = {
-  GdbId: '', Name: '', ParticipantId: '',
-  ProvinceGdbId: '', ProvinceName: '',
+  Name: '', ParticipantId: '', OfficeType: 'DEO',
   RegionParticipantId: '', RegionName: '',
 };
 
@@ -45,9 +42,8 @@ const DEOTable: React.FC = () => {
   const regions: AdminAreaRegion[]     = data?.Regions ?? [];
 
   const filtered = rows.filter(r =>
-    (filterProvince === '' || r.ProvinceGdbId === filterProvince) &&
+    (filterProvince === '' || r.ProvinceCode === filterProvince) &&
     (r.Name.toLowerCase().includes(search.toLowerCase()) ||
-     (r.GdbId ?? '').toLowerCase().includes(search.toLowerCase()) ||
      r.ParticipantId.toLowerCase().includes(search.toLowerCase()))
   );
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
@@ -55,11 +51,6 @@ const DEOTable: React.FC = () => {
 
   const onSearch         = (v: string) => { setSearch(v); setCurrentPage(1); };
   const onFilterProvince = (v: string) => { setFilterProvince(v); setCurrentPage(1); };
-
-  const applyProvince = (gdbId: string, setter: (fn: (f: FormState) => FormState) => void) => {
-    const province = provinces.find(p => p.GdbId === gdbId);
-    setter(f => ({ ...f, ProvinceGdbId: gdbId, ProvinceName: province?.Name ?? '' }));
-  };
 
   const applyRegion = (participantId: string, setter: (fn: (f: FormState) => FormState) => void) => {
     const region = regions.find(r => r.ParticipantId === participantId);
@@ -69,35 +60,11 @@ const DEOTable: React.FC = () => {
   const startEdit = (r: AdminAreaDEO) => {
     setEditId(r.Id);
     setEditForm({
-      GdbId: r.GdbId ?? '', Name: r.Name, ParticipantId: r.ParticipantId,
-      ProvinceGdbId: r.ProvinceGdbId, ProvinceName: r.ProvinceName ?? '',
-      RegionParticipantId: r.RegionParticipantId, RegionName: r.RegionName,
+      Name: r.Name, ParticipantId: r.ParticipantId, OfficeType: r.OfficeType,
+      RegionParticipantId: r.RegionParticipantId ?? '', RegionName: r.RegionName ?? '',
     });
   };
   const cancelEdit = () => setEditId(null);
-
-  const requestToggleActive = (item: AdminAreaDEO) => {
-    const currentActive = item.IsActive !== false;
-    const nextActive = !currentActive;
-    confirm.request({
-      mode: 'edit',
-      tableName: 'DEO',
-      fields: [
-        { label: 'Action', value: nextActive ? 'Activate' : 'Deactivate' },
-        { label: 'Name', value: item.Name },
-      ],
-      onConfirm: async () => {
-        try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, GdbId: item.GdbId ?? '', Name: item.Name, ParticipantId: item.ParticipantId, ProvinceGdbId: item.ProvinceGdbId, ProvinceName: item.ProvinceName ?? '', RegionParticipantId: item.RegionParticipantId, RegionName: item.RegionName, IsActive: nextActive }));
-          showToast({ type: 'success', message: `DEO ${nextActive ? 'activated' : 'deactivated'}.` });
-          await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
-        }
-        confirm.close();
-      },
-    });
-  };
 
   const requestAdd = () => {
     if (!addForm) return;
@@ -105,11 +72,9 @@ const DEOTable: React.FC = () => {
       mode: 'add',
       tableName: 'DEO',
       fields: [
-        { label: 'GDB ID',         value: addForm.GdbId, mono: true, optional: true },
         { label: 'Participant ID', value: addForm.ParticipantId, mono: true },
         { label: 'Name',           value: addForm.Name },
-        { label: 'Province',       value: addForm.ProvinceName },
-        { label: 'Region',         value: addForm.RegionName },
+        { label: 'Region',         value: addForm.RegionName, optional: true },
       ],
       onConfirm: async () => {
         try {
@@ -130,11 +95,9 @@ const DEOTable: React.FC = () => {
       mode: 'edit',
       tableName: 'DEO',
       fields: [
-        { label: 'GDB ID',         value: editForm.GdbId, mono: true, optional: true },
         { label: 'Participant ID', value: editForm.ParticipantId, mono: true },
         { label: 'Name',           value: editForm.Name },
-        { label: 'Province',       value: editForm.ProvinceName },
-        { label: 'Region',         value: editForm.RegionName },
+        { label: 'Region',         value: editForm.RegionName, optional: true },
       ],
       onConfirm: async () => {
         try {
@@ -175,13 +138,13 @@ const DEOTable: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h4 className="text-lg font-semibold text-gray-900">District Engineering Offices (DEOs)</h4>
-          <p className="text-sm text-gray-500 mt-0.5">Manage DEO GDB IDs, participant IDs, and province/region linking</p>
+          <p className="text-sm text-gray-500 mt-0.5">Manage DEO participant IDs and region linking</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select value={filterProvince} onChange={e => onFilterProvince(e.target.value)}
             className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-48">
             <option value="">All Provinces</option>
-            {provinces.map(p => <option key={p.Id} value={p.GdbId}>{p.Name}</option>)}
+            {provinces.map(p => <option key={p.Id} value={p.Code}>{p.Name}</option>)}
           </select>
           <div className="relative">
             <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -199,34 +162,24 @@ const DEOTable: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableHeader className="w-16">Id</TableHeader>
-              <TableHeader className="w-32">GDB ID</TableHeader>
               <TableHeader className="w-36">Participant ID</TableHeader>
               <TableHeader>Name</TableHeader>
               <TableHeader className="w-44">Province</TableHeader>
               <TableHeader className="w-44">Region</TableHeader>
-              <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-28">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-10 text-gray-400">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400">Loading...</TableCell></TableRow>
             ) : (
               <>
                 {addForm !== null && (
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
-                    <TableCell><input autoFocus value={addForm.GdbId} onChange={e => setAddForm(f => f && ({ ...f, GdbId: e.target.value }))} placeholder="GDB ID (opt.)" className={inp('add')} /></TableCell>
-                    <TableCell><input value={addForm.ParticipantId} onChange={e => setAddForm(f => f && ({ ...f, ParticipantId: e.target.value }))} placeholder="Participant ID *" className={inp('add')} /></TableCell>
+                    <TableCell><input autoFocus value={addForm.ParticipantId} onChange={e => setAddForm(f => f && ({ ...f, ParticipantId: e.target.value }))} placeholder="Participant ID *" className={inp('add')} /></TableCell>
                     <TableCell><input value={addForm.Name} onChange={e => setAddForm(f => f && ({ ...f, Name: e.target.value }))} placeholder="DEO name *" className={inp('add')} /></TableCell>
-                    <TableCell>
-                      <select value={addForm.ProvinceGdbId}
-                        onChange={e => applyProvince(e.target.value, fn => setAddForm(f => f ? fn(f) : f))}
-                        className={sel('add')}>
-                        <option value="">— Select Province —</option>
-                        {provinces.map(p => <option key={p.Id} value={p.GdbId}>{p.Name}</option>)}
-                      </select>
-                    </TableCell>
+                    <TableCell><span className="text-xs text-gray-400">Not linked by backend</span></TableCell>
                     <TableCell>
                       <select value={addForm.RegionParticipantId}
                         onChange={e => applyRegion(e.target.value, fn => setAddForm(f => f ? fn(f) : f))}
@@ -235,11 +188,10 @@ const DEOTable: React.FC = () => {
                         {regions.map(r => <option key={r.Id} value={r.ParticipantId}>{r.Name}</option>)}
                       </select>
                     </TableCell>
-                    <TableCell />
                     <TableCell>
                       <div className="flex gap-1">
                         <Button color="indigo" className="p-1.5" onClick={requestAdd}
-                          disabled={!addForm.Name.trim() || !addForm.ParticipantId.trim() || !addForm.ProvinceGdbId || !addForm.RegionParticipantId}>
+                          disabled={!addForm.Name.trim() || !addForm.ParticipantId.trim()}>
                           <CheckIcon className="h-3.5 w-3.5" />
                         </Button>
                         <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
@@ -248,23 +200,15 @@ const DEOTable: React.FC = () => {
                   </TableRow>
                 )}
                 {pageData.length === 0 && !addForm ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
                 ) : pageData.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                     {editId === item.Id ? (
                       <>
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell><input value={editForm.GdbId} onChange={e => setEditForm(f => ({ ...f, GdbId: e.target.value }))} placeholder="(optional)" className={inp('edit')} /></TableCell>
                         <TableCell><input value={editForm.ParticipantId} onChange={e => setEditForm(f => ({ ...f, ParticipantId: e.target.value }))} className={inp('edit')} /></TableCell>
                         <TableCell><input value={editForm.Name} onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))} className={inp('edit')} /></TableCell>
-                        <TableCell>
-                          <select value={editForm.ProvinceGdbId}
-                            onChange={e => applyProvince(e.target.value, fn => setEditForm(fn))}
-                            className={sel('edit')}>
-                            <option value="">— Select Province —</option>
-                            {provinces.map(p => <option key={p.Id} value={p.GdbId}>{p.Name}</option>)}
-                          </select>
-                        </TableCell>
+                        <TableCell><span className="text-xs text-gray-400">Not linked by backend</span></TableCell>
                         <TableCell>
                           <select value={editForm.RegionParticipantId}
                             onChange={e => applyRegion(e.target.value, fn => setEditForm(fn))}
@@ -272,16 +216,6 @@ const DEOTable: React.FC = () => {
                             <option value="">— Select Region —</option>
                             {regions.map(r => <option key={r.Id} value={r.ParticipantId}>{r.Name}</option>)}
                           </select>
-                        </TableCell>
-                        <TableCell className="text-center">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
-                              item.IsActive !== false
-                                ? 'bg-green-50 text-green-700 border-green-200'
-                                : 'bg-gray-100 text-gray-500 border-gray-300'
-                            }`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
-                              {item.IsActive !== false ? 'Active' : 'Inactive'}
-                          </span>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -293,34 +227,16 @@ const DEOTable: React.FC = () => {
                     ) : (
                       <>
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell>
-                          {item.GdbId
-                            ? <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.GdbId}</span>
-                            : <span className="text-xs text-gray-400">—</span>}
-                        </TableCell>
                         <TableCell><span className="font-mono text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{item.ParticipantId}</span></TableCell>
                         <TableCell className="font-medium text-gray-900">{item.Name}</TableCell>
                         <TableCell>
-                          <span className="text-xs font-medium text-gray-700">{item.ProvinceName ?? '—'}</span>
-                          <span className="ml-1 font-mono text-xs text-gray-400">({item.ProvinceGdbId})</span>
+                          {item.ProvinceCode
+                            ? <span className="font-mono text-xs text-gray-400">{item.ProvinceCode}</span>
+                            : <span className="text-xs text-gray-400">—</span>}
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs font-medium text-gray-700">{item.RegionName}</span>
-                          <span className="ml-1 font-mono text-xs text-gray-400">({item.RegionParticipantId})</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <button
-                            onClick={() => requestToggleActive(item)}
-                            title={item.IsActive !== false ? 'Click to deactivate' : 'Click to activate'}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border cursor-pointer transition-colors shadow-sm ${
-                              item.IsActive !== false
-                                ? 'bg-green-100 text-green-800 border-green-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
-                                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300'
-                            }`}
-                          >
-                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
-                            {item.IsActive !== false ? 'Active' : 'Inactive'}
-                          </button>
+                          <span className="text-xs font-medium text-gray-700">{item.RegionName ?? '—'}</span>
+                          {item.RegionParticipantId && <span className="ml-1 font-mono text-xs text-gray-400">({item.RegionParticipantId})</span>}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">

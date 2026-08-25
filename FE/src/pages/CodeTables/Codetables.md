@@ -293,15 +293,18 @@ export interface ProgramEnums {
 }
 ```
 
+> **Fields match the actual backend entities** (`OptionAdminAreaRegion`, `OptionAdminAreaProvince`, `OptionAdminAreaCityMunicipality`, `OptionAdminAreaCongressionalDistrict`, `OptionAdminOffice`/`vAdminDEO`) returned as-is by `GetAdminAreas` — there is no `GdbId` anywhere in the backend; all parent linking is by `Code`/`ParticipantId`, matching the pattern used in `ProjectDetailsForm.tsx`. `RegionName`/`ProvinceName` are **not** returned by the API for Province/City/District — each table derives them locally by looking up the parent record from the sibling `AdminAreaContext` array (e.g. `regions.find(r => r.ParticipantId === item.RegionParticipantId)?.Name`).
+
 ### `AdminAreaRegion`
 
 ```ts
 export interface AdminAreaRegion {
   Id: number;
-  GdbId: string;
   Name: string;
   ParticipantId: string;
+  Code: string;
   IslandCode: string;
+  Deprecated?: boolean; // backend's active/inactive flag; Active = Deprecated !== true
 }
 ```
 
@@ -310,11 +313,10 @@ export interface AdminAreaRegion {
 ```ts
 export interface AdminAreaProvince {
   Id: number;
-  GdbId: string;
   Name: string;
-  Code?: string;
+  Code: string;
   RegionParticipantId: string;
-  RegionName: string;
+  Deprecated?: boolean;
 }
 ```
 
@@ -323,11 +325,10 @@ export interface AdminAreaProvince {
 ```ts
 export interface AdminAreaCity {
   Id: number;
-  GdbId: string;
   Name: string;
-  Code?: string;
-  ProvinceGdbId: string;
-  ProvinceName: string;
+  Code: string;
+  ProvinceCode: string;
+  Deprecated?: boolean;
 }
 ```
 
@@ -336,11 +337,10 @@ export interface AdminAreaCity {
 ```ts
 export interface AdminAreaDistrict {
   Id: number;
-  GdbId: string;
   Name: string;
-  Code?: string;
-  ProvinceGdbId: string;
-  ProvinceName: string;
+  Code: string;
+  ProvinceCode: string;
+  Deprecated?: boolean;
 }
 ```
 
@@ -349,15 +349,19 @@ export interface AdminAreaDistrict {
 ```ts
 export interface AdminAreaDEO {
   Id: number;
-  GdbId?: string;
   Name: string;
   ParticipantId: string;
-  ProvinceGdbId: string;
-  ProvinceName?: string;
-  RegionParticipantId: string;
-  RegionName: string;
+  OfficeType: string;
+  ProvinceCode?: string;        // read-only display field from vAdminDEO; not persisted (OptionAdminOffice has no province column)
+  RegionParticipantId?: string;
+  RegionCode?: string;
+  RegionName?: string;
+  ParentParticipantId?: string;
+  ParentName?: string;
 }
 ```
+
+> `AdminAreaDEO` has no `Deprecated`/active flag in `vAdminDEO` (the read view), so the DEO table has no Active/Inactive toggle — showing one would display state the API can never confirm.
 
 ### `AdminAreaData`
 
@@ -540,11 +544,11 @@ All five tables in `tables/adminArea/` use **`AdminAreaContext`** and follow the
 
 | Table | Searchable columns |
 |-------|--------------------|
-| RegionTable | Name, GdbId, ParticipantId |
-| ProvinceTable | Name, GdbId, Code, RegionName |
-| CityTable | Name, GdbId, Code (province filter is a separate dropdown) |
-| LegislativeDistrictTable | Name, GdbId, Code (province filter is a separate dropdown) |
-| DEOTable | Name, GdbId, ParticipantId (province filter is a separate dropdown) |
+| RegionTable | Name, Code, ParticipantId |
+| ProvinceTable | Name, Code, RegionName (derived) |
+| CityTable | Name, Code (province filter is a separate dropdown) |
+| LegislativeDistrictTable | Name, Code (province filter is a separate dropdown) |
+| DEOTable | Name, ParticipantId (province filter is a separate dropdown) |
 
 ---
 
@@ -634,17 +638,30 @@ Props: `value`, `onChange(n: number)`, `thrusts: ThrustEnum[]`, `infraTypeFilter
 **New `AdminAreaContext.tsx`** — mirrors `CodeTableContext` pattern; fetches `POST CodeTable/GetAdminAreas`; exports `AdminAreaProvider` and `useAdminAreaContext`.
 
 **New `tables/adminArea/` domain** — 5 full CRUD tables:
-- `RegionTable` — CODE `AdminAreaRegion`; fields: GdbId, Name, ParticipantId, IslandCode; 15/page
-- `ProvinceTable` — CODE `AdminAreaProvince`; fields: GdbId, Name, Code (optional), RegionParticipantId (Region dropdown → auto-fills RegionName); 15/page
-- `CityTable` — CODE `AdminAreaCity`; fields: GdbId, Name, Code (optional), ProvinceGdbId (Province dropdown → auto-fills ProvinceName); province filter; 20/page
+- `RegionTable` — CODE `AdminAreaRegion`; fields: Name, Code, ParticipantId, IslandCode; 15/page
+- `ProvinceTable` — CODE `AdminAreaProvince`; fields: Name, Code, RegionParticipantId (Region dropdown → auto-fills displayed RegionName); 15/page
+- `CityTable` — CODE `AdminAreaCity`; fields: Name, Code, ProvinceCode (Province dropdown → auto-fills displayed ProvinceName); province filter; 20/page
 - `LegislativeDistrictTable` — CODE `AdminAreaDistrict`; same fields/pattern as CityTable; 20/page
-- `DEOTable` — CODE `AdminAreaDEO`; fields: GdbId (optional), Name, ParticipantId, ProvinceGdbId (Province dropdown), RegionParticipantId (Region dropdown); 20/page
+- `DEOTable` — CODE `AdminAreaDEO`; fields: Name, ParticipantId, RegionParticipantId (Region dropdown); no Province field (not persisted server-side) and no Active toggle (not returned by `vAdminDEO`); 20/page
 
 **New interfaces in `Model.d.ts`**: `AdminAreaRegion`, `AdminAreaProvince`, `AdminAreaCity`, `AdminAreaDistrict`, `AdminAreaDEO`, `AdminAreaData`.
 
 **`Service.ts`**: added `fetchAdminAreas` → `POST CodeTable/GetAdminAreas`.
 
 **`CodeTables.tsx`**: added `AdminAreaProvider` wrapper alongside `CodeTableProvider`; added `MapPinIcon` import.
+
+---
+
+### Session 9 — Admin Area Tables Aligned to Actual Backend Contract
+
+**Problem:** All 5 admin-area tables were built against a `GdbId`/`*Gdbid`-based schema that never existed in the backend. `GetAdminAreas` returns the raw EF entities (`OptionAdminAreaRegion`, `OptionAdminAreaProvince`, `OptionAdminAreaCityMunicipality`, `OptionAdminAreaCongressionalDistrict`, `vAdminDEO`) with **no `GdbId` field at all** — parent linking is done by `Code` (City/District → Province) and `ParticipantId` (Province/DEO → Region), matching the pattern already used in `ProjectDetailsForm.tsx`. Symptoms of the mismatch: `RegionTable`'s Add form never captured `Code` (a required backend field), so every Add after the first failed a server-side duplicate check; City/District forms sent a nonexistent `ProvinceGdbId` that the backend silently dropped, so `ProvinceCode` was never actually set on create; the Active/Inactive toggle sent `IsActive`, but the backend field is `Deprecated`, so toggling never persisted; and the read-side `RegionName`/`ProvinceName` fields displayed by Province/City/District tables don't exist in the API response, so those columns rendered blank.
+
+**Fix:**
+- `Model.d.ts` — `AdminAreaRegion/Province/City/District/DEO` rewritten to match the real entity/view shapes: `GdbId` removed everywhere; `AdminAreaCity`/`AdminAreaDistrict` now key on `ProvinceCode`; `IsActive` replaced with `Deprecated` (Region/Province/City/District only — `AdminAreaDEO` has none, since `vAdminDEO` doesn't select it).
+- `RegionTable.tsx` — added the missing `Code` input to Add/Edit forms; search/display use `Code` instead of `GdbId`; Active toggle now reads/writes `Deprecated`.
+- `ProvinceTable.tsx` — Region name displayed via a local lookup (`regions.find(r => r.ParticipantId === item.RegionParticipantId)?.Name`) instead of a nonexistent API field; Active toggle uses `Deprecated`.
+- `CityTable.tsx` / `LegislativeDistrictTable.tsx` — province filter/select and linking switched from `ProvinceGdbId` to `ProvinceCode`; Province name displayed via a local lookup against `provinces` (matched by `Code`); Active toggle uses `Deprecated`.
+- `DEOTable.tsx` — removed the Province `<select>` from the form (the backend `OptionAdminOffice` entity has no province-link column, so it was always discarded on save); Province column now just displays the read-only `ProvinceCode` from `vAdminDEO`; removed the Active/Inactive toggle entirely, since `vAdminDEO` doesn't return a `Deprecated`/active flag to display truthfully.
 
 ---
 
