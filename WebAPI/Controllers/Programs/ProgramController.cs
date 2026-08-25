@@ -1561,7 +1561,7 @@ namespace WebAPI.Controllers.Programs
             }
         }
         [HttpPost]
-        public async Task<IActionResult> BatchUndoRestrictPublish([FromBody] BatchUnpublishTaggingDTO dto, CancellationToken cancellationToken)
+        public async Task<IActionResult> BatchAllowPublish([FromBody] BatchUnpublishTaggingDTO dto, CancellationToken cancellationToken)
         {
             try
             {
