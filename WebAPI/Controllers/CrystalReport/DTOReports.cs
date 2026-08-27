@@ -56,7 +56,6 @@ public class ReportOptionsDTO
     public IReadOnlyList<int> ProgramYears { get; set; } = [];
     public IReadOnlyList<ProgramStageOptionDTO> ProgramStages { get; set; } = [];
     public IReadOnlyList<RegionalOfficeOptionDTO> RegionalOffices { get; set; } = [];
-    public IReadOnlyList<CategoryOptionDTO> Categories { get; set; } = [];
 }
 
 public class ReportTypeOptionDTO
@@ -64,27 +63,6 @@ public class ReportTypeOptionDTO
     public string Id { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
     public string OutputFormat { get; set; } = string.Empty;
-    public string Family { get; set; } = string.Empty;
-}
-
-public class CategoryOptionDTO
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-}
-
-public class DeoOptionDTO
-{
-    public string Id { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? RegionParticipantId { get; set; }
-}
-
-public class ImplementingOfficeOptionDTO
-{
-    public string Id { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? RegionParticipantId { get; set; }
 }
 
 public class ProgramStageOptionDTO

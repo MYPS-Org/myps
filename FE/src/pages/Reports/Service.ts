@@ -6,8 +6,6 @@ import type {
     GenerateReportRequest,
     GenerateReportResponse,
     ReportStatusEvent,
-    DeoOption,
-    ImplementingOfficeOption,
 } from './Model';
 
 export const fetchReportOptions = async () => {
@@ -44,40 +42,6 @@ export const queueReportGeneration = async (reportName: string, request: Generat
         return response.Data;
     } catch (error) {
         console.error('Error queueing report generation:', error);
-        throw error;
-    }
-};
-
-// `regionCode` here is the region's ParticipantId, not its business Code —
-// the query param name stays `regionCode` to match the backend, but the
-// caller passes the ParticipantId as its value (see Reports.tsx).
-export const fetchDeos = async (regionCode: string) => {
-    try {
-        const response = await httpClient.get<DeoOption[]>(
-            '/reports/deos',
-            regionCode ? { regionCode } : undefined,
-            { preloaderMessage: 'Loading DEOs...' }
-        );
-        return response.Data;
-    } catch (error) {
-        console.error('Error fetching DEOs:', error);
-        throw error;
-    }
-};
-
-export const fetchImplementingOffices = async (regionCode: string, deoCode: string) => {
-    try {
-        const response = await httpClient.get<ImplementingOfficeOption[]>(
-            '/reports/implementing-offices',
-            {
-                ...(regionCode ? { regionCode } : {}),
-                ...(deoCode ? { deoCode } : {}),
-            },
-            { preloaderMessage: 'Loading implementing offices...' }
-        );
-        return response.Data;
-    } catch (error) {
-        console.error('Error fetching implementing offices:', error);
         throw error;
     }
 };

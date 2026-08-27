@@ -1,10 +1,7 @@
-export type ReportFamily = 'rbp' | 'aip' | 'extract-pcmiow';
-
 export interface ReportTypeOption {
     Id: string;
     Label: string;
     OutputFormat: string;
-    Family: ReportFamily;
 }
 
 export interface ProgramStageOption {
@@ -20,29 +17,11 @@ export interface RegionalOfficeOption {
     Code: string;
 }
 
-export interface CategoryOption {
-    Id: number;
-    Name: string;
-}
-
-export interface DeoOption {
-    Id: string;
-    Name: string;
-    RegionParticipantId?: string | null;
-}
-
-export interface ImplementingOfficeOption {
-    Id: string;
-    Name: string;
-    RegionParticipantId?: string | null;
-}
-
 export interface ReportOptions {
     ReportTypes: ReportTypeOption[];
     ProgramYears: number[];
     ProgramStages: ProgramStageOption[];
     RegionalOffices: RegionalOfficeOption[];
-    Categories: CategoryOption[];
 }
 
 export interface FilterProgramsQuery {
@@ -55,7 +34,7 @@ export interface FilterProgramItem {
     Name: string;
 }
 
-export interface GenerateRbpRequest {
+export interface GenerateReportRequest {
     YearStart?: number;
     ProgramIds?: string[];
     RegionCode?: string;
@@ -63,29 +42,6 @@ export interface GenerateRbpRequest {
     ApprovedBy?: string;
     ReviewedBy?: string;
 }
-
-export interface GenerateAipRequest {
-    YearStart?: number;
-    ProgramIds?: string[];
-    RegionCode?: string;
-    ReportType?: string;
-    ReportTypeTitle?: string;
-}
-
-export interface GenerateExtractRequest {
-    ProgramIds?: string[];
-    CategoryId?: number;
-    RegionCode?: string;
-    DeoCode?: string;
-    IoCode?: string;
-    ProgramLabel?: string;
-    CategoryLabel?: string;
-    RegionLabel?: string;
-    DeoLabel?: string;
-    IoLabel?: string;
-}
-
-export type GenerateReportRequest = GenerateRbpRequest | GenerateAipRequest | GenerateExtractRequest;
 
 export interface GenerateReportResponse {
     JobId: string;

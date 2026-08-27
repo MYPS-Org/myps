@@ -14,8 +14,6 @@ import {
   queueReportGeneration,
   fetchReportFile,
   fetchReportJobStatus,
-  fetchDeos,
-  fetchImplementingOffices,
 } from './Service';
 import type {
   ReportOptions,
@@ -23,19 +21,7 @@ import type {
   GenerateReportRequest,
   ReportJobStatus,
   ReportStatusEvent,
-  DeoOption,
-  ImplementingOfficeOption,
 } from './Model';
-
-// Report-level display parameters the AIP Crystal reports require but that
-// have no natural source elsewhere in the form — pre-filled per report id
-// and left editable since the exact expected text isn't verifiable here.
-const AIP_REPORT_TYPE_DEFAULTS: Record<string, { reportType: string; reportTypeTitle: string }> = {
-  'aip-official': { reportType: 'Official', reportTypeTitle: 'AIP Official' },
-  'aip-executive': { reportType: 'Executive', reportTypeTitle: 'AIP Executive' },
-  'aip-official-without-ld': { reportType: 'Official', reportTypeTitle: 'AIP Official without LD' },
-  'aip-executive-2': { reportType: 'Executive', reportTypeTitle: 'AIP Executive 2' },
-};
 
 interface CurrentJob {
   jobId: string;
@@ -68,29 +54,12 @@ const Reports: React.FC = () => {
   const [approvedBy, setApprovedBy] = useState('');
   const [reviewedBy, setReviewedBy] = useState('');
 
-  const [reportTypeText, setReportTypeText] = useState('');
-  const [reportTypeTitleText, setReportTypeTitleText] = useState('');
-
-  const [categoryId, setCategoryId] = useState<number | ''>('');
-  const [deoCode, setDeoCode] = useState('');
-  const [ioCode, setIoCode] = useState('');
-  const [deos, setDeos] = useState<DeoOption[]>([]);
-  const [isLoadingDeos, setIsLoadingDeos] = useState(false);
-  const [implementingOffices, setImplementingOffices] = useState<ImplementingOfficeOption[]>([]);
-  const [isLoadingImplementingOffices, setIsLoadingImplementingOffices] = useState(false);
-
   const [programs, setPrograms] = useState<FilterProgramItem[]>([]);
   const [isLoadingPrograms, setIsLoadingPrograms] = useState(false);
   const [selectedProgramIds, setSelectedProgramIds] = useState<string[]>([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentJob, setCurrentJob] = useState<CurrentJob | null>(null);
-
-  const reportFamily = options?.ReportTypes.find((rt) => rt.Id === reportType)?.Family;
-  // DEO/IO records key off the region's ParticipantId, not its business Code
-  // (which is what `regionCode` holds and what the Crystal report legacy
-  // params need) — look it up from the selected region for the cascade.
-  const regionParticipantId = options?.RegionalOffices.find((r) => r.Code === regionCode)?.Id ?? '';
 
   useEffect(() => {
     setIsLoadingOptions(true);
@@ -125,66 +94,6 @@ const Reports: React.FC = () => {
       cancelled = true;
     };
   }, [yearStart, programStage]);
-
-  useEffect(() => {
-    const defaults = AIP_REPORT_TYPE_DEFAULTS[reportType];
-    if (defaults) {
-      setReportTypeText(defaults.reportType);
-      setReportTypeTitleText(defaults.reportTypeTitle);
-    }
-  }, [reportType]);
-
-  useEffect(() => {
-    setDeoCode('');
-
-    if (reportFamily !== 'extract-pcmiow') {
-      setDeos([]);
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoadingDeos(true);
-    fetchDeos(regionParticipantId)
-      .then((result) => {
-        if (!cancelled) setDeos(result);
-      })
-      .catch(() => {
-        if (!cancelled) setDeos([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingDeos(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [regionParticipantId, reportFamily]);
-
-  useEffect(() => {
-    setIoCode('');
-
-    if (reportFamily !== 'extract-pcmiow') {
-      setImplementingOffices([]);
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoadingImplementingOffices(true);
-    fetchImplementingOffices(regionParticipantId, deoCode)
-      .then((result) => {
-        if (!cancelled) setImplementingOffices(result);
-      })
-      .catch(() => {
-        if (!cancelled) setImplementingOffices([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingImplementingOffices(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [regionParticipantId, deoCode, reportFamily]);
 
   const downloadReportFile = async (fileName: string) => {
     try {
@@ -284,7 +193,7 @@ const Reports: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    if (!reportType || !reportFamily) {
+    if (!reportType) {
       showToast({ type: 'error', message: 'Please select a report type before generating.' });
       return;
     }
@@ -294,73 +203,18 @@ const Reports: React.FC = () => {
       return;
     }
 
-    if (reportFamily !== 'extract-pcmiow' && !yearStart) {
-      showToast({ type: 'error', message: 'Please select a Year before generating.' });
-      return;
-    }
-
-    if (selectedProgramIds.length === 0) {
-      showToast({ type: 'error', message: 'Please select at least one program before generating.' });
-      return;
-    }
-
-    if (reportFamily === 'aip') {
-      if (!reportTypeText.trim()) {
-        showToast({ type: 'error', message: 'Please enter a Report Type before generating.' });
-        return;
-      }
-      if (!reportTypeTitleText.trim()) {
-        showToast({ type: 'error', message: 'Please enter a Report Type Title before generating.' });
-        return;
-      }
-    }
-
-    if (reportFamily === 'extract-pcmiow') {
-      if (categoryId === '') {
-        showToast({ type: 'error', message: 'Please select a Category before generating.' });
-        return;
-      }
-      if (!deoCode) {
-        showToast({ type: 'error', message: 'Please select a DEO before generating.' });
-        return;
-      }
-      if (!ioCode) {
-        showToast({ type: 'error', message: 'Please select an Implementing Office before generating.' });
-        return;
-      }
-    }
-
     try {
       setIsGenerating(true);
       setCurrentJob(null);
 
-      let request: GenerateReportRequest;
-      if (reportFamily === 'extract-pcmiow') {
-        request = {
-          ProgramIds: selectedProgramIds,
-          CategoryId: categoryId === '' ? undefined : categoryId,
-          RegionCode: regionCode,
-          DeoCode: deoCode,
-          IoCode: ioCode,
-        };
-      } else if (reportFamily === 'aip') {
-        request = {
-          YearStart: yearStart || undefined,
-          ProgramIds: selectedProgramIds,
-          RegionCode: regionCode,
-          ReportType: reportTypeText.trim(),
-          ReportTypeTitle: reportTypeTitleText.trim(),
-        };
-      } else {
-        request = {
-          YearStart: yearStart || undefined,
-          ProgramIds: selectedProgramIds,
-          RegionCode: regionCode,
-          PlanningEngineer: planningEngineer.trim() || undefined,
-          ApprovedBy: approvedBy.trim() || undefined,
-          ReviewedBy: reviewedBy.trim() || undefined,
-        };
-      }
+      const request: GenerateReportRequest = {
+        YearStart: yearStart || undefined,
+        ProgramIds: selectedProgramIds.length > 0 ? selectedProgramIds : undefined,
+        RegionCode: regionCode || undefined,
+        PlanningEngineer: planningEngineer.trim() || undefined,
+        ApprovedBy: approvedBy.trim() || undefined,
+        ReviewedBy: reviewedBy.trim() || undefined,
+      };
 
       const response = await queueReportGeneration(reportType, request);
       setCurrentJob({ jobId: response.JobId, status: 'Queued', message: response.Message });
@@ -413,7 +267,7 @@ const Reports: React.FC = () => {
                 className={selectClass}
                 disabled={isLoadingOptions}
               >
-                <option value="">Select Year</option>
+                <option value="">All years</option>
                 {options?.ProgramYears.map((year) => (
                   <option key={year} value={year}>
                     {year}
@@ -430,7 +284,7 @@ const Reports: React.FC = () => {
                 className={selectClass}
                 disabled={isLoadingOptions}
               >
-                <option value="">Select stages</option>
+                <option value="">All stages</option>
                 {options?.ProgramStages.map((stage) => (
                   <option key={stage.Id} value={stage.Name}>
                     {stage.DisplayName ?? stage.Name}
@@ -451,137 +305,42 @@ const Reports: React.FC = () => {
               >
                 <option value="">Select a regional office</option>
                 {options?.RegionalOffices.map((region) => (
-                  <option key={region.Id} value={region.Id}>
+                  <option key={region.Id} value={region.Code}>
                     {region.Name}
                   </option>
                 ))}
               </select>
             </div>
 
-            {reportFamily === 'rbp' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Planning Engineer</label>
-                  <Input
-                    type="text"
-                    value={planningEngineer}
-                    onChange={(e) => setPlanningEngineer(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Planning Engineer</label>
+              <Input
+                type="text"
+                value={planningEngineer}
+                onChange={(e) => setPlanningEngineer(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Approved By</label>
-                  <Input
-                    type="text"
-                    value={approvedBy}
-                    onChange={(e) => setApprovedBy(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Approved By</label>
+              <Input
+                type="text"
+                value={approvedBy}
+                onChange={(e) => setApprovedBy(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Reviewed By</label>
-                  <Input
-                    type="text"
-                    value={reviewedBy}
-                    onChange={(e) => setReviewedBy(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
-              </>
-            )}
-
-            {reportFamily === 'aip' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Report Type <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="text"
-                    value={reportTypeText}
-                    onChange={(e) => setReportTypeText(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Report Type Title <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="text"
-                    value={reportTypeTitleText}
-                    onChange={(e) => setReportTypeTitleText(e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-
-            {reportFamily === 'extract-pcmiow' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : '')}
-                    className={selectClass}
-                    disabled={isLoadingOptions}
-                  >
-                    <option value="">Select a category</option>
-                    {options?.Categories.map((category) => (
-                      <option key={category.Id} value={category.Id}>
-                        {category.Name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    DEO <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={deoCode}
-                    onChange={(e) => setDeoCode(e.target.value)}
-                    className={selectClass}
-                    disabled={isLoadingDeos || !regionCode}
-                  >
-                    <option value="">
-                      {regionCode ? 'Select a DEO' : 'Select a Regional Office first'}
-                    </option>
-                    {deos.map((deo) => (
-                      <option key={deo.Id} value={deo.Id}>
-                        {deo.Name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Implementing Office <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={ioCode}
-                    onChange={(e) => setIoCode(e.target.value)}
-                    className={selectClass}
-                    disabled={isLoadingImplementingOffices || !deoCode}
-                  >
-                    <option value="">
-                      {deoCode ? 'Select an Implementing Office' : 'Select a DEO first'}
-                    </option>
-                    {implementingOffices.map((io) => (
-                      <option key={io.Id} value={io.Id}>
-                        {io.Name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reviewed By</label>
+              <Input
+                type="text"
+                value={reviewedBy}
+                onChange={(e) => setReviewedBy(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
           </div>
 
           <div className="mt-4">
