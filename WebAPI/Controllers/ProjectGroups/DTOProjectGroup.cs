@@ -6,7 +6,12 @@ using System.Security;
 
 namespace WebAPI.Controllers.ProjectGroup
 {
-    public class ShowProjectGroupDTO : EnumPagination<ShowProjectGroupFilterDTO> { }
+    public partial class ShowProjectGroupDTO : EnumPagination<ShowProjectGroupFilterDTO> { }
+    public partial class ShowProjectGroupDTO
+    {
+        public string? SortField { get; set; }
+        public string? sortDirection { get; set; }
+    }
     public class ShowProjectGroupFilterDTO
     {
         public string? UserGroupName { get; set; }
@@ -51,8 +56,8 @@ namespace WebAPI.Controllers.ProjectGroup
     }
     public class UpdateProjectGroupDetailsDTO
     {
-        //[Required]
-        //public DBHelper.Models.Views.Project.ProjectGroups GroupDetails { get; set; } = new DBHelper.Models.Views.ProjectGroups();
+        [Required]
+        public DBHelper.Models.Views.Project.ProjectGroups GroupDetails { get; set; } = new();
         [Required]
         public List<DBHelper.Models.Views.Project.ProjectsInGroup> Projects { get; set; } = new List<DBHelper.Models.Views.Project.ProjectsInGroup>();
     }

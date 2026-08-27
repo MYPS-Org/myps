@@ -27,7 +27,7 @@ namespace DBHelper.Models.Functions.Revision
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(20)]
+        [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]

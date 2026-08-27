@@ -1,470 +1,650 @@
-﻿//using Microsoft.AspNetCore.SignalR;
-//using DBHelper.Data;
-//using DBHelper.Models.Enums;
-//using DBHelper.Models.Table;
-//using DBHelper.Models.Views.Project;
-//using Helpers;
-//using Microsoft.AspNetCore.Authorization;
-//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.EntityFrameworkCore;
-//using Newtonsoft.Json;
-//using System.Reflection;
-//namespace WebAPI.Controllers.ProjectGroup
-//{
-//    [ApiController]
-//    [Route("api/[controller]/[action]")]
-//    public class ProjectGroupController : CoreController
-//    {
-//        public ProjectGroupController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma) : base(db, hub, pcma) { }
-//        #region Project Lists
-        
-//        [HttpPost]
-//        public async Task<IActionResult> ShowProjectGroups([FromBody] ShowProjectGroupDTO dto, CancellationToken cancellationToken)
-//        {
-//            try
-//            {
-//                if (dto.Filters == null)
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
-//                }
-//                if (!string.IsNullOrEmpty(dto.SortField))
-//                {
-//                    bool isValid = typeof(DBHelper.Models.Views.Project.ProjectGroups)
-//                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-//                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-//                    if (!isValid)
-//                    {
-//                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
-//                    }
-//                }
-//                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
+using DBHelper.Data;
+using DBHelper.Models.Enums;
+using DBHelper.Models.Table;
+using Helpers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
+using WebAPI.MicroService;
+using ProjectGroupTable = DBHelper.Models.Table.ProjectGroups;
 
-//                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-//                if (!isValidDirection)
-//                {
-//                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
-//                }
-//                // Validate pagination parameters
-//                if (dto.page < 1) dto.page = 1;
-//                if (dto.limit < 1) dto.limit = 10;
+namespace WebAPI.Controllers.ProjectGroup
+{
+    [ApiController]
+    [Route("api/[controller]/[action]")]
+    public class ProjectGroupController : CoreController
+    {
+        public ProjectGroupController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
-//                var baseQuery = _db.vProjectGroups.AsNoTracking();
+        [HttpPost]
+        public async Task<IActionResult> ShowProjectGroups([FromBody] ShowProjectGroupDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+                }
 
-//                // Apply filters to base query
-//                if (!string.IsNullOrEmpty(dto.Filters?.UserGroupName))
-//                    baseQuery = baseQuery.Where(e => e.UserGroupName!.Contains(dto.Filters.UserGroupName));
+                var filters = new List<(string Clause, string ParamName, object? Value)>();
 
-//                if (!string.IsNullOrEmpty(dto.Filters?.Name))
-//                    baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
+                if (!string.IsNullOrWhiteSpace(dto.Filters.UserGroupName))
+                {
+                    filters.Add((
+                        """
+                        EXISTS (
+                            SELECT 1
+                            FROM dbo.tGroups g
+                            WHERE g.Id = v.UserGroup
+                              AND g.GroupName LIKE @userGroupName
+                        )
+                        """,
+                        "@userGroupName",
+                        $"%{dto.Filters.UserGroupName.Trim()}%"));
+                }
 
-//                var SearchId = await _db.tProjectsInGroup.FirstOrDefaultAsync(x => x.ProjectId == dto.Filters!.ProjectId);
-//                if (SearchId != null)
-//                    baseQuery = baseQuery.Where(e => e.GroupId.Contains(SearchId.GroupId));
+                if (!string.IsNullOrWhiteSpace(dto.Filters.Name))
+                {
+                    filters.Add(("v.Name LIKE @name", "@name", $"%{dto.Filters.Name.Trim()}%"));
+                }
 
-//                // Get total count of filtered results (before pagination)
-//                var totalRecords = await baseQuery.CountAsync();
+                if (!string.IsNullOrWhiteSpace(dto.Filters.ProjectId))
+                {
+                    var projectKey = dto.Filters.ProjectId.Trim();
+                    filters.Add((
+                        """
+                        EXISTS (
+                            SELECT 1
+                            FROM dbo.tProjects p
+                            LEFT JOIN dbo.vProjectLatest vpl
+                                ON vpl.ProjectPK = p.ProjectPK
+                            WHERE p.ProjectGroupFK = v.Id
+                              AND (
+                                    p.ProjectPK = @projectId
+                                 OR vpl.ProjectPK = @projectId
+                                 OR vpl.ProjectId = @projectId
+                              )
+                        )
+                        """,
+                        "@projectId",
+                        projectKey));
+                }
 
-//                // Apply sorting and pagination
-//                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-//                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-//                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-//                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+                filters.Add(("ISNULL(v.IsDeleted, 0) = 0", "@isDeleted", null));
 
-//                // Apply pagination and execute query
-//                List<DBHelper.Models.Views.Project.ProjectGroups> permissionLists = await sortedQuery
-//                   .Skip((dto.page - 1) * dto.limit)
-//                   .Take(dto.limit)
-//                   .ToListAsync(cancellationToken);
+                FilterDataResult<ProjectGroupTable> result =
+                    await _db.FilterDataCursor<ProjectGroupTable, ShowProjectGroupFilterDTO>(
+                        tableName: "tProjectGroups",
+                        dto: dto,
+                        filter: filters,
+                        keyColumn: "Id",
+                        descending: true,
+                        includeTotal: true,
+                        ct: cancellationToken);
 
-//                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+                if (result.HasError)
+                {
+                    return new BadRequestObjectResult(new ErrorResult
+                    {
+                        Title = "Pagination error",
+                        Message = result.ErrorMessage ?? "Unable to retrieve the records."
+                    });
+                }
 
-//                var UserGroup = await _db.tGroups.ToListAsync(cancellationToken);
-//                return Ok(new
-//                {
-//                    lists = permissionLists,
-//                    dto.page,
-//                    dto.limit,
-//                    total = totalRecords,
-//                    totalPages,
-//                    Dropdowns = new
-//                    {
-//                        UserGroups = UserGroup
-//                    }
-//                });
-//            }
-//            catch (Exception ex)
-//            {
-//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
-//            }
-//        }
-//        #endregion
-//        #region Add Project Group
-        
-//        [HttpPost]
-//        public async Task<IActionResult> AddProjectGroup([FromBody] AddProjectGroupDTO dto, CancellationToken cancellationToken)
-//        {
-//            var transaction = await _db.Database.BeginTransactionAsync();
-//            try
-//            {
-//                var CheckName = await _db.tProjectGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
-//                if(CheckName != null)
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Project Group Name already exists.", Title = "Duplicate Name" });
-//                }
-//                string GroupId = $"PRG-{("tCountSequence").GenerateCode()}";
-//                var NewGroup = new ProjectGroups
-//                {
-//                    GroupId = GroupId,
-//                    Name = dto.Name,
-//                    Description = dto.Description,
-//                    UserGroup = dto.UserGroup,
-//                    CreatedBy = _Session.UserId ?? "TEST",
-//                    CreatedDate = Functions.CurrentDate()
-//                };
-//                await _db.tProjectGroups.AddAsync(NewGroup);
-//                await _db.SaveChangesAsync(cancellationToken);
-//                await transaction.CommitAsync();
-//                return Ok(new
-//                {
-//                    NewGroupId = NewGroup.GroupId,
-//                    Message = "Project Group added successfully",
-//                    Title = "Add Complete"
-//                });
-//            }
-//            catch (Exception ex)
-//            {
-//                await transaction.RollbackAsync(cancellationToken);
-//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
-//            }
-//        }
-//        #endregion
-//        #region Delete Project Group
-        
-//        [HttpPost]
-//        public async Task<IActionResult> DeleteProjectGroup([FromBody] DeleteProjectGroupDTO dto, CancellationToken cancellationToken)
-//        {
-//            var transaction = await _db.Database.BeginTransactionAsync();
-//            try
-//            {
-//                var CheckName = await _db.tProjectGroups.AsNoTracking().FirstOrDefaultAsync(x => x.GroupId == dto.GroupId);
-//                if (CheckName == null)
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
-//                }
-//                var ExistingProjects = await _db.tProjectsInGroup
-//                    .AsNoTracking()
-//                    .Where(x => x.GroupId == dto.GroupId)
-//                    .ToListAsync(cancellationToken);
-//                var transactionLogs = new List<TransactionLog>();
-//                DateTime CurrentDate = Functions.CurrentDate();;
-//                transactionLogs.Add(new TransactionLog
-//                {
-//                    TransactionId = dto.GroupId,
-//                    TypeOfTransaction = "Delete",
-//                    AffectedTable = "tProjectGroups",
-//                    AffectedColumn = "GroupId",
-//                    NewValue = "",
-//                    OldValue = JsonConvert.SerializeObject(CheckName),
-//                    CreatedBy = _Session.UserId,
-//                    CreatedDate = CurrentDate
-//                });
-//                _db.tProjectGroups.Remove(CheckName);
-//                if (ExistingProjects.Count > 0)
-//                {
-//                    foreach (var project in ExistingProjects)
-//                    {
-//                        transactionLogs.Add(new TransactionLog
-//                        {
-//                            TransactionId = dto.GroupId,
-//                            TypeOfTransaction = "Delete",
-//                            AffectedTable = "tProjectsInGroup",
-//                            AffectedColumn = "ProjectId",
-//                            NewValue = "",
-//                            OldValue = JsonConvert.SerializeObject(project),
-//                            CreatedBy = _Session.UserId,
-//                            CreatedDate = CurrentDate
-//                        });
-//                    }
-//                }
-//                _db.tProjectsInGroup.RemoveRange(ExistingProjects);
-//                await _db.tTransactionLog.AddRangeAsync(transactionLogs);
-//                await _db.SaveChangesAsync(cancellationToken);
-//                await transaction.CommitAsync();
-//                return Ok(new
-//                {
-//                    Message = "Project Group deleted successfully",
-//                    Title = "Delete Complete"
-//                });
-//            }
-//            catch (Exception ex)
-//            {
-//                await transaction.RollbackAsync(cancellationToken);
-//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
-//            }
-//        }
-//        #endregion
-//        #region Add Project
-        
-//        [HttpPost]
-//        public async Task<IActionResult> SearchProject([FromBody] SearchProjectDTO dto, CancellationToken cancellationToken)
-//        {
-//            try
-//            {
-//                var CheckName = await _db.vProjectsInGroup.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
-//                if (CheckName != null)
-//                {
-//                    return new BadRequestObjectResult(
-//                    new {
-//                        Title = "Project Already Grouped",
-//                        Message = "This project is already assigned to a group. Please remove it from the current group before reassigning."
-//                    });
-//                }
-//                var CheckProject = await _db.vProjectLatestStage.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
-//                if (CheckProject == null)
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Not Found" });
-//                }
-//                return Ok(new
-//                {
-//                    Project = CheckProject
-//                });
-//            }
-//            catch (Exception ex)
-//            {
-//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
-//            }
-//        }
-        
-//        [HttpPost]
-//        public async Task<IActionResult> AddProject([FromBody] ProjectGroupAddProjectDTO dto, CancellationToken cancellationToken)
-//        {
-//            var transaction = await _db.Database.BeginTransactionAsync();
-//            try
-//            {
-//                var CheckName = await _db.vProjectsInGroup.AsNoTracking().Where(x => dto.ProjectId.Contains(x.ProjectId)).ToListAsync(cancellationToken);
-//                if (CheckName.Count > 0)
-//                {
-//                    string joinedProjectIds = string.Join(", ", CheckName.Select(x => x.ProjectId));
-//                    return new BadRequestObjectResult(
-//                    new
-//                    {
-//                        Title = "Project Already Grouped",
-//                        Message = $"Projects {joinedProjectIds} is already assigned to a group. Please remove it from the current group before reassigning."
-//                    });
-//                }
-//                var CheckProjects = await _db.tProjects
-//                    .AsNoTracking()
-//                    .Where(x => dto.ProjectId.Contains(x.ReferenceId))
-//                    .ToListAsync(cancellationToken);
-//                var CheckMissingProjects = dto.ProjectId.Except(CheckProjects.Select(x => x.ReferenceId)).ToList();
-//                if (CheckMissingProjects.Count > 0)
-//                {
-//                    return new BadRequestObjectResult(new { Message = $"Projects {string.Join(", ", CheckMissingProjects)} not found.", Title = "Not Found" });
-//                }
-//                if (CheckProjects.Count < 1)
-//                {
-//                    return new BadRequestObjectResult(new { Message = $"No Projects found.", Title = "Not Found" });
-//                }
-//                await _db.tProjectsInGroup.AddRangeAsync(CheckProjects.Select(x =>
-//                {
-//                    return new DBHelper.Models.Table.ProjectsInGroup
-//                    {
-//                        GroupId = dto.GroupId,
-//                        ProjectId = x.ReferenceId,
-//                        CreatedBy = _Session.UserId ?? "TEST",
-//                        CreatedDate = Functions.CurrentDate()
-//                    };
-//                }));
-//                await _db.SaveChangesAsync(cancellationToken);
-//                await transaction.CommitAsync();
-//                return Ok(new
-//                {
-//                    Message = "Project(s) added to group successfully",
-//                    Title = "Add Complete"
-//                });
-//            }
-//            catch (Exception ex)
-//            {
-//                await transaction.RollbackAsync(cancellationToken);
-//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
-//            }
-//        }
-        
-//        [HttpPost]
-//        public async Task<IActionResult> DeleteProject([FromBody] ProjectGroupDeleteProjectDTO dto, CancellationToken cancellationToken)
-//        {
-//            var transaction = await _db.Database.BeginTransactionAsync();
-//            try
-//            {
-//                var CheckName = await _db.vProjectsInGroup.AsNoTracking().FirstOrDefaultAsync(x => dto.ProjectId == x.ProjectId);
-//                if (CheckName == null)
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Project not found in group.", Title = "Not Found" });
-//                }
-//                var CheckProjects = await _db.tProjects.AsNoTracking().FirstOrDefaultAsync(x => dto.ProjectId == x.ReferenceId);
-//                if (CheckProjects == null)
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Project not found. Please contact administrator.", Title = "Not Found" });
-//                }
-//                var ExistingProject = await _db.tProjectsInGroup
-//                    .AsNoTracking()
-//                    .FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
-//                await _db.tTransactionLog.AddAsync(new TransactionLog
-//                {
-//                    TransactionId = dto.ProjectId,
-//                    TypeOfTransaction = "Delete",
-//                    AffectedTable = "tProjectsInGroup",
-//                    AffectedColumn = "Row",
-//                    NewValue = "",
-//                    OldValue = JsonConvert.SerializeObject(ExistingProject),
-//                    CreatedBy = _Session.UserId,
-//                    CreatedDate = Functions.CurrentDate()
-//                });
-//                _db.tProjectsInGroup.Remove(ExistingProject!);
-//                await _db.SaveChangesAsync(cancellationToken);
-//                await transaction.CommitAsync();
-//                return Ok(new
-//                {
-//                    Message = "Project removed from group successfully",
-//                    Title = "Delete Complete"
-//                });
-//            }
-//            catch (Exception ex)
-//            {
-//                await transaction.RollbackAsync(cancellationToken);
-//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
-//            }
-//        }
-//        #endregion
-//        #region Project Group Details
+                var userGroups = await _db.tGroups.AsNoTracking().ToListAsync(cancellationToken);
+                var pageGroupIds = result.Data.lists.Select(x => x.Id).ToArray();
+                var projectCounts = await _db.tProjects
+                    .AsNoTracking()
+                    .Where(x => x.ProjectGroupFK != null && pageGroupIds.Contains(x.ProjectGroupFK.Value))
+                    .GroupBy(x => x.ProjectGroupFK!.Value)
+                    .Select(x => new { GroupId = x.Key, Count = x.Count() })
+                    .ToDictionaryAsync(x => x.GroupId, x => x.Count, cancellationToken);
 
-//        [HttpPost]
-//        public async Task<IActionResult> ProjectGroupDetails([FromBody] ShowProjectGroupDetailsDTO dto, CancellationToken cancellationToken)
-//        {
-//            try
-//            {
-//                if (string.IsNullOrEmpty(dto.GroupId))
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
-//                }
-//                var GroupDetail = await _db.vProjectGroups
-//                    .AsNoTracking()
-//                    .FirstOrDefaultAsync(x => x.GroupId == dto.GroupId);
-//                if (GroupDetail == null)
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
-//                }
-//                var ProjectDetails = await _db.tProjectsInGroup.AsNoTracking().Where(x => x.GroupId == dto.GroupId).Select(x => x.ProjectId).ToListAsync(cancellationToken);
-//                var ProjectList = await _db.vProjectLatestStage
-//                    .AsNoTracking()
-//                    .Where(x => ProjectDetails.Contains(x.ProjectId))
-//                    .ToListAsync(cancellationToken);
-//                var UserGroup = await _db.tGroups.ToListAsync(cancellationToken);
-//                return Ok(new
-//                {
-//                    GroupDetails = GroupDetail,
-//                    Projects = ProjectList,
-//                    UserGroups = UserGroup
-//                });
-//            }
-//            catch (Exception ex)
-//            {
-//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
-//            }
-//        }
-        
-//        [HttpPost]
-//        public async Task<IActionResult> UpdateProjectGroupDetails([FromBody] UpdateProjectGroupDetailsDTO dto, CancellationToken cancellationToken)
-//        {
-//            try
-//            {
-//                if (string.IsNullOrEmpty(dto.GroupDetails.GroupId))
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
-//                }
-//                var GroupDetail = await _db.tProjectGroups
-//                    .AsNoTracking()
-//                    .FirstOrDefaultAsync(x => x.GroupId == dto.GroupDetails.GroupId);
-//                if (GroupDetail == null)
-//                {
-//                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
-//                }
-//                var transactionLogs = new List<TransactionLog>();
-//                DateTime CurrentDate = Functions.CurrentDate();;
-//                #region Update Group Details
-//                bool hasChangesInDetails = false;
-//                if (GroupDetail.Description != dto.GroupDetails.Description)
-//                {
-//                    hasChangesInDetails = true;
-//                    transactionLogs.Add(new TransactionLog
-//                    {
-//                        TransactionId = GroupDetail.GroupId!,
-//                        TypeOfTransaction = "Update",
-//                        AffectedTable = "tProjectGroups",
-//                        AffectedColumn = "Details",
-//                        NewValue = dto.GroupDetails.Description!,
-//                        OldValue = GroupDetail.Description ?? "",
-//                        CreatedBy = _Session.UserId,
-//                        CreatedDate = CurrentDate
-//                    });
-//                    GroupDetail.Description = dto.GroupDetails!.Description;
-//                }
-//                if(GroupDetail.Name != dto.GroupDetails.Name)
-//                {
-//                    hasChangesInDetails = true;
-//                    transactionLogs.Add(new TransactionLog
-//                    {
-//                        TransactionId = GroupDetail.GroupId!,
-//                        TypeOfTransaction = "Update",
-//                        AffectedTable = "tProjectGroups",
-//                        AffectedColumn = "Name",
-//                        NewValue = dto.GroupDetails.Name!,
-//                        OldValue = GroupDetail.Name,
-//                        CreatedBy = _Session.UserId,
-//                        CreatedDate = CurrentDate
-//                    });
-//                    GroupDetail.Name = dto.GroupDetails!.Name;
-//                }
-//                if (GroupDetail.UserGroup != dto.GroupDetails.UserGroup)
-//                {
-//                    var SelectedGroup = await _db.tGroups
-//                        .AsNoTracking()
-//                        .FirstOrDefaultAsync(x => x.Id == dto.GroupDetails.UserGroup);
-//                    var OldGroup = await _db.tGroups
-//                        .AsNoTracking()
-//                        .FirstOrDefaultAsync(x => x.Id == GroupDetail.UserGroup);
-//                    hasChangesInDetails = true;
-//                    transactionLogs.Add(new TransactionLog
-//                    {
-//                        TransactionId = GroupDetail.GroupId!,
-//                        TypeOfTransaction = "Update",
-//                        AffectedTable = "tProjectGroups",
-//                        AffectedColumn = "UserGroup",
-//                        NewValue = SelectedGroup?.GroupName!,
-//                        OldValue = OldGroup?.GroupName ?? "",
-//                        CreatedBy = _Session.UserId,
-//                        CreatedDate = CurrentDate
-//                    });
-//                    GroupDetail.UserGroup = dto.GroupDetails!.UserGroup;
-//                }
-//                #endregion
-//                if (hasChangesInDetails)
-//                {
-//                    if (hasChangesInDetails) { _db.tProjectGroups.Update(GroupDetail); }
-//                    await _db.tTransactionLog.AddRangeAsync(transactionLogs);
-//                    await _db.SaveChangesAsync(cancellationToken);
-//                }
-//                return Ok(new
-//                {
-//                    Message = $"Project Group {dto.GroupDetails.GroupId} updated successfully.",
-//                    Title = "Update Complete"
-//                });
-//            }
-//            catch (Exception ex)
-//            {
-//                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
-//            }
-//        }
-//        #endregion
-//    }
-//}
+                var lists = result.Data.lists.Select(group =>
+                {
+                    var userGroupName = userGroups.FirstOrDefault(x => x.Id == group.UserGroup)?.GroupName;
+                    return ToProjectGroupResponse(group, userGroupName, projectCounts.GetValueOrDefault(group.Id));
+                }).ToList();
+
+                return Ok(new
+                {
+                    lists,
+                    result.Data.page,
+                    result.Data.limit,
+                    result.Data.total,
+                    result.Data.totalPages,
+                    result.Data.PreviousFilteredId,
+                    result.Data.NextFilteredId,
+                    result.Data.HasPrevious,
+                    result.Data.HasNext,
+                    result.Data.PageCursorId,
+                    Dropdowns = new
+                    {
+                        UserGroups = userGroups
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddProjectGroup([FromBody] AddProjectGroupDTO dto, CancellationToken cancellationToken)
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var normalizedName = dto.Name?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(normalizedName))
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group Name is required.", Title = "Parameter Error" });
+                }
+
+                var selectedUserGroup = await _db.tGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.UserGroup, cancellationToken);
+                if (selectedUserGroup == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Selected user group not found.", Title = "Not Found" });
+                }
+
+                var duplicateName = await _db.tProjectGroups
+                    .AsNoTracking()
+                    .AnyAsync(x => x.Name == normalizedName, cancellationToken);
+                if (duplicateName)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group Name already exists.", Title = "Duplicate Name" });
+                }
+
+                var newGroup = new ProjectGroupTable
+                {
+                    Name = normalizedName,
+                    Description = dto.Description?.Trim(),
+                    UserGroup = dto.UserGroup,
+                    IsDeleted = false,
+                    CreatedBy = _Session.UserId ?? string.Empty,
+                    CreatedDate = Functions.CurrentDate()
+                };
+
+                await _db.tProjectGroups.AddAsync(newGroup, cancellationToken);
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                return Ok(new
+                {
+                    NewGroupId = newGroup.Id.ToString(),
+                    Message = "Project Group added successfully",
+                    Title = "Add Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteProjectGroup([FromBody] DeleteProjectGroupDTO dto, CancellationToken cancellationToken)
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                if (!TryParseGroupId(dto.GroupId, out var groupId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Invalid Project Group ID.", Title = "Parameter Error" });
+                }
+
+                var group = await _db.tProjectGroups.FirstOrDefaultAsync(x => x.Id == groupId && !x.IsDeleted, cancellationToken);
+                if (group == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
+                }
+
+                var existingProjects = await _db.tProjects.Where(x => x.ProjectGroupFK == groupId).ToListAsync(cancellationToken);
+                var transactionLogs = new List<TransactionLog>();
+                var currentDate = Functions.CurrentDate();
+
+                transactionLogs.Add(new TransactionLog
+                {
+                    ReferenceId = group.Id.ToString(),
+                    TransactionType = EnumTransactionType.Delete.ToString(),
+                    AffectedTable = "tProjectGroups",
+                    AffectedColumn = "IsDeleted",
+                    NewValue = "True",
+                    OldValue = JsonConvert.SerializeObject(group),
+                    CreatedBy = _Session.UserId ?? string.Empty,
+                    Hostname = Environment.MachineName,
+                    CreatedDate = currentDate
+                });
+
+                foreach (var project in existingProjects)
+                {
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        ReferenceId = project.ProjectPK,
+                        TransactionType = EnumTransactionType.Update.ToString(),
+                        AffectedTable = "tProjects",
+                        AffectedColumn = "ProjectGroupFK",
+                        NewValue = string.Empty,
+                        OldValue = group.Id.ToString(),
+                        CreatedBy = _Session.UserId ?? string.Empty,
+                        Hostname = Environment.MachineName,
+                        CreatedDate = currentDate
+                    });
+                    project.ProjectGroupFK = null;
+                }
+
+                group.IsDeleted = true;
+                group.UpdatedBy = _Session.UserId ?? string.Empty;
+                group.UpdatedDate = currentDate;
+
+                await _db.tTransactionLog.AddRangeAsync(transactionLogs, cancellationToken);
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                return Ok(new
+                {
+                    Message = "Project Group deleted successfully",
+                    Title = "Delete Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SearchProject([FromBody] SearchProjectDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var projectId = dto.ProjectId?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(projectId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Project ID is required.", Title = "Parameter Error" });
+                }
+
+                var project = await _db.vProjectLatest
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ProjectId == projectId || x.ProjectPK == projectId, cancellationToken);
+
+                if (project == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Not Found" });
+                }
+
+                var sourceProject = await _db.tProjects
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ProjectPK == project.ProjectPK, cancellationToken);
+
+                if (sourceProject?.ProjectGroupFK != null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Project Already Grouped",
+                        Message = "This project is already assigned to a group. Please remove it from the current group before reassigning."
+                    });
+                }
+
+                return Ok(new { Project = project });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddProject([FromBody] ProjectGroupAddProjectDTO dto, CancellationToken cancellationToken)
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                if (!TryParseGroupId(dto.GroupId, out var groupId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Invalid Project Group ID.", Title = "Parameter Error" });
+                }
+
+                var group = await _db.tProjectGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == groupId && !x.IsDeleted, cancellationToken);
+                if (group == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
+                }
+
+                var requestedProjectIds = dto.ProjectId
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+                if (requestedProjectIds.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "No Projects selected.", Title = "Parameter Error" });
+                }
+
+                var projects = await _db.vProjectLatest
+                    .AsNoTracking()
+                    .Where(x => requestedProjectIds.Contains(x.ProjectId) || requestedProjectIds.Contains(x.ProjectPK))
+                    .ToListAsync(cancellationToken);
+
+                var missingProjects = requestedProjectIds
+                    .Where(id => !projects.Any(p =>
+                        string.Equals(p.ProjectId, id, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(p.ProjectPK, id, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+
+                if (missingProjects.Count > 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Projects {string.Join(", ", missingProjects)} not found.", Title = "Not Found" });
+                }
+
+                var resolvedProjectPks = projects.Select(x => x.ProjectPK).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                var projectRows = await _db.tProjects
+                    .Where(x => resolvedProjectPks.Contains(x.ProjectPK))
+                    .ToListAsync(cancellationToken);
+
+                var alreadyGrouped = projectRows.Where(x => x.ProjectGroupFK != null).ToList();
+                if (alreadyGrouped.Count > 0)
+                {
+                    var joinedProjectIds = string.Join(", ", alreadyGrouped.Select(x => x.ProjectPK));
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Project Already Grouped",
+                        Message = $"Projects {joinedProjectIds} are already assigned to a group. Please remove them from the current group before reassigning."
+                    });
+                }
+
+                var currentDate = Functions.CurrentDate();
+                var transactionLogs = new List<TransactionLog>();
+                foreach (var project in projectRows)
+                {
+                    project.ProjectGroupFK = group.Id;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        ReferenceId = project.ProjectPK,
+                        TransactionType = EnumTransactionType.Update.ToString(),
+                        AffectedTable = "tProjects",
+                        AffectedColumn = "ProjectGroupFK",
+                        NewValue = group.Id.ToString(),
+                        OldValue = string.Empty,
+                        CreatedBy = _Session.UserId ?? string.Empty,
+                        Hostname = Environment.MachineName,
+                        CreatedDate = currentDate
+                    });
+                }
+
+                await _db.tTransactionLog.AddRangeAsync(transactionLogs, cancellationToken);
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                return Ok(new
+                {
+                    Message = "Project(s) added to group successfully",
+                    Title = "Add Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteProject([FromBody] ProjectGroupDeleteProjectDTO dto, CancellationToken cancellationToken)
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var projectId = dto.ProjectId?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(projectId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Project ID is required.", Title = "Parameter Error" });
+                }
+
+                var latestProject = await _db.vProjectLatest
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ProjectId == projectId || x.ProjectPK == projectId, cancellationToken);
+
+                if (latestProject == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Not Found" });
+                }
+
+                var existingProject = await _db.tProjects.FirstOrDefaultAsync(x => x.ProjectPK == latestProject.ProjectPK, cancellationToken);
+                if (existingProject?.ProjectGroupFK == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found in group.", Title = "Not Found" });
+                }
+
+                var currentDate = Functions.CurrentDate();
+                await _db.tTransactionLog.AddAsync(new TransactionLog
+                {
+                    ReferenceId = existingProject.ProjectPK,
+                    TransactionType = EnumTransactionType.Update.ToString(),
+                    AffectedTable = "tProjects",
+                    AffectedColumn = "ProjectGroupFK",
+                    NewValue = string.Empty,
+                    OldValue = existingProject.ProjectGroupFK.Value.ToString(),
+                    CreatedBy = _Session.UserId ?? string.Empty,
+                    Hostname = Environment.MachineName,
+                    CreatedDate = currentDate
+                }, cancellationToken);
+
+                existingProject.ProjectGroupFK = null;
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                return Ok(new
+                {
+                    Message = "Project removed from group successfully",
+                    Title = "Delete Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ProjectGroupDetails([FromBody] ShowProjectGroupDetailsDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (!TryParseGroupId(dto.GroupId, out var groupId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Invalid Project Group ID.", Title = "Parameter Error" });
+                }
+
+                var groupDetail = await _db.tProjectGroups
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == groupId && !x.IsDeleted, cancellationToken);
+
+                if (groupDetail == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
+                }
+
+                var projectKeys = await _db.tProjects
+                    .AsNoTracking()
+                    .Where(x => x.ProjectGroupFK == groupId)
+                    .Select(x => x.ProjectPK)
+                    .ToListAsync(cancellationToken);
+
+                var projectList = await _db.vProjectLatest
+                    .AsNoTracking()
+                    .Where(x => projectKeys.Contains(x.ProjectPK))
+                    .ToListAsync(cancellationToken);
+
+                var userGroups = await _db.tGroups.AsNoTracking().ToListAsync(cancellationToken);
+
+                return Ok(new
+                {
+                    GroupDetails = ToProjectGroupResponse(groupDetail, userGroups.FirstOrDefault(x => x.Id == groupDetail.UserGroup)?.GroupName, projectKeys.Count),
+                    Projects = projectList,
+                    UserGroups = userGroups
+                });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateProjectGroupDetails([FromBody] UpdateProjectGroupDetailsDTO dto, CancellationToken cancellationToken)
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                if (dto.GroupDetails == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+                }
+
+                var requestedGroupId = !string.IsNullOrWhiteSpace(dto.GroupDetails.GroupId)
+                    ? dto.GroupDetails.GroupId
+                    : dto.GroupDetails.Id.ToString();
+
+                if (!TryParseGroupId(requestedGroupId, out var groupId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Invalid Project Group ID.", Title = "Parameter Error" });
+                }
+
+                var groupDetail = await _db.tProjectGroups.FirstOrDefaultAsync(x => x.Id == groupId && !x.IsDeleted, cancellationToken);
+                if (groupDetail == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
+                }
+
+                var transactionLogs = new List<TransactionLog>();
+                var currentDate = Functions.CurrentDate();
+                var newDescription = dto.GroupDetails.Description?.Trim();
+                var newName = dto.GroupDetails.Name?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(newName))
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group Name is required.", Title = "Parameter Error" });
+                }
+
+                if (groupDetail.Description != newDescription)
+                {
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        ReferenceId = groupDetail.Id.ToString(),
+                        TransactionType = EnumTransactionType.Update.ToString(),
+                        AffectedTable = "tProjectGroups",
+                        AffectedColumn = "Description",
+                        NewValue = newDescription ?? string.Empty,
+                        OldValue = groupDetail.Description ?? string.Empty,
+                        CreatedBy = _Session.UserId ?? string.Empty,
+                        Hostname = Environment.MachineName,
+                        CreatedDate = currentDate
+                    });
+                    groupDetail.Description = newDescription;
+                }
+
+                if (groupDetail.Name != newName)
+                {
+                    var duplicateName = await _db.tProjectGroups
+                        .AsNoTracking()
+                        .AnyAsync(x => x.Id != groupDetail.Id && x.Name == newName, cancellationToken);
+
+                    if (duplicateName)
+                    {
+                        return new BadRequestObjectResult(new { Message = "Project Group Name already exists.", Title = "Duplicate Name" });
+                    }
+
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        ReferenceId = groupDetail.Id.ToString(),
+                        TransactionType = EnumTransactionType.Update.ToString(),
+                        AffectedTable = "tProjectGroups",
+                        AffectedColumn = "Name",
+                        NewValue = newName,
+                        OldValue = groupDetail.Name,
+                        CreatedBy = _Session.UserId ?? string.Empty,
+                        Hostname = Environment.MachineName,
+                        CreatedDate = currentDate
+                    });
+                    groupDetail.Name = newName;
+                }
+
+                if (groupDetail.UserGroup != dto.GroupDetails.UserGroup)
+                {
+                    var selectedGroup = await _db.tGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.GroupDetails.UserGroup, cancellationToken);
+                    if (selectedGroup == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = "Selected user group not found.", Title = "Not Found" });
+                    }
+
+                    var oldGroup = await _db.tGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == groupDetail.UserGroup, cancellationToken);
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        ReferenceId = groupDetail.Id.ToString(),
+                        TransactionType = EnumTransactionType.Update.ToString(),
+                        AffectedTable = "tProjectGroups",
+                        AffectedColumn = "UserGroup",
+                        NewValue = selectedGroup.GroupName ?? string.Empty,
+                        OldValue = oldGroup?.GroupName ?? string.Empty,
+                        CreatedBy = _Session.UserId ?? string.Empty,
+                        Hostname = Environment.MachineName,
+                        CreatedDate = currentDate
+                    });
+                    groupDetail.UserGroup = dto.GroupDetails.UserGroup;
+                }
+
+                if (transactionLogs.Count > 0)
+                {
+                    groupDetail.UpdatedBy = _Session.UserId ?? string.Empty;
+                    groupDetail.UpdatedDate = currentDate;
+                    await _db.tTransactionLog.AddRangeAsync(transactionLogs, cancellationToken);
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+
+                return Ok(new
+                {
+                    Message = $"Project Group {groupDetail.Id} updated successfully.",
+                    Title = "Update Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+        }
+
+        private static bool TryParseGroupId(string? value, out int groupId)
+        {
+            groupId = 0;
+            return !string.IsNullOrWhiteSpace(value) && int.TryParse(value.Trim(), out groupId) && groupId > 0;
+        }
+
+        private static object ToProjectGroupResponse(ProjectGroupTable group, string? userGroupName, int numberOfProjects)
+        {
+            return new
+            {
+                group.Id,
+                GroupId = group.Id.ToString(),
+                group.Name,
+                group.Description,
+                group.UserGroup,
+                UserGroupName = userGroupName ?? string.Empty,
+                NumberOfProjects = numberOfProjects,
+                group.CreatedBy,
+                group.CreatedDate,
+                group.UpdatedBy,
+                group.UpdatedDate
+            };
+        }
+    }
+}
+
