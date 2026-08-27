@@ -16,12 +16,6 @@ export interface ProjectGroupFilter {
 	ProjectId?: string;
 }
 
-export interface ProjectGroupPagination extends PaginationParams {
-    filters?: ProjectGroupFilter;
-    sortField?: string;
-    sortDirection?: 0 | 1;
-}
-
 export interface AddProjectGroupModel {
     NewGroupId?: string;
     Name: string;
