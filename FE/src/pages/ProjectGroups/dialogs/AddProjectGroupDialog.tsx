@@ -10,6 +10,7 @@ import type { AddProjectGroupModel, UserGroups } from '../Model';
 import { addProjectGroup } from '../Service';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
 import { projectGroupFormRules } from '../rules/projectGroupRules';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddProjectGroupDialogProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ const AddProjectGroupDialog: React.FC<AddProjectGroupDialogProps> = ({
   dropdownData
 }) => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
     Name: '',
@@ -45,6 +47,16 @@ const AddProjectGroupDialog: React.FC<AddProjectGroupDialogProps> = ({
     return;
     }
 
+    if (formData.Name.length > 200) {
+      showToast({ type: 'error', message: 'Project Group Name cannot exceed 200 characters.' });
+      return;
+    }
+
+    if (formData.Description.length > 500) {
+      showToast({ type: 'error', message: 'Description cannot exceed 500 characters.' });
+      return;
+    }
+
     try {
         const response = await addProjectGroup(formData);
         if (response) {
@@ -54,8 +66,7 @@ const AddProjectGroupDialog: React.FC<AddProjectGroupDialogProps> = ({
         }
     } catch (error) {
       console.error('Error submitting project group:', error);
-      alert('Failed to add project group. Please try again.');
-      handleClose(); // Reset the form even if submission fails
+      // httpClient interceptor already showed the API error toast
     }
   };
 
@@ -104,6 +115,7 @@ const AddProjectGroupDialog: React.FC<AddProjectGroupDialogProps> = ({
               type="text"
               value={formData.Name}
               onChange={(e) => handleChange('Name', e.target.value)}
+              maxLength={200}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 ${errors.Name ? 'border-red-500' : ''}`}
             //   required
             />
@@ -114,6 +126,7 @@ const AddProjectGroupDialog: React.FC<AddProjectGroupDialogProps> = ({
               id="description"
               value={formData.Description}
               onChange={(e) => handleChange('Description', e.target.value)}
+              maxLength={500}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 ${errors.Description ? 'border-red-500' : ''}`}
               rows={3}
             //   required

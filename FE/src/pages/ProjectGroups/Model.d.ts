@@ -48,6 +48,7 @@ export interface ProjectList {
 	RevisionNumber?: number;
 	Description?: string;
 	Category?: number;
+	CategoryName?: string;
 	Thrust?: number;
 	Origin?: number;
 	City?: number;

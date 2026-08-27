@@ -8,6 +8,7 @@ import { fetchProjectGroupByName, updateProjectGroup  } from '../Service';
 import { AddProjectDialog, DeleteProjectDialog} from '../dialogs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import { useToast } from '../../../components/toaster/ToasterContext';
 // import { editProjectGroup, fetchProjectGroupByName } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -15,6 +16,7 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 const ProjectGroupDetails: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [projectGroupDetails, setProjectGroupDetails] = useState<ProjectGroupDetailsModel>({
     GroupDetails: {
         Id: 0,
@@ -110,14 +112,27 @@ const ProjectGroupDetails: React.FC = () => {
   };
 
   const handleUpdate = async () => {
+    if (!formData.GroupDetails.Name?.trim()) {
+      showToast({ type: 'error', message: 'Project Group Name is required.' });
+      return;
+    }
+
+    if (formData.GroupDetails.Name.length > 200) {
+      showToast({ type: 'error', message: 'Project Group Name cannot exceed 200 characters.' });
+      return;
+    }
+
+    if ((formData.GroupDetails.Description?.length ?? 0) > 500) {
+      showToast({ type: 'error', message: 'Description cannot exceed 500 characters.' });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // await editProgram(programEnums?.Details);
-      console.log('Update program details');
       await updateProjectGroup(formData);
-      // handleReset();
     } catch (error) {
       console.error('Error updating program details:', error);
+      // httpClient interceptor already showed the API error toast
     } finally {
       setIsLoading(false);
     }
@@ -205,6 +220,7 @@ const ProjectGroupDetails: React.FC = () => {
                     type="text"
                     onChange={(e) => handleChange('Name', e.target.value)}
                     value={formData?.GroupDetails?.Name}
+                    maxLength={200}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                     />
                 </div>
@@ -216,6 +232,7 @@ const ProjectGroupDetails: React.FC = () => {
                       <textarea name="" id=""
                           onChange={(e) => handleChange('Description', e.target.value)}
                           value={formData?.GroupDetails?.Description}
+                          maxLength={500}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                       ></textarea>
                   </div>
@@ -285,31 +302,10 @@ const ProjectGroupDetails: React.FC = () => {
                       Description
                       </TableHeader>
                       <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Origin
-                      </TableHeader>
-                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      City
-                      </TableHeader>
-                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Legislative District
-                      </TableHeader>
-                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Operating Unit
-                      </TableHeader>
-                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Implementing Office
                       </TableHeader>
                       <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      DEO
-                      </TableHeader>
-                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Region
-                      </TableHeader>
-                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Agency
-                      </TableHeader>
-                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created By
                       </TableHeader>
                       <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created Date
@@ -328,37 +324,16 @@ const ProjectGroupDetails: React.FC = () => {
                           </button>
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {project.Category}
+                          {project.CategoryName || project.Category}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {project.Description}
-                      </TableCell>
-                      <TableCell className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                          {project.Origin}
-                      </TableCell>
-                      <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {project.City}
-                      </TableCell>
-                      <TableCell className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                          {project.LegislativeDistrict}
-                      </TableCell>
-                      <TableCell>
-                          {project.OperatingUnit}
                       </TableCell>
                       <TableCell>
                           {project.ImplementingOffice}
                       </TableCell>
                       <TableCell>
-                          {project.DEO}
-                      </TableCell>
-                      <TableCell>
                           {project.Region}
-                      </TableCell>
-                      <TableCell>
-                          {project.Agency}
-                      </TableCell>
-                      <TableCell>
-                          {project.CreatedBy}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {project.CreatedDate ? project.CreatedDate.StringToDate() : ''}
