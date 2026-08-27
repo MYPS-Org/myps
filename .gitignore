@@ -385,3 +385,8 @@ e2e/playwright-report/
 e2e/.env
 # generated report output (runtime temp folder)
 Main/Resources/Reports/*.pdf
+
+# runtime-uploaded files (Notes, SupportingDocs, Revision documents, etc.) —
+# 157 pre-existing files under this tree are already tracked and unaffected;
+# this only stops future uploads from being committed
+Main/Resources/UploadedFiles/

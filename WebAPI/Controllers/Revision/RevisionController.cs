@@ -1862,8 +1862,8 @@ namespace WebAPI.Controllers.Revision
                     await _db.tRevisionApprovals.AddAsync(Approval, cancellationToken);
                 }
                 Approval.Status = 1;
-                Approval.Approver = null;
-                Approval.ApprovedDate = null;
+                Approval.Approver = _Session.UserId;
+                Approval.ApprovedDate = CurrentDate;
                 Approval.LastUpdatedDate = CurrentDate;
                 if (HasExistingApproval)
                 {
