@@ -6,12 +6,7 @@ using System.Security;
 
 namespace WebAPI.Controllers.ProjectGroup
 {
-    public partial class ShowProjectGroupDTO : EnumPagination<ShowProjectGroupFilterDTO> { }
-    public partial class ShowProjectGroupDTO
-    {
-        public string? SortField { get; set; }
-        public string? sortDirection { get; set; }
-    }
+    public class ShowProjectGroupDTO : EnumPagination<ShowProjectGroupFilterDTO> { }
     public class ShowProjectGroupFilterDTO
     {
         public string? UserGroupName { get; set; }
@@ -21,8 +16,10 @@ namespace WebAPI.Controllers.ProjectGroup
     public class AddProjectGroupDTO
     {
         [Required]
+        [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         [Required]
+        [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
         [Required]
         public int UserGroup { get; set; }

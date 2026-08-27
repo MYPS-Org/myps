@@ -72,8 +72,6 @@ const ProjectGroup: React.FC = () => {
                 Name: '',
                 UserGroupName: '',
             },
-            sortField: '',
-            sortDirection: 1,
             page: 1,
             limit: 20
         });

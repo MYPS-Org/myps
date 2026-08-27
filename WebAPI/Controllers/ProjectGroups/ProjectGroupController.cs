@@ -532,6 +532,16 @@ namespace WebAPI.Controllers.ProjectGroup
                     return new BadRequestObjectResult(new { Message = "Project Group Name is required.", Title = "Parameter Error" });
                 }
 
+                if (newName.Length > 200)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group Name cannot exceed 200 characters.", Title = "Parameter Error" });
+                }
+
+                if (newDescription?.Length > 500)
+                {
+                    return new BadRequestObjectResult(new { Message = "Description cannot exceed 500 characters.", Title = "Parameter Error" });
+                }
+
                 if (groupDetail.Description != newDescription)
                 {
                     transactionLogs.Add(new TransactionLog
