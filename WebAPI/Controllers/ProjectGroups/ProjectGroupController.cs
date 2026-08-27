@@ -71,7 +71,7 @@ namespace WebAPI.Controllers.ProjectGroup
                         projectKey));
                 }
 
-                filters.Add(("ISNULL(v.IsDeleted, 0) = 0", "@isDeleted", null));
+                filters.Add(("ISNULL(v.IsDeleted, 0) = @isDeleted", "@isDeleted", false));
 
                 FilterDataResult<ProjectGroupTable> result =
                     await _db.FilterDataCursor<ProjectGroupTable, ShowProjectGroupFilterDTO>(

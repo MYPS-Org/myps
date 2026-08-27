@@ -532,13 +532,13 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
 
-                var HasPendingModification = await _db.fRevisionQueue
-                    .FromSqlInterpolated($"SELECT * FROM fRevisionQueue({"IO"},{isROUser},{isCOUser}) v WHERE v.TransactionId LIKE {dto.ProjectId + "-%"}")
+                var HasPendingModification = await _db.fOpenRevision
+                    .FromSqlInterpolated($"SELECT * FROM fOpenRevision({ProjectFK})")
                     .AsNoTracking()
                     .FirstOrDefaultAsync(cancellationToken);
                 if (HasPendingModification != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionType} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                    return new BadRequestObjectResult(new { Message = $"There is an open revision request for this project. Transaction ID: {HasPendingModification.TransactionId}. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 #region Validate PCMA Status
                 if (ComponentCost == null)
@@ -870,7 +870,7 @@ namespace WebAPI.Controllers.Revision
                 // ("Terminated project but balance of work to be continued as another project")
                 // needs a successor project identity -- that fork happens in ApproveRevision on
                 // approval, not here at request time; this request just submits normally.
-                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
+                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().Where(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId).OrderBy(x => x.Id).FirstOrDefaultAsync();
                 if (DocumentNaming == null)
                 {
                     await transaction.RollbackAsync(cancellationToken);
@@ -1881,7 +1881,7 @@ namespace WebAPI.Controllers.Revision
                     int? CategoryId = RevisionRoot.CategoryId;
                     int ReasonId = RevisionRoot.ReasonId;
                     #region Document validation
-                    var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == CategoryId) || x.RevisionGroupId == RevisionGroupId);
+                    var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().Where(x => (x.CategoryId != null && x.CategoryId == CategoryId) || x.RevisionGroupId == RevisionGroupId).OrderBy(x => x.Id).FirstOrDefaultAsync();
                     if (DocumentNaming == null)
                     {
                         return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
@@ -2566,7 +2566,7 @@ namespace WebAPI.Controllers.Revision
                 // ("Terminated project but balance of work to be continued as another project")
                 // needs a successor project identity -- that fork happens in ApproveRevision on
                 // approval, not here at request time; this request just submits normally.
-                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
+                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().Where(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId).OrderBy(x => x.Id).FirstOrDefaultAsync();
                 if (DocumentNaming == null)
                 {
                     await transaction.RollbackAsync(cancellationToken);
@@ -3811,7 +3811,7 @@ namespace WebAPI.Controllers.Revision
                 //    x.LastUpdatedDate = CurrentDate;
                 //});
                 string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
-                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.RevisionDetailFK == ExistingRevision.Id && DocumentName.Contains(x.DocumentName)).Count() + 1;
+                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.RevisionDetailFK == ExistingRevision.Id && x.DocumentName.StartsWith(DocumentName)).Count() + 1;
                 string NewDocName = $"{DocumentName}-{NewUploadedDocument}.{dto.RevisionDetails.ApprovedDocument.Extension}";
                 string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, NewDocName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
