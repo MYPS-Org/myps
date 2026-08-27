@@ -9,45 +9,67 @@ public enum ReportFamily
 
 public static class ReportCatalog
 {
-    public static IReadOnlyList<ReportTypeOptionDTO> SupportedReports { get; } =
-    [
-        new ReportTypeOptionDTO
+    public static IReadOnlyList<ReportTypeOptionDTO> SupportedReports { get; } = BuildSupportedReports();
+
+    private static IReadOnlyList<ReportTypeOptionDTO> BuildSupportedReports()
+    {
+        var reports = new List<ReportTypeOptionDTO>
         {
-            Id = "rbp",
-            Label = "RBP (Regional Budget Proposal)",
-            OutputFormat = "pdf"
-        },
-        new ReportTypeOptionDTO
+            new()
+            {
+                Id = "rbp",
+                Label = "RBP (Regional Budget Proposal)",
+                OutputFormat = "pdf"
+            },
+            new()
+            {
+                Id = "extract-pcmiow",
+                Label = "Extract PCMIOW",
+                OutputFormat = "xlsx"
+            },
+            new()
+            {
+                Id = "aip-official",
+                Label = "AIP Official",
+                OutputFormat = "pdf"
+            },
+            new()
+            {
+                Id = "aip-executive",
+                Label = "AIP Executive",
+                OutputFormat = "pdf"
+            },
+            new()
+            {
+                Id = "aip-official-without-ld",
+                Label = "AIP Official without LD",
+                OutputFormat = "pdf"
+            },
+            new()
+            {
+                Id = "aip-executive-2",
+                Label = "AIP Executive 2",
+                OutputFormat = "pdf"
+            }
+        };
+
+        foreach (var report in reports)
         {
-            Id = "extract-pcmiow",
-            Label = "Extract PCMIOW",
-            OutputFormat = "xlsx"
-        },
-        new ReportTypeOptionDTO
-        {
-            Id = "aip-official",
-            Label = "AIP Official",
-            OutputFormat = "pdf"
-        },
-        new ReportTypeOptionDTO
-        {
-            Id = "aip-executive",
-            Label = "AIP Executive",
-            OutputFormat = "pdf"
-        },
-        new ReportTypeOptionDTO
-        {
-            Id = "aip-official-without-ld",
-            Label = "AIP Official without LD",
-            OutputFormat = "pdf"
-        },
-        new ReportTypeOptionDTO
-        {
-            Id = "aip-executive-2",
-            Label = "AIP Executive 2",
-            OutputFormat = "pdf"
+            report.Family = TryGetFamily(report.Id, out var family)
+                ? FamilyToString(family)
+                : string.Empty;
         }
-    ];
+
+        return reports;
+    }
+
+    private static string FamilyToString(ReportFamily family) => family switch
+    {
+        ReportFamily.Rbp => "rbp",
+        ReportFamily.Aip => "aip",
+        ReportFamily.ExtractPcmiow => "extract-pcmiow",
+        _ => string.Empty
+    };
 
     public static bool IsSupported(string reportName) =>
         TryGetFamily(reportName, out _);

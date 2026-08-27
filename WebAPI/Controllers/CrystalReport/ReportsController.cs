@@ -79,13 +79,84 @@ namespace WebAPI.Controllers.CrystalReport
                 })
                 .ToListAsync(ct);
 
+            var categories = await _db.tOptionProjectCategory
+                .AsNoTracking()
+                .OrderBy(c => c.CategoryName)
+                .Select(c => new CategoryOptionDTO
+                {
+                    Id = c.CategoryId,
+                    Name = c.CategoryName ?? string.Empty
+                })
+                .ToListAsync(ct);
+
             return Ok(new ReportOptionsDTO
             {
                 ReportTypes = ReportCatalog.SupportedReports,
                 ProgramYears = programYears,
                 ProgramStages = programStages,
-                RegionalOffices = regionalOffices
+                RegionalOffices = regionalOffices,
+                Categories = categories
             });
+        }
+
+        // ── DEOs for the Extract PCMIOW region/DEO cascade ──────────────────
+        [HttpGet("deos")]
+        public async Task<IActionResult> GetDeosAsync([FromQuery] string? regionCode, CancellationToken ct)
+        {
+            // `regionCode` here actually carries the region's ParticipantId — the
+            // frontend passes it through under this name to keep the query param
+            // stable, but vAdminDEO only matches reliably on RegionParticipantId.
+            var deos = await _db.vAdminDEO
+                .AsNoTracking()
+                .Where(d => string.IsNullOrWhiteSpace(regionCode) || d.RegionParticipantId == regionCode)
+                .OrderBy(d => d.Name)
+                .Select(d => new DeoOptionDTO
+                {
+                    Id = d.ParticipantId,
+                    Name = d.Name,
+                    RegionParticipantId = d.RegionParticipantId
+                })
+                .ToListAsync(ct);
+
+            return Ok(deos);
+        }
+
+        // ── Implementing offices for the Extract PCMIOW region/DEO cascade ──
+        // Mirrors ReportingController.GetAIPReportDropdowns: an implementing
+        // office's ParticipantId overlaps the DEO ParticipantId space, or it's
+        // a nationwide UPMO office (not tied to any single DEO).
+        [HttpGet("implementing-offices")]
+        public async Task<IActionResult> GetImplementingOfficesAsync(
+            [FromQuery] string? regionCode,
+            [FromQuery] string? deoCode,
+            CancellationToken ct)
+        {
+            // Same as GetDeosAsync above: `regionCode` carries the region's
+            // ParticipantId, matched against vAdminDEO.RegionParticipantId.
+            var deoParticipantIdsQuery = _db.vAdminDEO
+                .AsNoTracking()
+                .Where(d => string.IsNullOrWhiteSpace(regionCode) || d.RegionParticipantId == regionCode);
+
+            if (!string.IsNullOrWhiteSpace(deoCode))
+                deoParticipantIdsQuery = deoParticipantIdsQuery.Where(d => d.ParticipantId == deoCode);
+
+            var deoParticipantIds = await deoParticipantIdsQuery
+                .Select(d => d.ParticipantId)
+                .ToListAsync(ct);
+
+            var implementingOffices = await _db.vAdminImplementingOffice
+                .AsNoTracking()
+                .Where(io => deoParticipantIds.Contains(io.ParticipantId) || io.OrgType == "UPMO")
+                .OrderBy(io => io.Name)
+                .Select(io => new ImplementingOfficeOptionDTO
+                {
+                    Id = io.ParticipantId,
+                    Name = io.Name,
+                    RegionParticipantId = io.RegionParticipantId
+                })
+                .ToListAsync(ct);
+
+            return Ok(implementingOffices);
         }
 
         [HttpGet("filter-programs")]
