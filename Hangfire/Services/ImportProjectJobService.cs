@@ -516,7 +516,7 @@ namespace Hangfire.Services
                     Directory.CreateDirectory(tempFolder);
 
                     var textFileName = $"ImportReport_{payload.JobId}.txt";
-                    var excelFileName = $"ImportErrors_{payload.JobId}.xlsx";
+                    var excelFileName = $"ImportErrors_{payload.JobId}.xlsm";
 
                     // Text file
                     var textBytes = GenerateTextReport(
@@ -528,8 +528,8 @@ namespace Hangfire.Services
                     // Excel file (only if errors)
                     if (hasErrors)
                     {
-                        var excelBytes = GenerateExcelReport(
-                            ErrorProjectDetails, ErrorFundingProfile,
+                        var excelBytes = ImportErrorWorkbookBuilder.Build(
+                            cache, ErrorProjectDetails, ErrorFundingProfile,
                             ErrorComponentDetails, ErrorMajorItemsOfWork);
 
                         await File.WriteAllBytesAsync(Path.Combine(tempFolder, excelFileName), excelBytes, jobCancellationToken.ShutdownToken);
@@ -834,208 +834,6 @@ namespace Hangfire.Services
             WriteSection(warnM, "--- WARNING: MAJOR ITEMS OF WORK ---", x => $"ProjectId: {x.ProjectId} | InfrastructureId: {x.InfrastructureId} | Warning: {x.ErrorMessage}");
 
             return Encoding.UTF8.GetBytes(sb.ToString());
-        }
-
-        // ── Generate Excel report bytes ────────────────────────────────────────
-        private byte[] GenerateExcelReport(
-            List<ImportProjectDetailsExcel> ErrorProjectDetails,
-            List<ImportFundingProfileExcel> ErrorFundingProfile,
-            List<ImportComponentDetailsExcel> ErrorComponentDetails,
-            List<ImportMajorItemsOfWorkExcel> ErrorMajorItemsOfWork)
-        {
-            ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-            using var pkg = new ExcelPackage();
-
-            void StyleHeaders(ExcelWorksheet ws, string range, string[] red, string[] blue)
-            {
-                foreach (var c in red)
-                {
-                    ws.Cells[c].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.SkyBlue);
-                    //ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Red);
-                }
-                foreach (var c in blue)
-                {
-                    ws.Cells[c].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.SkyBlue);
-                }
-                ws.Cells[range].Style.Font.Bold = true;
-                ws.Cells[range].Style.Font.Color.SetColor(System.Drawing.Color.White);
-            }
-
-            // PROJECT DETAILS
-            var ws1 = pkg.Workbook.Worksheets.Add("PROJECT DETAILS");
-            ws1.Cells["A1"].Value = "Project ID";
-            ws1.Cells["B1"].Value = "Multi Year ID";
-            ws1.Cells["C1"].Value = "External ID";
-            ws1.Cells["D1"].Value = "OA Project Code (UACS)";
-            ws1.Cells["E1"].Value = "*Tier";
-            ws1.Cells["F1"].Value = "*Category";
-            ws1.Cells["G1"].Value = "*Sub-Category";
-            ws1.Cells["H1"].Value = "MYCA Approval Date";
-            ws1.Cells["I1"].Value = "Description";
-            ws1.Cells["J1"].Value = "*Province";
-            ws1.Cells["K1"].Value = "*City Municipality";
-            ws1.Cells["L1"].Value = "*Legislative District:";
-            ws1.Cells["M1"].Value = "*Region";
-            ws1.Cells["N1"].Value = "*District Engineering Office";
-            ws1.Cells["O1"].Value = "*Implementing Office";
-            ws1.Cells["P1"].Value = "Operation Unit";
-            ws1.Cells["Q1"].Value = "Region Wide";
-            ws1.Cells["R1"].Value = "Origin";
-            ws1.Cells["S1"].Value = "Originating Agency";
-            ws1.Cells["T1"].Value = "Implementation Mode";
-            ws1.Cells["U1"].Value = "Emergency Mode";
-            ws1.Cells["V1"].Value = "ROW Available";
-            ws1.Cells["W1"].Value = "Feasibility Study";
-            ws1.Cells["X1"].Value = "Feasibility Date";
-            ws1.Cells["Y1"].Value = "Detailed Design";
-            ws1.Cells["Z1"].Value = "Detailed Design Date";
-            ws1.Cells["AA1"].Value = "Rank";
-            ws1.Cells["AB1"].Value = "Error(s) and Warning(s)";
-
-            StyleHeaders(ws1, "A1:AB1",
-                red: ["A1", "E1", "F1", "G1", "I1", "J1", "K1", "L1", "M1", "N1", "O1", "P1", "Q1", "R1", "S1", "T1", "U1", "V1", "W1", "Y1", "AB1"],
-                blue: ["B1", "C1", "D1", "H1", "X1", "Z1", "AA1"]);
-
-            for (int i = 0; i < ErrorProjectDetails.Count; i++)
-            {
-                ws1.Cells[i + 2, 1].Value = ErrorProjectDetails[i].ProjectId;
-                ws1.Cells[i + 2, 2].Value = ErrorProjectDetails[i].MYId;
-                ws1.Cells[i + 2, 3].Value = ErrorProjectDetails[i].ExternalId;
-                ws1.Cells[i + 2, 4].Value = ErrorProjectDetails[i].UACS;
-                ws1.Cells[i + 2, 5].Value = ErrorProjectDetails[i].Tier;
-                ws1.Cells[i + 2, 6].Value = ErrorProjectDetails[i].Category;
-                ws1.Cells[i + 2, 7].Value = ErrorProjectDetails[i].Thrust;
-                ws1.Cells[i + 2, 8].Value = ErrorProjectDetails[i].MYCAApprovalDate;
-                ws1.Cells[i + 2, 9].Value = ErrorProjectDetails[i].Description;
-                ws1.Cells[i + 2, 10].Value = ErrorProjectDetails[i].Province;
-                ws1.Cells[i + 2, 11].Value = ErrorProjectDetails[i].City;
-                ws1.Cells[i + 2, 12].Value = ErrorProjectDetails[i].LegislativeDistrict;
-                ws1.Cells[i + 2, 13].Value = ErrorProjectDetails[i].Region;
-                ws1.Cells[i + 2, 14].Value = ErrorProjectDetails[i].DEO;
-                ws1.Cells[i + 2, 15].Value = ErrorProjectDetails[i].ImplementingOffice;
-                ws1.Cells[i + 2, 16].Value = ErrorProjectDetails[i].OperatingUnit;
-                ws1.Cells[i + 2, 17].Value = ErrorProjectDetails[i].RegionWide;
-                ws1.Cells[i + 2, 18].Value = ErrorProjectDetails[i].Origin;
-                ws1.Cells[i + 2, 19].Value = ErrorProjectDetails[i].Agency;
-                ws1.Cells[i + 2, 20].Value = ErrorProjectDetails[i].ImplementationMode;
-                ws1.Cells[i + 2, 21].Value = ErrorProjectDetails[i].EmergencyMode;
-                ws1.Cells[i + 2, 22].Value = ErrorProjectDetails[i].RowAvailable;
-                ws1.Cells[i + 2, 23].Value = ErrorProjectDetails[i].Feasibility;
-                ws1.Cells[i + 2, 24].Value = ErrorProjectDetails[i].FeasibilityDate;
-                ws1.Cells[i + 2, 25].Value = ErrorProjectDetails[i].DetailedDesign;
-                ws1.Cells[i + 2, 26].Value = ErrorProjectDetails[i].DetailedDesignDate;
-                ws1.Cells[i + 2, 27].Value = ErrorProjectDetails[i].Rank;
-                ws1.Cells[i + 2, 28].Value = ErrorProjectDetails[i].ErrorMessage;
-            }
-            ws1.Cells[ws1.Dimension.Address].AutoFitColumns();
-
-            // FUNDING PROFILE
-            var ws2 = pkg.Workbook.Worksheets.Add("FUNDING PROFILE");
-            ws2.Cells["A1"].Value = "Project ID";
-            ws2.Cells["B1"].Value = "Source(s)";
-            ws2.Cells["C1"].Value = "Agreement(s)";
-            ws2.Cells["D1"].Value = "Amount";
-            ws2.Cells["E1"].Value = "Error(s) and Warning(s)";
-
-            StyleHeaders(ws2, "A1:E1",
-                red: ["A1", "B1", "C1", "D1", "E1"],
-                blue: Array.Empty<string>());
-
-            for (int i = 0; i < ErrorFundingProfile.Count; i++)
-            {
-                ws2.Cells[i + 2, 1].Value = ErrorFundingProfile[i].ProjectId;
-                ws2.Cells[i + 2, 2].Value = ErrorFundingProfile[i].Source;
-                ws2.Cells[i + 2, 3].Value = ErrorFundingProfile[i].Agreement;
-                ws2.Cells[i + 2, 4].Value = ErrorFundingProfile[i].Amount;
-                ws2.Cells[i + 2, 5].Value = ErrorFundingProfile[i].ErrorMessage;
-            }
-            ws2.Cells[ws2.Dimension.Address].AutoFitColumns();
-
-            // COMPONENT DETAILS
-            var ws3 = pkg.Workbook.Worksheets.Add("COMPONENT DETAILS");
-            ws3.Cells["A1"].Value = "Project ID";
-            ws3.Cells["B1"].Value = "Component Type";
-            ws3.Cells["C1"].Value = "Component ID";
-            ws3.Cells["D1"].Value = "Description";
-            ws3.Cells["E1"].Value = "Cost";
-            ws3.Cells["F1"].Value = "Planned Start Date";
-            ws3.Cells["G1"].Value = "Planned End Date";
-            ws3.Cells["H1"].Value = "Infrastructure Type";
-            ws3.Cells["I1"].Value = "Type of Work";
-            ws3.Cells["J1"].Value = "Activity Year";
-            ws3.Cells["K1"].Value = "Error(s) and Warning(s)";
-
-            StyleHeaders(ws3, "A1:K1",
-                red: ["A1", "B1", "C1", "E1", "H1", "I1", "J1", "K1"],
-                blue: ["D1", "F1", "G1"]);
-
-            for (int i = 0; i < ErrorComponentDetails.Count; i++)
-            {
-                ws3.Cells[i + 2, 1].Value = ErrorComponentDetails[i].ProjectId;
-                ws3.Cells[i + 2, 2].Value = ErrorComponentDetails[i].ComponentType;
-                ws3.Cells[i + 2, 3].Value = ErrorComponentDetails[i].ComponentId;
-                ws3.Cells[i + 2, 4].Value = ErrorComponentDetails[i].Description;
-                ws3.Cells[i + 2, 5].Value = ErrorComponentDetails[i].Cost;
-                ws3.Cells[i + 2, 6].Value = ErrorComponentDetails[i].StartDate;
-                ws3.Cells[i + 2, 7].Value = ErrorComponentDetails[i].EndDate;
-                ws3.Cells[i + 2, 8].Value = ErrorComponentDetails[i].InfraType;
-                ws3.Cells[i + 2, 9].Value = ErrorComponentDetails[i].WorkTypeId;
-                ws3.Cells[i + 2, 10].Value = ErrorComponentDetails[i].ActiveYear;
-                ws3.Cells[i + 2, 11].Value = ErrorComponentDetails[i].ErrorMessage;
-            }
-            ws3.Cells[ws3.Dimension.Address].AutoFitColumns();
-
-            // MAJOR ITEMS OF WORK
-            var ws4 = pkg.Workbook.Worksheets.Add("MAJOR ITEMS OF WORK");
-            ws4.Cells["A1"].Value = "Project ID";
-            ws4.Cells["B1"].Value = "Component ID";
-            ws4.Cells["C1"].Value = "Reference ID";
-            ws4.Cells["D1"].Value = "Infrastructure ID";
-            ws4.Cells["E1"].Value = "Detailed Scope";
-            ws4.Cells["F1"].Value = "Target Unit";
-            ws4.Cells["G1"].Value = "Start X";
-            ws4.Cells["H1"].Value = "Start Y";
-            ws4.Cells["I1"].Value = "End X";
-            ws4.Cells["J1"].Value = "End Y";
-            ws4.Cells["K1"].Value = "Physical Target";
-            ws4.Cells["L1"].Value = "Start Station";
-            ws4.Cells["M1"].Value = "End Station";
-            ws4.Cells["N1"].Value = "Start Chainage (m)";
-            ws4.Cells["O1"].Value = "End Chainage (m)";
-            ws4.Cells["P1"].Value = "Length (meters)";
-            ws4.Cells["Q1"].Value = "Activity Year";
-            ws4.Cells["R1"].Value = "Error(s) and Warning(s)";
-
-            StyleHeaders(ws4, "A1:R1",
-                red: ["A1", "B1", "C1", "D1", "F1", "G1", "H1", "I1", "J1", "K1", "R1"],
-                blue: ["E1", "L1", "M1", "N1", "O1", "P1", "Q1"]);
-
-            for (int i = 0; i < ErrorMajorItemsOfWork.Count; i++)
-            {
-                ws4.Cells[i + 2, 1].Value = ErrorMajorItemsOfWork[i].ProjectId;
-                ws4.Cells[i + 2, 2].Value = ErrorMajorItemsOfWork[i].ComponentId;
-                ws4.Cells[i + 2, 3].Value = ErrorMajorItemsOfWork[i].ReferenceId;
-                ws4.Cells[i + 2, 4].Value = ErrorMajorItemsOfWork[i].InfrastructureId;
-                ws4.Cells[i + 2, 5].Value = ErrorMajorItemsOfWork[i].DetailsScope;
-                ws4.Cells[i + 2, 6].Value = ErrorMajorItemsOfWork[i].TargetUnit;
-                ws4.Cells[i + 2, 7].Value = ErrorMajorItemsOfWork[i].StartX;
-                ws4.Cells[i + 2, 8].Value = ErrorMajorItemsOfWork[i].StartY;
-                ws4.Cells[i + 2, 9].Value = ErrorMajorItemsOfWork[i].EndX;
-                ws4.Cells[i + 2, 10].Value = ErrorMajorItemsOfWork[i].EndY;
-                ws4.Cells[i + 2, 11].Value = ErrorMajorItemsOfWork[i].PhysicalTarget;
-                ws4.Cells[i + 2, 12].Value = ErrorMajorItemsOfWork[i].StartStation;
-                ws4.Cells[i + 2, 13].Value = ErrorMajorItemsOfWork[i].EndStation;
-                ws4.Cells[i + 2, 14].Value = ErrorMajorItemsOfWork[i].StartChainage;
-                ws4.Cells[i + 2, 15].Value = ErrorMajorItemsOfWork[i].EndChainage;
-                ws4.Cells[i + 2, 16].Value = ErrorMajorItemsOfWork[i].Length;
-                ws4.Cells[i + 2, 17].Value = ErrorMajorItemsOfWork[i].ActivityYear;
-                ws4.Cells[i + 2, 18].Value = ErrorMajorItemsOfWork[i].ErrorMessage;
-            }
-            ws4.Cells[ws4.Dimension.Address].AutoFitColumns();
-
-            return pkg.GetAsByteArray();
         }
 
         // ── Read helpers ─────────────────────────────────────────────────────

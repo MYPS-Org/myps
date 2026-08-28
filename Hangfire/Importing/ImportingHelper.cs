@@ -157,10 +157,24 @@ namespace Hangfire.Importing
             {
                 v.Fail("Incorrect Category");
             }
+            // ValidUntil == 0 means the category never expires; otherwise it stops being a valid
+            // choice once the current year passes it (matches the reference import template's own
+            // dropdown-filtering rule, now also enforced here rather than just guiding the picker).
+            else if (Category.ValidUntil != 0 && Category.ValidUntil <= Functions.CurrentDate().Year)
+            {
+                v.Fail("Category is no longer valid");
+            }
             var Thrust = cache.Thrusts.FirstOrDefault(x => NamesMatch(x.ThrustDescription, details.Thrust));
             if (Thrust == null)
             {
                 v.Fail("Incorrect Thrust");
+            }
+            // ValidToDate == 0 means the Thrust never expires; otherwise it's only a valid choice
+            // while ValidFromDate has passed and ValidToDate hasn't yet (matches the reference
+            // import template's own SubCategory dropdown-filtering rule).
+            else if (Thrust.ValidToDate != 0 && !(Thrust.ValidFromDate < Functions.CurrentDate().Year && Thrust.ValidToDate > Functions.CurrentDate().Year))
+            {
+                v.Fail("Thrust is no longer valid");
             }
             if (string.IsNullOrWhiteSpace(details.Description))
             {

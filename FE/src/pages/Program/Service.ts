@@ -284,6 +284,22 @@ export const startUpdateProjectJob = async (data: { ProgramId: string; StageName
     }
 };
 
+// Blank starter workbook, built live from the same generator as the error report
+// (headers, DB-sourced dropdowns, and macros always match the current schema).
+export const downloadImportTemplate = async () => {
+    try {
+        const response = await httpClient.get<Blob>('/Importing/DownloadTemplate', undefined, {
+            preloaderMessage: 'Downloading template...',
+            responseType: 'blob'
+        });
+        const blob = response.Data as Blob;
+        return { blob, filename: 'ImportProjectTemplate.xlsm' };
+    } catch (ErrorResponse) {
+        console.error('Error downloading import template:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
 export const getImportJobStatus = async (jobId: string) => {
     try {
         const response = await httpClient.get<ImportJobStatus>('/Importing/GetImportStatus', { jobId }, {

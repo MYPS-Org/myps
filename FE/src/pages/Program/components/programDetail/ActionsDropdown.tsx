@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDownIcon, Cog6ToothIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
-import { downloadAIPReport, exportProjects } from '../../Service';
+import { downloadAIPReport, downloadImportTemplate, exportProjects } from '../../Service';
 import type { AIPReportParams, TableEnum } from '../../Model';
 import AIPReportDialog from '../../dialogs/AIPReportDialog';
 import ExportConfirmDialog from '../../dialogs/ExportConfirmDialog';
@@ -30,19 +30,28 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isAIPDialogOpen, setIsAIPDialogOpen] = useState(false);
 
-  const handleDownloadTemplate = () => {
-    const templateUrl = '/api/Resources/Templates/ImportProjectTemplate.xlsm';
-    const link = document.createElement('a');
-    link.href = templateUrl;
-    link.download = 'ImportProjectTemplate.xlsm';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast({
-      type: 'success',
-      message: 'Template download initiated.',
-    });
+  const handleDownloadTemplate = async () => {
     setIsOpen(false);
+    try {
+      onLoadingChange(true);
+      const { blob, filename } = await downloadImportTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showToast({
+        type: 'success',
+        message: 'Template downloaded successfully.',
+      });
+    } catch (error) {
+      console.error('Error downloading template:', error);
+    } finally {
+      onLoadingChange(false);
+    }
   };
 
   const handleImportProjects = () => {
