@@ -76,6 +76,25 @@ namespace Hangfire.Importing
         // MAJOR ITEMS OF WORK actually uses.
         private const int ColMWComponentIdHelperStart = 30;
 
+        // Every workbook this builder produces — the blank DownloadTemplate and the post-import
+        // error report alike, since both funnel through Build() — carries this VeryHidden sheet
+        // (proven pattern: _Lookups below uses the same eWorkSheetHidden.VeryHidden, which has no
+        // "Unhide" entry anywhere in Excel's UI, unlike a merely-Hidden sheet). ImportProjectJobService
+        // checks for it on upload to tell a genuine system-generated file apart from one hand-built
+        // or edited with a tool that stripped worksheet metadata. This is a lightweight provenance
+        // signal, not a tamper-proof security control — anyone who knows to look for it (Alt+F11,
+        // or unzipping the .xlsm) could reproduce it, but it catches the realistic case of an
+        // unrelated or accidentally-mangled file that happens to pass the sheet-name/header checks.
+        internal const string SystemMarkerSheetName = "_SysMeta";
+        internal const string SystemMarkerValue = "MYPS-IMPORT-WORKBOOK-V1";
+
+        private static void AddSystemMarker(ExcelPackage pkg)
+        {
+            var ws = pkg.Workbook.Worksheets.Add(SystemMarkerSheetName);
+            ws.Hidden = eWorkSheetHidden.VeryHidden;
+            ws.Cells[1, 1].Value = SystemMarkerValue;
+        }
+
         public static byte[] Build(
             ImportLookupCache cache,
             List<ImportProjectDetailsExcel> errorProjectDetails,
@@ -94,6 +113,7 @@ namespace Hangfire.Importing
             BuildMajorItemsOfWorkSheet(pkg, errorMajorItemsOfWork, lookups);
 
             AuthorCascadeMacros(pkg);
+            AddSystemMarker(pkg);
 
             return pkg.GetAsByteArray();
         }
