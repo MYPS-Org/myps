@@ -71,7 +71,7 @@ namespace WebAPI.Controllers.ProjectGroup
                         projectKey));
                 }
 
-                filters.Add(("ISNULL(v.IsDeleted, 0) = 0", "@isDeleted", null));
+                filters.Add(("ISNULL(v.IsDeleted, 0) = @isDeleted", "@isDeleted", false));
 
                 FilterDataResult<ProjectGroupTable> result =
                     await _db.FilterDataCursor<ProjectGroupTable, ShowProjectGroupFilterDTO>(
@@ -530,6 +530,16 @@ namespace WebAPI.Controllers.ProjectGroup
                 if (string.IsNullOrWhiteSpace(newName))
                 {
                     return new BadRequestObjectResult(new { Message = "Project Group Name is required.", Title = "Parameter Error" });
+                }
+
+                if (newName.Length > 200)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group Name cannot exceed 200 characters.", Title = "Parameter Error" });
+                }
+
+                if (newDescription?.Length > 500)
+                {
+                    return new BadRequestObjectResult(new { Message = "Description cannot exceed 500 characters.", Title = "Parameter Error" });
                 }
 
                 if (groupDetail.Description != newDescription)

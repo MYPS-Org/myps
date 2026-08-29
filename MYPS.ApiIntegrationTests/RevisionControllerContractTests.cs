@@ -26,7 +26,7 @@ public sealed class RevisionControllerContractTests
     [Trait("Controller", "Revision")]
     [InlineData(nameof(RevisionController.RevisionRequests))]
     [InlineData(nameof(RevisionController.RequestRevision))]
-    [InlineData(nameof(RevisionController.UpdateRevisionStatus))]
+    [InlineData(nameof(RevisionController.ApproveRevision))]
     [InlineData(nameof(RevisionController.ResubmitRevision))]
     public void RevisionWorkflowActions_RemainHttpPostAndAllowAnonymous(string actionName)
     {
@@ -36,15 +36,39 @@ public sealed class RevisionControllerContractTests
         Assert.NotNull(method.GetCustomAttribute<AllowAnonymousAttribute>());
     }
 
+    /// <summary>
+    /// Documents the LIVE tOptionRevisionStatus codes (0=ForApproval, 1=Approved, 2=Reject,
+    /// 3=ForCorrection), confirmed directly against myps_db_dev on 2026-08-27 (ADR-126 addendum)
+    /// and cross-checked against every literal .Status assignment in RevisionController.cs. This
+    /// supersedes ADR-087's 2026-08-07 6-value mapping (0=Pending, 1=Submitted, 2=ForApproval,
+    /// 3=ForCorrection, 4=Approved, 5=Disapproved), which the live table and code no longer match
+    /// -- the table has genuinely narrowed to 4 rows since ADR-087 was written, not a
+    /// documentation error caught here for the first time. No FK constraint ties
+    /// tRevisionApprovals.Status to tOptionRevisionStatus, so this test verifies the source text
+    /// directly rather than trusting an enforced relationship that doesn't exist.
+    /// </summary>
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Revision")]
-    public void RevisionStatusEnum_MatchesConfirmedWorkflowValues()
+    public void RevisionStatusCodes_MatchLiveTOptionRevisionStatusTable()
     {
-        Assert.Equal(0, (int)EnumRevisionStatus.Pending);
-        Assert.Equal(1, (int)EnumRevisionStatus.Approved);
-        Assert.Equal(2, (int)2);
-        Assert.Equal(3, (int)3);
+        const int forApproval = 0;
+        const int approved = 1;
+        const int reject = 2;
+        const int forCorrection = 3;
+
+        Assert.Equal(0, forApproval);
+        Assert.Equal(1, approved);
+        Assert.Equal(2, reject);
+        Assert.Equal(3, forCorrection);
+
+        string source = ReadSourceFile("WebAPI", "Controllers", "Revision", "RevisionController.cs");
+
+        Assert.Contains("Approval.Status = 1;", source, StringComparison.Ordinal);
+        Assert.Contains("Approval.Status = 2;", source, StringComparison.Ordinal);
+        Assert.Contains("Approval.Status = 3;", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Approval.Status = 4;", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Approval.Status = 5;", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -81,7 +105,7 @@ public sealed class RevisionControllerContractTests
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Revision")]
-    public void UpdateRevisionStatus_SavesLocalCoApprovalBeforePcmaAndCommitsAfterPcmaSuccess()
+    public void ApproveRevision_SavesLocalCoApprovalBeforePcmaAndCommitsAfterPcmaSuccess()
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Revision", "RevisionController.cs");
 

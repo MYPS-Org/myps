@@ -532,13 +532,13 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
 
-                var HasPendingModification = await _db.fRevisionQueue
-                    .FromSqlInterpolated($"SELECT * FROM fRevisionQueue({"IO"},{isROUser},{isCOUser}) v WHERE v.TransactionId LIKE {dto.ProjectId + "-%"}")
+                var HasPendingModification = await _db.fOpenRevision
+                    .FromSqlInterpolated($"SELECT * FROM fOpenRevision({ProjectFK})")
                     .AsNoTracking()
                     .FirstOrDefaultAsync(cancellationToken);
                 if (HasPendingModification != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionType} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                    return new BadRequestObjectResult(new { Message = $"There is an open revision request for this project. Transaction ID: {HasPendingModification.TransactionId}. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 #region Validate PCMA Status
                 if (ComponentCost == null)
@@ -865,11 +865,12 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Termination revisions are not yet supported by the normalized schema because the former component-status evidence table is no longer available.", Title = "Revision Type Temporarily Blocked" });
                 }
-                if (RevisionCategory.RevisionGroupId == 13)
-                {
-                    return new BadRequestObjectResult(new { Message = "Mode-of-Implementation continuation revisions require the exact continuation ReasonId before normalized processing can safely create successor project identity.", Title = "Revision Reason Requires Confirmation" });
-                }
-                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
+                // RevisionGroupId 13 ("Mode of Implementation") no longer blocked unconditionally:
+                // ReasonId 43 ("Failure of Bidding") needs no special handling. ReasonId 47
+                // ("Terminated project but balance of work to be continued as another project")
+                // needs a successor project identity -- that fork happens in ApproveRevision on
+                // approval, not here at request time; this request just submits normally.
+                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().Where(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId).OrderBy(x => x.Id).FirstOrDefaultAsync();
                 if (DocumentNaming == null)
                 {
                     await transaction.RollbackAsync(cancellationToken);
@@ -1861,8 +1862,8 @@ namespace WebAPI.Controllers.Revision
                     await _db.tRevisionApprovals.AddAsync(Approval, cancellationToken);
                 }
                 Approval.Status = 1;
-                Approval.Approver = null;
-                Approval.ApprovedDate = null;
+                Approval.Approver = _Session.UserId;
+                Approval.ApprovedDate = CurrentDate;
                 Approval.LastUpdatedDate = CurrentDate;
                 if (HasExistingApproval)
                 {
@@ -1878,8 +1879,9 @@ namespace WebAPI.Controllers.Revision
                     var OldRevisionProjects = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == SelectedProjectRevision.ProjectId && x.IsActive);
                     int RevisionGroupId = RevisionRoot.RevisionGroupId;
                     int? CategoryId = RevisionRoot.CategoryId;
+                    int ReasonId = RevisionRoot.ReasonId;
                     #region Document validation
-                    var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == CategoryId) || x.RevisionGroupId == RevisionGroupId);
+                    var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().Where(x => (x.CategoryId != null && x.CategoryId == CategoryId) || x.RevisionGroupId == RevisionGroupId).OrderBy(x => x.Id).FirstOrDefaultAsync();
                     if (DocumentNaming == null)
                     {
                         return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
@@ -1897,60 +1899,287 @@ namespace WebAPI.Controllers.Revision
                         return new BadRequestObjectResult(new { Message = "Approved document file size exceeds the maximum limit of 50 MB.", Title = "File Size Exceeded" });
                     }
                     #endregion
-                    if (RevisionGroupId == 13)
+                    if (RevisionGroupId == 13 && ReasonId == 47)
                     {
-                        return new BadRequestObjectResult(new { Message = "Continuation revisions are not yet supported by the normalized schema because the exact continuation ReasonId and project-fork rules are not yet confirmed.", Title = "Revision Type Temporarily Blocked" });
+                        // Continuation fork: "Terminated project but balance of work to be continued
+                        // as another project." Creates a full successor project identity. ProjectId
+                        // format is a deliberate, operator-confirmed "-A" suffix exception to
+                        // project-id-generation-spec.md -- not the normal {Stage}{Year}{Sequence}
+                        // {IslandCode} scheme, and cannot be parsed by code that assumes that format.
+                        if (OldRevisionProjects == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = $"No current active project state found for '{SelectedProjectRevision.ProjectFK}' -- cannot fork a continuation project with no established source state.", Title = "Continuation Source Not Found" });
+                        }
 
-                        //var ProjectDetails = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
-                        //if (ProjectDetails == null)
-                        //{
-                        //    return new BadRequestObjectResult(new { Message = $"Project details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project details not found" });
-                        //}
-                        //string NewProjectId = $"{ProjectDetails.ProjectId}-A";
-                        //ProjectDetails.ProjectId = NewProjectId;
-                        //var FundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
-                        //if (FundingProfile == null)
-                        //{
-                        //    return new BadRequestObjectResult(new { Message = $"Revision funding profile not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision funding profile not found" });
-                        //}
-                        //FundingProfile.ForEach(x => { x.ProjectId = NewProjectId; });
-                        //var ComponentCost = await _db.tRevisionProjectComponentCost.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
-                        //if (ComponentCost == null)
-                        //{
-                        //    return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision component cost not found" });
-                        //}
-                        //ComponentCost.ForEach(x => { x.ProjectId = NewProjectId; });
-                        //var MajorWorkItems = await _db.tRevisionProjectMajorWorkItem.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
-                        //if (MajorWorkItems == null)
-                        //{
-                        //    return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work item not found" });
-                        //}
-                        //MajorWorkItems.ForEach(x => { x.ProjectId = NewProjectId; });
-                        //var MajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
-                        //if (MajorWorkLocations == null)
-                        //{
-                        //    return new BadRequestObjectResult(new { Message = $"Revision major work location not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work location not found" });
-                        //}
-                        ////MajorWorkLocations.Select(x => { x.ProjectId = $"{ProjectDetails.ProjectId}-A"; return x; }).ToList();
-                        //var getProgramId = await _db.tProjects.FirstOrDefaultAsync(x => x.ReferenceId == $"B{ProjectDetails.ProjectId}");
-                        //if (getProgramId == null)
-                        //{
-                        //    return new BadRequestObjectResult(new { Message = $"Program details not found for the given project reference ID,\n\n<b>Project Reference ID:</b> <i><u>B{ProjectDetails.ProjectId}</u></i> ", Title = "Program details not found" });
-                        //}
-                        //var AddFromProjectHeader = new DBHelper.Models.Table.Projects
-                        //{
-                        //    ProgramId = getProgramId.ProgramId,
-                        //    ReferenceId = $"{ProjectDetails.ProjectId} -A",
-                        //    CreatedBy = _Session.UserId,
-                        //    CreatedDate = CurrentDate,
-                        //    IsDeleted = false
-                        //};
-                        //_db.tRevisionProjects.Update(ProjectDetails);
-                        //_db.tRevisionProjectFundingProfile.UpdateRange(FundingProfile);
-                        //_db.tRevisionProjectComponentCost.UpdateRange(ComponentCost);
-                        //_db.tRevisionProjectMajorWorkItem.UpdateRange(MajorWorkItems);
-                        //_db.tRevisionProjectMajorWorkLocations.UpdateRange(MajorWorkLocations);
-                        //_db.tProjects.Add(AddFromProjectHeader);
+                        string NewProjectPK = $"{OldRevisionProjects.ProjectFK}-A";
+                        bool ForkAlreadyExists = await _db.tProjects.AsNoTracking().AnyAsync(x => x.ProjectPK == NewProjectPK, cancellationToken);
+                        if (ForkAlreadyExists)
+                        {
+                            return new BadRequestObjectResult(new { Message = $"Continuation project '{NewProjectPK}' already exists. A project cannot be forked twice.", Title = "Project Already Forked" });
+                        }
+
+                        var OriginalProject = await _db.tProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectPK == OldRevisionProjects.ProjectFK, cancellationToken);
+                        if (OriginalProject == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = $"Original project '{OldRevisionProjects.ProjectFK}' not found.", Title = "Project Not Found" });
+                        }
+
+                        var OldRevisionDetails = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == OldRevisionProjects.TransactionId, cancellationToken);
+                        if (OldRevisionDetails == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = $"Source revision details not found for transaction '{OldRevisionProjects.TransactionId}' -- cannot determine which funding/cost/work-item data to carry over.", Title = "Source Revision Not Found" });
+                        }
+
+                        var CurrentProgram = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == RevisionDetails.ProgramId, cancellationToken);
+                        if (CurrentProgram == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = $"Program '{RevisionDetails.ProgramId}' not found for the continuation project.", Title = "Program Not Found" });
+                        }
+
+                        // ── tProjects (base identity) ───────────────────────────────────────
+                        var NewProject = new DBHelper.Models.Table.Project.Projects
+                        {
+                            ProjectPK = NewProjectPK,
+                            ProgramFK = OldRevisionProjects.ProgramFK,
+                            ProgramId = OldRevisionProjects.ProgramId,
+                            ProjectType = OriginalProject.ProjectType,
+                            IsPublished = false,
+                            IsRevised = false,
+                            IsPublishable = false,
+                            PCMARevisionCount = 0,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        };
+                        await _db.tProjects.AddAsync(NewProject, cancellationToken);
+                        await _db.SaveChangesAsync(cancellationToken);
+
+                        // ── tProjectRevisions (base attribute snapshot, mirrors AddProject) ──
+                        var NewProjectRevision = new DBHelper.Models.Table.Project.ProjectRevisions
+                        {
+                            ProjectFK = NewProjectPK,
+                            ProgramFK = OldRevisionProjects.ProgramFK,
+                            ProgramId = OldRevisionProjects.ProgramId,
+                            ProjectId = NewProjectPK,
+                            AlternateId = OldRevisionProjects.AlternateId,
+                            MYCAApprovalDate = OldRevisionProjects.MYCAApprovalDate,
+                            Description = OldRevisionProjects.Description,
+                            Region = OldRevisionProjects.Region,
+                            Province = OldRevisionProjects.Province,
+                            City = OldRevisionProjects.City,
+                            LegislativeDistrict = OldRevisionProjects.LegislativeDistrict,
+                            DEO = OldRevisionProjects.DEO,
+                            OperatingUnit = OldRevisionProjects.OperatingUnit,
+                            ImplementingOffice = OldRevisionProjects.ImplementingOffice,
+                            IslandCode = OldRevisionProjects.IslandCode,
+                            Category = OldRevisionProjects.Category,
+                            Thrust = OldRevisionProjects.Thrust,
+                            Origin = OldRevisionProjects.Origin,
+                            Agency = OldRevisionProjects.Agency,
+                            ImplementationMode = OldRevisionProjects.ImplementationMode,
+                            EmergencyMode = OldRevisionProjects.EmergencyMode,
+                            RegionWide = OldRevisionProjects.RegionWide,
+                            Feasibility = OldRevisionProjects.Feasibility,
+                            FeasibilityDate = OldRevisionProjects.FeasibilityDate,
+                            DetailedDesign = OldRevisionProjects.DetailedDesign,
+                            DetailedDesignDate = OldRevisionProjects.DetailedDesignDate,
+                            RowAvailable = OldRevisionProjects.RowAvailable,
+                            Tier = OldRevisionProjects.Tier,
+                            Rank = OldRevisionProjects.Rank,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        };
+                        await _db.tProjectRevisions.AddAsync(NewProjectRevision, cancellationToken);
+                        await _db.SaveChangesAsync(cancellationToken);
+
+                        // ── tProjectStages (mirrors AddProject; matches Program's current stage) ─
+                        await _db.tProjectStages.AddAsync(new DBHelper.Models.Table.Project.ProjectStages
+                        {
+                            ProjectFK = NewProjectPK,
+                            ProgramFK = OldRevisionProjects.ProgramFK,
+                            ProgramId = OldRevisionProjects.ProgramId,
+                            RevisionId = NewProjectRevision.Id,
+                            StageId = CurrentProgram.StageId,
+                            StageName = CurrentProgram.StageName,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        }, cancellationToken);
+
+                        // ── tRevisionDetails (new revision header, anchors everything below) ──
+                        string NewTransactionId = $"{NewProjectPK}-0";
+                        var NewRevisionDetails = new RevisionDetails
+                        {
+                            ProgramId = OldRevisionProjects.ProgramId,
+                            TransactionId = NewTransactionId,
+                            ProjectFK = NewProjectPK,
+                            ProjectRevisionFK = NewProjectRevision.Id,
+                            RevisionGroupId = 13,
+                            CategoryId = null,
+                            ReasonId = 47,
+                            IsCertified = true,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        };
+                        await _db.tRevisionDetails.AddAsync(NewRevisionDetails, cancellationToken);
+                        await _db.SaveChangesAsync(cancellationToken);
+
+                        // ── tRevisionProjects (current-state snapshot, IsActive = true) ───────
+                        await _db.tRevisionProjects.AddAsync(new RevisionProjects
+                        {
+                            IsActive = true,
+                            TransactionId = NewTransactionId,
+                            RevisionId = NewProjectRevision.Id,
+                            ProjectFK = NewProjectPK,
+                            ProgramFK = OldRevisionProjects.ProgramFK,
+                            ProgramId = OldRevisionProjects.ProgramId,
+                            ProjectId = NewProjectPK,
+                            ExternalId = OldRevisionProjects.ExternalId,
+                            MYId = OldRevisionProjects.MYId,
+                            AlternateId = OldRevisionProjects.AlternateId,
+                            MYCAApprovalDate = OldRevisionProjects.MYCAApprovalDate,
+                            Description = OldRevisionProjects.Description,
+                            Region = OldRevisionProjects.Region,
+                            Province = OldRevisionProjects.Province,
+                            City = OldRevisionProjects.City,
+                            LegislativeDistrict = OldRevisionProjects.LegislativeDistrict,
+                            DEO = OldRevisionProjects.DEO,
+                            OperatingUnit = OldRevisionProjects.OperatingUnit,
+                            ImplementingOffice = OldRevisionProjects.ImplementingOffice,
+                            IslandCode = OldRevisionProjects.IslandCode,
+                            Category = OldRevisionProjects.Category,
+                            Thrust = OldRevisionProjects.Thrust,
+                            Origin = OldRevisionProjects.Origin,
+                            Agency = OldRevisionProjects.Agency,
+                            ImplementationMode = OldRevisionProjects.ImplementationMode,
+                            EmergencyMode = OldRevisionProjects.EmergencyMode,
+                            RegionWide = OldRevisionProjects.RegionWide,
+                            Feasibility = OldRevisionProjects.Feasibility,
+                            FeasibilityDate = OldRevisionProjects.FeasibilityDate,
+                            DetailedDesign = OldRevisionProjects.DetailedDesign,
+                            DetailedDesignDate = OldRevisionProjects.DetailedDesignDate,
+                            RowAvailable = OldRevisionProjects.RowAvailable,
+                            Tier = OldRevisionProjects.Tier,
+                            Rank = OldRevisionProjects.Rank,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate,
+                            IsDeleted = false
+                        }, cancellationToken);
+
+                        // ── Copy funding / cost / work-item / work-location / documents ──────
+                        // Source: whatever is tied to the TERMINATED project's last active revision
+                        // (OldRevisionDetails.Id) -- NOT this termination request's own RevisionDetails,
+                        // which carries no new funding/cost data of its own.
+                        var OldFunding = await _db.tRevisionProjectFundingProfile.AsNoTracking()
+                            .Where(x => x.RevisionDetailFK == OldRevisionDetails.Id && !x.IsDeleted).ToListAsync(cancellationToken);
+                        await _db.tRevisionProjectFundingProfile.AddRangeAsync(OldFunding.Select(x => new RevisionProjectFundingProfile
+                        {
+                            RevisionDetailFK = NewRevisionDetails.Id,
+                            SourceOrg = x.SourceOrg,
+                            AgreementCode = x.AgreementCode,
+                            Amount = x.Amount,
+                            Percentage = x.Percentage,
+                            IsDeleted = false,
+                            IsWalletDraw = x.IsWalletDraw
+                        }), cancellationToken);
+
+                        var OldComponentCosts = await _db.tRevisionProjectComponentCost.AsNoTracking()
+                            .Where(x => x.RevisionDetailFK == OldRevisionDetails.Id && !x.IsDeleted).ToListAsync(cancellationToken);
+                        var NewComponentCosts = OldComponentCosts.Select(x => new RevisionProjectComponentCost
+                        {
+                            RevisionDetailFK = NewRevisionDetails.Id,
+                            ComponentType = x.ComponentType,
+                            ComponentId = x.ComponentId,
+                            Description = x.Description,
+                            Total = x.Total,
+                            IsDeleted = false
+                        }).ToList();
+                        await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponentCosts, cancellationToken);
+                        await _db.SaveChangesAsync(cancellationToken);
+
+                        for (int i = 0; i < OldComponentCosts.Count; i++)
+                        {
+                            int OldCostId = OldComponentCosts[i].Id;
+                            int NewCostId = NewComponentCosts[i].Id;
+
+                            var OldCostPerYear = await _db.tRevisionProjectComponentCostPerYear.AsNoTracking()
+                                .Where(x => x.RevisionComponentCostFK == OldCostId && !x.IsDeleted).ToListAsync(cancellationToken);
+                            await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(OldCostPerYear.Select(x => new RevisionProjectComponentCostPerYear
+                            {
+                                RevisionComponentCostFK = NewCostId,
+                                ComponentId = NewComponentCosts[i].ComponentId,
+                                Year = x.Year,
+                                UACS = x.UACS,
+                                Amount = x.Amount,
+                                StartDate = x.StartDate,
+                                EndDate = x.EndDate,
+                                DateOfApproval = x.DateOfApproval,
+                                IsDeleted = false
+                            }), cancellationToken);
+
+                            var OldWorkItems = await _db.tRevisionProjectMajorWorkItem.AsNoTracking()
+                                .Where(x => x.ComponentCostFK == OldCostId && !x.IsDeleted).ToListAsync(cancellationToken);
+                            var NewWorkItems = OldWorkItems.Select(x => new RevisionProjectMajorWorkItem
+                            {
+                                ComponentCostFK = NewCostId,
+                                ComponentId = x.ComponentId,
+                                YearOfWork = x.YearOfWork,
+                                WorkTypeFK = x.WorkTypeFK,
+                                InfraTypeFK = x.InfraTypeFK,
+                                IsDeleted = false
+                            }).ToList();
+                            await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewWorkItems, cancellationToken);
+                            await _db.SaveChangesAsync(cancellationToken);
+
+                            for (int j = 0; j < OldWorkItems.Count; j++)
+                            {
+                                var OldLocations = await _db.tRevisionProjectMajorWorkLocations.AsNoTracking()
+                                    .Where(x => x.RevisionWorkItemFK == OldWorkItems[j].Id && !x.IsDeleted).ToListAsync(cancellationToken);
+                                await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(OldLocations.Select(x => new RevisionProjectMajorWorkLocations
+                                {
+                                    RevisionWorkItemFK = NewWorkItems[j].Id,
+                                    InfraId = x.InfraId,
+                                    DetailedScope = x.DetailedScope,
+                                    TargetUnitId = x.TargetUnitId,
+                                    TargetUnit = x.TargetUnit,
+                                    StartX = x.StartX,
+                                    StartY = x.StartY,
+                                    EndX = x.EndX,
+                                    EndY = x.EndY,
+                                    PhysicalTarget = x.PhysicalTarget,
+                                    StartStationLimit = x.StartStationLimit,
+                                    EndStationLimit = x.EndStationLimit,
+                                    StartChainage = x.StartChainage,
+                                    EndChainage = x.EndChainage,
+                                    Length = x.Length,
+                                    IsDeleted = false
+                                }), cancellationToken);
+                            }
+                        }
+
+                        // ── Supporting documents: copy DB row AND the physical file ──────────
+                        var OldDocuments = await _db.tRevisionDocuments.AsNoTracking()
+                            .Where(x => x.RevisionDetailFK == OldRevisionDetails.Id).ToListAsync(cancellationToken);
+                        foreach (var OldDoc in OldDocuments)
+                        {
+                            string OldDocFullPath = Path.Combine(Directory.GetCurrentDirectory(), OldDoc.DocumentPath);
+                            string NewDocName = $"{NewProjectPK}_{OldDoc.DocumentName}";
+                            string NewDocRelPath = Path.Combine(Path.GetDirectoryName(OldDoc.DocumentPath) ?? string.Empty, NewDocName);
+                            string NewDocFullPath = Path.Combine(Directory.GetCurrentDirectory(), NewDocRelPath);
+                            // Only record a document row if the physical file genuinely got copied --
+                            // a DB row pointing at a copy that never happened is a phantom reference.
+                            // Caught live: the seed project's own source document was missing on disk
+                            // despite a valid DB row referencing it (a pre-existing, unrelated data gap).
+                            if (System.IO.File.Exists(OldDocFullPath))
+                            {
+                                System.IO.File.Copy(OldDocFullPath, NewDocFullPath, overwrite: false);
+                                await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
+                                {
+                                    RevisionDetailFK = NewRevisionDetails.Id,
+                                    DocumentName = NewDocName,
+                                    DocumentPath = NewDocRelPath,
+                                    IsApprovedDocument = OldDoc.IsApprovedDocument
+                                }, cancellationToken);
+                            }
+                        }
                     }
 
                     string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
@@ -2332,11 +2561,12 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Termination revisions are not yet supported by the normalized schema because the former component-status evidence table is no longer available.", Title = "Revision Type Temporarily Blocked" });
                 }
-                if (RevisionCategory.RevisionGroupId == 13)
-                {
-                    return new BadRequestObjectResult(new { Message = "Mode-of-Implementation continuation revisions require the exact continuation ReasonId before normalized processing can safely create successor project identity.", Title = "Revision Reason Requires Confirmation" });
-                }
-                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
+                // RevisionGroupId 13 ("Mode of Implementation") no longer blocked unconditionally:
+                // ReasonId 43 ("Failure of Bidding") needs no special handling. ReasonId 47
+                // ("Terminated project but balance of work to be continued as another project")
+                // needs a successor project identity -- that fork happens in ApproveRevision on
+                // approval, not here at request time; this request just submits normally.
+                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().Where(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId).OrderBy(x => x.Id).FirstOrDefaultAsync();
                 if (DocumentNaming == null)
                 {
                     await transaction.RollbackAsync(cancellationToken);
@@ -3581,7 +3811,7 @@ namespace WebAPI.Controllers.Revision
                 //    x.LastUpdatedDate = CurrentDate;
                 //});
                 string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
-                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.RevisionDetailFK == ExistingRevision.Id && DocumentName.Contains(x.DocumentName)).Count() + 1;
+                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.RevisionDetailFK == ExistingRevision.Id && x.DocumentName.StartsWith(DocumentName)).Count() + 1;
                 string NewDocName = $"{DocumentName}-{NewUploadedDocument}.{dto.RevisionDetails.ApprovedDocument.Extension}";
                 string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, NewDocName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);

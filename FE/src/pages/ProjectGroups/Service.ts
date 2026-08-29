@@ -1,7 +1,7 @@
-import type { ProjectGroupPagination, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns, UserGroups, updateProjectGroupModel, ProjectList } from "./Model.d";
+import type { ProjectGroupFilter, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns, UserGroups, updateProjectGroupModel, ProjectList } from "./Model.d";
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 
-export const fetchProjectGroup = async (data: ProjectGroupPagination) => {
+export const fetchProjectGroup = async (data: PaginatedRequest<ProjectGroupFilter>) => {
     try {
         const response = await httpClient.post<ProjectGroupsDropDowns>('/projectgroup/showprojectgroups', data, {
             preloaderMessage: 'Loading project groups...'

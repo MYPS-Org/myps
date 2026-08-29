@@ -1,9 +1,10 @@
 "use-client";
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchProjectGroup } from '../Service'; // Adjust the import path as necessary
-import type { ProjectGroupPagination, ProjectGroupsDropDowns } from '../Model.d'; // Adjust the import path as necessary
-import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination'; // Adjust the import path as necessary
+import type { ProjectGroupFilter, ProjectGroupList, ProjectGroupsDropDowns, UserGroups } from '../Model.d'; // Adjust the import path as necessary
+import { usePagination } from '../../../hooks/usePagination';
+import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
 
@@ -13,158 +14,63 @@ import FilterProjectGroupDialog from '../dialogs/FilterProjectGroupDialog';
 // #endregion
 
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
-import { 
-    PlusIcon, 
+import {
+    PlusIcon,
     TrashIcon,
     AdjustmentsVerticalIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 
 const ProjectGroup: React.FC = () => {
     const navigate = useNavigate();
-    const [isLoading, setIsLoading] = useState(false);
 
     const [isAddProjectGroupOpen, setIsAddProjectGroupOpen] = useState(false);
     const [isDeleteProjectGroupOpen, setIsDeleteProjectGroupOpen] = useState(false);
     const [isFilterProjectGroupDialogOpen, setIsFilterProjectGroupDialogOpen] = useState(false);
     const [selectedProjectGroup, setSelectedProjectGroup] = useState<string | null>(); // Initialize with an empty string or a default value
 
-    useEffect(() => {
-        const getProjectGroups = async () => {
-            setIsLoading(true);
-            try {
-                const response = await fetchProjectGroup(ProjectGroupFilters);
-                setProjectGroupData(response.Data);
-            } catch (error) {
-                console.error('Error fetching project groups:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        getProjectGroups();
+    // The list endpoint bundles the UserGroups dropdown alongside every paginated response —
+    // stash it here as a side effect of each fetch so AddProjectGroupDialog always has fresh data
+    // without a second request (see Program.tsx for the alternate lazy-fetch-on-dialog-open pattern,
+    // not needed here since this data already rides along with the list fetch).
+    const [userGroupDropdown, setUserGroupDropdown] = useState<UserGroups[]>([]);
+
+    const fetchProjectGroupsPaginated = useCallback(async (params: PaginatedRequest<ProjectGroupFilter>) => {
+        const response = await fetchProjectGroup(params);
+        setUserGroupDropdown(response.Data.Dropdowns.UserGroups);
+        return response as { Data: ProjectGroupsDropDowns };
     }, []);
 
-    const fetchProjectGroups = async (filters?: ProjectGroupPagination) => {
-        try {
-            setIsLoading(true);
-            const filtersToUse = filters || ProjectGroupFilters;
-            const response = await fetchProjectGroup(filtersToUse);
-            setProjectGroupData(response.Data);
-        } catch (error) {
-            console.error('Error fetching project groups:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const [ProjectGroupData, setProjectGroupData] = useState<ProjectGroupsDropDowns>({
-        total: 0,
-        page: 1,
-        limit: 10,
-        totalPages: 0,
-        lists: [],
-        Dropdowns: {
-            UserGroups: [],
-        }
+    // Shared pagination hook — speaks the backend's keyset pagination contract (Navigation/cursor
+    // ids). Replaces the old hand-rolled Paginate(page) which silently always re-fetched page 1:
+    // the backend only understands Navigation: First/Next/Previous/Page/Last, and the old code
+    // never sent Navigation at all, so every request defaulted to First regardless of which page
+    // button was clicked.
+    const pagination = usePagination<ProjectGroupFilter, ProjectGroupList>(fetchProjectGroupsPaginated, {
+        initialFilters: { Name: '', UserGroupName: '' },
+        limit: 20,
     });
 
-    const [ProjectGroupFilters, setProjectGroupFilters] = useState<ProjectGroupPagination>({
-            filters: {
-                Name: '',
-                UserGroupName: '',
-            },
-            sortField: '',
-            sortDirection: 1,
-            page: 1,
-            limit: 20
-        });
-    // #region Sorting Logic
-    // const newFilter: ProjectGroupPagination = {
-    //     ...ProjectGroupFilters,
-    //     sortField: field === 0 ? 'Name' : '',
-    //     sortDirection: (direction || 0) as 0 | 1,
-    //     page: 1 // Reset to first page when sorting
-    // };
-    // setProjectGroupFilters(newFilter);
-    // #endregion
-
-
-    const handleOpenDialog = async () => {
-        try {
-            setIsLoading(true);
-            // const response = await fetchProjectGroupEnums();
-            // setProjectGroupData(response.Data); // this will be passed as prop
-            setIsAddProjectGroupOpen(true); // this shows the dialog
-            setIsLoading(false);
-        } catch (error) {
-            console.error('Error fetching project groups:', error);
-            setIsLoading(false);
-        }
+    const handleOpenDialog = () => {
+        setIsAddProjectGroupOpen(true);
     };
 
-    // Helper function to render status badge
-    // const getStatusBadge = (status: string) => {
-    //     const statusColors = {
-    //         'Working': 'bg-orange-100 text-orange-800 border-orange-200',
-    //         'Approved': 'bg-green-100 text-green-800 border-green-200',
-    //         'Pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    //         'Rejected': 'bg-red-100 text-red-800 border-red-200',
-    //         'Proposed': 'bg-blue-100 text-blue-800 border-blue-200',
-    //     };
-        
-    //     const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800 border-gray-200';
-        
-    //     return (
-    //         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${colorClass}`}>
-    //             {status}
-    //         </span>
-    //     );
-    // };
-
-    const handleViewDetails = async (id: string) => {
+    const handleViewDetails = (id: string) => {
         navigate(`/project-groups/${id}`);
     };
 
-    const handleFilterSubmit = async (filterData: any) => {
-        const updatedFilters = {
-            ...ProjectGroupFilters,
-            filters: {
-                Name: filterData.Name || '',
-                UserGroupName: filterData.UserGroupName || '',
-            },
-            page: 1 // Reset to first page when filtering
-        };
-        
-        setProjectGroupFilters(updatedFilters);
-        await fetchProjectGroups(updatedFilters);
+    const handleFilterSubmit = (filterData: ProjectGroupFilter) => {
+        pagination.applyFilters({
+            Name: filterData.Name || '',
+            UserGroupName: filterData.UserGroupName || '',
+        });
     };
 
-    const handleClear = async () => {
-        const clearedFilters = {
-            ...ProjectGroupFilters,
-            filters: {
-                Name: '',
-                UserGroupName: '',
-            },
-            page: 1
-        };
-        
-        setProjectGroupFilters(clearedFilters);
-        await fetchProjectGroups(clearedFilters);
-    };
-
-    const Paginate = async (page: number) => {
-        try {
-            const updatedFilters = { ...ProjectGroupFilters, page };
-            setProjectGroupFilters(updatedFilters);
-            const response = await fetchProjectGroup(updatedFilters);
-            setProjectGroupData(response.Data);
-        } catch (error) {
-            console.error('Error fetching Project Groups:', error);
-        }
+    const handleClear = () => {
+        pagination.applyFilters({ Name: '', UserGroupName: '' });
     };
 
     return (
-        
+
         <div className="max-w-10xl mx-auto p-6 space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="overflow-hidden">
@@ -173,30 +79,30 @@ const ProjectGroup: React.FC = () => {
                             <h3 className="text-lg font-medium text-gray-900">Project Groups</h3>
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center space-x-2">
-                                    {(ProjectGroupFilters.filters?.Name || ProjectGroupFilters.filters?.UserGroupName) && (
-                                        <Button 
-                                            color="red" 
-                                            className="shadow-md text-xs px-3 py-1.5" 
+                                    {(pagination.currentFilters?.Name || pagination.currentFilters?.UserGroupName) && (
+                                        <Button
+                                            color="red"
+                                            className="shadow-md text-xs px-3 py-1.5"
                                             onClick={handleClear}
-                                            disabled={isLoading}
+                                            disabled={pagination.isLoading}
                                         >
                                             Clear Filters
                                         </Button>
                                     )}
-                                    <Button 
-                                        color="white" 
-                                        className={`shadow-md text-xs px-3 py-1.5 ${ProjectGroupFilters.filters?.Name || ProjectGroupFilters.filters?.UserGroupName ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+                                    <Button
+                                        color="white"
+                                        className={`shadow-md text-xs px-3 py-1.5 ${pagination.currentFilters?.Name || pagination.currentFilters?.UserGroupName ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
                                         onClick={() => setIsFilterProjectGroupDialogOpen(true)}
-                                        disabled={isLoading}
+                                        disabled={pagination.isLoading}
                                     >
                                         <AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
                                         Filter
                                         {(() => {
                                             const activeFilters = [
-                                                ProjectGroupFilters.filters?.Name,
-                                                ProjectGroupFilters.filters?.UserGroupName,
+                                                pagination.currentFilters?.Name,
+                                                pagination.currentFilters?.UserGroupName,
                                             ].filter(Boolean).length;
-                                            
+
                                             return activeFilters > 0 && (
                                                 <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
                                                     {activeFilters}
@@ -205,9 +111,9 @@ const ProjectGroup: React.FC = () => {
                                         })()}
                                     </Button>
                                 </div>
-                                <Button color="blue" onClick={handleOpenDialog} disabled={isLoading} className="text-xs px-3 py-1.5">
+                                <Button color="blue" onClick={handleOpenDialog} disabled={pagination.isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
-                                    {isLoading ? 'Loading...' : 'Add Project Group'}
+                                    {pagination.isLoading ? 'Loading...' : 'Add Project Group'}
                                 </Button>
                             </div>
                         </div>
@@ -225,10 +131,10 @@ const ProjectGroup: React.FC = () => {
                     </TableRow>
                     </TableHead>
                     <TableBody>
-                    {ProjectGroupData.lists.map((group, idx) => (
+                    {pagination.data.lists.map((group, idx) => (
                         <TableRow key={`${group.Id}-${idx}`}>
                         <TableCell>
-                            <button 
+                            <button
                                 onClick={() => handleViewDetails(group.GroupId)}
                                 className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
                             >
@@ -236,7 +142,6 @@ const ProjectGroup: React.FC = () => {
                             </button>
                         </TableCell>
                         <TableCell>
-                            {/* {getStatusBadge(group.Name || '')} */}
                             <span className="block max-w-xs truncate" title={group.Description || ''}>
                                 {group.Description || 'N/A'}
                             </span>
@@ -255,7 +160,7 @@ const ProjectGroup: React.FC = () => {
                         </TableCell>
                         <TableCell>
                             <div className="flex items-center space-x-1">
-                                <Button 
+                                <Button
                                     color="orange"
                                     onClick={() => handleViewDetails(group.GroupId)}
                                     className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
@@ -271,63 +176,26 @@ const ProjectGroup: React.FC = () => {
                     ))}
                     </TableBody>
                 </Table>
-                <Pagination className="my-6">
-                    {
-                        ProjectGroupData.totalPages > 1 && (
-                            <>
-                                <PaginationPrevious 
-                                    onClick={async () => {
-                                        Paginate(1);
-                                    }}
-                                    disabled={ProjectGroupData.page <= 1}
-                                >
-                                    First
-                                </PaginationPrevious>
-                                <PaginationList>
-                                    {Array.from({ length: Math.min(7, ProjectGroupData.totalPages) }, (_, index) => {
-                                        const pageNum = Math.max(1, ProjectGroupData.page - 3) + index;
-                                        if (pageNum > ProjectGroupData.totalPages) return null;
 
-                                        if (pageNum === ProjectGroupData.page) {
-                                            return (
-                                                <PaginationPage
-                                                    key={pageNum}
-                                                    current
-                                                >
-                                                    {pageNum}
-                                                </PaginationPage>
-                                            );
-                                        } else {
-                                            return (
-                                                <PaginationPage
-                                                    key={pageNum}
-                                                    onClick={() => {
-                                                        Paginate(pageNum);
-                                                    }}
-                                                >
-                                                    {pageNum}
-                                                </PaginationPage>
-                                            );
-                                        }
-                                    })}
-                                </PaginationList>
-                                <PaginationNext 
-                                    onClick={async () => {
-                                        Paginate(ProjectGroupData.totalPages);
-                                    }}
-                                    disabled={ProjectGroupData.page >= ProjectGroupData.totalPages}
-                                >
-                                    Last
-                                </PaginationNext>
-                            </>
-                        )
-                    }
-                </Pagination>
+                {/* Pagination bar — keyset Next/Previous + plain page-jump First/Last/numbered */}
+                <PaginationBar
+                    currentPage={pagination.data.page}
+                    totalPages={pagination.data.totalPages}
+                    hasPrevious={pagination.hasPrevious}
+                    hasNext={pagination.hasNext}
+                    onGoToPage={pagination.goToPage}
+                    onNext={pagination.goNext}
+                    onPrevious={pagination.goPrevious}
+                    onFirst={pagination.goFirst}
+                    onLast={pagination.goLast}
+                    isLoading={pagination.isLoading}
+                />
+
                     <div className='mb-3.5 text-center'>
                         {
-                            ProjectGroupData.lists.length > 0 ? (
+                            pagination.data.lists.length > 0 ? (
                                 <p className="text-sm text-gray-500">
-                                    Showing {ProjectGroupData.limit * (ProjectGroupData.page - 1) + 1} to {Math.min(ProjectGroupData.limit * ProjectGroupData.page, ProjectGroupData.total)} of {ProjectGroupData.total} project groups
+                                    Showing {pagination.data.limit * (pagination.data.page - 1) + 1} to {Math.min(pagination.data.limit * pagination.data.page, pagination.data.total)} of {pagination.data.total} project groups
                                 </p>
                             ) : (
                                 <p className="text-sm text-gray-500">
@@ -343,14 +211,10 @@ const ProjectGroup: React.FC = () => {
             <AddProjectGroupDialog
                 isOpen={isAddProjectGroupOpen}
                 onClose={() => setIsAddProjectGroupOpen(false)}
-                dropdownData={ProjectGroupData?.Dropdowns}
-                onSubmit={(newProjectGroup: any) => {
-                    // Handle the new project group submission
-                    setProjectGroupData(prev => ({
-                        ...prev,
-                        lists: [...prev.lists, newProjectGroup],
-                        total: prev.total + 1
-                    }));
+                dropdownData={{ UserGroups: userGroupDropdown }}
+                onSubmit={() => {
+                    // Refresh current page so the newly added group appears
+                    pagination.refresh();
                 }}
             />
             {/* Delete Project Group Dialog */}
@@ -358,13 +222,10 @@ const ProjectGroup: React.FC = () => {
                 <DeleteProjectGroupDialog
                     isOpen={isDeleteProjectGroupOpen}
                     onClose={() => setIsDeleteProjectGroupOpen(false)}
-                    projectGroup={ProjectGroupData.lists?.find((projectGroup: any) => projectGroup.GroupId === selectedProjectGroup)!} // Pass the selected project group or an empty object
-                    onSubmit={(projectGroupId: any) => {
-                        setProjectGroupData(prev => ({
-                            ...prev,
-                            lists: prev.lists.filter(projectGroup => projectGroup.GroupId !== projectGroupId),
-                            total: prev.total - 1
-                        }));
+                    projectGroup={pagination.data.lists.find((projectGroup) => projectGroup.GroupId === selectedProjectGroup)!} // Pass the selected project group or an empty object
+                    onSubmit={() => {
+                        // Re-fetch current page/filters without keyset cursors — safe after delete
+                        pagination.refresh();
                     }}
             />
             )}
@@ -375,7 +236,7 @@ const ProjectGroup: React.FC = () => {
                 onClose={() => setIsFilterProjectGroupDialogOpen(false)}
                 onSubmit={handleFilterSubmit}
                 onClear={handleClear}
-                initialData={ProjectGroupFilters.filters}
+                initialData={pagination.currentFilters}
             />
         </div>
     );
