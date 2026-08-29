@@ -333,15 +333,40 @@ namespace WebAPI.Controllers.Importing
             var filePath = Path.Combine(tempFolder, safeName);
 
             if (!System.IO.File.Exists(filePath))
-                return new BadRequestObjectResult(new { Message = "File not found or already downloaded.", Title = "File Error." });
+                return new BadRequestObjectResult(new { Message = "File not found.", Title = "File Error." });
 
-            var contentType = safeName.EndsWith(".xlsx")
-                ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                : "text/plain";
+            var contentType = safeName.EndsWith(".xlsm")
+                ? "application/vnd.ms-excel.sheet.macroEnabled.12"
+                : safeName.EndsWith(".xlsx")
+                    ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    : "text/plain";
 
             var bytes = await System.IO.File.ReadAllBytesAsync(filePath, cancellationToken);
-            System.IO.File.Delete(filePath); // delete after download
+            // Retained on disk (not deleted after download) so it can be re-downloaded later.
             return File(bytes, contentType, safeName);
+        }
+
+        // ── Blank starter template ───────────────────────────────────────────────
+        // Same builder as the error report, called with zero rows on every sheet — headers,
+        // live DB-sourced dropdowns, and every macro (cascading dropdowns, auto-fill,
+        // pre-save mandatory-field gate) are identical to what a generated error report gets,
+        // just with nothing pre-filled. Runs inline (no Hangfire) since there's no uploaded
+        // file to parse/validate here — just ~20 small lookup-table reads, so this completes
+        // in well under a second.
+        [AllowAnonymous]
+        [HttpGet]
+        public async Task<IActionResult> DownloadTemplate(CancellationToken cancellationToken)
+        {
+            var cache = await ImportLookupCache.LoadAsync(_db);
+
+            var bytes = ImportErrorWorkbookBuilder.Build(
+                cache,
+                new List<ImportProjectDetailsExcel>(),
+                new List<ImportFundingProfileExcel>(),
+                new List<ImportComponentDetailsExcel>(),
+                new List<ImportMajorItemsOfWorkExcel>());
+
+            return File(bytes, "application/vnd.ms-excel.sheet.macroEnabled.12", "ImportProjectTemplate.xlsm");
         }
     }
 }

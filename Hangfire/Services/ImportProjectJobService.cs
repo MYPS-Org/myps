@@ -42,6 +42,72 @@ namespace Hangfire.Services
             _logger = logger;
         }
 
+        // ── Expected header text per column, keyed by 1-based column index — mirrors the exact
+        // strings ImportErrorWorkbookBuilder.cs writes to row 1 of each sheet. The Read* methods
+        // below pull every field by fixed column index, not by header lookup, so a hand-edited or
+        // stale-template upload with columns reordered/inserted/deleted would otherwise be
+        // misread silently (e.g. Category data landing in the Tier field) instead of failing
+        // cleanly. Only the columns each Read* method actually consumes are checked — the
+        // trailing "Error(s) and Warning(s)" display column carries no imported data, so its
+        // absence (e.g. someone deleted it from a downloaded template) isn't a correctness risk.
+        private static readonly string[] ProjectDetailsHeaders =
+        {
+            "Project ID", "Multi Year ID", "External ID", "OA Project Code (UACS)", "*Tier", "*Category",
+            "*Sub-Category", "MYCA Approval Date", "Description", "*Province", "*City Municipality",
+            "*Legislative District:", "*Region", "*District Engineering Office", "*Implementing Office",
+            "Operation Unit", "Region Wide", "Origin", "Originating Agency", "Implementation Mode",
+            "Emergency Mode", "ROW Available", "Feasibility Study", "Feasibility Date", "Detailed Design",
+            "Detailed Design Date", "Rank"
+        };
+        private static readonly string[] FundingProfileHeaders =
+        {
+            "Project ID", "Source(s)", "Agreement(s)", "Amount"
+        };
+        private static readonly string[] ComponentDetailsHeaders =
+        {
+            "Project ID", "Component Type", "Component ID", "Description", "Cost", "Planned Start Date",
+            "Planned End Date", "Infrastructure Type", "Type of Work", "Activity Year"
+        };
+        private static readonly string[] MajorItemsOfWorkHeaders =
+        {
+            "Project ID", "Component ID", "Reference ID", "Infrastructure ID", "Detailed Scope", "Target Unit",
+            "Start X", "Start Y", "End X", "End Y", "Physical Target", "Start Station", "End Station",
+            "Start Chainage (m)", "End Chainage (m)", "Length (meters)", "Activity Year"
+        };
+
+        // Compares row 1 of the sheet against the expected header list column-by-column, returning
+        // one description per mismatch (missing/blank column counts as a mismatch against what was
+        // expected there). An empty return means the layout is trustworthy enough for the Read*
+        // methods' fixed-column-index access to be safe.
+        private static List<string> ValidateSheetHeaders(ExcelWorksheet ws, string sheetName, string[] expectedHeaders)
+        {
+            var mismatches = new List<string>();
+            for (int col = 1; col <= expectedHeaders.Length; col++)
+            {
+                var actual = ws.Cells[1, col].Text?.Trim() ?? string.Empty;
+                var expected = expectedHeaders[col - 1];
+                if (!string.Equals(actual, expected, StringComparison.Ordinal))
+                {
+                    mismatches.Add($"{sheetName} column {ColumnLetter(col)}: expected \"{expected}\", found \"{actual}\"");
+                }
+            }
+            return mismatches;
+        }
+
+        // 1-based column index -> Excel column letter (1 -> A, 27 -> AA). All the sheets this
+        // validates against top out well under 27 columns, but the loop handles any width.
+        private static string ColumnLetter(int col)
+        {
+            var letters = string.Empty;
+            while (col > 0)
+            {
+                int rem = (col - 1) % 26;
+                letters = (char)('A' + rem) + letters;
+                col = (col - 1) / 26;
+            }
+            return letters;
+        }
+
         // ── Fresh import: inserts new projects for a Program+Stage, nothing existing is touched ──
         [AutomaticRetry(Attempts = 0)]
         public Task ProcessImport(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken)
@@ -125,6 +191,22 @@ namespace Hangfire.Services
                 using (package)
                 {
                     jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Verify system provenance marker ────────────────────────
+                    // Every file this system generates (DownloadTemplate and the error-report
+                    // workbook) carries a VeryHidden sheet with a fixed marker value — see
+                    // ImportErrorWorkbookBuilder.AddSystemMarker. Its absence means the file
+                    // wasn't produced by this system: most likely hand-built from scratch, or
+                    // edited with a tool that stripped worksheet-level metadata. Checked before
+                    // the sheet/header checks below since it's the most fundamental signal.
+                    var markerSheet = package.Workbook.Worksheets[ImportErrorWorkbookBuilder.SystemMarkerSheetName];
+                    var markerValue = markerSheet?.Cells[1, 1].Text;
+                    if (!string.Equals(markerValue, ImportErrorWorkbookBuilder.SystemMarkerValue, StringComparison.Ordinal))
+                    {
+                        await FailJob(jobRecord, "The uploaded file does not appear to be a genuine MYPS import file. Please use the file from Download Template or a generated error report, without recreating it in another tool.", transaction, payload.JobId);
+                        return;
+                    }
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Validate sheets ────────────────────────────────────────
                     var requiredSheets = new[]
                     {
@@ -138,6 +220,24 @@ namespace Hangfire.Services
                     if (missingSheets.Any())
                     {
                         await FailJob(jobRecord, $"Missing sheets: {string.Join(", ", missingSheets)}", transaction, payload.JobId);
+                        return;
+                    }
+
+                    jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Validate headers ──────────────────────────────────────
+                    // Sheet names alone don't guarantee the column layout the Read* methods below
+                    // rely on (they index by fixed column position) — a stale template version or
+                    // a manually reordered/edited file would otherwise be misread silently instead
+                    // of failing cleanly.
+                    var headerMismatches = new List<string>();
+                    headerMismatches.AddRange(ValidateSheetHeaders(package.Workbook.Worksheets["PROJECT DETAILS"], "PROJECT DETAILS", ProjectDetailsHeaders));
+                    headerMismatches.AddRange(ValidateSheetHeaders(package.Workbook.Worksheets["FUNDING PROFILE"], "FUNDING PROFILE", FundingProfileHeaders));
+                    headerMismatches.AddRange(ValidateSheetHeaders(package.Workbook.Worksheets["COMPONENT DETAILS"], "COMPONENT DETAILS", ComponentDetailsHeaders));
+                    headerMismatches.AddRange(ValidateSheetHeaders(package.Workbook.Worksheets["MAJOR ITEMS OF WORK"], "MAJOR ITEMS OF WORK", MajorItemsOfWorkHeaders));
+
+                    if (headerMismatches.Any())
+                    {
+                        await FailJob(jobRecord, $"The uploaded file's column layout does not match the expected import template. Please use the downloaded template without reordering, inserting, or deleting columns. Details: {string.Join("; ", headerMismatches)}", transaction, payload.JobId);
                         return;
                     }
 
@@ -169,10 +269,29 @@ namespace Hangfire.Services
                     // ── Load ALL lookup data ONCE — single DB round-trip ──────────
                     var cache = await ImportLookupCache.LoadAsync(_db);
 
+                    // ── Existing Descriptions for this Program, loaded once — mirrors the main
+                    // app's duplicate-Description check (ProjectController.cs's GetSameDescription)
+                    // without an N+1 query per row. AlternateId is what the main app's own
+                    // Program-scoped ProjectId matching already keys off (see the "Update mode"
+                    // KnownProjectIds query below), so it's the right field to exclude "this same
+                    // project" against, not the internal ProjectFK/ProjectPK.
+                    var existingProjectDescriptions = await _db.tProjectRevisions
+                        .Where(x => x.ProgramFK == IsValidProgram.ProgramDetails.ProgramPK)
+                        .Select(x => new { x.Description, x.AlternateId })
+                        .ToListAsync(jobCancellationToken.ShutdownToken);
+                    // Also union in this batch's own rows, so two NEW projects in the same import
+                    // sharing a Description get flagged too, not just a new row colliding with
+                    // something already in the DB. ValidateProjectDetails already excludes the
+                    // row's own ProjectId when matching, so a row is never flagged against itself.
+                    var existingDescriptionPairs = existingProjectDescriptions
+                        .Select(x => (x.Description ?? string.Empty, x.AlternateId ?? string.Empty))
+                        .Concat(importDto.ProjectDetails.Select(x => (x.Description ?? string.Empty, x.ProjectId ?? string.Empty)))
+                        .ToList();
+
                     jobCancellationToken.ThrowIfCancellationRequested();
                     foreach (var item in importDto.ProjectDetails)
                     {
-                        var r = _db.ValidateProjectDetails(item, cache);
+                        var r = _db.ValidateProjectDetails(item, cache, existingDescriptionPairs);
                         if (!r.IsValid) ErrorProjectDetails.Add(item);
                         else if (r.IsWarning) WarningProjectDetails.Add(item);
                         else ValidProjectDetails.Add(item);
@@ -190,7 +309,7 @@ namespace Hangfire.Services
                     jobCancellationToken.ThrowIfCancellationRequested();
                     foreach (var item in importDto.ComponentDetails)
                     {
-                        var r = _db.ValidateComponentDetails(item, importDto.ComponentDetails, cache);
+                        var r = _db.ValidateComponentDetails(item, importDto.ComponentDetails, cache, IsValidProgram.ProgramDetails.StartYear);
                         if (!r.IsValid) ErrorComponentDetails.Add(item);
                         else if (r.IsWarning) WarningComponentDetails.Add(item);
                         else ValidComponentDetails.Add(item);
@@ -199,7 +318,7 @@ namespace Hangfire.Services
                     jobCancellationToken.ThrowIfCancellationRequested();
                     foreach (var item in importDto.MajorItemsOfWork)
                     {
-                        var r = _db.ValidateMajorItemsOfWork(item, importDto.ComponentDetails, cache);
+                        var r = _db.ValidateMajorItemsOfWork(item, importDto.ComponentDetails, importDto.MajorItemsOfWork, cache, IsValidProgram.ProgramDetails.StartYear);
                         if (!r.IsValid) ErrorMajorItemsOfWork.Add(item);
                         else if (r.IsWarning) WarningMajorItemsOfWork.Add(item);
                         else ValidMajorItemsOfWork.Add(item);
@@ -271,6 +390,70 @@ namespace Hangfire.Services
                             WarningMajorItemsOfWork.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
                         }
                     }
+                    else
+                    {
+                        // ── Fresh import mode: reject any ProjectId that already exists under this
+                        // exact Program+Stage — the mirror image of the Update-mode guard above.
+                        // SaveProjectDetails (ImportingHelper.cs) resolves identity by AlternateId
+                        // regardless of which mode called it: it always looks for an existing
+                        // revision under this Program+Stage first and, if found, retains and updates
+                        // it in place rather than creating anything new. Without this guard, a fresh
+                        // Import run whose file happens to reuse an existing ProjectId would silently
+                        // overwrite that project's data instead of erroring — indistinguishable from
+                        // an Update. Scoped to Program+Stage, matching the exact StageMatches
+                        // condition SaveProjectDetails itself checks, so this catches exactly the
+                        // rows that would otherwise silently retain-and-update.
+                        var ExistingProjectIds = await (
+                            from ps in _db.tProjectStages
+                            join rev in _db.tProjectRevisions on ps.RevisionId equals rev.Id
+                            where ps.ProgramFK == IsValidProgram.ProgramDetails.ProgramPK
+                               && ps.StageName == payload.StageName
+                            select rev.AlternateId
+                        ).Distinct().ToListAsync(jobCancellationToken.ShutdownToken);
+
+                        var ExistingProjectIdSet = new HashSet<string>(ExistingProjectIds, StringComparer.OrdinalIgnoreCase);
+
+                        var CollidingIds = new HashSet<string>(
+                            ValidProjectDetails.Concat(WarningProjectDetails)
+                                .Select(x => x.ProjectId)
+                                .Where(id => ExistingProjectIdSet.Contains(id)),
+                            StringComparer.OrdinalIgnoreCase);
+
+                        if (CollidingIds.Count > 0)
+                        {
+                            foreach (var item in ValidProjectDetails.Concat(WarningProjectDetails).Where(x => CollidingIds.Contains(x.ProjectId)))
+                            {
+                                item.ErrorMessage = "Import: ProjectId already exists for this Program and Stage. Use Update instead.";
+                                ErrorProjectDetails.Add(item);
+                            }
+                            ValidProjectDetails.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
+                            WarningProjectDetails.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
+
+                            foreach (var item in ValidFundingProfile.Concat(WarningFundingProfile).Where(x => CollidingIds.Contains(x.ProjectId)))
+                            {
+                                item.ErrorMessage = "Import: parent ProjectId already exists and was disregarded.";
+                                ErrorFundingProfile.Add(item);
+                            }
+                            ValidFundingProfile.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
+                            WarningFundingProfile.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
+
+                            foreach (var item in ValidComponentDetails.Concat(WarningComponentDetails).Where(x => CollidingIds.Contains(x.ProjectId)))
+                            {
+                                item.ErrorMessage = "Import: parent ProjectId already exists and was disregarded.";
+                                ErrorComponentDetails.Add(item);
+                            }
+                            ValidComponentDetails.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
+                            WarningComponentDetails.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
+
+                            foreach (var item in ValidMajorItemsOfWork.Concat(WarningMajorItemsOfWork).Where(x => CollidingIds.Contains(x.ProjectId)))
+                            {
+                                item.ErrorMessage = "Import: parent ProjectId already exists and was disregarded.";
+                                ErrorMajorItemsOfWork.Add(item);
+                            }
+                            ValidMajorItemsOfWork.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
+                            WarningMajorItemsOfWork.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
+                        }
+                    }
 
                     jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Sorting ────────────────────────────────────────────
@@ -290,24 +473,6 @@ namespace Hangfire.Services
                     });
 
                     jobCancellationToken.ThrowIfCancellationRequested();
-                    // ── Guard: duplicate ProjectId within this same file ────────────────
-                    // SaveProjectDetails resolves identity by AlternateId, so two rows sharing
-                    // the same ProjectId in one file would make the second row "reuse" the
-                    // revision the first row just inserted moments earlier, leaving the first
-                    // row's revision active and un-deleted (the scoped soft-delete above only
-                    // covers PRIOR data, not duplicates created mid-run). Fail fast instead.
-                    var DuplicateProjectIds = ValidProjectDetails.Concat(WarningProjectDetails)
-                        .GroupBy(x => x.ProjectId, StringComparer.OrdinalIgnoreCase)
-                        .Where(g => g.Count() > 1)
-                        .Select(g => g.Key)
-                        .ToList();
-
-                    if (DuplicateProjectIds.Count > 0)
-                    {
-                        throw new InvalidOperationException(
-                            $"Duplicate ProjectId(s) found within the import file: {string.Join(", ", DuplicateProjectIds)}. Each ProjectId must appear only once per file.");
-                    }
-
                     // ── Update mode: soft-delete only the projects present in this file ──
                     // Scoped to the same ProjectIds that are about to be re-inserted below
                     // (Valid + Warning rows) — anything under this Program+Stage that isn't
@@ -516,7 +681,7 @@ namespace Hangfire.Services
                     Directory.CreateDirectory(tempFolder);
 
                     var textFileName = $"ImportReport_{payload.JobId}.txt";
-                    var excelFileName = $"ImportErrors_{payload.JobId}.xlsx";
+                    var excelFileName = $"ImportErrors_{payload.JobId}.xlsm";
 
                     // Text file
                     var textBytes = GenerateTextReport(
@@ -528,8 +693,8 @@ namespace Hangfire.Services
                     // Excel file (only if errors)
                     if (hasErrors)
                     {
-                        var excelBytes = GenerateExcelReport(
-                            ErrorProjectDetails, ErrorFundingProfile,
+                        var excelBytes = ImportErrorWorkbookBuilder.Build(
+                            cache, ErrorProjectDetails, ErrorFundingProfile,
                             ErrorComponentDetails, ErrorMajorItemsOfWork);
 
                         await File.WriteAllBytesAsync(Path.Combine(tempFolder, excelFileName), excelBytes, jobCancellationToken.ShutdownToken);
@@ -544,8 +709,12 @@ namespace Hangfire.Services
                     jobRecord.Status = hasErrors ? "CompletedWithErrors" : "Completed";
                     jobRecord.Message = $"Projects imported: {ValidProjectDetails.Count + WarningProjectDetails.Count}.";
                     jobRecord.ValidCount = ValidProjectDetails.Count + WarningProjectDetails.Count;
-                    jobRecord.WarningCount = WarningProjectDetails.Count;
-                    jobRecord.ErrorCount = ErrorProjectDetails.Count;
+                    // Counted across all four sheets, not just Project Details — a row can end up
+                    // in error/warning (e.g. a "floating record" demoted by FinalizeErrors) without
+                    // its Project Details row itself carrying any warning/error, which previously
+                    // left ErrorCount/WarningCount at 0 even when hasErrors (below) was true.
+                    jobRecord.WarningCount = WarningProjectDetails.Count + WarningFundingProfile.Count + WarningComponentDetails.Count + WarningMajorItemsOfWork.Count;
+                    jobRecord.ErrorCount = ErrorProjectDetails.Count + ErrorFundingProfile.Count + ErrorComponentDetails.Count + ErrorMajorItemsOfWork.Count;
                     jobRecord.TextFileName = textFileName;
                     jobRecord.ExcelFileName = hasErrors ? excelFileName : string.Empty;
                     jobRecord.CompletedAt = Functions.CurrentDate();
@@ -754,17 +923,77 @@ namespace Hangfire.Services
                 }
             }
 
+            // Step 0 — Duplicate ProjectId within PROJECT DETAILS. SaveProjectDetails resolves
+            // identity by AlternateId, so two rows sharing the same ProjectId in one file would
+            // make the second row "reuse" the revision the first row just inserted moments
+            // earlier, leaving the first row's revision active and un-deleted (the scoped
+            // soft-delete only covers PRIOR data, not duplicates created mid-run). Demoted here
+            // — not thrown — so it flows through the same graceful error-list/cascade/report
+            // pipeline as every other validation failure: previously this threw a raw exception
+            // straight past report generation, leaving the job "Failed" with a message but no
+            // downloadable error workbook and no per-row breakdown, even if only one ProjectId
+            // out of hundreds was duplicated. Runs first so Steps 1+ correctly treat every row
+            // for a duplicated ProjectId as already erroring.
+            var duplicateProjectIds = new HashSet<string>(
+                validP.Concat(warnP)
+                    .GroupBy(x => x.ProjectId, StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key),
+                StringComparer.OrdinalIgnoreCase);
+
+            PropagateErrors(duplicateProjectIds, errP, validP, warnP, x => x.ProjectId,
+                "Duplicate ProjectId: this ProjectId appears on more than one row in PROJECT DETAILS within the same import file. Each ProjectId must appear only once per file.");
+
             // Step 1 — Initial cascade
             RunCascadeLoop();
 
-            // Step 2 — Detect floating ProjectDetails
-            var allChildIds = new HashSet<string>(
-                validF.Select(x => x.ProjectId).Concat(warnF.Select(x => x.ProjectId)).Concat(errF.Select(x => x.ProjectId))
-                .Concat(validC.Select(x => x.ProjectId)).Concat(warnC.Select(x => x.ProjectId)).Concat(errC.Select(x => x.ProjectId))
-                .Concat(validM.Select(x => x.ProjectId)).Concat(warnM.Select(x => x.ProjectId)).Concat(errM.Select(x => x.ProjectId))
-            );
-            var floatP = new HashSet<string>(validP.Where(x => !allChildIds.Contains(x.ProjectId)).Select(x => x.ProjectId)
-                .Concat(warnP.Where(x => !allChildIds.Contains(x.ProjectId)).Select(x => x.ProjectId)));
+            // Step 1.5 — Component -> Major Item requirement. Ports the Excel workbook's own
+            // pre-save gate (ModuleMandatory.MandatoryFieldsMessage_All's "Component -> Major
+            // Item Validation") to the actual backend, so it can't be bypassed by re-uploading an
+            // unmodified file or disabling macros. Mirrors that gate's exemption list (component
+            // types that don't carry a trackable physical/location item) and its "any row for
+            // this pair" presence semantics. Only checks components that are still valid/warn at
+            // this point (errored components are already going away regardless); only counts
+            // Major Items that are themselves still valid/warn as satisfying the requirement,
+            // since an errored Major Item won't actually be imported either. Runs before Step 2
+            // so a component demoted here correctly feeds into the Project-level child check below.
+            var majorItemExemptComponentIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "EAO", "EAOS", "EXC", "SAV", "COS", "FS", "DED", "LS", "OTH2", "OTH3", "OTH4", "EXP", "CS"
+            };
+            var majorItemKeys = new HashSet<string>(
+                validM.Select(x => $"{x.ProjectId}|{x.ComponentId}")
+                .Concat(warnM.Select(x => $"{x.ProjectId}|{x.ComponentId}")));
+
+            void RequireMajorItem(List<ImportComponentDetailsExcel> list)
+            {
+                var missing = list.Where(c =>
+                    !majorItemExemptComponentIds.Contains(c.ComponentId ?? string.Empty) &&
+                    !majorItemKeys.Contains($"{c.ProjectId}|{c.ComponentId}")).ToList();
+
+                foreach (var c in missing)
+                {
+                    AppendMessage(c, $"Component '{c.ComponentId}' under Project '{c.ProjectId}' requires at least 1 Major Item.");
+                }
+                errC.AddRange(missing);
+                validC.RemoveAll(c => missing.Contains(c));
+                warnC.RemoveAll(c => missing.Contains(c));
+            }
+            RequireMajorItem(validC);
+            RequireMajorItem(warnC);
+
+            // Step 2 — Detect floating ProjectDetails. Requires BOTH a Funding Profile entry AND
+            // a Component Details entry (matching the Excel workbook's own stricter gate) rather
+            // than "any one of Funding/Component/MajorItems", which is what this used to check —
+            // a project with only a Major Item and nothing else used to slip through as non-floating.
+            var fundingProjectIds = new HashSet<string>(
+                validF.Select(x => x.ProjectId).Concat(warnF.Select(x => x.ProjectId)).Concat(errF.Select(x => x.ProjectId)));
+            var componentProjectIds = new HashSet<string>(
+                validC.Select(x => x.ProjectId).Concat(warnC.Select(x => x.ProjectId)).Concat(errC.Select(x => x.ProjectId)));
+            bool MissingRequiredChildren(ImportProjectDetailsExcel x) =>
+                !fundingProjectIds.Contains(x.ProjectId) || !componentProjectIds.Contains(x.ProjectId);
+            var floatP = new HashSet<string>(validP.Where(MissingRequiredChildren).Select(x => x.ProjectId)
+                .Concat(warnP.Where(MissingRequiredChildren).Select(x => x.ProjectId)));
 
             // Step 3 — Detect floating child records
             var allValidPIds = new HashSet<string>(validP.Select(x => x.ProjectId).Concat(warnP.Select(x => x.ProjectId)));
@@ -780,7 +1009,7 @@ namespace Hangfire.Services
                 .Concat(warnM.Where(x => !allValidPIds.Contains(x.ProjectId) || !allCompKeys.Contains($"{x.ProjectId}|{x.ComponentId}")).Select(x => x.ProjectId)));
 
             // Step 4 — Move floating to Error
-            PropagateErrors(floatP, errP, validP, warnP, x => x.ProjectId, "Floating record: No children found in Funding Profile, Component Details, or Major Items of Work.");
+            PropagateErrors(floatP, errP, validP, warnP, x => x.ProjectId, "Floating record: A project requires at least one Funding Profile entry and at least one Component Details entry.");
             PropagateErrors(floatF, errF, validF, warnF, x => x.ProjectId, "Floating record: No matching parent found in Project Details.");
             PropagateErrors(floatC, errC, validC, warnC, x => x.ProjectId, "Floating record: No matching parent found in Project Details.");
             PropagateErrors(floatM, errM, validM, warnM, x => x.ProjectId, "Floating record: No matching parent found in Project Details or Component Details.");
@@ -834,208 +1063,6 @@ namespace Hangfire.Services
             WriteSection(warnM, "--- WARNING: MAJOR ITEMS OF WORK ---", x => $"ProjectId: {x.ProjectId} | InfrastructureId: {x.InfrastructureId} | Warning: {x.ErrorMessage}");
 
             return Encoding.UTF8.GetBytes(sb.ToString());
-        }
-
-        // ── Generate Excel report bytes ────────────────────────────────────────
-        private byte[] GenerateExcelReport(
-            List<ImportProjectDetailsExcel> ErrorProjectDetails,
-            List<ImportFundingProfileExcel> ErrorFundingProfile,
-            List<ImportComponentDetailsExcel> ErrorComponentDetails,
-            List<ImportMajorItemsOfWorkExcel> ErrorMajorItemsOfWork)
-        {
-            ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-            using var pkg = new ExcelPackage();
-
-            void StyleHeaders(ExcelWorksheet ws, string range, string[] red, string[] blue)
-            {
-                foreach (var c in red)
-                {
-                    ws.Cells[c].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.SkyBlue);
-                    //ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Red);
-                }
-                foreach (var c in blue)
-                {
-                    ws.Cells[c].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    ws.Cells[c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.SkyBlue);
-                }
-                ws.Cells[range].Style.Font.Bold = true;
-                ws.Cells[range].Style.Font.Color.SetColor(System.Drawing.Color.White);
-            }
-
-            // PROJECT DETAILS
-            var ws1 = pkg.Workbook.Worksheets.Add("PROJECT DETAILS");
-            ws1.Cells["A1"].Value = "Project ID";
-            ws1.Cells["B1"].Value = "Multi Year ID";
-            ws1.Cells["C1"].Value = "External ID";
-            ws1.Cells["D1"].Value = "OA Project Code (UACS)";
-            ws1.Cells["E1"].Value = "*Tier";
-            ws1.Cells["F1"].Value = "*Category";
-            ws1.Cells["G1"].Value = "*Sub-Category";
-            ws1.Cells["H1"].Value = "MYCA Approval Date";
-            ws1.Cells["I1"].Value = "Description";
-            ws1.Cells["J1"].Value = "*Province";
-            ws1.Cells["K1"].Value = "*City Municipality";
-            ws1.Cells["L1"].Value = "*Legislative District:";
-            ws1.Cells["M1"].Value = "*Region";
-            ws1.Cells["N1"].Value = "*District Engineering Office";
-            ws1.Cells["O1"].Value = "*Implementing Office";
-            ws1.Cells["P1"].Value = "Operation Unit";
-            ws1.Cells["Q1"].Value = "Region Wide";
-            ws1.Cells["R1"].Value = "Origin";
-            ws1.Cells["S1"].Value = "Originating Agency";
-            ws1.Cells["T1"].Value = "Implementation Mode";
-            ws1.Cells["U1"].Value = "Emergency Mode";
-            ws1.Cells["V1"].Value = "ROW Available";
-            ws1.Cells["W1"].Value = "Feasibility Study";
-            ws1.Cells["X1"].Value = "Feasibility Date";
-            ws1.Cells["Y1"].Value = "Detailed Design";
-            ws1.Cells["Z1"].Value = "Detailed Design Date";
-            ws1.Cells["AA1"].Value = "Rank";
-            ws1.Cells["AB1"].Value = "Error Msgs";
-
-            StyleHeaders(ws1, "A1:AB1",
-                red: ["A1", "E1", "F1", "G1", "I1", "J1", "K1", "L1", "M1", "N1", "O1", "P1", "Q1", "R1", "S1", "T1", "U1", "V1", "W1", "Y1"],
-                blue: ["B1", "C1", "D1", "H1", "X1", "Z1", "AA1"]);
-
-            for (int i = 0; i < ErrorProjectDetails.Count; i++)
-            {
-                ws1.Cells[i + 2, 1].Value = ErrorProjectDetails[i].ProjectId;
-                ws1.Cells[i + 2, 2].Value = ErrorProjectDetails[i].MYId;
-                ws1.Cells[i + 2, 3].Value = ErrorProjectDetails[i].ExternalId;
-                ws1.Cells[i + 2, 4].Value = ErrorProjectDetails[i].UACS;
-                ws1.Cells[i + 2, 5].Value = ErrorProjectDetails[i].Tier;
-                ws1.Cells[i + 2, 6].Value = ErrorProjectDetails[i].Category;
-                ws1.Cells[i + 2, 7].Value = ErrorProjectDetails[i].Thrust;
-                ws1.Cells[i + 2, 8].Value = ErrorProjectDetails[i].MYCAApprovalDate;
-                ws1.Cells[i + 2, 9].Value = ErrorProjectDetails[i].Description;
-                ws1.Cells[i + 2, 10].Value = ErrorProjectDetails[i].Province;
-                ws1.Cells[i + 2, 11].Value = ErrorProjectDetails[i].City;
-                ws1.Cells[i + 2, 12].Value = ErrorProjectDetails[i].LegislativeDistrict;
-                ws1.Cells[i + 2, 13].Value = ErrorProjectDetails[i].Region;
-                ws1.Cells[i + 2, 14].Value = ErrorProjectDetails[i].DEO;
-                ws1.Cells[i + 2, 15].Value = ErrorProjectDetails[i].ImplementingOffice;
-                ws1.Cells[i + 2, 16].Value = ErrorProjectDetails[i].OperatingUnit;
-                ws1.Cells[i + 2, 17].Value = ErrorProjectDetails[i].RegionWide;
-                ws1.Cells[i + 2, 18].Value = ErrorProjectDetails[i].Origin;
-                ws1.Cells[i + 2, 19].Value = ErrorProjectDetails[i].Agency;
-                ws1.Cells[i + 2, 20].Value = ErrorProjectDetails[i].ImplementationMode;
-                ws1.Cells[i + 2, 21].Value = ErrorProjectDetails[i].EmergencyMode;
-                ws1.Cells[i + 2, 22].Value = ErrorProjectDetails[i].RowAvailable;
-                ws1.Cells[i + 2, 23].Value = ErrorProjectDetails[i].Feasibility;
-                ws1.Cells[i + 2, 24].Value = ErrorProjectDetails[i].FeasibilityDate;
-                ws1.Cells[i + 2, 25].Value = ErrorProjectDetails[i].DetailedDesign;
-                ws1.Cells[i + 2, 26].Value = ErrorProjectDetails[i].DetailedDesignDate;
-                ws1.Cells[i + 2, 27].Value = ErrorProjectDetails[i].Rank;
-                ws1.Cells[i + 2, 28].Value = ErrorProjectDetails[i].ErrorMessage;
-            }
-            ws1.Cells[ws1.Dimension.Address].AutoFitColumns();
-
-            // FUNDING PROFILE
-            var ws2 = pkg.Workbook.Worksheets.Add("FUNDING PROFILE");
-            ws2.Cells["A1"].Value = "Project ID";
-            ws2.Cells["B1"].Value = "Source(s)";
-            ws2.Cells["C1"].Value = "Agreement(s)";
-            ws2.Cells["D1"].Value = "Amount";
-            ws2.Cells["E1"].Value = "Error Msgs";
-
-            StyleHeaders(ws2, "A1:E1",
-                red: ["A1", "B1", "C1", "D1"],
-                blue: Array.Empty<string>());
-
-            for (int i = 0; i < ErrorFundingProfile.Count; i++)
-            {
-                ws2.Cells[i + 2, 1].Value = ErrorFundingProfile[i].ProjectId;
-                ws2.Cells[i + 2, 2].Value = ErrorFundingProfile[i].Source;
-                ws2.Cells[i + 2, 3].Value = ErrorFundingProfile[i].Agreement;
-                ws2.Cells[i + 2, 4].Value = ErrorFundingProfile[i].Amount;
-                ws2.Cells[i + 2, 5].Value = ErrorFundingProfile[i].ErrorMessage;
-            }
-            ws2.Cells[ws2.Dimension.Address].AutoFitColumns();
-
-            // COMPONENT DETAILS
-            var ws3 = pkg.Workbook.Worksheets.Add("COMPONENT DETAILS");
-            ws3.Cells["A1"].Value = "Project ID";
-            ws3.Cells["B1"].Value = "Component Type";
-            ws3.Cells["C1"].Value = "Component ID";
-            ws3.Cells["D1"].Value = "Description";
-            ws3.Cells["E1"].Value = "Cost";
-            ws3.Cells["F1"].Value = "Planned Start Date";
-            ws3.Cells["G1"].Value = "Planned End Date";
-            ws3.Cells["H1"].Value = "Infrastructure Type";
-            ws3.Cells["I1"].Value = "Type of Work";
-            ws3.Cells["J1"].Value = "Activity Year";
-            ws3.Cells["K1"].Value = "Error Msgs";
-
-            StyleHeaders(ws3, "A1:K1",
-                red: ["A1", "B1", "C1", "E1", "H1", "I1", "J1"],
-                blue: ["D1", "F1", "G1"]);
-
-            for (int i = 0; i < ErrorComponentDetails.Count; i++)
-            {
-                ws3.Cells[i + 2, 1].Value = ErrorComponentDetails[i].ProjectId;
-                ws3.Cells[i + 2, 2].Value = ErrorComponentDetails[i].ComponentType;
-                ws3.Cells[i + 2, 3].Value = ErrorComponentDetails[i].ComponentId;
-                ws3.Cells[i + 2, 4].Value = ErrorComponentDetails[i].Description;
-                ws3.Cells[i + 2, 5].Value = ErrorComponentDetails[i].Cost;
-                ws3.Cells[i + 2, 6].Value = ErrorComponentDetails[i].StartDate;
-                ws3.Cells[i + 2, 7].Value = ErrorComponentDetails[i].EndDate;
-                ws3.Cells[i + 2, 8].Value = ErrorComponentDetails[i].InfraType;
-                ws3.Cells[i + 2, 9].Value = ErrorComponentDetails[i].WorkTypeId;
-                ws3.Cells[i + 2, 10].Value = ErrorComponentDetails[i].ActiveYear;
-                ws3.Cells[i + 2, 11].Value = ErrorComponentDetails[i].ErrorMessage;
-            }
-            ws3.Cells[ws3.Dimension.Address].AutoFitColumns();
-
-            // MAJOR ITEMS OF WORK
-            var ws4 = pkg.Workbook.Worksheets.Add("MAJOR ITEMS OF WORK");
-            ws4.Cells["A1"].Value = "Project ID";
-            ws4.Cells["B1"].Value = "Component ID";
-            ws4.Cells["C1"].Value = "Reference ID";
-            ws4.Cells["D1"].Value = "Infrastructure ID";
-            ws4.Cells["E1"].Value = "Detailed Scope";
-            ws4.Cells["F1"].Value = "Target Unit";
-            ws4.Cells["G1"].Value = "Start X";
-            ws4.Cells["H1"].Value = "Start Y";
-            ws4.Cells["I1"].Value = "End X";
-            ws4.Cells["J1"].Value = "End Y";
-            ws4.Cells["K1"].Value = "Physical Target";
-            ws4.Cells["L1"].Value = "Start Station";
-            ws4.Cells["M1"].Value = "End Station";
-            ws4.Cells["N1"].Value = "Start Chainage (m)";
-            ws4.Cells["O1"].Value = "End Chainage (m)";
-            ws4.Cells["P1"].Value = "Length (meters)";
-            ws4.Cells["Q1"].Value = "Activity Year";
-            ws4.Cells["R1"].Value = "Error Msgs";
-
-            StyleHeaders(ws4, "A1:R1",
-                red: ["A1", "B1", "C1", "D1", "F1", "G1", "H1", "I1", "J1", "K1"],
-                blue: ["E1", "L1", "M1", "N1", "O1", "P1", "Q1"]);
-
-            for (int i = 0; i < ErrorMajorItemsOfWork.Count; i++)
-            {
-                ws4.Cells[i + 2, 1].Value = ErrorMajorItemsOfWork[i].ProjectId;
-                ws4.Cells[i + 2, 2].Value = ErrorMajorItemsOfWork[i].ComponentId;
-                ws4.Cells[i + 2, 3].Value = ErrorMajorItemsOfWork[i].ReferenceId;
-                ws4.Cells[i + 2, 4].Value = ErrorMajorItemsOfWork[i].InfrastructureId;
-                ws4.Cells[i + 2, 5].Value = ErrorMajorItemsOfWork[i].DetailsScope;
-                ws4.Cells[i + 2, 6].Value = ErrorMajorItemsOfWork[i].TargetUnit;
-                ws4.Cells[i + 2, 7].Value = ErrorMajorItemsOfWork[i].StartX;
-                ws4.Cells[i + 2, 8].Value = ErrorMajorItemsOfWork[i].StartY;
-                ws4.Cells[i + 2, 9].Value = ErrorMajorItemsOfWork[i].EndX;
-                ws4.Cells[i + 2, 10].Value = ErrorMajorItemsOfWork[i].EndY;
-                ws4.Cells[i + 2, 11].Value = ErrorMajorItemsOfWork[i].PhysicalTarget;
-                ws4.Cells[i + 2, 12].Value = ErrorMajorItemsOfWork[i].StartStation;
-                ws4.Cells[i + 2, 13].Value = ErrorMajorItemsOfWork[i].EndStation;
-                ws4.Cells[i + 2, 14].Value = ErrorMajorItemsOfWork[i].StartChainage;
-                ws4.Cells[i + 2, 15].Value = ErrorMajorItemsOfWork[i].EndChainage;
-                ws4.Cells[i + 2, 16].Value = ErrorMajorItemsOfWork[i].Length;
-                ws4.Cells[i + 2, 17].Value = ErrorMajorItemsOfWork[i].ActivityYear;
-                ws4.Cells[i + 2, 18].Value = ErrorMajorItemsOfWork[i].ErrorMessage;
-            }
-            ws4.Cells[ws4.Dimension.Address].AutoFitColumns();
-
-            return pkg.GetAsByteArray();
         }
 
         // ── Read helpers ─────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace WebAPI.Controllers.CrystalReport;
 
@@ -6,7 +7,8 @@ public static class ReportRequestMapper
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
     };
 
     public static bool TryMap(
@@ -51,9 +53,12 @@ public static class ReportRequestMapper
         if (programIds == null)
             return Fail(out legacyParams, out error, "programIds is required.");
 
+        if (string.IsNullOrWhiteSpace(request.RegionCode))
+            return Fail(out legacyParams, out error, "regionCode is required.");
+
         legacyParams["yearstart"] = request.YearStart.Value.ToString();
         legacyParams["programid"] = programIds;
-        AddOptional(legacyParams, "region", request.RegionCode);
+        legacyParams["region"] = request.RegionCode;
         AddOptional(legacyParams, "PlanningEngineer", request.PlanningEngineer);
         AddOptional(legacyParams, "ApprovedBy", request.ApprovedBy);
         AddOptional(legacyParams, "ReviewedBy", request.ReviewedBy);
@@ -81,9 +86,18 @@ public static class ReportRequestMapper
         if (programIds == null)
             return Fail(out legacyParams, out error, "programIds is required.");
 
+        if (string.IsNullOrWhiteSpace(request.RegionCode))
+            return Fail(out legacyParams, out error, "regionCode is required.");
+
+        if (string.IsNullOrWhiteSpace(request.ReportType))
+            return Fail(out legacyParams, out error, "reportType is required.");
+
+        if (string.IsNullOrWhiteSpace(request.ReportTypeTitle))
+            return Fail(out legacyParams, out error, "reportTypeTitle is required.");
+
         legacyParams["yearstart"] = request.YearStart.Value.ToString();
         legacyParams["programid"] = programIds;
-        AddOptional(legacyParams, "region", request.RegionCode);
+        legacyParams["region"] = request.RegionCode;
         legacyParams["ReportType"] = request.ReportType ?? string.Empty;
         legacyParams["ReportTypeTitle"] = request.ReportTypeTitle ?? string.Empty;
 
@@ -144,9 +158,9 @@ public static class ReportRequestMapper
             request = JsonSerializer.Deserialize<T>(body, JsonOptions);
             return true;
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            error = "Invalid request body.";
+            error = $"Invalid request body: {ex.Message}";
             return false;
         }
     }

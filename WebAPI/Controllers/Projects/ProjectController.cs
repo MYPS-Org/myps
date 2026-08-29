@@ -282,6 +282,153 @@ namespace WebAPI.Controllers.Projects
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
+
+        /// <summary>
+        /// The visibility gate shared by ShowProjectStages' siblings: a user who cannot see
+        /// the project must not be able to read anything hanging off it. Returns null when
+        /// the project is visible (or filtering is off for this user's group), otherwise the
+        /// same deliberately non-disclosing rejection ShowProjectStages returns.
+        /// </summary>
+        private async Task<IActionResult?> RejectIfProjectNotVisible(string projectPK, CancellationToken cancellationToken)
+        {
+            if (!_Session.ApplyFilter)
+                return null;
+
+            var isVisible = await _db.fUserVisibleProjects
+                .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleProjects({_Session.UserId})")
+                .AnyAsync(x => x.ProjectPK == projectPK, cancellationToken);
+
+            if (isVisible)
+                return null;
+
+            return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
+        }
+
+        /// <summary>
+        /// The distinct components a project has carried across every Program Stage it has
+        /// undergone — the top-level rows of the Component Targets accordion on the project
+        /// details page. Not paginated: a project carries a handful of components, and the
+        /// accordion needs all of them before anything is expanded.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> ShowProjectTargetComponents([FromBody] ShowProjectTargetComponentsDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var rejection = await RejectIfProjectNotVisible(dto.ProjectId, cancellationToken);
+                if (rejection != null) return rejection;
+
+                var Targets = await _db.fProjectStageTargets
+                    .FromSqlInterpolated($"SELECT * FROM dbo.fProjectStageTargets({dto.ProjectId})")
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
+
+                // Grouped in memory rather than in SQL: the TVF is already scoped to one
+                // project (a handful of stages x tens of work items), and COUNT(DISTINCT)
+                // inside a GroupBy over a composed TVF is the kind of expression EF is
+                // liable to fail to translate at runtime.
+                //
+                // Grouped on ComponentId alone: a project's ProjectId changes when it leaves
+                // the BP stage (BP01000002VS -> P01000002VS), so the same component carries a
+                // different project-qualified code at different stages. The accordion labels
+                // these rows with the bare component id for that reason; the qualified form
+                // belongs in the expanded table, where it is per-stage.
+                // Ordering by Id first is what makes Last() mean "at the latest stage" --
+                // FromSql carries no ordering guarantee of its own.
+                var Components = Targets
+                    .OrderBy(x => x.Id)
+                    .GroupBy(x => x.ComponentId)
+                    .Select(g => new
+                    {
+                        ComponentId = g.Key,
+                        // The description can differ between stages if it was edited along the
+                        // way; show it as it stands at the project's latest stage.
+                        g.Last().ComponentDescription,
+                        StageCount = g.Select(x => x.StageId).Distinct().Count()
+                    })
+                    .OrderBy(x => x.ComponentId)
+                    .ToList();
+
+                return Ok(new
+                {
+                    Components = Components
+                });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Component-level physical targets for one project, one row per work item per
+        /// Program Stage — backs the Targets table revealed when a component is expanded on
+        /// the project details page. Keyset-paginated; filter by ComponentId to scope it to
+        /// the expanded component.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> ShowProjectStageTargets([FromBody] ShowProjectStageTargetsDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var rejection = await RejectIfProjectNotVisible(dto.ProjectId, cancellationToken);
+                if (rejection != null) return rejection;
+
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
+
+                if (!string.IsNullOrEmpty(dto.Filters.ComponentId))
+                    filters.Add(("v.ComponentId = @componentId", "@componentId", dto.Filters.ComponentId));
+
+                if (!string.IsNullOrEmpty(dto.Filters.StageName))
+                    filters.Add(("v.StageName = @stageName", "@stageName", dto.Filters.StageName));
+
+                var sourceParameters =
+                    new List<(string ParamName, object? Value)>
+                    {
+                        ("@ProjectFK", dto.ProjectId)
+                    };
+
+                // descending: false — the TVF's Id is a ROW_NUMBER ordered by stage
+                // hierarchy, so ascending Id is the BP -> ... -> GAA-R progression the
+                // panel is meant to read in.
+                FilterDataResult<DBHelper.Models.Functions.Project.ProjectStageTargets> result =
+                    await _db.FilterDataCursor<
+                        DBHelper.Models.Functions.Project.ProjectStageTargets,
+                        ShowProjectStageTargetsFilterDTO>(
+                            tableName: "fProjectStageTargets",
+                            sourceParameters: sourceParameters,
+                            isTableValuedFunction: true,
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: false,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
+                {
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ErrorMessage ??
+                                "Unable to retrieve the records."
+                        });
+                }
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+        }
         #endregion
 
         #region Add Project

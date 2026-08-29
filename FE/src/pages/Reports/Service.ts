@@ -5,6 +5,7 @@ import type {
     FilterProgramItem,
     GenerateReportRequest,
     GenerateReportResponse,
+    ReportStatusEvent,
 } from './Model';
 
 export const fetchReportOptions = async () => {
@@ -41,6 +42,18 @@ export const queueReportGeneration = async (reportName: string, request: Generat
         return response.Data;
     } catch (error) {
         console.error('Error queueing report generation:', error);
+        throw error;
+    }
+};
+
+export const fetchReportJobStatus = async (jobId: string) => {
+    try {
+        const response = await httpClient.get<ReportStatusEvent>(`/reports/status/${jobId}`, undefined, {
+            silent: true,
+        });
+        return response.Data;
+    } catch (error) {
+        console.error('Error fetching report job status:', error);
         throw error;
     }
 };

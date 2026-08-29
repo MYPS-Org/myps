@@ -81,6 +81,39 @@ namespace Hangfire.Importing
             { "I", 1 }, { "II", 2 }
         };
 
+        // ── Infrastructure Type -> expected InfrastructureId prefix ─────────────────────────
+        // Verified against real data: every sampled real InfrastructureId for these types
+        // starts with this exact prefix (UserManual.md's "Auto-generated ID Prefixes by
+        // Infrastructure Type" table, cross-checked against actual tProjectMajorWorkLocations
+        // rows — several of the manual's documented prefixes differ from the DB's own InfraCode
+        // field, e.g. Hospitals is InfraCode "H" but real IDs use "HSP"). The main app's own UI
+        // never lets a user type an arbitrary Infrastructure ID for any type — it's always either
+        // auto-generated (the types below, apart from Roads/Bridges) or selected from RBIA's real
+        // inventory (Roads/Bridges) — so import's free-text entry is the only path that could ever
+        // produce a mismatch. Infra types not in this map (Drainage Protection Works, Drainage
+        // Structures along Roads, Road Slope Protection Structures, Test Infrastructure Type,
+        // Waterway) have no confirmed prefix — absent from both the manual and real data — and are
+        // deliberately left unchecked rather than guessed.
+        private static readonly Dictionary<string, string> InfraTypePrefixes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Roads", "S" },
+            { "Bridges", "B" },
+            { "Flood Control Structures", "FCS" },
+            { "Local Roads", "LRD" },
+            { "Septage and Sewerage Plants", "SPS" },
+            { "Accessibility Facility", "AF" },
+            { "Hospitals", "HSP" },
+            { "Other Buildings", "OTB" },
+            { "Rain Water Collector", "RWC" },
+            { "Consultancy", "CS" },
+            { "Local Bridges", "LBR" },
+            { "Local Flood Control Structures", "LFCS" },
+            { "Multi Purpose Buildings", "MPB" },
+            { "Non-Infra", "NI" },
+            { "School Buildings", "SCH" },
+            { "Water Supply Systems", "WSS" },
+        };
+
         // Extracts the tier's numeric value regardless of whether it's written as
         // "Tier 1", "Tier I", "TIER1", "tier-1", etc. Returns null if it can't be parsed.
         private static int? NormalizeTierValue(string? raw)
@@ -115,18 +148,23 @@ namespace Hangfire.Importing
             {
                 return false;
             }
-            DateTime currentDate = Functions.CurrentDate();
-            // 2. Enforce a minimum and maximum realistic boundary
-            //int currentYear = DateTime.Today.Year + 100;
-            int maxYear = currentDate.Year + 100;
-            int minYear = currentDate.Year;
+            // 2. Enforce only a generous upper sanity boundary. No lower bound here — a
+            // lower bound tied to "today's calendar year" would collide with (and pre-empt)
+            // the context-aware "cannot be earlier than the Program's Start Year" checks that
+            // already run right after every call site: a Program's own StartYear can legitimately
+            // predate the current year (verified against real data — e.g. a real Program with
+            // StartYear 2016 whose ComponentCostPerYear/MajorWorkItem rows are all dated 2016),
+            // and this function returning false for those years would block the more accurate
+            // check from ever running, rejecting perfectly legitimate historical data with a
+            // generic "Incorrect ... Year" message instead.
+            int maxYear = Functions.CurrentDate().Year + 100;
 
-            return year >= minYear && year <= maxYear;
+            return year <= maxYear;
         }
         #region Validation - Project Details 
         public class ValidateProjectDetailsResponse : ValidationResponse
         { }
-        public static ValidateProjectDetailsResponse ValidateProjectDetails(this MYPSDbContext _db, ImportProjectDetailsExcel details, ImportLookupCache cache)
+        public static ValidateProjectDetailsResponse ValidateProjectDetails(this MYPSDbContext _db, ImportProjectDetailsExcel details, ImportLookupCache cache, List<(string Description, string ProjectId)> existingProjectDescriptions)
         {
             var v = new ValidationState();
 
@@ -157,14 +195,42 @@ namespace Hangfire.Importing
             {
                 v.Fail("Incorrect Category");
             }
+            // Matches the main app's exact rule (ProjectHelper.cs's ValidateProjectDetailsLookups):
+            // valid if IsActive is true, REGARDLESS of ValidUntil — ValidUntil only matters when
+            // IsActive is false. Previously this ignored IsActive entirely (this workbook's cache
+            // loads every category unfiltered), which would incorrectly reject real IsActive
+            // categories whose ValidUntil year has already passed — verified against real data:
+            // 7 such categories exist (e.g. CategoryId=1 "MFO 1: National Road Network Services",
+            // ValidUntil=2017, still IsActive=True), none currently used by a saved project but
+            // fully selectable in the main app.
+            else if (!Category.IsActive && Category.ValidUntil != 0 && Category.ValidUntil < Functions.CurrentDate().Year)
+            {
+                v.Fail("Category is no longer valid");
+            }
             var Thrust = cache.Thrusts.FirstOrDefault(x => NamesMatch(x.ThrustDescription, details.Thrust));
             if (Thrust == null)
             {
                 v.Fail("Incorrect Thrust");
             }
+            // No ValidFromDate/ValidToDate window check here: the main app's own Thrust
+            // validation (ProjectHelper.cs's ValidateProjectDetailsLookups) is entirely commented
+            // out — it enforces neither existence nor a validity window on this field at save
+            // time. A window Fail here (based on the reference template's dropdown-filtering
+            // rule, not an actual save-time rule) would be stricter than the main app for no
+            // reason — verified against real data: 69 real Thrust rows currently have a
+            // "lapsed" window by that rule, several still IsActive=True, none currently used by
+            // a saved project but fully selectable in the main app regardless of window.
             if (string.IsNullOrWhiteSpace(details.Description))
             {
                 v.Fail("Required Description");
+            }
+            // Mirrors the main app's own soft duplicate-Description check (ProjectController.cs's
+            // GetSameDescription, scoped to the same Program, excluding the project's own existing
+            // row). The main app can prompt a human to confirm and proceed anyway; an import has no
+            // one to ask, so this is a Warn (still imports) rather than a Fail.
+            else if (existingProjectDescriptions.Any(x => NamesMatch(x.Description, details.Description) && !NamesMatch(x.ProjectId, details.ProjectId)))
+            {
+                v.Warn($"Description '{details.Description}' already exists for another project in this Program");
             }
             // ── Primary source: Legislative District (name may not be globally unique) ──
             // Province is DERIVED from the resolved LD, not read from details.Province.
@@ -366,19 +432,27 @@ namespace Hangfire.Importing
             }
             else
             {
+                // Matches the main app's hard requirement (ProjectHelper.cs's
+                // ValidateProjectDetailsLookups): Feasibility Date is required and cannot be in
+                // the past when Feasibility Study is "Yes" — both are Fails here, not Warns,
+                // since the main app blocks on both rather than merely flagging them.
                 if (details.Feasibility.Trim().Equals("YES", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (details.FeasibilityDate != null)
+                    if (string.IsNullOrWhiteSpace(details.FeasibilityDate))
                     {
-                        bool isValidDate = DateTime.TryParse(details.FeasibilityDate, out _);
+                        v.Fail("Feasibility Date is required when Feasibility Study is selected");
+                    }
+                    else
+                    {
+                        bool isValidDate = DateTime.TryParse(details.FeasibilityDate, out var feasibilityDateValue);
                         if (!isValidDate)
                         {
                             v.Warn("Incorrect Feasibility Date");
                         }
-                    }
-                    else
-                    {
-                        v.Warn("Incorrect Feasibility Date");
+                        else if (feasibilityDateValue.Date < Functions.CurrentDate().Date)
+                        {
+                            v.Fail("Feasibility Date cannot be earlier than the current date");
+                        }
                     }
                 }
                 else if (details.Feasibility.Trim().Equals("NO", StringComparison.OrdinalIgnoreCase))
@@ -396,20 +470,28 @@ namespace Hangfire.Importing
             }
             else
             {
+                // Same parity rule as Feasibility Date above, matching the main app's *intended*
+                // behavior (ProjectHelper.cs has a pre-existing bug where its own "required" guard
+                // for this field never fires — left untouched per direction; this validator
+                // enforces the rule correctly rather than reproducing that bug).
                 if (details.DetailedDesign.Trim().Equals("YES", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (details.DetailedDesignDate != null)
+                    if (string.IsNullOrWhiteSpace(details.DetailedDesignDate))
                     {
-                        bool isValidDate = DateTime.TryParse(details.DetailedDesignDate, out _);
+                        v.Fail("Detailed Design Date is required when Detailed Design is selected");
+                    }
+                    else
+                    {
+                        bool isValidDate = DateTime.TryParse(details.DetailedDesignDate, out var detailedDesignDateValue);
 
                         if (!isValidDate)
                         {
                             v.Warn("Incorrect Detailed Design Date");
                         }
-                    }
-                    else
-                    {
-                        v.Warn("Incorrect Detailed Design Date");
+                        else if (detailedDesignDateValue.Date < Functions.CurrentDate().Date)
+                        {
+                            v.Fail("Detailed Design Date cannot be earlier than the current date");
+                        }
                     }
                 }
                 else if (details.DetailedDesign.Trim().Equals("NO", StringComparison.OrdinalIgnoreCase))
@@ -483,6 +565,12 @@ namespace Hangfire.Importing
             {
                 v.Fail("Incorrect Amount");
             }
+            // Matches the main app's hard requirement (UpdateProjectDetails' BlankFunding
+            // check): Amount must be a real positive value, not just parseable text.
+            else if (amountValue <= 0)
+            {
+                v.Fail("Amount must be greater than zero");
+            }
             details.ErrorMessage = v.Message;
             if (v.IsValid)
             {
@@ -496,7 +584,7 @@ namespace Hangfire.Importing
         #region Validation - Component Details
         public class ValidateComponentDetailsResponse : ValidationResponse
         { }
-        public static ValidateComponentDetailsResponse ValidateComponentDetails(this MYPSDbContext _db, ImportComponentDetailsExcel details, List<ImportComponentDetailsExcel> componentCosts, ImportLookupCache cache)
+        public static ValidateComponentDetailsResponse ValidateComponentDetails(this MYPSDbContext _db, ImportComponentDetailsExcel details, List<ImportComponentDetailsExcel> componentCosts, ImportLookupCache cache, int programStartYear)
         {
             var v = new ValidationState();
 
@@ -553,12 +641,38 @@ namespace Hangfire.Importing
                         }
                     }
                 }
+
+                // Matches the main app's hard rule for ComponentCostPerYear (UpdateProjectDetails'
+                // "Duplicate Cost Per Year" check, ProjectController.cs ~line 1014): a duplicate is
+                // (ComponentId, Year) both matching, NOT ComponentId alone. Two rows sharing a
+                // ComponentId with DIFFERENT ActiveYear are legitimate — ImportProjectJobService's
+                // save loop (RunImportAsync's Component Details section) already treats a repeated
+                // ComponentId as "add another year" for the same component, consolidating them into
+                // one ProjectComponentCost with multiple ProjectComponentCostPerYear children,
+                // exactly mirroring the main app's own data model. Only the exact same
+                // (ComponentId, Year) pair repeated is a real duplicate. Checked within this import
+                // batch only, not against already-saved components for an existing project (Update
+                // mode), which would need additional DB plumbing not added here.
+                if (componentId.Length >= 2 && componentCosts.Any(x => !ReferenceEquals(x, details)
+                    && x.ProjectId == details.ProjectId
+                    && string.Equals(x.ComponentId?.Trim(), componentId, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals((x.ActiveYear ?? string.Empty).Trim(), (details.ActiveYear ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)))
+                {
+                    v.Fail($"Duplicate Component ID '{componentId}' for Year '{details.ActiveYear}' within Project '{details.ProjectId}'");
+                }
             }
             decimal costValue;
             bool isValidCost = decimal.TryParse(details.Cost, NumberStyles.Currency, CultureInfo.GetCultureInfo("en-PH"), out costValue);
             if (!isValidCost)
             {
                 v.Fail("Incorrect Cost");
+            }
+            // Matches the main app's hard requirement (UpdateProjectDetails' "Invalid
+            // Component Cost Amount" check): a new component's Total must be >= 1, not just
+            // parseable text.
+            else if (costValue < 1)
+            {
+                v.Fail("Cost must be at least 1");
             }
             DateTime? startDateValue = null, endDateValue = null;
             if (!string.IsNullOrWhiteSpace(details.StartDate))
@@ -608,10 +722,20 @@ namespace Hangfire.Importing
                     v.Fail($"The selected Work Type '{details.WorkTypeId}' is not valid for the selected Infrastructure Type '{details.InfraType}'. Please select a valid Work Type for the Infra Type");
                 }
             }
+            // Explicit product decision: Activity Year must not be earlier than the Program's
+            // Start Year, enforced as a hard Fail — even though UserManual.md's own CC-F05 entry
+            // only documents this field as "pre-filled to Program Start Year" (no minimum stated,
+            // unlike Major Items of Work's MIOW-F02), and real existing data contains rows that
+            // predate their Program's StartYear. Those existing rows are exactly the kind of data
+            // this check is meant to start catching going forward.
             bool isValidActiveYear = ValidateYear(details.ActiveYear, out int activeYearValue);
             if (!isValidActiveYear)
             {
                 v.Fail("Incorrect Activity Year");
+            }
+            else if (activeYearValue < programStartYear)
+            {
+                v.Fail($"Activity Year ({activeYearValue}) cannot be earlier than the Program's Start Year ({programStartYear})");
             }
 
             // ── Date range cross-check: only runs when ActiveYear, StartDate, and EndDate
@@ -645,7 +769,7 @@ namespace Hangfire.Importing
         #region Validation - Major Items of Work
         public class ValidateMajorItemsOfWorkResponse : ValidationResponse
         { }
-        public static ValidateMajorItemsOfWorkResponse ValidateMajorItemsOfWork(this MYPSDbContext _db, ImportMajorItemsOfWorkExcel details, List<ImportComponentDetailsExcel> componentCost, ImportLookupCache cache)
+        public static ValidateMajorItemsOfWorkResponse ValidateMajorItemsOfWork(this MYPSDbContext _db, ImportMajorItemsOfWorkExcel details, List<ImportComponentDetailsExcel> componentCost, List<ImportMajorItemsOfWorkExcel> allMajorItems, ImportLookupCache cache, int programStartYear)
         {
             var v = new ValidationState();
 
@@ -663,6 +787,11 @@ namespace Hangfire.Importing
             if (string.IsNullOrWhiteSpace(details.InfrastructureId))
             {
                 v.Fail("Incorrect Infrastructure ID");
+            }
+            else if (Component != null && InfraTypePrefixes.TryGetValue(Component.InfraType ?? string.Empty, out var expectedInfraPrefix)
+                && !details.InfrastructureId.Trim().StartsWith(expectedInfraPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                v.Fail($"Infrastructure ID '{details.InfrastructureId}' does not match the expected '{expectedInfraPrefix}' prefix for Infrastructure Type '{Component.InfraType}'");
             }
 
             // ── Special case: Roads items whose Infrastructure ID starts with 'S', and
@@ -748,12 +877,25 @@ namespace Hangfire.Importing
                     }
                 }
             }
-            if (details.PhysicalTarget != null)
+            // Matches the main app's hard requirement (UpdateProjectDetails' "Invalid Physical
+            // Target" check): Physical Target is required and must be greater than zero — not
+            // just parseable text when present. (The Excel workbook's own pre-save gate already
+            // treats this column as required; this closes the gap where the backend didn't
+            // independently enforce it.)
+            if (string.IsNullOrWhiteSpace(details.PhysicalTarget))
             {
-                bool isValidPhysicalTarget = decimal.TryParse(details.PhysicalTarget, out _);
+                v.Fail("Physical Target is required");
+            }
+            else
+            {
+                bool isValidPhysicalTarget = decimal.TryParse(details.PhysicalTarget, out var physicalTargetValue);
                 if (!isValidPhysicalTarget)
                 {
                     v.Warn("Incorrect Physical Target");
+                }
+                else if (physicalTargetValue <= 0)
+                {
+                    v.Fail("Physical Target must be greater than zero");
                 }
             }
             if (details.StartChainage != null)
@@ -772,7 +914,18 @@ namespace Hangfire.Importing
                     v.Warn("Incorrect End Chainage");
                 }
             }
-            if (details.Length != null)
+            if (string.IsNullOrWhiteSpace(details.Length))
+            {
+                // UserManual.md's WL-F04 documents Length as required for Roads; real DB data
+                // confirms Bridges rows are held to the same convention in practice (86/86 real
+                // Bridges locations have Length populated, matching the Station/Chainage fix
+                // above which is also scoped to isRoadsSCase || isBridgesBCase).
+                if (isRoadsSCase || isBridgesBCase)
+                {
+                    v.Fail("Length is required");
+                }
+            }
+            else
             {
                 bool isValidLength = decimal.TryParse(details.Length, out _);
                 if (!isValidLength)
@@ -780,20 +933,63 @@ namespace Hangfire.Importing
                     v.Warn("Incorrect Length");
                 }
             }
-            // ── Same special case as above: Roads items whose Infrastructure ID starts with
-            // 'S', and Bridges items whose Infrastructure ID starts with 'B', have additional
-            // expected fields. Every check in this block is warning-only by design — it never
-            // fails the record, only flags missing/invalid supplementary data.
-            if (isRoadsSCase)
+            // Roads items whose Infrastructure ID starts with 'S', and Bridges items whose
+            // Infrastructure ID starts with 'B', use Station/Chainage instead of X/Y coordinates
+            // (verified against real data: every sampled Roads location has an InfraId starting
+            // with 'S' and every Bridges location starts with 'B' — the prefix check isn't a
+            // narrowing assumption, it matches RBIA's actual ID convention). The manual documents
+            // Start/End Chainage as required for Roads (UserManual.md's WL-F07/WL-F08). Station
+            // and Chainage are interchangeable, not both-required: the main app has "Auto-fill
+            // Station"/"Auto-fill Chainage" buttons that derive one from the other (WL-A05/A06),
+            // and real data confirms this — several real rows have Chainage populated with
+            // Station left blank. So this only Fails when BOTH are missing; previously this only
+            // checked Station (ignoring Chainage as a valid alternative, producing spurious
+            // warnings on those real rows) and only applied to Roads, not Bridges, despite the
+            // comment here claiming both.
+            if (isRoadsSCase || isBridgesBCase)
             {
-                if (details.StartStation == null)
+                if (string.IsNullOrWhiteSpace(details.StartStation) && string.IsNullOrWhiteSpace(details.StartChainage))
                 {
-                    v.Warn("Incorrect Start Chainage");
+                    v.Fail("Start Station or Start Chainage is required");
                 }
-                if (details.EndStation == null)
+                if (string.IsNullOrWhiteSpace(details.EndStation) && string.IsNullOrWhiteSpace(details.EndChainage))
                 {
-                    v.Warn("Incorrect End Chainage");
+                    v.Fail("End Station or End Chainage is required");
                 }
+            }
+
+            // Matches the main app's hard rule (UpdateProjectDetails' "Duplicate Major Work
+            // Locations" check), scoped the same way: only rows that both have Start/End Station
+            // data (the Roads-S / Bridges-B case) are compared, since that's the only pairing the
+            // main app itself checks. Checked within this import batch only.
+            if (!string.IsNullOrEmpty(details.StartStation) && !string.IsNullOrEmpty(details.EndStation)
+                && allMajorItems.Any(x => !ReferenceEquals(x, details)
+                    && !string.IsNullOrEmpty(x.StartStation) && !string.IsNullOrEmpty(x.EndStation)
+                    && string.Equals((x.DetailsScope ?? string.Empty).Trim(), (details.DetailsScope ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(x.StartStation!.Trim(), details.StartStation!.Trim(), StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(x.EndStation!.Trim(), details.EndStation!.Trim(), StringComparison.OrdinalIgnoreCase)))
+            {
+                v.Fail("Duplicate Major Work Location (same Detailed Scope, Start Station, and End Station)");
+            }
+
+            // ── Duplicate Major Work Item, adapted for the import's flattened row shape ──
+            // The main app's own dedup key (Component+Year+WorkType+InfraType) doesn't
+            // discriminate here: WorkType and InfraType are both derived from the Component
+            // (Component.WorkTypeId / Component.InfraType above), not chosen per row, so every
+            // row sharing a ComponentId already shares those too — the key would collapse to just
+            // (ComponentId, Year) and wrongly reject legitimate multiple physical
+            // locations/segments under one conceptual Work Item (the main app's own
+            // one-Work-Item-many-Locations model). InfrastructureId is what actually identifies a
+            // distinct physical location on each row, so the real duplicate condition is the same
+            // location entered twice under the same Project+Component+Year — different
+            // InfrastructureId values stay legitimate.
+            if (!string.IsNullOrWhiteSpace(details.InfrastructureId) && allMajorItems.Any(x => !ReferenceEquals(x, details)
+                && x.ProjectId == details.ProjectId
+                && string.Equals((x.ComponentId ?? string.Empty).Trim(), (details.ComponentId ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
+                && string.Equals((x.ActivityYear ?? string.Empty).Trim(), (details.ActivityYear ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase)
+                && string.Equals((x.InfrastructureId ?? string.Empty).Trim(), details.InfrastructureId!.Trim(), StringComparison.OrdinalIgnoreCase)))
+            {
+                v.Fail($"Duplicate Major Work Item: Infrastructure ID '{details.InfrastructureId}' already used for Component '{details.ComponentId}' in Year '{details.ActivityYear}'");
             }
 
             bool isValidActivityYear = ValidateYear(details.ActivityYear, out int activityYearValue);
@@ -801,11 +997,39 @@ namespace Hangfire.Importing
             {
                 v.Fail("Incorrect Activity Year");
             }
-            else if (Component != null && ValidateYear(Component.ActiveYear, out int componentActiveYearValue))
+            // Matches the documented spec for this field (UserManual.md's MIOW-F02: "Year of
+            // Work... minimum = Program Start Year") — unlike Component Details' ActiveYear
+            // (CC-F05), which only documents a default, not a minimum. This is a real Fail: a
+            // physical work item genuinely can't be dated before its Program started.
+            else if (activityYearValue < programStartYear)
             {
-                if (activityYearValue < componentActiveYearValue)
+                v.Fail($"Activity Year ({activityYearValue}) cannot be earlier than the Program's Start Year ({programStartYear})");
+            }
+            else if (Component != null)
+            {
+                // A ComponentId can now legitimately span multiple Component Details rows (one
+                // per funded year — see the duplicate-ComponentId fix), so "the Component's Active
+                // Year" is no longer well-defined as a single row's value: FirstOrDefault above
+                // just grabs whichever row happens to appear first in the sheet, which could be
+                // any of the component's years depending on row order. Compare against the
+                // earliest valid year across ALL rows sharing this ComponentId instead.
+                //
+                // Explicit product decision: Fail, not Warn — a Major Item's work must not be
+                // dated earlier than its Component's own Activity Year, even though this has no
+                // direct main-app equivalent and real existing data contains rows that predate
+                // it (same rationale as the Program StartYear floor above: existing violations are
+                // exactly what this check is meant to start catching going forward).
+                var componentActiveYears = componentCost
+                    .Where(x => x.ProjectId == details.ProjectId && x.ComponentId == details.ComponentId)
+                    .Select(x => ValidateYear(x.ActiveYear, out int y) ? (int?)y : null)
+                    .Where(y => y.HasValue)
+                    .Select(y => y!.Value)
+                    .ToList();
+
+                if (componentActiveYears.Count > 0 && activityYearValue < componentActiveYears.Min())
                 {
-                    v.Fail($"Activity Year ({activityYearValue}) cannot be earlier than the Component's Active Year ({componentActiveYearValue})");
+                    int componentActiveYearValue = componentActiveYears.Min();
+                    v.Fail($"Activity Year ({activityYearValue}) cannot be earlier than the Component's earliest Active Year ({componentActiveYearValue})");
                 }
             }
             details.ErrorMessage = v.Message;

@@ -1,4 +1,4 @@
-# MYPS Documentation Index
+﻿# MYPS Documentation Index
 
 ## Process specifications
 
@@ -26,6 +26,18 @@
 | Document | Purpose | Status |
 |---|---|---|
 | [Formal Revision V2 SQL sample](architecture/database/MYPS_FORMAL_REVISION_SCHEMA_V2_SAMPLE.sql) | Early design exploration combining legacy Revision fields with normalized relationships | Exploratory only; superseded by the approved scope in the redesign plan |
+
+## Manual database scripts
+
+This repo has **no migration runner** for database objects. The scripts below define views,
+functions, and schema that the application expects to already exist — apply each by hand to
+the target database before deploying the code that depends on it.
+
+| Script | Defines | Required by |
+|---|---|---|
+| [`Revision.Queue.sql`](../../Main/Resources/Internal/SQLScripts/Revision.Queue.sql) | Normalized revision queue read model | `RevisionController` queue endpoints |
+| [`Revision.Queue.Verification.sql`](../../Main/Resources/Internal/SQLScripts/Revision.Queue.Verification.sql) | Read-only post-deployment invariants | Post-deploy verification of the above |
+| [`Project.StageTargets.sql`](../../Main/Resources/Internal/SQLScripts/Project.StageTargets.sql) | `dbo.fProjectStageTargets(@ProjectFK)` | `ProjectController.ShowProjectTargetComponents` and `ShowProjectStageTargets`, which back the Component Targets panel on the project details page |
 
 ## Visual documentation
 
