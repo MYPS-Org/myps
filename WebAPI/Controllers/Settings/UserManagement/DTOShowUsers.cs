@@ -9,6 +9,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         public string? UserId { get; set; }
         public string? Name { get; set; }
         public string? Email { get; set; }
+        public string? UserGroup { get; set; }
         public bool? IsActive { get; set; }
     }
 }

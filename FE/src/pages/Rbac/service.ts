@@ -204,7 +204,7 @@ export const callSyncPermissions = async () => {
 	}
 }
 
-export const callSyncViewPermissions = async (routes: { RouteName?: string; path: string }[]) => {
+export const callSyncViewPermissions = async (routes: { RouteName: string; path: string }[]) => {
 	try {
 		const response = await httpClient.post('/UserManagement/SyncViewPermissions', { RoutesAvailable: routes });
 		return response;

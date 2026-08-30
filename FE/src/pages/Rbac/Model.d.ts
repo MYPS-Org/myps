@@ -3,7 +3,8 @@
 // #region Pagination Response
 export interface InitialDataResponse {
     NumberOfUsers: number;
-    NumberOfPermissions: number;
+    NumberOfAPIPermissions: number;
+    NumberOfRoutePermissions: number;
     NumberOfGroups: number;
     Users: Users[];
 }
@@ -36,9 +37,9 @@ export interface PermissionPagination extends PaginationParams {
     sortDirection?: 0 | 1;
 }
 export interface PermissionFilter {
-    Module?: string;
-    ModuleFunction?: string;
-    ModuleFunctionDescription?: string;
+    ControllerName?: string;
+    ActionName?: string;
+    ControllerDescription?: string;
 }
 //#endregion
 
@@ -64,7 +65,10 @@ export interface UserPagination extends PaginationParams {
     sortDirection?: 0 | 1;
 }
 export interface UserFilter {
+    EmployeeId?: string;
+    UserId?: string;
     Name?: string;
+    Email?: string;
     UserGroup?: string;
     IsActive?: boolean; // Use boolean for IsActive filter
 }
@@ -88,7 +92,8 @@ export interface UserGroupPagination extends PaginationParams {
 }
 export interface UserGroupFilter {
     GroupName?: string;
-    PermissionNames?: string; // Use string for searching permission names
+    PermissionActionIds?: number[];
+    PermissionViewIds?: number[];
 }
 
 export interface AddUserGroups {
