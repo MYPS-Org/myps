@@ -8,6 +8,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
     {
         public string? GroupName { get; set; }
         public int[]? PermissionActionIds { get; set; }
+        public int[]? PermissionViewIds { get; set; }
     }
     public class DeleteUserGroupDTO
     {

@@ -25,7 +25,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
         public UserManagementController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
         #region MODULE TAB
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowAppModules([FromBody] ModulePaginationDto dto, CancellationToken cancellationToken)
         {
@@ -38,7 +37,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
 
                 if (!string.IsNullOrEmpty(dto.Filters.ModuleName))
-                    filters.Add(("v.[Name] LIKE @ModuleName", "@ModuleName", $"%{dto.Filters.ModuleName}%"));
+                    filters.Add(("v.[ModuleName] LIKE @ModuleName", "@ModuleName", $"%{dto.Filters.ModuleName}%"));
 
                 FilterDataResult<DBHelper.Models.Views.AppModules> result =
                     await _db.FilterDataCursor<
@@ -81,6 +80,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var remediatedResult = await AddAppModuleValidated(dto, transaction, cancellationToken);
+                if (remediatedResult != null)
+                    return remediatedResult;
+
                 // Guard: module name must be unique
                 var existing = await _db.tAppModules
                     .FirstOrDefaultAsync(x => x.ModuleName == dto.ModuleName, cancellationToken);
@@ -191,6 +194,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         Title = "Module not found"
                     });
                 }
+
+                var remediatedResult = await UpdateAppModuleValidated(dto, getModule, transaction, cancellationToken);
+                if (remediatedResult != null)
+                    return remediatedResult;
 
                 // Update description (ModuleName is immutable after creation)
                 getModule.Description = dto.Description;
@@ -399,7 +406,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto, CancellationToken cancellationToken)
         {
@@ -411,19 +417,22 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     object? Value)>();
 
                 if (!string.IsNullOrEmpty(dto.Filters.EmployeeId))
-                    filters.Add(("v.[Name] LIKE @EmployeeId", "@EmployeeId", $"%{dto.Filters.EmployeeId}%"));
+                    filters.Add(("v.[EmployeeId] LIKE @EmployeeId", "@EmployeeId", $"%{dto.Filters.EmployeeId}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.UserId))
-                    filters.Add(("v.[Name] LIKE @UserId", "@UserId", $"%{dto.Filters.UserId}%"));
+                    filters.Add(("v.[UserId] LIKE @UserId", "@UserId", $"%{dto.Filters.UserId}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.Name))
                     filters.Add(("v.[Name] LIKE @Name", "@Name", $"%{dto.Filters.Name}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.Email))
-                    filters.Add(("v.[Name] LIKE @Email", "@Email", $"%{dto.Filters.Email}%"));
+                    filters.Add(("v.[Email] LIKE @Email", "@Email", $"%{dto.Filters.Email}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.UserGroup))
+                    filters.Add(("v.[UserGroupNames] LIKE @UserGroup", "@UserGroup", $"%{dto.Filters.UserGroup}%"));
 
                 if (dto.Filters.IsActive != null)
-                    filters.Add(("v.[Name] LIKE @IsActive", "@IsActive", $"%{dto.Filters.IsActive}%"));
+                    filters.Add(("v.[IsActive] = @IsActive", "@IsActive", dto.Filters.IsActive.Value));
 
                 FilterDataResult<DBHelper.Models.Views.Users> result =
                     await _db.FilterDataCursor<
@@ -467,6 +476,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (getUser == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exist in the System.", Title = "User not found" });
+                }
+                if (string.Equals(getUser.UserId, _Session.UserId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "You cannot delete the account used by the current session.",
+                        Title = "Self-deletion Not Allowed"
+                    });
                 }
                 var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync(cancellationToken);
                 if(getUserGroups.Count > 0)
@@ -568,6 +585,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
                 }
 
+                var normalizedGroupIds = dto.UserGroupIds.Distinct().OrderBy(x => x).ToArray();
+                var oldUserId = getUser.UserId;
+                var getUserGroup = await _db.tUserGroups
+                    .FirstOrDefaultAsync(x => x.UserId == oldUserId, cancellationToken);
+
                 // 5. Update User details
                 getUser.EmployeeId = dto.EmployeeId?.Trim();
                 getUser.UserId = dto.UserId.Trim();
@@ -578,25 +600,21 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 getUser.IsActive = dto.IsActive;
                 _db.tUsers.Update(getUser);
 
-                // 6. Update UserGroups — get existing UserGroups record for this User
-                var getUserGroup = await _db.tUserGroups
-                    .FirstOrDefaultAsync(x => x.UserId == getUser.UserId);
-
                 if (getUserGroup != null)
                 {
-                    // Update existing UserGroups record
-                    getUserGroup.GroupIds = dto.UserGroupIds;
+                    getUserGroup.UserId = getUser.UserId;
+                    getUserGroup.GroupIds = normalizedGroupIds;
                     _db.tUserGroups.Update(getUserGroup);
                 }
                 else
                 {
                     // Create new UserGroups record if it doesn't exist
-                    if (dto.UserGroupIds.Length > 0)
+                    if (normalizedGroupIds.Length > 0)
                     {
                         var newUserGroup = new DBHelper.Models.Table.User.UserGroups
                         {
                             UserId = getUser.UserId,
-                            GroupIds = dto.UserGroupIds,
+                            GroupIds = normalizedGroupIds,
                             CreatedBy = User.Identity?.Name ?? "System",
                             CreatedDate = DateTime.UtcNow
                         };
@@ -688,6 +706,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
                 }
 
+                var normalizedGroupIds = dto.UserGroupIds.Distinct().OrderBy(x => x).ToArray();
+
                 // 4. Create new User
                 var newUser = new DBHelper.Models.Table.User.Users
                 {
@@ -704,12 +724,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 await _db.SaveChangesAsync(cancellationToken); // Save first to get generated Id
 
                 // 5. Create UserGroups record linking User to GroupIds
-                if (dto.UserGroupIds.Length > 0)
+                if (normalizedGroupIds.Length > 0)
                 {
                     var newUserGroup = new DBHelper.Models.Table.User.UserGroups
                     {
                         UserId = newUser.UserId,
-                        GroupIds = dto.UserGroupIds,
+                        GroupIds = normalizedGroupIds,
                         CreatedBy = User.Identity?.Name ?? "System",
                         CreatedDate = DateTime.UtcNow
                     };
@@ -735,7 +755,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
         #endregion
         #region VIEW PERMISSIONS TAB
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowViewPermissions([FromBody] ShowViewPermissionsDTO dto, CancellationToken cancellationToken)
         {
@@ -747,7 +766,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     object? Value)>();
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoutePath))
-                    filters.Add(("v.[Name] LIKE @RoutePath", "@RoutePath", $"%{dto.Filters.RoutePath}%"));
+                    filters.Add(("v.[RoutePath] LIKE @RoutePath", "@RoutePath", $"%{dto.Filters.RoutePath}%"));
 
                 FilterDataResult<AppViews> result =
                     await _db.FilterDataCursor<
@@ -780,13 +799,15 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var remediatedResult = await SyncViewPermissionsValidated(dto, transaction, cancellationToken);
+                if (remediatedResult != null) return remediatedResult;
+
                 // 1. Get all existing PermissionViews from DB
                 var existingViews = await _db.tAppViews.ToListAsync(cancellationToken);
 
@@ -840,7 +861,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateViewPermissionDetails([FromBody] UpdateViewPermissionDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -920,7 +940,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
         #endregion
         #region PERMISSIONS TAB
 
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto, CancellationToken cancellationToken)
         {
@@ -932,10 +951,13 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     object? Value)>();
 
                 if (!string.IsNullOrEmpty(dto.Filters.ControllerName))
-                    filters.Add(("v.[Name] LIKE @ControllerName", "@ControllerName", $"%{dto.Filters.ControllerName}%"));
+                    filters.Add(("v.[ControllerName] LIKE @ControllerName", "@ControllerName", $"%{dto.Filters.ControllerName}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.ActionName))
+                    filters.Add(("v.[Actions] LIKE @ActionName", "@ActionName", $"%\"ActionName\":\"{dto.Filters.ActionName}%"));
 
                 if (!string.IsNullOrEmpty(dto.Filters.ControllerDescription))
-                    filters.Add(("v.[Name] LIKE @ControllerDescription", "@ControllerDescription", $"%{dto.Filters.ControllerDescription}%"));
+                    filters.Add(("v.[ControllerDescription] LIKE @ControllerDescription", "@ControllerDescription", $"%{dto.Filters.ControllerDescription}%"));
 
                 FilterDataResult<APIPermissions> result =
                     await _db.FilterDataCursor<
@@ -968,7 +990,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowPermissionGroups(CancellationToken cancellationToken)
         {
@@ -983,13 +1004,15 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SyncAPIPermissions(CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
+                var remediatedResult = await SyncApiPermissionsValidated(transaction, cancellationToken);
+                if (remediatedResult != null) return remediatedResult;
+
                 // 1. Discover all controller Types via reflection
                 var controllerTypes = typeof(CoreController).Assembly
                     .GetTypes()
@@ -1073,7 +1096,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdatePermissionControllerDetails([FromBody] UpdatePermissionControllerDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -1089,6 +1111,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         Title = "Unrecognized Controller"
                     });
                 }
+                if (!string.IsNullOrWhiteSpace(dto.ModuleName) && !await _db.tAppModules.AnyAsync(x => x.ModuleName == dto.ModuleName, cancellationToken))
+                    return BadRequest(new { Message = $"Module '{dto.ModuleName}' does not exist.", Title = "Unknown Module" });
                 getPermission.Description = dto.Description;
                 getPermission.ModuleName = dto.ModuleName;
                 _db.tApiControllers.Update(getPermission);
@@ -1106,7 +1130,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdatePermissionActionDetails([FromBody] UpdatePermissionActionDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -1209,6 +1232,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
+                var activeController = typeof(CoreController).Assembly.GetTypes().FirstOrDefault(x => string.Equals(x.Name, getAction.ControllerName, StringComparison.OrdinalIgnoreCase));
+                var activeAction = activeController?.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                    .Any(x => string.Equals(x.Name, getAction.ActionName, StringComparison.OrdinalIgnoreCase)) == true;
+                if (activeAction)
+                    return BadRequest(new { Message = $"{getAction.ControllerName}.{getAction.ActionName} is still active in code.", Title = "Deletion Restricted" });
+
                 // Check if action is currently assigned to any roles before deleting
                 var isAssignedToRole = await _db.tGroupRoles
                     .AnyAsync(x => x.ActionIds.Contains(getAction.Id), cancellationToken);
@@ -1240,7 +1269,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
         #endregion
         #region USER GROUP TAB
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowUserGroupDropdowns(CancellationToken cancellationToken)
         {
@@ -1275,7 +1303,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDTO dto, CancellationToken cancellationToken)
         {
@@ -1287,7 +1314,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     object? Value)>();
 
                 if (!string.IsNullOrEmpty(dto.Filters.GroupName))
-                    filters.Add(("v.[Name] LIKE @GroupName", "@GroupName", $"%{dto.Filters.GroupName}%"));
+                    filters.Add(("v.[GroupName] LIKE @GroupName", "@GroupName", $"%{dto.Filters.GroupName}%"));
 
                 FilterDataResult<DBHelper.Models.Views.UserGroups> result =
                     await _db.FilterDataCursor<
@@ -1320,7 +1347,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupDTO dto, CancellationToken cancellationToken)
         {
@@ -1382,7 +1408,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateUserGroup([FromBody] UpdateUserGroupDTO dto, CancellationToken cancellationToken)
         {
@@ -1430,12 +1455,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         .Where(x => dto.PermissionActionIds.Contains(x.Id))
                         .Select(x => x.Id)
                         .ToListAsync(cancellationToken);
-                    var existingActions= await _db.tApiActions
-                        .Where(x => x.ControllerName == "ProjectController")
-                        .ToListAsync(cancellationToken);
-
-
-                    
                     var invalidActionIds = dto.PermissionActionIds
                         .Except(existingActionIds)
                         .ToList();
@@ -1483,8 +1502,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (getGroupRoles != null)
                 {
                     // Update existing GroupRoles
-                    getGroupRoles.ActionIds = dto.PermissionActionIds.OrderBy(x => x).ToArray();
-                    getGroupRoles.ViewIds = dto.PermissionViewIds.OrderBy(x => x).ToArray();
+                    getGroupRoles.ActionIds = dto.PermissionActionIds.Distinct().OrderBy(x => x).ToArray();
+                    getGroupRoles.ViewIds = dto.PermissionViewIds.Distinct().OrderBy(x => x).ToArray();
                     _db.tGroupRoles.Update(getGroupRoles);
                 }
                 else
@@ -1493,8 +1512,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var newGroupRoles = new DBHelper.Models.Table.User.GroupRoles
                     {
                         GroupId = dto.Id,
-                        ActionIds = dto.PermissionActionIds.OrderBy(x => x).ToArray(),
-                        ViewIds = dto.PermissionViewIds.OrderBy(x => x).ToArray(),
+                        ActionIds = dto.PermissionActionIds.Distinct().OrderBy(x => x).ToArray(),
+                        ViewIds = dto.PermissionViewIds.Distinct().OrderBy(x => x).ToArray(),
                     };
                     await _db.tGroupRoles.AddAsync(newGroupRoles, cancellationToken);
                 }
@@ -1571,6 +1590,111 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
+        }
+        private async Task<IActionResult?> SyncViewPermissionsValidated(SyncViewPermissionsDTO dto, Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, CancellationToken ct)
+        {
+            if (dto.RoutesAvailable.Any(x => string.IsNullOrWhiteSpace(x.RouteName) || string.IsNullOrWhiteSpace(x.path))) return BadRequest(new { Message = "RouteName and path are required.", Title = "Invalid Routes" });
+            if (dto.RoutesAvailable.GroupBy(x => x.RouteName.Trim(), StringComparer.OrdinalIgnoreCase).Any(x => x.Count() > 1)) return BadRequest(new { Message = "Duplicate route names are not allowed.", Title = "Invalid Routes" });
+            var existing = await _db.tAppViews.ToListAsync(ct);
+            var incoming = dto.RoutesAvailable.ToDictionary(x => x.RouteName.Trim(), StringComparer.OrdinalIgnoreCase);
+            var added = 0; var updated = 0; var unchanged = 0;
+            foreach (var route in incoming.Values)
+            {
+                var current = existing.FirstOrDefault(x => string.Equals(x.RouteName, route.RouteName.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (current == null) { await _db.tAppViews.AddAsync(new AppViews { RouteName = route.RouteName.Trim(), RoutePath = route.path.Trim() }, ct); added++; }
+                else if (current.RouteName != route.RouteName.Trim() || current.RoutePath != route.path.Trim()) { current.RouteName = route.RouteName.Trim(); current.RoutePath = route.path.Trim(); updated++; }
+                else unchanged++;
+            }
+            var stale = existing.Where(x => !incoming.ContainsKey(x.RouteName)).ToList();
+            if (stale.Count > 0)
+            {
+                var staleIds = stale.Select(x => x.Id).ToHashSet();
+                foreach (var role in await _db.tGroupRoles.ToListAsync(ct)) role.ViewIds = role.ViewIds.Where(x => !staleIds.Contains(x)).Distinct().OrderBy(x => x).ToArray();
+                _db.tAppViews.RemoveRange(stale);
+            }
+            await _db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+            return Ok(new { Message = "Route reconciliation complete.", Title = "Sync Complete", Added = added, Updated = updated, Removed = stale.Count, Unchanged = unchanged });
+        }
+
+        private async Task<IActionResult?> SyncApiPermissionsValidated(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, CancellationToken ct)
+        {
+            var controllerTypes = typeof(CoreController).Assembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(CoreController))).OrderBy(x => x.Name).ToList();
+            var discoveredControllers = controllerTypes.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var discoveredActions = controllerTypes.SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(m => !m.IsSpecialName && (m.ReturnType == typeof(IActionResult) || m.ReturnType == typeof(Task<IActionResult>)))
+                .Select(m => (ControllerName: type.Name, ActionName: m.Name))).ToList();
+            var actionKeys = discoveredActions.Select(x => $"{x.ControllerName}\0{x.ActionName}").ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var controllers = await _db.tApiControllers.ToListAsync(ct); var actions = await _db.tApiActions.ToListAsync(ct);
+            var addedControllers = controllerTypes.Where(x => !controllers.Any(c => string.Equals(c.ControllerName, x.Name, StringComparison.OrdinalIgnoreCase))).Select(x => new ApiControllers { ControllerName = x.Name }).ToList();
+            var addedActions = discoveredActions.Where(x => !actions.Any(a => string.Equals(a.ControllerName, x.ControllerName, StringComparison.OrdinalIgnoreCase) && string.Equals(a.ActionName, x.ActionName, StringComparison.OrdinalIgnoreCase))).Select(x => new ApiActions { ControllerName = x.ControllerName, ActionName = x.ActionName }).ToList();
+            var staleActions = actions.Where(x => !actionKeys.Contains($"{x.ControllerName}\0{x.ActionName}")).ToList();
+            var staleControllers = controllers.Where(x => !discoveredControllers.Contains(x.ControllerName)).ToList();
+            if (staleActions.Count > 0)
+            {
+                var staleIds = staleActions.Select(x => x.Id).ToHashSet();
+                foreach (var role in await _db.tGroupRoles.ToListAsync(ct)) role.ActionIds = role.ActionIds.Where(x => !staleIds.Contains(x)).Distinct().OrderBy(x => x).ToArray();
+                _db.tApiActions.RemoveRange(staleActions);
+            }
+            if (addedControllers.Count > 0) await _db.tApiControllers.AddRangeAsync(addedControllers, ct);
+            if (addedActions.Count > 0) await _db.tApiActions.AddRangeAsync(addedActions, ct);
+            if (staleControllers.Count > 0) _db.tApiControllers.RemoveRange(staleControllers);
+            await _db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+            return Ok(new { Message = "API permission reconciliation complete.", Title = "Sync Complete", Controllers = new { Added = addedControllers.Count, Removed = staleControllers.Count, Unchanged = controllers.Count - staleControllers.Count }, Actions = new { Added = addedActions.Count, Removed = staleActions.Count, Unchanged = actions.Count - staleActions.Count } });
+        }
+
+        private async Task<IActionResult?> AddAppModuleValidated(DBHelper.Models.Views.AppModules dto, Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(dto.ModuleName)) return BadRequest(new { Message = "Module name is required.", Title = "Invalid Module" });
+            if (!TryParseModulePayload(dto.Controllers, dto.Views, out var requestedControllers, out var requestedViews, out var error)) return BadRequest(new { Message = error, Title = "Invalid Module Payload" });
+            var moduleName = dto.ModuleName.Trim();
+            if (await _db.tAppModules.AnyAsync(x => x.ModuleName.ToLower() == moduleName.ToLower(), ct)) return BadRequest(new { Message = $"Module '{moduleName}' already exists in the System.", Title = "Duplicate Module" });
+            var controllerNames = requestedControllers.Select(x => x.ControllerName).ToArray();
+            var controllers = await _db.tApiControllers.Where(x => controllerNames.Contains(x.ControllerName)).ToListAsync(ct);
+            var unknownControllers = controllerNames.Except(controllers.Select(x => x.ControllerName), StringComparer.OrdinalIgnoreCase).ToArray();
+            if (unknownControllers.Length > 0) return BadRequest(new { Message = $"Unknown controllers: {string.Join(", ", unknownControllers)}", Title = "Invalid Controllers" });
+            var routeNames = requestedViews.Select(x => x.RouteName).ToArray();
+            var views = await _db.tAppViews.Where(x => routeNames.Contains(x.RouteName)).ToListAsync(ct);
+            var unknownRoutes = routeNames.Except(views.Select(x => x.RouteName), StringComparer.OrdinalIgnoreCase).ToArray();
+            if (unknownRoutes.Length > 0) return BadRequest(new { Message = $"Unknown routes: {string.Join(", ", unknownRoutes)}", Title = "Invalid Routes" });
+            await _db.tAppModules.AddAsync(new DBHelper.Models.Table.Permission.AppModules { ModuleName = moduleName, Description = dto.Description?.Trim() }, ct);
+            foreach (var item in controllers.Where(x => requestedControllers.Single(r => string.Equals(r.ControllerName, x.ControllerName, StringComparison.OrdinalIgnoreCase)).Linked)) item.ModuleName = moduleName;
+            foreach (var item in views.Where(x => requestedViews.Single(r => string.Equals(r.RouteName, x.RouteName, StringComparison.OrdinalIgnoreCase)).Linked)) item.ModuleName = moduleName;
+            await _db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return Ok(new { Message = $"Module '{moduleName}' has been created successfully.", Title = "Module Created" });
+        }
+
+        private async Task<IActionResult?> UpdateAppModuleValidated(DBHelper.Models.Views.AppModules dto, DBHelper.Models.Table.Permission.AppModules module, Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, CancellationToken ct)
+        {
+            if (!string.IsNullOrWhiteSpace(dto.ModuleName) && !string.Equals(dto.ModuleName.Trim(), module.ModuleName, StringComparison.OrdinalIgnoreCase)) return BadRequest(new { Message = "Module Id and ModuleName do not match.", Title = "Module Mismatch" });
+            if (!TryParseModulePayload(dto.Controllers, dto.Views, out var requestedControllers, out var requestedViews, out var error)) return BadRequest(new { Message = error, Title = "Invalid Module Payload" });
+            var controllerNames = requestedControllers.Select(x => x.ControllerName).ToArray();
+            var controllers = await _db.tApiControllers.Where(x => controllerNames.Contains(x.ControllerName)).ToListAsync(ct);
+            var unknownControllers = controllerNames.Except(controllers.Select(x => x.ControllerName), StringComparer.OrdinalIgnoreCase).ToArray();
+            if (unknownControllers.Length > 0) return BadRequest(new { Message = $"Unknown controllers: {string.Join(", ", unknownControllers)}", Title = "Invalid Controllers" });
+            var routeNames = requestedViews.Select(x => x.RouteName).ToArray();
+            var views = await _db.tAppViews.Where(x => routeNames.Contains(x.RouteName)).ToListAsync(ct);
+            var unknownRoutes = routeNames.Except(views.Select(x => x.RouteName), StringComparer.OrdinalIgnoreCase).ToArray();
+            if (unknownRoutes.Length > 0) return BadRequest(new { Message = $"Unknown routes: {string.Join(", ", unknownRoutes)}", Title = "Invalid Routes" });
+            module.Description = dto.Description?.Trim();
+            foreach (var item in controllers) { var request = requestedControllers.Single(x => string.Equals(x.ControllerName, item.ControllerName, StringComparison.OrdinalIgnoreCase)); if (request.Linked) item.ModuleName = module.ModuleName; else if (string.Equals(item.ModuleName, module.ModuleName, StringComparison.OrdinalIgnoreCase)) item.ModuleName = null; }
+            foreach (var item in views) { var request = requestedViews.Single(x => string.Equals(x.RouteName, item.RouteName, StringComparison.OrdinalIgnoreCase)); if (request.Linked) item.ModuleName = module.ModuleName; else if (string.Equals(item.ModuleName, module.ModuleName, StringComparison.OrdinalIgnoreCase)) item.ModuleName = null; }
+            await _db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return Ok(new { Message = $"Module '{module.ModuleName}' has been updated successfully.", Title = "Update Successful" });
+        }
+
+        private static bool TryParseModulePayload(string? controllersJson, string? viewsJson, out List<AppModuleControllerModel> controllers, out List<AppModuleViewModel> views, out string error)
+        {
+            controllers = []; views = []; error = string.Empty;
+            if ((controllersJson?.Length ?? 0) > 100_000 || (viewsJson?.Length ?? 0) > 100_000) { error = "Module link payload exceeds the 100,000 character limit."; return false; }
+            try { if (!string.IsNullOrWhiteSpace(controllersJson)) controllers = JsonConvert.DeserializeObject<List<AppModuleControllerModel>>(controllersJson) ?? []; if (!string.IsNullOrWhiteSpace(viewsJson)) views = JsonConvert.DeserializeObject<List<AppModuleViewModel>>(viewsJson) ?? []; }
+            catch (JsonException ex) { error = $"Malformed module link JSON: {ex.Message}"; return false; }
+            if (controllers.Any(x => string.IsNullOrWhiteSpace(x.ControllerName)) || views.Any(x => string.IsNullOrWhiteSpace(x.RouteName))) { error = "ControllerName and RouteName values cannot be blank."; return false; }
+            if (controllers.GroupBy(x => x.ControllerName.Trim(), StringComparer.OrdinalIgnoreCase).Any(x => x.Count() > 1) || views.GroupBy(x => x.RouteName.Trim(), StringComparer.OrdinalIgnoreCase).Any(x => x.Count() > 1)) { error = "Duplicate controller or route names are not allowed."; return false; }
+            foreach (var item in controllers) item.ControllerName = item.ControllerName.Trim();
+            foreach (var item in views) item.RouteName = item.RouteName.Trim();
+            return true;
         }
         #endregion
     }
