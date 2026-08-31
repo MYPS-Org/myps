@@ -71,7 +71,7 @@ namespace Helpers
                 }
             }
             var CheckProjectStage = await _db.fProjectStages
-                .FromSqlInterpolated($"SELECT * FROM fProjectStages({GetProjectPK.ProjectFK}) WHERE StageName = {p.StageName}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectStages({GetProjectPK.ProjectFK}) WHERE StageName = {p.StageName} AND ProjectId = {p.ProjectId}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync(cancellationToken);
             if (CheckProjectStage == null)
