@@ -194,7 +194,6 @@ namespace WebAPI.Controllers.Projects
         #endregion
 
         #region Project Lists
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjects([FromBody] ShowProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -249,7 +248,6 @@ namespace WebAPI.Controllers.Projects
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectStages([FromBody] ShowProjectStagesDTO dto, CancellationToken cancellationToken)
         {
@@ -432,7 +430,6 @@ namespace WebAPI.Controllers.Projects
         #endregion
 
         #region Add Project
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] AddProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -621,7 +618,6 @@ namespace WebAPI.Controllers.Projects
         #endregion
 
         #region Project Details and Update Project
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectDetails([FromBody] ProjectDetailsDTO dto, CancellationToken cancellationToken)
         {
@@ -714,7 +710,6 @@ namespace WebAPI.Controllers.Projects
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateProjectDetails([FromBody] UpdateProjectDetailsDTO dto, CancellationToken cancellationToken)
         {

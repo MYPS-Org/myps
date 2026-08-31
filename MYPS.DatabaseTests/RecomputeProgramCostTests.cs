@@ -15,6 +15,10 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync();
         await ExecuteNonQueryAsync(connection, SchemaSql);
+        await ExecuteNonQueryAsync(connection, RevisionSchemaSql);
+        await ExecuteNonQueryAsync(connection, FRevisionApprovalStatusSql);
+        await ExecuteNonQueryAsync(connection, FProjectEffectiveRevisionSql);
+        await ExecuteNonQueryAsync(connection, FProjectFundingProfileSql);
         await ExecuteNonQueryAsync(connection, ProcedureSql);
     }
 
@@ -35,10 +39,9 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         command.Parameters.Add(new SqlParameter("@ProgramPK", SqlDbType.NVarChar, 200) { Value = "PROGRAM-1" });
         await using SqlDataReader reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
-        Assert.Equal(new[] { "RevisionId", "StageId", "NewCost" }, Enumerable.Range(0, reader.FieldCount).Select(reader.GetName));
+        Assert.Equal(new[] { "RevisionId", "NewCost" }, Enumerable.Range(0, reader.FieldCount).Select(reader.GetName));
         Assert.Equal(1, reader.GetInt32(0));
-        Assert.Equal(2, reader.GetInt32(1));
-        Assert.Equal(100.00m, reader.GetDecimal(2));
+        Assert.Equal(100.00m, reader.GetDecimal(1));
         Assert.False(await reader.ReadAsync());
     }
 
@@ -82,6 +85,54 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         }).ToArray();
         decimal[] results = await Task.WhenAll(tasks);
         Assert.All(results, value => Assert.Equal(100.00m, value));
+    }
+
+    // RISK-108/ADR-132/ADR-133: the live proc used to join tProjectFundingProfile (base) directly,
+    // completely blind to an approved Formal Revision's funding changes. This test is the
+    // regression guard for that exact defect class -- PROJECT-NORMAL's base funding stays 100, its
+    // fully-approved revision's funding is 400; the correct Program total is 400, not 100. Before
+    // the fix, this test would have failed (asserting 100).
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task Procedure_UsesEffectiveRevisionFundingNotBaseWhenFullyApproved()
+    {
+        await SeedProgramAsync();
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        const string seedRevisionSql = """
+            INSERT dbo.tRevisionDetails(Id, ProjectFK, ProjectRevisionFK) VALUES (201, N'PROJECT-NORMAL', 101);
+            INSERT dbo.tRevisionApprovals(RevisionDetailFK, Level, Status) VALUES (201, 'RO', 1), (201, 'CO', 1);
+            INSERT dbo.tRevisionProjectFundingProfile(RevisionDetailFK, Amount, IsDeleted) VALUES (201, 400, 0);
+            """;
+        await ExecuteNonQueryAsync(connection, seedRevisionSql);
+
+        await ExecuteProcedureAsync(connection, null, "PROGRAM-1");
+
+        Assert.Equal(400.00m, await ReadProgramCostAsync(connection, null));
+    }
+
+    // Same scenario, but the revision is only half-approved (RO=1, CO=0 -- not yet effective).
+    // The base funding (100) must still be what counts, proving the overlay only activates once
+    // BOTH approvals are in, matching fRevisionApprovalStatus.IsFullyApproved's real semantics.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task Procedure_IgnoresRevisionFundingWhenNotYetFullyApproved()
+    {
+        await SeedProgramAsync();
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        const string seedRevisionSql = """
+            INSERT dbo.tRevisionDetails(Id, ProjectFK, ProjectRevisionFK) VALUES (202, N'PROJECT-NORMAL', 101);
+            INSERT dbo.tRevisionApprovals(RevisionDetailFK, Level, Status) VALUES (202, 'RO', 1), (202, 'CO', 0);
+            INSERT dbo.tRevisionProjectFundingProfile(RevisionDetailFK, Amount, IsDeleted) VALUES (202, 400, 0);
+            """;
+        await ExecuteNonQueryAsync(connection, seedRevisionSql);
+
+        await ExecuteProcedureAsync(connection, null, "PROGRAM-1");
+
+        Assert.Equal(100.00m, await ReadProgramCostAsync(connection, null));
     }
 
     private async Task SeedProgramAsync()
@@ -137,6 +188,63 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         CREATE TABLE dbo.tProjectFundingProfile(Id int IDENTITY PRIMARY KEY, ProjectRevisionFK int NOT NULL, Amount decimal(18,5) NOT NULL, IsDeleted bit NOT NULL);
         """;
 
+    // Minimal, behaviorally-faithful slice of the Formal Revision schema/functions -- just enough
+    // to exercise pRecomputeProgramCost's real dependency chain (fProjectFundingProfile ->
+    // fProjectEffectiveRevision -> fRevisionApprovalStatus), not a full reproduction of the live
+    // objects' every column/audit field.
+    private const string RevisionSchemaSql = """
+        CREATE TABLE dbo.tRevisionDetails(Id int NOT NULL PRIMARY KEY, ProjectFK nvarchar(200) NOT NULL, ProjectRevisionFK int NOT NULL);
+        CREATE TABLE dbo.tRevisionApprovals(RevisionDetailFK int NOT NULL, Level nvarchar(2) NOT NULL, Status int NOT NULL);
+        CREATE TABLE dbo.tRevisionProjectFundingProfile(Id int IDENTITY PRIMARY KEY, RevisionDetailFK int NOT NULL, Amount decimal(18,5) NOT NULL, IsDeleted bit NOT NULL);
+        """;
+
+    private const string FRevisionApprovalStatusSql = """
+        CREATE FUNCTION dbo.fRevisionApprovalStatus(@RevisionDetailFK INT)
+        RETURNS TABLE AS RETURN
+        (
+            SELECT
+                ISNULL(MAX(CASE WHEN Level = 'RO' THEN Status END), 0) AS ROStatus,
+                ISNULL(MAX(CASE WHEN Level = 'CO' THEN Status END), 0) AS COStatus,
+                CASE WHEN ISNULL(MAX(CASE WHEN Level = 'RO' THEN Status END), 0) = 1
+                      AND ISNULL(MAX(CASE WHEN Level = 'CO' THEN Status END), 0) = 1
+                     THEN 1 ELSE 0 END AS IsFullyApproved
+            FROM dbo.tRevisionApprovals WHERE RevisionDetailFK = @RevisionDetailFK
+        );
+        """;
+
+    private const string FProjectEffectiveRevisionSql = """
+        CREATE FUNCTION dbo.fProjectEffectiveRevision(@ProjectPK NVARCHAR(200))
+        RETURNS TABLE AS RETURN
+        (
+            SELECT TOP (1) rd.Id AS RevisionDetailFK
+            FROM dbo.tRevisionDetails rd
+            CROSS APPLY dbo.fRevisionApprovalStatus(rd.Id) apst
+            WHERE rd.ProjectFK = @ProjectPK AND apst.IsFullyApproved = 1
+            ORDER BY rd.Id DESC
+        );
+        """;
+
+    // Simplified stand-in for the live fProjectFundingProfile: same UseRevision branching (overlay
+    // tRevisionProjectFundingProfile when an effective revision exists, else fall back to base
+    // tProjectFundingProfile), trimmed of the audit-field CreatedBy/Name joins this proc never reads.
+    private const string FProjectFundingProfileSql = """
+        CREATE FUNCTION dbo.fProjectFundingProfile(@ProjectPK NVARCHAR(200), @StageId INT)
+        RETURNS TABLE AS RETURN
+        (
+            SELECT rfp.Amount
+            FROM dbo.fProjectEffectiveRevision(@ProjectPK) eff
+            JOIN dbo.tRevisionProjectFundingProfile rfp ON rfp.RevisionDetailFK = eff.RevisionDetailFK AND rfp.IsDeleted = 0
+
+            UNION ALL
+
+            SELECT fp.Amount
+            FROM dbo.tProjectStages ps
+            JOIN dbo.tProjectFundingProfile fp ON fp.ProjectRevisionFK = ps.RevisionId AND fp.IsDeleted = 0
+            WHERE ps.ProjectFK = @ProjectPK AND ps.StageId = @StageId
+              AND NOT EXISTS (SELECT 1 FROM dbo.fProjectEffectiveRevision(@ProjectPK))
+        );
+        """;
+
     private const string ProcedureSql = """
         CREATE PROCEDURE dbo.pRecomputeProgramCost @ProgramPK NVARCHAR(200)
         AS
@@ -147,14 +255,19 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
             IF @CurrentRevisionId IS NULL THROW 50001, 'pRecomputeProgramCost: Program has no revisions.', 1;
             SELECT TOP (1) @CurrentStageId = ps.StageId FROM dbo.tProgramStages ps WHERE ps.RevisionId = @CurrentRevisionId ORDER BY ps.Id DESC;
             IF @CurrentStageId IS NULL THROW 50002, 'pRecomputeProgramCost: Current program revision has no stage.', 1;
-            SELECT @NewCost = COALESCE(SUM(CONVERT(DECIMAL(38,5), fp.Amount)), 0)
+            -- RISK-108 fix: CROSS APPLY the effective-revision-aware function, not a direct base-table join.
+            SELECT @NewCost = COALESCE(SUM(CONVERT(DECIMAL(38,5), ffp.Amount)), 0)
             FROM dbo.tProjectStages ps
-            INNER JOIN dbo.tProjectFundingProfile fp ON fp.ProjectRevisionFK = ps.RevisionId AND fp.IsDeleted = 0
             INNER JOIN dbo.tProjects p ON p.ProjectPK = ps.ProjectFK
+            CROSS APPLY dbo.fProjectFundingProfile(ps.ProjectFK, ps.StageId) ffp
             WHERE ps.ProgramFK = @ProgramPK AND ps.StageId = @CurrentStageId AND p.ProjectType <> N'LS' OPTION (RECOMPILE);
+            -- Unconditional UPDATE, matching the live proc exactly (ADR-132 flagged this embedded
+            -- copy as having drifted to a conditional WHERE -- fixed here, not left wrong).
             UPDATE dbo.tProgramRevisions SET Cost = CONVERT(DECIMAL(18,2), @NewCost)
-            WHERE Id = @CurrentRevisionId AND (Cost IS NULL OR Cost <> CONVERT(DECIMAL(18,2), @NewCost));
-            SELECT @CurrentRevisionId AS RevisionId, @CurrentStageId AS StageId, CONVERT(DECIMAL(18,2), @NewCost) AS NewCost;
+            WHERE Id = @CurrentRevisionId;
+            -- 2-column result (RevisionId, NewCost), matching the live proc's actual output
+            -- contract -- the embedded copy's StageId column was never in the live version.
+            SELECT @CurrentRevisionId AS RevisionId, CONVERT(DECIMAL(18,2), @NewCost) AS NewCost;
         END;
         """;
 }
