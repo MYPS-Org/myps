@@ -2252,6 +2252,24 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
                 await _db.SaveChangesAsync(cancellationToken);
+
+                // RISK-108 fix: recompute the parent Program's cost whenever this action completes
+                // full approval, regardless of whether this was the RO or CO action that did it
+                // (approval order is not enforced server-side -- see RISK-109). Checked against the
+                // database, not EF's in-memory tracker, since the approval write was just flushed
+                // above and fRevisionApprovalStatus reads live data.
+                var approvalStatusAfterSave = await _db.fRevisionApprovalStatus
+                    .FromSqlInterpolated($"SELECT * FROM fRevisionApprovalStatus({RevisionDetails.Id})")
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (approvalStatusAfterSave?.IsFullyApproved == 1)
+                {
+                    await _db.pRecomputeProgramCost
+                        .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={RevisionDetails.ProgramId}")
+                        .AsNoTracking()
+                        .ToListAsync(cancellationToken);
+                }
+
                 await transaction.CommitAsync(cancellationToken);
                 transactionCommitted = true;
                 return Ok(new
