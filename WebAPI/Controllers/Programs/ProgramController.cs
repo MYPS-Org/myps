@@ -886,6 +886,35 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate,
                             IsDeleted = project.IsDeleted
                         }));
+
+                        // RISK-105/RISK-111 fix (2026-08-31): the BP-to-first-stage ProjectId swap
+                        // above (ReplaceFirst("BP", ...)) reuses the project's existing digits with
+                        // no allocator involved -- nothing previously checked whether the resulting
+                        // value already belongs to a different real project (e.g. one imported or
+                        // created directly at a P/MY-eligible stage). Fail closed rather than persist
+                        // a silent cross-project ProjectId collision.
+                        if (HasNewProjectId)
+                        {
+                            var SwappedProjectIds = NewRevisions.Select(x => x.ProjectId).ToHashSet();
+                            var CollidingProjectPKs = await _db.tProjects.AsNoTracking()
+                                .Where(x => SwappedProjectIds.Contains(x.ProjectPK))
+                                .Select(x => x.ProjectPK)
+                                .ToListAsync(cancellationToken);
+                            var CollidingRevisionIds = await _db.tProjectRevisions.AsNoTracking()
+                                .Where(x => !x.IsDeleted && SwappedProjectIds.Contains(x.ProjectId))
+                                .Select(x => x.ProjectId)
+                                .ToListAsync(cancellationToken);
+                            var Colliding = CollidingProjectPKs.Concat(CollidingRevisionIds).Distinct().ToList();
+                            if (Colliding.Count > 0)
+                            {
+                                return new BadRequestObjectResult(new
+                                {
+                                    Message = $"Program stage advance failed: the generated ProjectId(s) [{string.Join(", ", Colliding)}] already belong to another existing project. The stage-advance was not applied. Contact an administrator before retrying.",
+                                    Title = "ProjectId Collision Detected"
+                                });
+                            }
+                        }
+
                         await _db.tProjectRevisions.AddRangeAsync(NewRevisions);
                         ProgramRevision.Status = EnumProgramStatus.Approved;
                         _db.tProgramRevisions.Update(ProgramRevision);
