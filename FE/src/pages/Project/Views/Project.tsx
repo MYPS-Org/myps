@@ -189,7 +189,7 @@ const Project: React.FC = () => {
                                     <div className="flex items-center space-x-1">
                                         <Button
                                             color="orange"
-                                            onClick={() => project.ProjectPK && handleViewDetails(project.ProjectPK, project.StageName)}
+                                            onClick={() => project.ProjectId && handleViewDetails(project.ProjectId, project.StageName)}
                                             className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                         >
                                             View Details

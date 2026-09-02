@@ -76,7 +76,7 @@ const ProjectQuickDetailModal: React.FC<Props> = ({ project, onClose }) => {
 
         <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
           <button onClick={onClose} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100">Close</button>
-          <button onClick={() => navigate(`/projects/project-details/${encodeURIComponent(project.projectPK)}:${encodeURIComponent(project.stageName)}`)} className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
+          <button onClick={() => navigate(`/projects/project-details/${encodeURIComponent(project.projectId)}:${encodeURIComponent(project.stageName)}`)} className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
             Open project <ArrowTopRightOnSquareIcon className="h-4 w-4" />
           </button>
         </div>
