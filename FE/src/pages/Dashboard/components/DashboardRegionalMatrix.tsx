@@ -176,9 +176,9 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
   let pieSegments: PieSegment[] = [];
   if (pieSliceType === 'island') {
     pieSegments = [
-      { id: 'Luzon', name: 'Luzon Island Group', amount: luzonTotal, share: luzonShare, count: luzonProjects.length, color: '#00a3e0', island: 'Luzon' },
-      { id: 'Visayas', name: 'Visayas Island Group', amount: visayasTotal, share: visayasShare, count: visayasProjects.length, color: '#2e7d32', island: 'Visayas' },
-      { id: 'Mindanao', name: 'Mindanao Island Group', amount: mindanaoTotal, share: mindanaoShare, count: mindanaoProjects.length, color: '#d81b60', island: 'Mindanao' },
+      { id: 'Luzon', name: 'Luzon', amount: luzonTotal, share: luzonShare, count: luzonProjects.length, color: '#00a3e0', island: 'Luzon' },
+      { id: 'Visayas', name: 'Visayas', amount: visayasTotal, share: visayasShare, count: visayasProjects.length, color: '#2e7d32', island: 'Visayas' },
+      { id: 'Mindanao', name: 'Mindanao', amount: mindanaoTotal, share: mindanaoShare, count: mindanaoProjects.length, color: '#d81b60', island: 'Mindanao' },
     ];
   } else if (pieSliceType === 'subgroup') {
     pieSegments = [

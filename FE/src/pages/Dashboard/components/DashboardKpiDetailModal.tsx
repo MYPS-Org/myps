@@ -62,7 +62,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
   onOpenProject,
   onOpenLsProject,
 }) => {
-  const [expandedLsIds, setExpandedLsIds] = useState<Set<number>>(new Set([901]));
+  const [expandedLsIds, setExpandedLsIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!type) return undefined;

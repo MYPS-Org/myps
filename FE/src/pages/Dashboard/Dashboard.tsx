@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -63,6 +63,18 @@ function mapSummary(summary: DashboardSummary) {
     actual: item.LsItemized ?? 0,
   }));
 
+  const trajectory = (summary.AnnualTrend ?? []).map((item) => ({
+    year: item.Year,
+    projects: item.ProjectCount ?? 0,
+    budget: item.InfrastructureBudget ?? 0,
+  }));
+
+  const budgetBreakdown = (summary.BudgetBreakdown ?? []).map((item) => ({
+    name: item.Name,
+    budget: item.Budget ?? 0,
+    projectCount: item.ProjectCount ?? 0,
+  }));
+
   const statuses: StatusSegment[] = (summary.Statuses ?? []).map((item) => ({
     name: item.Name,
     count: item.Count,
@@ -106,6 +118,7 @@ function mapSummary(summary: DashboardSummary) {
 
   const lsProjects: DashboardLsProject[] = (summary.LsProjects ?? []).map((item) => ({
     id: item.Id,
+    projectPK: item.ProjectPK,
     projectId: item.ProjectId,
     description: item.Description,
     programName: item.ProgramName,
@@ -116,6 +129,7 @@ function mapSummary(summary: DashboardSummary) {
     itemizedCount: item.ItemizedCount,
     children: (item.Children ?? []).map((child) => ({
       id: child.Id,
+      projectPK: child.ProjectPK,
       projectId: child.ProjectId,
       description: child.Description,
       stageName: child.StageName,
@@ -128,6 +142,8 @@ function mapSummary(summary: DashboardSummary) {
   return {
     kpis,
     trends,
+    trajectory,
+    budgetBreakdown,
     statuses,
     islands,
     projects,
@@ -138,11 +154,11 @@ function mapSummary(summary: DashboardSummary) {
 
 const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
-  const { theme, setTheme, isLight } = useDashboardTheme();
+  const { setTheme, isLight } = useDashboardTheme();
 
-  const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('benchmark');
-  const [selectedYear, setSelectedYear] = useState<number>(2027);
-  const [availableYears, setAvailableYears] = useState<number[]>([2027, 2026, 2025, 2024, 2023]);
+  const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('real');
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [kpiData, setKpiData] = useState<KpiData>(EMPTY_KPIS);
   const [trendData, setTrendData] = useState<MonthlyTrend[]>([]);
   const [statusSegments, setStatusSegments] = useState<StatusSegment[]>([]);
@@ -150,6 +166,8 @@ const DashboardContent: React.FC = () => {
   const [projects, setProjects] = useState<WatchlistProject[]>([]);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [lsProjects, setLsProjects] = useState<DashboardLsProject[]>([]);
+  const [trajectoryData, setTrajectoryData] = useState<Array<{ year: number; projects: number; budget: number }>>([]);
+  const [budgetBreakdown, setBudgetBreakdown] = useState<Array<{ name: string; budget: number; projectCount: number }>>([]);
 
   const [selectedKpi, setSelectedKpi] = useState<DashboardKpiType | null>(null);
   const [activeStatusFilter, setActiveStatusFilter] = useState<string | null>(null);
@@ -158,22 +176,48 @@ const DashboardContent: React.FC = () => {
 
   const [viewPerspective, setViewPerspective] = useState<ViewPerspective>('overview');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const skipResolvedYearFetch = useRef(false);
+  const displayYear = selectedYear ?? new Date().getFullYear();
+  const clearFigures = useCallback(() => {
+    setKpiData(EMPTY_KPIS);
+    setTrendData([]);
+    setTrajectoryData([]);
+    setBudgetBreakdown([]);
+    setStatusSegments([]);
+    setIslands([]);
+    setProjects([]);
+    setActivities([]);
+    setLsProjects([]);
+    setSelectedProject(null);
+  }, []);
 
   useEffect(() => {
+    if (skipResolvedYearFetch.current) {
+      skipResolvedYearFetch.current = false;
+      return;
+    }
+
     let active = true;
     setIsLoading(true);
+    setLoadError(null);
+    clearFigures();
 
-    fetchDashboardSummary(selectedYear, dataSourceMode === 'benchmark')
+    fetchDashboardSummary(selectedYear ?? undefined, dataSourceMode === 'benchmark')
       .then((summary) => {
         if (!active) return;
         const mapped = mapSummary(summary);
         const validYears = summary.AvailableYears.filter(isValidFiscalYear);
-        if (validYears.length > 0) {
-          setAvailableYears(validYears);
+        setAvailableYears(validYears);
+        if (selectedYear === null) {
+          skipResolvedYearFetch.current = true;
+          setSelectedYear(summary.SelectedYear);
         }
         setKpiData(mapped.kpis);
         setTrendData(mapped.trends);
+        setTrajectoryData(mapped.trajectory);
+        setBudgetBreakdown(mapped.budgetBreakdown);
         setStatusSegments(mapped.statuses);
         setIslands(mapped.islands);
         setProjects(mapped.projects);
@@ -182,6 +226,12 @@ const DashboardContent: React.FC = () => {
       })
       .catch((err) => {
         console.error('Dashboard load issue:', err);
+        if (!active) return;
+        setLoadError(dataSourceMode === 'real'
+          ? 'Live dashboard data could not be loaded. No presentation or fallback figures have been substituted.'
+          : 'The demo data could not be loaded.');
+        setAvailableYears([]);
+        clearFigures();
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -190,7 +240,7 @@ const DashboardContent: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [selectedYear, refreshKey, dataSourceMode]);
+  }, [selectedYear, refreshKey, dataSourceMode, clearFigures]);
 
   return (
     <div
@@ -215,6 +265,13 @@ const DashboardContent: React.FC = () => {
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/10 text-white border border-white/10">
                 MYPS Infrastructure Analytics
               </span>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                dataSourceMode === 'real'
+                  ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40'
+                  : 'bg-blue-500/20 text-blue-200 border-blue-400/40'
+              }`}>
+                {dataSourceMode === 'real' ? 'Database data' : 'Demo data'}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
               <span>National Expenditure Program & Portfolio Matrix</span>
@@ -228,28 +285,35 @@ const DashboardContent: React.FC = () => {
             {/* Real DB vs Benchmark Switch Toggle */}
             <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80 shadow-inner">
               <button
-                onClick={() => setDataSourceMode('real')}
+                onClick={() => {
+                  setDataSourceMode('real');
+                  setSelectedYear(null);
+                  setAvailableYears([]);
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   dataSourceMode === 'real'
                     ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25'
                     : 'text-slate-400 hover:text-white'
                 }`}
-                title="Query live database projects from myps_db_dev"
+                title="Query projects from the configured live MYPS database"
               >
                 <CircleStackIcon className="w-3.5 h-3.5" />
-                <span>Live DB (myps_db_dev)</span>
+                <span>Live DB</span>
               </button>
               <button
-                onClick={() => setDataSourceMode('benchmark')}
+                onClick={() => {
+                  setDataSourceMode('benchmark');
+                  setSelectedYear(2027);
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   dataSourceMode === 'benchmark'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
                     : 'text-slate-400 hover:text-white'
                 }`}
-                title="View official DPWH NEP benchmark presentation figures"
+                title="View sample figures for demonstration"
               >
                 <SparklesIcon className="w-3.5 h-3.5 text-amber-400" />
-                <span>NEP Presentation</span>
+                <span>Demo Data</span>
               </button>
             </div>
 
@@ -320,11 +384,17 @@ const DashboardContent: React.FC = () => {
           </div>
         </div>
 
+        {dataSourceMode === 'benchmark' && (
+          <div className="relative z-10 mt-4 rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-100">
+            Demo data is for demonstration only and does not come from the live database.
+          </div>
+        )}
+
         {/* Perspective View Switcher Tabs */}
         <div className="relative z-10 flex items-center gap-2 mt-6 pt-5 border-t border-slate-800/80 overflow-x-auto">
           {[
             { id: 'overview', label: 'Executive Overview & Analytics', icon: SparklesIcon },
-            { id: 'nep_briefing', label: `FY ${selectedYear} DPWH Budget Allocation`, icon: ChartPieIcon },
+            { id: 'nep_briefing', label: `FY ${displayYear} DPWH Budget Allocation`, icon: ChartPieIcon },
             { id: 'live_portfolio', label: 'Live Database Portfolio & Watchlist', icon: AdjustmentsHorizontalIcon },
           ].map((tab) => {
             const active = viewPerspective === tab.id;
@@ -346,10 +416,17 @@ const DashboardContent: React.FC = () => {
         </div>
       </div>
 
+      {loadError && (
+        <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
+          {loadError}
+        </div>
+      )}
+
+      {!loadError && <>
       {/* 2. Key High-Impact Animated KPI Cards */}
       <DashboardKpiCards
         data={kpiData}
-        selectedYear={selectedYear}
+        isLoading={isLoading}
         onCardClick={(type) => setSelectedKpi(type as DashboardKpiType)}
       />
 
@@ -365,17 +442,23 @@ const DashboardContent: React.FC = () => {
             className="space-y-6"
           >
             {/* Macro Budget Summary */}
-            <DashboardMacroBudget selectedYear={selectedYear} />
+            <DashboardMacroBudget
+              selectedYear={displayYear}
+              isBenchmark={dataSourceMode === 'benchmark'}
+              liveBreakdown={budgetBreakdown}
+            />
 
             {/* 5-Year Trajectory */}
             <DashboardTrajectoryChart
-              selectedYear={selectedYear}
+              selectedYear={displayYear}
               onSelectYear={(yr) => setSelectedYear(yr)}
+              isBenchmark={dataSourceMode === 'benchmark'}
+              liveData={trajectoryData}
             />
 
             {/* Regional Capital Outlays Infographic Matrix */}
             <DashboardRegionalMatrix
-              selectedYear={selectedYear}
+              selectedYear={displayYear}
               projects={projects}
               islands={islands}
               onSelectIsland={(isl) => setActiveIslandFilter(isl)}
@@ -384,7 +467,7 @@ const DashboardContent: React.FC = () => {
 
             {/* Annual Trend & Project Stages */}
             <DashboardCharts
-              selectedYear={selectedYear}
+              selectedYear={displayYear}
               monthlyData={trendData}
               statusData={statusSegments}
               islandData={islands}
@@ -425,16 +508,20 @@ const DashboardContent: React.FC = () => {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            <DashboardMacroBudget selectedYear={selectedYear} />
+            <DashboardMacroBudget
+              selectedYear={displayYear}
+              isBenchmark={dataSourceMode === 'benchmark'}
+              liveBreakdown={budgetBreakdown}
+            />
             <DashboardRegionalMatrix
-              selectedYear={selectedYear}
+              selectedYear={displayYear}
               projects={projects}
               islands={islands}
               onSelectIsland={(isl) => setActiveIslandFilter(isl)}
               activeIslandFilter={activeIslandFilter}
             />
             <DashboardCharts
-              selectedYear={selectedYear}
+              selectedYear={displayYear}
               monthlyData={trendData}
               statusData={statusSegments}
               islandData={islands}
@@ -493,7 +580,7 @@ const DashboardContent: React.FC = () => {
 
       <DashboardKpiDetailModal
         type={selectedKpi}
-        selectedYear={selectedYear}
+        selectedYear={displayYear}
         kpiData={kpiData}
         projects={projects}
         lsProjects={lsProjects}
@@ -504,6 +591,7 @@ const DashboardContent: React.FC = () => {
         }}
         onOpenLsProject={(project) => navigate(`/lumpsum/${project.id}`)}
       />
+      </>}
     </div>
   );
 };

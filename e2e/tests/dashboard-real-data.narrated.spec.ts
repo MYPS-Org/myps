@@ -30,6 +30,7 @@ test.describe('Dashboard — persisted MYPS data', () => {
       AvailableYears: expect.any(Array),
       Kpis: expect.any(Object),
       AnnualTrend: expect.any(Array),
+      BudgetBreakdown: expect.any(Array),
       Statuses: expect.any(Array),
       Islands: expect.any(Array),
       Projects: expect.any(Array),
@@ -49,9 +50,13 @@ test.describe('Dashboard — persisted MYPS data', () => {
     const stageCount = summary.Statuses.reduce((total: number, item: { Count: number }) => total + item.Count, 0);
     const islandCount = summary.Islands.reduce((total: number, item: { ProjectCount: number }) => total + item.ProjectCount, 0);
     const islandBudget = summary.Islands.reduce((total: number, item: { Budget: number }) => total + item.Budget, 0);
+    const breakdownCount = summary.BudgetBreakdown.reduce((total: number, item: { ProjectCount: number }) => total + item.ProjectCount, 0);
+    const breakdownBudget = summary.BudgetBreakdown.reduce((total: number, item: { Budget: number }) => total + item.Budget, 0);
     expect(stageCount).toBe(summary.Kpis.ActiveProjects);
     expect(islandCount).toBe(summary.Kpis.ActiveProjects);
     expect(islandBudget).toBeCloseTo(summary.Kpis.TotalBudget, 2);
+    expect(breakdownCount).toBe(summary.Kpis.ActiveProjects);
+    expect(breakdownBudget).toBeCloseTo(summary.Kpis.TotalBudget, 2);
     expect(summary.Kpis.PublicationRate).toBe(
       summary.Kpis.ActiveProjects === 0
         ? 0
@@ -62,6 +67,8 @@ test.describe('Dashboard — persisted MYPS data', () => {
     expect(summary.AnnualTrend.map((item: { Year: number }) => item.Year).sort()).toEqual(
       [...summary.AvailableYears].sort(),
     );
+    expect(summary.AnnualTrend.find((item: { Year: number }) => item.Year === summary.SelectedYear)?.ProjectCount ?? 0)
+      .toBe(summary.Kpis.ActiveProjects);
     await qa.check('The annual comparison contains every persisted fiscal year, including years represented only by Lump Sum data.');
 
     await expect(page.getByText('Database data', { exact: true })).toBeVisible();

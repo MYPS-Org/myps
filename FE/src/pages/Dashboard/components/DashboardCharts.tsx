@@ -62,13 +62,6 @@ export const DashboardCharts: React.FC<Props> = ({
   const { isLight } = useDashboardTheme();
   const [hoveredTrend, setHoveredTrend] = useState<MonthlyTrend | null>(null);
 
-  const normalizeMoney = (val: number | undefined | null): number => {
-    if (val === undefined || val === null || isNaN(val)) return 0;
-    if (val < 1e3) return val * 1e9;
-    if (val < 1e7) return val * 1e6;
-    return val;
-  };
-
   const maxTrend = Math.max(1, ...monthlyData.flatMap((item) => [item.budget || 0, item.actual || 0]));
   const visibleStatuses = statusData.filter((s) => s.count > 0);
   const displayStatuses = visibleStatuses.length > 0 ? visibleStatuses : statusData;
@@ -141,8 +134,8 @@ export const DashboardCharts: React.FC<Props> = ({
                     {hoveredTrend?.month === item.month && (
                       <div className="absolute z-20 -top-12 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-slate-950 text-white text-xs p-2.5 shadow-2xl border border-slate-700 pointer-events-none">
                         <div className="font-bold text-amber-400">FY {item.month}</div>
-                        <div className="text-slate-200">Budget: {formatCompactMoney(normalizeMoney(item.budget))}</div>
-                        <div className="text-slate-300">LS Itemized: {formatCompactMoney(normalizeMoney(item.actual))}</div>
+                        <div className="text-slate-200">Budget: {formatCompactMoney(item.budget)}</div>
+                        <div className="text-slate-300">LS Itemized: {formatCompactMoney(item.actual)}</div>
                       </div>
                     )}
 

@@ -7,6 +7,7 @@ import {
   XMarkIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/outline';
+import type { WatchlistProject } from './ProjectQuickDetailModal';
 export type { WatchlistProject } from './ProjectQuickDetailModal';
 import { formatCompactMoney } from './AnimatedCounter';
 import { useDashboardTheme } from '../DashboardTheme';

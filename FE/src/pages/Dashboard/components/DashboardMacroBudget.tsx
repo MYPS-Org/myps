@@ -5,7 +5,6 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
-import { formatCompactMoney } from './AnimatedCounter';
 import { useDashboardTheme } from '../DashboardTheme';
 
 export interface BudgetSegment {
@@ -19,7 +18,7 @@ export interface BudgetSegment {
   subItems?: Array<{ name: string; amount: number; description?: string }>;
 }
 
-export const MACRO_BUDGET_BY_YEAR: Record<number, { total: number; segments: BudgetSegment[] }> = {
+const MACRO_BUDGET_BY_YEAR: Record<number, { total: number; segments: BudgetSegment[] }> = {
   2027: {
     total: 643.95,
     segments: [
@@ -180,21 +179,42 @@ export const MACRO_BUDGET_BY_YEAR: Record<number, { total: number; segments: Bud
 
 interface Props {
   selectedYear?: number;
+  isBenchmark?: boolean;
+  liveBreakdown?: Array<{ name: string; budget: number; projectCount: number }>;
 }
 
-export const DashboardMacroBudget: React.FC<Props> = ({ selectedYear = 2027 }) => {
-  const { isLight } = useDashboardTheme();
-  const data = MACRO_BUDGET_BY_YEAR[selectedYear] ?? MACRO_BUDGET_BY_YEAR[2027];
-  const segments = data.segments;
-  const totalAmount = data.total;
+const LIVE_SEGMENT_COLORS = [
+  '#0284c7', '#10b981', '#f59e0b', '#6366f1', '#8b5cf6',
+  '#ec4899', '#14b8a6', '#06b6d4', '#64748b', '#94a3b8',
+];
 
-  const [activeSegment, setActiveSegment] = useState<BudgetSegment>(segments[0]);
+export const DashboardMacroBudget: React.FC<Props> = ({
+  selectedYear = 2027,
+  isBenchmark = false,
+  liveBreakdown = [],
+}) => {
+  const { isLight } = useDashboardTheme();
+  const benchmarkData = MACRO_BUDGET_BY_YEAR[selectedYear] ?? MACRO_BUDGET_BY_YEAR[2027];
+  const liveTotal = liveBreakdown.reduce((sum, item) => sum + item.budget, 0);
+  const liveSegments: BudgetSegment[] = React.useMemo(() => liveBreakdown.map((item, index) => ({
+    id: `live-program-${index}`,
+    name: item.name,
+    amount: item.budget / 1e9,
+    color: LIVE_SEGMENT_COLORS[index % LIVE_SEGMENT_COLORS.length],
+    hoverColor: LIVE_SEGMENT_COLORS[index % LIVE_SEGMENT_COLORS.length],
+    percentage: liveTotal > 0 ? (item.budget / liveTotal) * 100 : 0,
+    description: `${item.projectCount.toLocaleString()} persisted project${item.projectCount === 1 ? '' : 's'} in this program for FY ${selectedYear}.`,
+  })), [liveBreakdown, liveTotal, selectedYear]);
+  const segments = isBenchmark ? benchmarkData.segments : liveSegments;
+  const totalAmount = isBenchmark ? benchmarkData.total : liveTotal / 1e9;
+
+  const [activeSegment, setActiveSegment] = useState<BudgetSegment | null>(segments[0] ?? null);
   const [showSubItems, setShowSubItems] = useState(false);
 
   React.useEffect(() => {
-    setActiveSegment(segments[0]);
+    setActiveSegment(segments[0] ?? null);
     setShowSubItems(false);
-  }, [selectedYear]);
+  }, [segments]);
 
   // Calculate SVG Pie/Donut Slices
   let cumulativeAngle = 0;
@@ -204,7 +224,7 @@ export const DashboardMacroBudget: React.FC<Props> = ({ selectedYear = 2027 }) =
   const circumference = 2 * Math.PI * radius;
 
   const slices = segments.map((segment) => {
-    const fraction = segment.amount / totalAmount;
+    const fraction = totalAmount > 0 ? segment.amount / totalAmount : 0;
     const strokeDasharray = `${fraction * circumference} ${circumference}`;
     const strokeDashoffset = -cumulativeAngle * circumference;
     cumulativeAngle += fraction;
@@ -243,14 +263,14 @@ export const DashboardMacroBudget: React.FC<Props> = ({ selectedYear = 2027 }) =
               }`}
             >
               <BanknotesIcon className={`w-3.5 h-3.5 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
-              FY {selectedYear} DPWH Proposed Budget
+              FY {selectedYear} {isBenchmark ? 'DPWH Proposed Budget' : 'Live Program Budget'}
             </span>
             <span
               className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
                 isLight ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-blue-500/10 text-blue-300 border-blue-500/20'
               }`}
             >
-              National Expenditure Breakdown
+              {isBenchmark ? 'Demo Data Breakdown' : 'Persisted Program Breakdown'}
             </span>
           </div>
           <h2 className={`text-xl sm:text-2xl font-black tracking-tight flex items-baseline gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
@@ -262,7 +282,9 @@ export const DashboardMacroBudget: React.FC<Props> = ({ selectedYear = 2027 }) =
             </span>
           </h2>
           <p className={`text-xs mt-0.5 max-w-xl ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-            Macro allocation across national arterial highways, flood mitigations, foreign-assisted projects, and community basic infrastructure.
+            {isBenchmark
+              ? 'Macro allocation across national arterial highways, flood mitigations, foreign-assisted projects, and community basic infrastructure.'
+              : 'Program allocations calculated from persisted project component-cost schedules for the selected fiscal year.'}
           </p>
         </div>
       </div>
@@ -271,7 +293,11 @@ export const DashboardMacroBudget: React.FC<Props> = ({ selectedYear = 2027 }) =
       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
         {/* Donut Chart & Active Pillar Card (4 cols) */}
         <div className="lg:col-span-4 flex flex-col items-center justify-center">
-          <div className="relative w-52 h-52 flex items-center justify-center">
+          {segments.length === 0 ? (
+            <div className={`w-full py-20 text-center text-sm ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              No program allocations are recorded for FY {selectedYear}.
+            </div>
+          ) : <div className="relative w-52 h-52 flex items-center justify-center">
             <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90 transform">
               <circle
                 cx={center}
@@ -320,7 +346,7 @@ export const DashboardMacroBudget: React.FC<Props> = ({ selectedYear = 2027 }) =
                 {activeSegment ? `${activeSegment.percentage.toFixed(1)}% of total` : '100%'}
               </span>
             </div>
-          </div>
+          </div>}
 
           {/* Active Segment Detail Card */}
           {activeSegment && (

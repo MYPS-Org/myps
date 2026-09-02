@@ -13,7 +13,8 @@ export interface DashboardSummary {
     LsWalletTotal: number;
     PublicationRate: number;
   };
-  AnnualTrend: Array<{ Year: number; InfrastructureBudget: number; LsItemized: number }>;
+  AnnualTrend: Array<{ Year: number; InfrastructureBudget: number; LsItemized: number; ProjectCount: number }>;
+  BudgetBreakdown: Array<{ Name: string; Budget: number; ProjectCount: number }>;
   Statuses: Array<{ Name: string; Count: number }>;
   Islands: Array<{ Name: string; Budget: number; ProjectCount: number }>;
   Projects: Array<{
@@ -66,7 +67,7 @@ export interface DashboardSummary {
   }>;
 }
 
-const DEFAULT_LS_PROJECTS: DashboardSummary['LsProjects'] = [
+const BENCHMARK_LS_PROJECTS: DashboardSummary['LsProjects'] = [
   {
     Id: 901,
     ProjectPK: 'LS-2027-01',
@@ -247,12 +248,15 @@ function getBenchmarkSummary(year: number): DashboardSummary {
       PublicationRate: 85.0,
     },
     AnnualTrend: [
-      { Year: 2023, InfrastructureBudget: 798100000000, LsItemized: 62100000000 },
-      { Year: 2024, InfrastructureBudget: 884200000000, LsItemized: 68400000000 },
-      { Year: 2025, InfrastructureBudget: 821500000000, LsItemized: 56800000000 },
-      { Year: 2026, InfrastructureBudget: 712400000000, LsItemized: 41200000000 },
-      { Year: 2027, InfrastructureBudget: 643950000000, LsItemized: 32400000000 },
+      { Year: 2023, InfrastructureBudget: 798100000000, LsItemized: 62100000000, ProjectCount: 22836 },
+      { Year: 2024, InfrastructureBudget: 884200000000, LsItemized: 68400000000, ProjectCount: 25545 },
+      { Year: 2025, InfrastructureBudget: 821500000000, LsItemized: 56800000000, ProjectCount: 25301 },
+      { Year: 2026, InfrastructureBudget: 712400000000, LsItemized: 41200000000, ProjectCount: 17861 },
+      { Year: 2027, InfrastructureBudget: 643950000000, LsItemized: 32400000000, ProjectCount: 11395 },
     ],
+    // The presentation-only macro panel owns its cited NEP breakdown.
+    // Live mode receives this collection from Dashboard/Summary.
+    BudgetBreakdown: [],
     Statuses: [
       { Name: 'NEP', Count: 7120 },
       { Name: 'BP', Count: 2685 },
@@ -264,7 +268,7 @@ function getBenchmarkSummary(year: number): DashboardSummary {
       { Name: 'Visayas', Budget: visayasBudget, ProjectCount: 2257 },
     ],
     Projects: projects,
-    LsProjects: DEFAULT_LS_PROJECTS,
+    LsProjects: BENCHMARK_LS_PROJECTS,
     Activities: [
       {
         Id: 'act-1',
@@ -287,47 +291,22 @@ function getBenchmarkSummary(year: number): DashboardSummary {
 }
 
 export async function fetchDashboardSummary(year?: number, useBenchmark = false): Promise<DashboardSummary> {
-  const targetYear = year ?? 2027;
+  const validYear = year !== undefined && Number.isInteger(year) && year >= 2000 && year <= 2200
+    ? year
+    : undefined;
 
   // If user switched to Benchmark NEP mode
   if (useBenchmark) {
-    return getBenchmarkSummary(targetYear);
+    return getBenchmarkSummary(validYear ?? 2027);
   }
 
-  // Otherwise, ALWAYS fetch 100% live database data from myps_db_dev
-  try {
-    const response = await httpClient.post<DashboardSummary>(
-      '/Dashboard/Summary',
-      { Year: targetYear },
-      { preloaderMessage: 'Loading live database data...', silent: true }
-    );
-
-    if (response?.Data && response.Data.Kpis) {
-      return response.Data;
-    }
-  } catch (err) {
-    console.error('Failed to load live summary from database:', err);
-  }
-
-  // Return clean empty structure from DB schema if DB has no data
-  return {
-    SelectedYear: targetYear,
-    AvailableYears: [targetYear],
-    Kpis: {
-      TotalBudget: 0,
-      ActiveProjects: 0,
-      PublishedProjects: 0,
-      PublishableProjects: 0,
-      RevisedProjects: 0,
-      LsWalletReleased: 0,
-      LsWalletTotal: 0,
-      PublicationRate: 0,
-    },
-    AnnualTrend: [],
-    Statuses: [],
-    Islands: [],
-    Projects: [],
-    LsProjects: [],
-    Activities: [],
-  };
+  // Live mode never substitutes benchmark or generated values. Let the
+  // shared HTTP error handler surface failures so a broken API cannot look
+  // like a valid all-zero database result.
+  const response = await httpClient.post<DashboardSummary>(
+    '/Dashboard/Summary',
+    { Year: validYear },
+    { preloaderMessage: 'Loading live database data...' }
+  );
+  return response.Data;
 }

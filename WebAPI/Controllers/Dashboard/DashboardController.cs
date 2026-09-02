@@ -4,6 +4,7 @@ using Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using WebAPI.MicroService;
 
 namespace WebAPI.Controllers.Dashboard
@@ -52,51 +53,36 @@ namespace WebAPI.Controllers.Dashboard
                         && !cost.IsDeleted
                         && cost.Year >= MinimumFiscalYear
                         && cost.Year <= MaximumFiscalYear
-                    group cost by cost.Year into yearGroup
+                    group new { project.ProjectPK, cost.Amount } by cost.Year into yearGroup
                     orderby yearGroup.Key
                     select new
                     {
                         Year = yearGroup.Key,
-                        Amount = yearGroup.Sum(item => item.Amount)
+                        Amount = yearGroup.Sum(item => item.Amount),
+                        ProjectCount = yearGroup.Select(item => item.ProjectPK).Distinct().Count()
                     }).ToListAsync(cancellationToken);
 
-                var walletQuery = _db.vLSProjectSet.AsNoTracking();
-                if (_Session.ApplyFilter)
-                {
-                    var allowedProjects = _db.fUserVisibleProjects
-                        .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleProjects({_Session.UserId})");
-                    walletQuery = walletQuery.Where(wallet =>
-                        allowedProjects.Any(allowed => allowed.ProjectPK == wallet.ProjectPK));
-                }
-
-                // A wallet's fiscal year belongs to its persisted Program. Join
-                // it directly instead of inferring the year from dates or
-                // requiring the LS view to duplicate that field.
-                var annualWallets = await (
-                    from wallet in walletQuery
-                    join program in _db.vProgramLatest.AsNoTracking()
-                        on wallet.ProgramFK equals program.ProgramPK
-                    where program.StartYear >= MinimumFiscalYear
-                        && program.StartYear <= MaximumFiscalYear
-                    group wallet by program.StartYear into yearGroup
-                    select new
+                // The deployed databases currently span two LS schemas. Read
+                // only persisted wallet/view values while supporting both the
+                // legacy flat tLSWallets shape and normalized vLSWalletLatest.
+                var walletRows = await LoadWalletRows(cancellationToken);
+                var annualWallets = walletRows
+                    .GroupBy(wallet => wallet.Year)
+                    .Select(yearGroup => new
                     {
                         Year = yearGroup.Key,
-                        Total = yearGroup.Sum(wallet => wallet.OriginalAllocation),
-                        Itemized = yearGroup.Sum(wallet => wallet.ItemizedTotal)
-                    }).ToListAsync(cancellationToken);
+                        Total = yearGroup.Sum(wallet => wallet.Total),
+                        Itemized = yearGroup.Sum(wallet => wallet.Used)
+                    })
+                    .ToList();
 
                 var availableYears = annualProjectBudgets.Select(item => item.Year)
                     .Concat(annualWallets.Select(item => item.Year))
                     .Distinct()
                     .OrderByDescending(year => year)
                     .ToArray();
-                if (availableYears.Length == 0)
-                {
-                    availableYears = [DateTime.UtcNow.Year];
-                }
                 var selectedYear = dto.Year
-                    ?? availableYears[0];
+                    ?? availableYears.FirstOrDefault(DateTime.UtcNow.Year);
 
                 var projectBudgets = await (
                     from project in visibleProjects
@@ -238,41 +224,19 @@ namespace WebAPI.Controllers.Dashboard
                     .ToList();
                 var projects = projectRows.Select(item => item.Project).ToList();
 
-                var selectedWallets = await (
-                    from wallet in walletQuery
-                    join program in _db.vProgramLatest.AsNoTracking()
-                        on wallet.ProgramFK equals program.ProgramPK
-                    where program.StartYear == selectedYear
-                    select new
-                    {
-                        wallet.Id,
-                        wallet.ProjectPK,
-                        wallet.ProjectId,
-                        wallet.Description,
-                        wallet.ProgramName,
-                        wallet.StageName,
-                        wallet.OriginalAllocation,
-                        wallet.ItemizedTotal,
-                        wallet.Remaining,
-                        wallet.ItemizedCount,
-                        wallet.CreatedBy,
-                        wallet.CreatedDate,
-                        wallet.UpdatedBy,
-                        wallet.UpdatedDate
-                    }).ToListAsync(cancellationToken);
+                var selectedWallets = walletRows
+                    .Where(wallet => wallet.Year == selectedYear)
+                    .ToList();
 
-                var selectedWalletProjectIds = selectedWallets
-                    .Select(wallet => wallet.ProjectId)
-                    .Where(projectId => !string.IsNullOrWhiteSpace(projectId))
-                    .Distinct()
+                var selectedWalletIds = selectedWallets
+                    .Select(wallet => wallet.Id)
                     .ToArray();
                 var selectedWalletChildren = await _db.vLSWalletProjectSet
                     .AsNoTracking()
-                    .Where(project => project.ParentProjectId != null
-                        && selectedWalletProjectIds.Contains(project.ParentProjectId))
+                    .Where(project => selectedWalletIds.Contains(project.ParentWalletId))
                     .Select(project => new
                     {
-                        project.ParentProjectId,
+                        project.ParentWalletId,
                         Child = new DashboardLsChildProjectDTO
                         {
                             Id = project.Id,
@@ -280,14 +244,14 @@ namespace WebAPI.Controllers.Dashboard
                             ProjectId = project.ProjectId,
                             Description = project.Description ?? "Not recorded",
                             StageName = project.StageName ?? "Unstaged",
-                            FundingTotal = project.FundingTotal,
-                            ComponentCostTotal = project.ComponentCostTotal,
+                            FundingTotal = project.EffectiveDraw,
+                            ComponentCostTotal = project.CurrentDrawAmount,
                             IsPublished = project.IsPublished
                         }
                     })
                     .ToListAsync(cancellationToken);
                 var childrenByWallet = selectedWalletChildren
-                    .GroupBy(project => project.ParentProjectId!)
+                    .GroupBy(project => project.ParentWalletId)
                     .ToDictionary(
                         group => group.Key,
                         group => group.Select(project => project.Child)
@@ -324,6 +288,21 @@ namespace WebAPI.Controllers.Dashboard
                     .OrderByDescending(item => item.Budget)
                     .ToList();
 
+                // This is the live equivalent of the NEP presentation's macro
+                // allocation panel. Program names and amounts are taken from
+                // the selected projects/revisions; no presentation categories
+                // or values are inferred in Live DB mode.
+                var budgetBreakdown = projects
+                    .GroupBy(project => project.ProgramName)
+                    .Select(group => new DashboardBudgetBreakdownDTO
+                    {
+                        Name = group.Key,
+                        Budget = group.Sum(project => project.AllocatedBudget),
+                        ProjectCount = group.Count()
+                    })
+                    .OrderByDescending(item => item.Budget)
+                    .ToList();
+
                 var projectActivities = projectRows.Select(item => new DashboardActivityDTO
                 {
                     Id = $"project-{item.Project.Id}-{item.Project.UpdatedAt.Ticks}",
@@ -338,8 +317,8 @@ namespace WebAPI.Controllers.Dashboard
                 {
                     Id = $"wallet-{wallet.Id}-{(wallet.UpdatedDate ?? wallet.CreatedDate).Ticks}",
                     Type = "lswallet",
-                    Title = $"LS Project {wallet.ProjectId} updated",
-                    Description = wallet.Description ?? wallet.ProgramName ?? "Lump Sum Project",
+                    Title = $"LS Wallet for {wallet.ProjectId} updated",
+                    Description = wallet.Description ?? wallet.ProgramName ?? "Lump Sum Wallet",
                     Timestamp = wallet.UpdatedDate ?? wallet.CreatedDate,
                     User = ActivityUserName(wallet.UpdatedBy ?? wallet.CreatedBy)
                 });
@@ -368,10 +347,12 @@ namespace WebAPI.Controllers.Dashboard
                         {
                             Year = year,
                             InfrastructureBudget = annualProjectBudgets.FirstOrDefault(item => item.Year == year)?.Amount ?? 0,
-                            LsItemized = annualWallets.FirstOrDefault(wallet => wallet.Year == year)?.Itemized ?? 0
+                            LsItemized = annualWallets.FirstOrDefault(wallet => wallet.Year == year)?.Itemized ?? 0,
+                            ProjectCount = annualProjectBudgets.FirstOrDefault(item => item.Year == year)?.ProjectCount ?? 0
                         })
                         .OrderBy(item => item.Year)
                         .ToList(),
+                    BudgetBreakdown = budgetBreakdown,
                     Statuses = statuses,
                     Islands = islands,
                     Projects = projects,
@@ -386,8 +367,8 @@ namespace WebAPI.Controllers.Dashboard
                         TotalAllocation = wallet.OriginalAllocation,
                         ItemizedAmount = wallet.ItemizedTotal,
                         RemainingAmount = wallet.Remaining,
-                        ItemizedCount = wallet.ItemizedCount,
-                        Children = childrenByWallet.GetValueOrDefault(wallet.ProjectId) ?? new()
+                        ItemizedCount = checked((int)wallet.ItemizedCount),
+                        Children = childrenByWallet.GetValueOrDefault(wallet.Id) ?? new()
                     }).OrderByDescending(wallet => wallet.ItemizedAmount).ToList(),
                     Activities = projectActivities.Concat(walletActivities)
                         .OrderByDescending(activity => activity.Timestamp)
@@ -401,6 +382,135 @@ namespace WebAPI.Controllers.Dashboard
             {
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId);
             }
+        }
+
+        private async Task<List<DashboardWalletRow>> LoadWalletRows(CancellationToken cancellationToken)
+        {
+            var connection = _db.Database.GetDbConnection();
+            var shouldClose = connection.State != ConnectionState.Open;
+            if (shouldClose)
+            {
+                await connection.OpenAsync(cancellationToken);
+            }
+
+            try
+            {
+                var hasLatestView = false;
+                await using (var schemaCommand = connection.CreateCommand())
+                {
+                    schemaCommand.CommandText = "SELECT CASE WHEN OBJECT_ID(N'dbo.vLSWalletLatest', N'V') IS NULL THEN 0 ELSE 1 END";
+                    hasLatestView = Convert.ToInt32(await schemaCommand.ExecuteScalarAsync(cancellationToken)) == 1;
+                }
+
+                var visibilityClause = _Session.ApplyFilter
+                    ? " AND EXISTS (SELECT 1 FROM dbo.fUserVisiblePrograms(@UserId) visible WHERE visible.ProgramPK = wallet.ProgramFK)"
+                    : string.Empty;
+                var sql = hasLatestView
+                    ? $@"
+SELECT wallet.Id,
+       wallet.ProgramFK AS ProjectPK,
+       wallet.ProgramId AS ProjectId,
+       COALESCE(wallet.SubCategoryName, wallet.CategoryName, wallet.ProgramName) AS Description,
+       wallet.ProgramName,
+       COALESCE(wallet.CurrentStage, wallet.ProgramStageName) AS StageName,
+       wallet.YearStart AS [Year],
+       wallet.Total,
+       wallet.Used,
+       wallet.Available,
+       wallet.ProjectCount,
+       wallet.CreatedBy,
+       wallet.CreatedDate,
+       wallet.UpdatedBy,
+       wallet.UpdatedDate
+FROM dbo.vLSWalletLatest wallet
+WHERE wallet.YearStart BETWEEN {MinimumFiscalYear} AND {MaximumFiscalYear}{visibilityClause}"
+                    : $@"
+SELECT wallet.Id,
+       wallet.ProgramFK AS ProjectPK,
+       program.ProgramId AS ProjectId,
+       program.Name AS Description,
+       program.Name AS ProgramName,
+       COALESCE(wallet.CurrentStage, program.StageName) AS StageName,
+       program.StartYear AS [Year],
+       COALESCE(balance.Total, wallet.Amount) AS Total,
+       COALESCE(balance.Used, 0) AS Used,
+       COALESCE(balance.Available, wallet.Amount) AS Available,
+       (SELECT COUNT_BIG(1) FROM dbo.vLSWalletProjectSet child WHERE child.ParentWalletId = wallet.Id) AS ProjectCount,
+       wallet.CreatedBy,
+       wallet.CreatedDate,
+       wallet.UpdatedBy,
+       wallet.UpdatedDate
+FROM dbo.tLSWallets wallet
+INNER JOIN dbo.vProgramLatest program ON program.ProgramPK = wallet.ProgramFK
+LEFT JOIN dbo.vLSWalletBalance balance ON balance.WalletId = wallet.Id
+WHERE wallet.IsDeleted = 0
+  AND program.StartYear BETWEEN {MinimumFiscalYear} AND {MaximumFiscalYear}{visibilityClause}";
+
+                var rows = new List<DashboardWalletRow>();
+                await using var command = connection.CreateCommand();
+                command.CommandText = sql;
+                if (_Session.ApplyFilter)
+                {
+                    var userParameter = command.CreateParameter();
+                    userParameter.ParameterName = "@UserId";
+                    userParameter.Value = _Session.UserId;
+                    command.Parameters.Add(userParameter);
+                }
+
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    rows.Add(new DashboardWalletRow
+                    {
+                        Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                        ProjectPK = reader.GetString(reader.GetOrdinal("ProjectPK")),
+                        ProjectId = reader.GetString(reader.GetOrdinal("ProjectId")),
+                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
+                        ProgramName = reader.IsDBNull(reader.GetOrdinal("ProgramName")) ? null : reader.GetString(reader.GetOrdinal("ProgramName")),
+                        StageName = reader.IsDBNull(reader.GetOrdinal("StageName")) ? null : reader.GetString(reader.GetOrdinal("StageName")),
+                        Year = reader.GetInt32(reader.GetOrdinal("Year")),
+                        Total = reader.GetDecimal(reader.GetOrdinal("Total")),
+                        Used = reader.GetDecimal(reader.GetOrdinal("Used")),
+                        Available = reader.GetDecimal(reader.GetOrdinal("Available")),
+                        ItemizedCount = Convert.ToInt64(reader.GetValue(reader.GetOrdinal("ProjectCount"))),
+                        CreatedBy = reader.GetString(reader.GetOrdinal("CreatedBy")),
+                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
+                        UpdatedBy = reader.IsDBNull(reader.GetOrdinal("UpdatedBy")) ? null : reader.GetString(reader.GetOrdinal("UpdatedBy")),
+                        UpdatedDate = reader.IsDBNull(reader.GetOrdinal("UpdatedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("UpdatedDate"))
+                    });
+                }
+
+                return rows;
+            }
+            finally
+            {
+                if (shouldClose)
+                {
+                    await connection.CloseAsync();
+                }
+            }
+        }
+
+        private sealed class DashboardWalletRow
+        {
+            public int Id { get; init; }
+            public string ProjectPK { get; init; } = string.Empty;
+            public string ProjectId { get; init; } = string.Empty;
+            public string? Description { get; init; }
+            public string? ProgramName { get; init; }
+            public string? StageName { get; init; }
+            public int Year { get; init; }
+            public decimal Total { get; init; }
+            public decimal Used { get; init; }
+            public decimal Available { get; init; }
+            public decimal OriginalAllocation => Total;
+            public decimal ItemizedTotal => Used;
+            public decimal Remaining => Available;
+            public long ItemizedCount { get; init; }
+            public string CreatedBy { get; init; } = string.Empty;
+            public DateTime CreatedDate { get; init; }
+            public string? UpdatedBy { get; init; }
+            public DateTime? UpdatedDate { get; init; }
         }
     }
 }

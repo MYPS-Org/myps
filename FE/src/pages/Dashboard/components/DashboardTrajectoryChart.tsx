@@ -18,7 +18,7 @@ export interface TrajectoryYear {
   yoyDelta?: number;
 }
 
-export const TRAJECTORY_DATA: TrajectoryYear[] = [
+const BENCHMARK_TRAJECTORY_DATA: TrajectoryYear[] = [
   { year: 2023, projects: 22836, budgetBillion: 798.1, label: 'Enacted GAA', yoyDelta: 0 },
   { year: 2024, projects: 25545, budgetBillion: 884.2, label: 'Peak Portfolio', yoyDelta: 11.9 },
   { year: 2025, projects: 25301, budgetBillion: 821.5, label: 'Consolidation', yoyDelta: -1.0 },
@@ -29,17 +29,38 @@ export const TRAJECTORY_DATA: TrajectoryYear[] = [
 interface Props {
   selectedYear?: number;
   onSelectYear?: (year: number) => void;
+  isBenchmark?: boolean;
+  liveData?: Array<{ year: number; projects: number; budget: number }>;
 }
 
 export const DashboardTrajectoryChart: React.FC<Props> = ({
   selectedYear,
   onSelectYear,
+  isBenchmark = false,
+  liveData = [],
 }) => {
   const { isLight } = useDashboardTheme();
-  const maxProjects = 30000;
-  const avgProjects = Math.round(
-    TRAJECTORY_DATA.reduce((sum, item) => sum + item.projects, 0) / TRAJECTORY_DATA.length
-  );
+  const trajectoryData: TrajectoryYear[] = isBenchmark
+    ? BENCHMARK_TRAJECTORY_DATA
+    : liveData.map((item, index) => {
+        const previous = liveData[index - 1];
+        return {
+          year: item.year,
+          projects: item.projects,
+          budgetBillion: item.budget / 1e9,
+          label: 'Live portfolio',
+          yoyDelta: previous?.projects
+            ? Math.round(((item.projects - previous.projects) / previous.projects) * 1000) / 10
+            : 0,
+        };
+      });
+  const maxProjects = Math.max(1, ...trajectoryData.map((item) => item.projects));
+  const avgProjects = trajectoryData.length > 0
+    ? Math.round(trajectoryData.reduce((sum, item) => sum + item.projects, 0) / trajectoryData.length)
+    : 0;
+  const yearRange = trajectoryData.length > 0
+    ? `${trajectoryData[0].year} to ${trajectoryData[trajectoryData.length - 1].year}`
+    : 'No fiscal years';
 
   return (
     <div
@@ -72,21 +93,27 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
                   isLight ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
                 }`}
               >
-                2023 to 2027
+                {yearRange}
               </span>
             </div>
             <h2 className={`text-xl sm:text-2xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
               No. of Infrastructure Projects
             </h2>
             <p className={`text-xs mt-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-              5-Year comparison tracking project counts from peak implementation to focused strategic appropriations.
+              {isBenchmark
+                ? 'Five-year presentation comparison of infrastructure project counts.'
+                : 'Project counts calculated from persisted component-cost schedules across available fiscal years.'}
             </p>
           </div>
         </div>
 
         {/* Trajectory Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6">
-          {TRAJECTORY_DATA.map((item) => {
+        {trajectoryData.length === 0 ? (
+          <div className={`mt-6 py-16 text-center text-sm ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            No project trajectory records are available in the database.
+          </div>
+        ) : <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6">
+          {trajectoryData.map((item) => {
             const isSelected = selectedYear === item.year;
             const isProposed = item.isProposed;
 
@@ -164,18 +191,18 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
               </motion.button>
             );
           })}
-        </div>
+        </div>}
       </div>
 
       {/* Visual Comparison Chart Bar Area */}
       <div className={`mt-6 pt-5 border-t ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
         <div className={`flex items-center justify-between text-xs mb-2 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
           <span>Relative Volume Density (Max: {maxProjects.toLocaleString()})</span>
-          <span>5-Year Avg: <strong className={isLight ? 'text-slate-800' : 'text-white'}>{avgProjects.toLocaleString()}</strong> projects</span>
+          <span>Period Avg: <strong className={isLight ? 'text-slate-800' : 'text-white'}>{avgProjects.toLocaleString()}</strong> projects</span>
         </div>
 
         <div className={`h-28 flex items-end gap-3 sm:gap-6 px-2 pt-2 border-b ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
-          {TRAJECTORY_DATA.map((item) => {
+          {trajectoryData.map((item) => {
             const heightPercent = (item.projects / maxProjects) * 100;
             const isSelected = selectedYear === item.year;
 

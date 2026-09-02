@@ -14,6 +14,7 @@ namespace WebAPI.Controllers.Dashboard
         public int[] AvailableYears { get; set; } = Array.Empty<int>();
         public DashboardKpiDTO Kpis { get; set; } = new();
         public List<DashboardTrendDTO> AnnualTrend { get; set; } = new();
+        public List<DashboardBudgetBreakdownDTO> BudgetBreakdown { get; set; } = new();
         public List<DashboardStatusDTO> Statuses { get; set; } = new();
         public List<DashboardIslandDTO> Islands { get; set; } = new();
         public List<DashboardProjectDTO> Projects { get; set; } = new();
@@ -38,6 +39,14 @@ namespace WebAPI.Controllers.Dashboard
         public int Year { get; set; }
         public decimal InfrastructureBudget { get; set; }
         public decimal LsItemized { get; set; }
+        public int ProjectCount { get; set; }
+    }
+
+    public class DashboardBudgetBreakdownDTO
+    {
+        public string Name { get; set; } = string.Empty;
+        public decimal Budget { get; set; }
+        public int ProjectCount { get; set; }
     }
 
     public class DashboardStatusDTO
