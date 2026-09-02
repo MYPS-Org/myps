@@ -247,7 +247,9 @@ const ModificationList: React.FC = () => {
                         {
                             pagination.data.lists.length > 0 ? (
                                 <p className="text-sm text-gray-500">
+                                    {/* Client doesn't want the "Showing X of Y" summary — commented out, not deleted.
                                     Showing {pagination.data.limit * (pagination.data.page - 1) + 1} to {Math.min(pagination.data.limit * pagination.data.page, pagination.data.total)} of {pagination.data.total} revision requests
+                                    */}
                                 </p>
                             ) : (
                                 <p className="text-sm text-gray-500">

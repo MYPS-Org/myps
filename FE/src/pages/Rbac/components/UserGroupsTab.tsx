@@ -276,8 +276,10 @@ export const UserGroupsTab: React.FC<UserGroupsTabProps> = ({
 			<div className="mb-3.5 text-center">
 				{data.lists.length > 0 ? (
 					<p className="text-sm text-gray-500">
+						{/* Client doesn't want the "Showing X of Y" summary — commented out, not deleted.
 						Showing {data.limit * (data.page - 1) + 1} to{' '}
 						{Math.min(data.limit * data.page, data.total)} of {data.total} user groups
+						*/}
 					</p>
 				) : (
 					<p className="text-sm text-gray-500">No user groups found</p>

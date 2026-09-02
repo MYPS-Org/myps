@@ -76,10 +76,10 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
 
 export interface ForCorrectionsDetails {
     Id?: number;
-	TransactionId?: string;
+	RevisionDetailFK?: number;
+	ReturnedBy?: string; // "CO" | "RO"
 	CorrectionReason?: string;
 	ForCorrectionDate?: string;
-	IsCentralOffice?: boolean;
 }
 
 export interface RevisionDoc {

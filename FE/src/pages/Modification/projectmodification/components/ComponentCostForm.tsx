@@ -235,6 +235,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
             <TableHeader>Total Cost</TableHeader>
             <TableHeader>Created By</TableHeader>
             <TableHeader>Created Date</TableHeader>
+            <TableHeader>Updated By</TableHeader>
+            <TableHeader>Updated Date</TableHeader>
             <TableHeader>PCMA Status</TableHeader>
             <TableHeader>Package Type</TableHeader>
             <TableHeader>Actions</TableHeader>
@@ -243,7 +245,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         <TableBody>
           {componentCosts.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center text-gray-500 py-8">
+              <TableCell colSpan={11} className="text-center text-gray-500 py-8">
                 No component costs added yet. Click "Add Cost" to get started.
               </TableCell>
             </TableRow>
@@ -262,6 +264,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                 <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
                 <TableCell>{cost.CreatedBy || '-'}</TableCell>
                 <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
+                <TableCell>{cost.UpdatedBy ? cost.UpdatedBy : cost.CreatedBy}</TableCell>
+                <TableCell>{cost.UpdatedDate ? new Date(cost.UpdatedDate).toLocaleDateString() : cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                 <TableCell>{cost.ConstructionStatusName}</TableCell>
                 <TableCell>{cost.IsPackaged}</TableCell>
                 <TableCell>

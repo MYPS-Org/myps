@@ -5,6 +5,7 @@ import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
 import { selectedItemAtom, roadsAtom, type RoadSection, type Road, deoListAtom } from "../state/rbiaAtoms";
 import { addFutureRoadSection, editFutureRoadSection } from "../Service";
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface FutureRoadSectionDialogProps {
   onClose: () => void;
@@ -12,6 +13,7 @@ interface FutureRoadSectionDialogProps {
 }
 
 const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClose, road }) => {
+  const { showToast } = useToast();
   // const [futureRoadSections, setFutureRoadSections] = useAtom(roadSectionsAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
   const [roads] = useAtom(roadsAtom);
@@ -57,6 +59,26 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.RoadId) {
+      showToast({ type: 'error', message: 'Please select a parent road.' });
+      return;
+    }
+
+    if (!sectionDigits) {
+      showToast({ type: 'error', message: 'Please enter the section road ID.' });
+      return;
+    }
+
+    if (!formData.RoadLength) {
+      showToast({ type: 'error', message: 'Please enter the length.' });
+      return;
+    }
+
+    if (!formData.DEO) {
+      showToast({ type: 'error', message: 'Please select an engineering district.' });
+      return;
+    }
 
     try {
       const payload = {
@@ -159,7 +181,6 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                     value={formData.RoadId}
                     onChange={(e) => handleChange('RoadId', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                    required
                   >
                     <option value="">Select Parent Road</option>
                     {roads.map((road) => (
@@ -192,7 +213,6 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                     setSectionDigits(val);
                   }}
                   className="flex-1 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none font-mono"
-                  required
                   placeholder="00001"
                   maxLength={5}
                 />
@@ -220,7 +240,6 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 value={formData.RoadLength}
                 onChange={(e) => handleChange('RoadLength', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
                 placeholder="Enter section length in kilometers (e.g., 5.2)"
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -237,7 +256,6 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 value={formData.DEO}
                 onChange={(e) => handleChange('DEO', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                required
               >
                 <option value="">Select Engineering District</option>
                 {Array.isArray(initRoadSections) && initRoadSections.map((deo) => (

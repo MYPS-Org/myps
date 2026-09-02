@@ -76,9 +76,9 @@ const WalletComponentCostDialog: React.FC<WalletComponentCostDialogProps> = ({
     Description: '',
     Total: 0,
     IsDeleted: false,
-    CreatedBy: user?.UserId || '',
+    CreatedBy: user?.Name || '',
     CreatedDate: new Date().toISOString(),
-    UpdatedBy: user?.UserId || '',
+    UpdatedBy: user?.Name || '',
     UpdatedDate: new Date().toISOString(),
   });
 
@@ -112,7 +112,7 @@ const WalletComponentCostDialog: React.FC<WalletComponentCostDialogProps> = ({
       Year: yearStart + nonDeletedCount,
       StartDate: null,
       EndDate: null,
-      CreatedBy: user?.UserId || '',
+      CreatedBy: user?.Name || '',
       CreatedDate: new Date().toISOString(),
       UpdatedBy: '',
       UpdatedDate: '',
@@ -313,16 +313,16 @@ const WalletComponentCostDialog: React.FC<WalletComponentCostDialogProps> = ({
 
     const costData: WalletComponentCost = {
       ...formData,
-      CreatedBy: user?.UserId || '',
-      UpdatedBy: user?.UserId,
+      CreatedBy: user?.Name || '',
+      UpdatedBy: user?.Name,
       UpdatedDate: new Date().toISOString(),
     };
 
     const perYearCosts = componentCostPerYear.map(c => ({
       ...c,
       ComponentCostId: formData.CostId,
-      CreatedBy: c.CreatedBy || user?.UserId || '',
-      UpdatedBy: user?.UserId || '',
+      CreatedBy: c.CreatedBy || user?.Name || '',
+      UpdatedBy: user?.Name || '',
       UpdatedDate: new Date().toISOString(),
       StartDate: c.StartDate || null,
       EndDate: c.EndDate || null,
@@ -357,7 +357,6 @@ const WalletComponentCostDialog: React.FC<WalletComponentCostDialogProps> = ({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.ComponentType}
                   onChange={(e) => handleChangeComponentType(e.target.value)}
-                  required
                 >
                   <option value="">Select Component Type</option>
                   {/* NOTE: Unlike ComponentCostDialog, 'LS' is NOT filtered out here.
@@ -499,7 +498,6 @@ const WalletComponentCostDialog: React.FC<WalletComponentCostDialogProps> = ({
                                 ? 'border-red-500 focus:ring-red-500 bg-red-50 text-red-900'
                                 : 'border-gray-300 focus:ring-blue-500'
                             }`}
-                            required
                           />
                         </div>
                         <div>
@@ -523,7 +521,6 @@ const WalletComponentCostDialog: React.FC<WalletComponentCostDialogProps> = ({
                                 ? 'border-red-500 focus:ring-red-500 bg-red-50 text-red-900'
                                 : 'border-gray-300 focus:ring-blue-500'
                             }`}
-                            required
                           />
                         </div>
                         <div>

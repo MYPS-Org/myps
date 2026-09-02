@@ -221,7 +221,6 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                             <select
                                 value={selectedCategory}
                                 onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : '')}
-                                required
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                             >
                                 <option value="">Select Category</option>
@@ -241,7 +240,6 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                             <select
                                 value={selectedReason}
                                 onChange={(e) => setSelectedReason(e.target.value ? Number(e.target.value) : '')}
-                                required
                                 disabled={filteredReasons.length === 0}
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed'
                             >

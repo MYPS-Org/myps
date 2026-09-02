@@ -341,7 +341,9 @@ const FutureBridgeList: React.FC = () => {
       <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
         {bridgeData.lists.length > 0 ? (
           <p className="text-sm text-gray-500">
+            {/* Client doesn't want the "Showing X of Y" summary — commented out, not deleted.
             Showing {bridgeData.limit * (bridgeData.page - 1) + 1} to {Math.min(bridgeData.limit * bridgeData.page, bridgeData.total)} of {bridgeData.total} bridges
+            */}
           </p>
         ) : (
           <p className="text-sm text-gray-500">

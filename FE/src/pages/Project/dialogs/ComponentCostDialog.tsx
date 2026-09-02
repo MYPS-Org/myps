@@ -65,9 +65,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     Description: '',
     Total: 0,
     StageName: '',
-    CreatedBy: user?.UserId || '',
+    CreatedBy: user?.Name || '',
     CreatedDate: new Date().toISOString(),
-    UpdatedBy: user?.UserId || '',
+    UpdatedBy: user?.Name || '',
     UpdatedDate: new Date().toISOString(),
     IsDeleted: false
   });
@@ -138,7 +138,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       Year: programDetails?.StartYear + nonDeletedCosts.length,
       StartDate: null,
       EndDate: null,
-      CreatedBy: user?.UserId || '',
+      CreatedBy: user?.Name || '',
       CreatedDate: new Date().toISOString(),
       UpdatedBy: '',
       UpdatedDate: '',
@@ -395,9 +395,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           Description: formData.Description,
           Total: formData.Total,
           StageName: formData.StageName,
-          CreatedBy: user?.UserId || '',
+          CreatedBy: user?.Name || '',
           CreatedDate: formData.CreatedDate,
-          UpdatedBy: user?.UserId,
+          UpdatedBy: user?.Name,
           UpdatedDate: new Date().toISOString(),
           IsDeleted: formData.IsDeleted
         };
@@ -409,8 +409,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             ...cost,
             ComponentCostFK: formData.Id,
             ComponentId: formData.ComponentId,
-            CreatedBy: cost.CreatedBy || user?.UserId || '',
-            UpdatedBy: user?.UserId || '',
+            CreatedBy: cost.CreatedBy || user?.Name || '',
+            UpdatedBy: user?.Name || '',
             UpdatedDate: new Date().toISOString(),
             StartDate: cost.StartDate || null,
             EndDate: cost.EndDate || null,
@@ -481,8 +481,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={formData.ComponentType}
                         onChange={(e) => handleComponentTypeSelect(e.target.value)}
-                        required
-                    >   
+                    >
                     <option value="">Select Component Type</option>
                         {componentTypes
                           ?.filter(
@@ -648,7 +647,6 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                         ? 'border-red-500 focus:ring-red-500 bg-red-50 text-red-900'
                                                         : 'border-gray-300 focus:ring-blue-500'
                                                 }`}
-                                                required
                                             />
                                         </div>
                                         <div>
@@ -666,7 +664,6 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                         ? 'border-red-500 focus:ring-red-500 bg-red-50 text-red-900'
                                                         : 'border-gray-300 focus:ring-blue-500'
                                                 }`}
-                                                required
                                             />
                                         </div>
                                         <div className=''>

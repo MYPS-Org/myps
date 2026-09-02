@@ -5,6 +5,7 @@ import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
 import { selectedItemAtom, roadSectionsAtom, type Bridge, type RoadSection } from "../state/rbiaAtoms";
 import { addFutureBridge, editFutureBridge } from "../Service";
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface FutureBridgeDialogProps {
   onClose: () => void;
@@ -12,6 +13,7 @@ interface FutureBridgeDialogProps {
 }
 
 const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSection }) => {
+  const { showToast } = useToast();
   // const [bridges, setBridges] = useAtom(bridgesAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
   const [roadSections] = useAtom(roadSectionsAtom);
@@ -56,9 +58,9 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.RoadSectionId || !formData.Name || 
+    if (!formData.RoadSectionId || !formData.Name ||
         !formData.From || !formData.Length || !formData.CarriageWay ) {
-      alert("Please fill in all required fields with valid values");
+      showToast({ type: 'error', message: 'Please fill in all required fields with valid values.' });
       return;
     }
 
@@ -172,7 +174,6 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                   value={formData.RoadSectionId}
                   onChange={(e) => handleChange('RoadSectionId', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                  required
                 >
                   <option value="">Select Road Section</option>
                   {roadSections.map((section) => (
@@ -205,7 +206,6 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                     setBridgeDigits(val);
                   }}
                   className="flex-1 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none font-mono"
-                  required
                   placeholder="00001"
                   maxLength={5}
                 />
@@ -231,7 +231,6 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                 value={formData.Name}
                 onChange={(e) => handleChange('Name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
                 placeholder="Enter bridge name"
               />
             </div>
@@ -248,7 +247,6 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                 value={formData.From}
                 onChange={(e) => handleChange('From', Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
                 placeholder="Enter starting chainage in kilometers"
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -268,7 +266,6 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                 value={formData.Length}
                 onChange={(e) => handleChange('Length', Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
                 placeholder="Enter bridge length in meters"
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -288,7 +285,6 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                 value={formData.CarriageWay || ''}
                 onChange={(e) => handleChange('CarriageWay', e.target.value ? Number(e.target.value) : undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
                 placeholder="Enter carriageway width in meters"
               />
               <p className="text-xs text-gray-500 mt-1">

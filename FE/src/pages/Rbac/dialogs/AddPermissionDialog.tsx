@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { AddPermission, PermissionGroup } from '../Model.d'; // Adjust the import path as necessary
 import { fetchPermissionGroups, addPermission } from '../service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddPermissionDialogProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface AddPermissionDialogProps {
 }
 
 const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClose, onSubmit }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     Id: 0,
     PermissionGroupId: 1,
@@ -47,6 +49,16 @@ const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.ModuleFunction.trim()) {
+      showToast({ type: 'error', message: 'Module Function is required.' });
+      return;
+    }
+
+    if (!formData.PermissionGroupId) {
+      showToast({ type: 'error', message: 'Permission Group is required.' });
+      return;
+    }
 
     try {
       await addPermission(formData);
@@ -113,7 +125,6 @@ const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClo
                 onChange={(e) => handleChange('ModuleFunction', e.target.value)}
                 placeholder="e.g., manage_users"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
               />
             </div>
 
@@ -138,7 +149,6 @@ const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClo
                 value={formData.PermissionGroupId}
                 onChange={(e) => handleChange('PermissionGroupId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
               >
                 <div >Select a group</div>
                 {isLoadingGroups ? (

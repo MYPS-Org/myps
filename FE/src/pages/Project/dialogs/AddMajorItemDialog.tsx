@@ -5,6 +5,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { ComponentCost, ScopeOfWorkEnum, InfraTypeEnum } from '../Model.d';
 import type { ProgramLatest } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddMajorItemDialogProps {
   isOpen: boolean;
@@ -43,6 +44,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   initialData,
   existingMajorItems = []
 }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     ComponentId: '',
     YearOfWork: programDetails?.StartYear || new Date().getFullYear(),
@@ -106,28 +108,28 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     
     // Validation
     if (!formData.ComponentId) {
-      alert('Please select a component');
+      showToast({ type: 'error', message: 'Please select a component.' });
       return;
     }
-    
+
     // Check if there are available components for add mode
     if (mode === 'add' && availableComponentCosts.length === 0) {
-      alert('No components available. Please add more components first.');
+      showToast({ type: 'error', message: 'No components available. Please add more components first.' });
       return;
     }
-    
+
     if (!formData.InfraTypeFK) {
-      alert('Please select an infrastructure type');
+      showToast({ type: 'error', message: 'Please select an infrastructure type.' });
       return;
     }
-    
+
     if (formData.WorkTypeFK === 0) {
-      alert('Please select a type of work');
+      showToast({ type: 'error', message: 'Please select a type of work.' });
       return;
     }
-    
+
     if (formData.YearOfWork < 1900 || formData.YearOfWork > 2100) {
-      alert('Please enter a valid year');
+      showToast({ type: 'error', message: 'Please enter a valid year.' });
       return;
     }
 
@@ -204,7 +206,6 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 value={formData.ComponentId}
                 onChange={(e) => handleInputChange('ComponentId', e.target.value)}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
-                required
                 disabled={mode === 'edit'} // Disable component selection in edit mode
               >
                 <option value="">Select Component</option>
@@ -233,7 +234,6 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
                 min={programDetails?.StartYear}
                 max="2100"
-                required
               />
             </div>
 
@@ -246,7 +246,6 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 value={formData.InfraTypeFK}
                 onChange={(e) => handleInputChange('InfraTypeFK', e.target.value)}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
-                required
                 disabled={mode === 'edit'} // Disable infrastructure type selection in edit mode
               >
                 <option value="">Select Infrastructure Type</option>
@@ -268,7 +267,6 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 onChange={(e) => handleInputChange('WorkTypeFK', parseInt(e.target.value) || 0)}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
                 disabled={!formData.InfraTypeFK || mode === 'edit'}
-                required
               >
                 <option value={0}>
                   {!formData.InfraTypeFK ? 'Select Infrastructure Type first' : 'Select Type of Work'}

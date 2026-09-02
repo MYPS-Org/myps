@@ -49,7 +49,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     const { user } = useAuth(); // Get user from auth context
     const [approvalDate, setApprovalDate] = useState<string>('');
     const { file: approvalDocument, handleFileChange, reset: resetApprovalDocument } = usePdfUpload();
-    const [revisionType] = useState<string>('');
     const [isCertified, setIsCertified] = useState<boolean>(false);
 
     // console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
@@ -197,10 +196,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                                 <span className="font-medium text-gray-700">Project ID:</span>
                                 <p className="text-gray-600">{project.ProjectId}</p>
                             </div>
-                            <div>
-                                <span className="font-medium text-gray-700">Current Revision:</span>
-                                <p className="text-gray-600">{revisionType}</p>
-                            </div>
                             <div className="col-span-2">
                                 <span className="font-medium text-gray-700">Description:</span>
                                 <p className="text-gray-600">{project.Description}</p>
@@ -239,7 +234,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                             <DateInput
                                 value={approvalDate}
                                 onChange={(e) => setApprovalDate(e.target.value)}
-                                required
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                             />
                         </div>
@@ -270,7 +264,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                                         type="file"
                                         accept=".pdf,application/pdf"
                                         onChange={handleFileChange}
-                                        required
                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     />
                                 </div>

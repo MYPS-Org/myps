@@ -78,9 +78,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     Total: 0,
     StageName: defaultStageName,
     IsDeleted: false,
-    CreatedBy: user?.UserId || '',
+    CreatedBy: user?.Name || '',
     CreatedDate: new Date().toISOString(),
-    UpdatedBy: user?.UserId || '',
+    UpdatedBy: user?.Name || '',
     UpdatedDate: new Date().toISOString(),
   });
 
@@ -260,7 +260,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       Year: baseYear + nonDeletedCosts.length,
       StartDate: null,
       EndDate: null,
-      CreatedBy: user?.UserId || '',
+      CreatedBy: user?.Name || '',
       CreatedDate: new Date().toISOString(),
       UpdatedBy: '',
       UpdatedDate: '',
@@ -457,9 +457,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           Description: formData.Description,
           Total: formData.Total,
           StageName: formData.StageName,
-          CreatedBy: user?.UserId || '',
+          CreatedBy: user?.Name || '',
           CreatedDate: formData.CreatedDate,
-          UpdatedBy: user?.UserId,
+          UpdatedBy: user?.Name,
           UpdatedDate: new Date().toISOString(),
           IsDeleted: formData.IsDeleted
         };
@@ -471,8 +471,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             ...cost,
             ComponentCostFK: formData.Id,
             ComponentId: formData.ComponentId,
-            CreatedBy: cost.CreatedBy || user?.UserId || '',
-            UpdatedBy: user?.UserId || '',
+            CreatedBy: cost.CreatedBy || user?.Name || '',
+            UpdatedBy: user?.Name || '',
             UpdatedDate: new Date().toISOString(),
             StartDate: cost.StartDate || null,
             EndDate: cost.EndDate || null,
@@ -726,7 +726,6 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 min={cost.Year ? `${cost.Year}-01-01` : undefined}
                                                 max={cost.EndDate ? cost.EndDate.split('T')[0] : (cost.Year ? `${cost.Year}-12-31` : undefined)}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                                required
                                             />
                                         </div>
                                         <div>
@@ -740,7 +739,6 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 min={cost.StartDate ? cost.StartDate.split('T')[0] : (cost.Year ? `${cost.Year}-01-01` : undefined)}
                                                 max={cost.Year ? `${cost.Year}-12-31` : undefined}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                                required
                                             />
                                         </div>
                                         <div className=''>

@@ -4,7 +4,7 @@ import type { ProjectDetails } from "../Model";
 export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "ProgramId",
-        message: "Program ID is required.",
+        message: "Program Name is required.",
         validate: (value) => !!value
     },
     // {

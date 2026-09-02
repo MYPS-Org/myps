@@ -114,7 +114,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
             
             showToast({
                 type: 'success',
-                message: `Successfully proceeded to ${formData.StageName}!`,
+                message: `Successfully proceeded to ${formData.StageName}`,
             });
             
             onSubmit(payload);
@@ -222,7 +222,6 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                                                 value={formData.Name}
                                                 onChange={(e) => handleChange('Name', e.target.value)}
                                                 className='w-full px-3 py-2 border rounded-l-md shadow-sm focus:outline-none focus:ring-2 bg-gray-200'
-                                                required
                                                 disabled
                                                 placeholder="Auto-generated Name"
                                             />

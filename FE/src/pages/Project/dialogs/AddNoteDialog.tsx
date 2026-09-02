@@ -5,6 +5,7 @@ import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/2
 import type { AddNotes, ProjectSupportingDocs, DropdownSupportingDocs } from '../Model.d';
 import { addDoc } from '../Service';
 import { toDateInputValue } from '../../../utils/GlobalFunctions';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddNoteDialogProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const { showToast } = useToast();
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -69,7 +71,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
     if (file) {
       // Check if file is PDF
       if (file.type !== 'application/pdf') {
-        alert('Please select a PDF file only.');
+        showToast({ type: 'error', message: 'Please select a PDF file only.' });
         e.target.value = ''; // Clear the input
         return;
       }
@@ -92,6 +94,12 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.File?.DataUrl) {
+      showToast({ type: 'error', message: 'Please upload a PDF file.' });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -220,7 +228,6 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
                     accept=".pdf,application/pdf"
                     onChange={e => handleFileChange(e)}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    required
                   />
                 </div>
               </div>
