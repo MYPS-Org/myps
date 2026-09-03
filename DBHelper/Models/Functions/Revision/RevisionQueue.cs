@@ -28,5 +28,10 @@ namespace DBHelper.Models.Functions.Revision
         [Required]
         public DateTime RevisionDate { get; set; }
         public int? Age { get; set; }
+        // Nullable: sourced via LEFT JOIN vProjectLatest, matching that view's own EF model
+        // (DBHelper/Models/Views/Project/ProjectLatest.cs) -- LEFT JOIN can legitimately null these.
+        public string? ProgramName { get; set; }
+        public string? ProgramId { get; set; }
+        public string? ProgramFK { get; set; }
     }
 }

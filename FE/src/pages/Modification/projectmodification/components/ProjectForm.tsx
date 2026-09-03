@@ -130,10 +130,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // #region Revision Status Text
   // ProjectStatus.RevisionStatus is not reliably returned by ViewReviseProject (BE-verified, see
   // revisionActions.ts) — derive the display label from RevisionDetails.CurrentStage instead.
-  const revisionStatus = getRevisionStageLabel(
-    initialData?.RevisionDetails?.CurrentStage,
-    initialData?.ForCorrectionsDetails?.length,
-  );
+  const revisionStatus = getRevisionStageLabel(initialData?.RevisionDetails?.CurrentStage);
   // #endregion
 
   // set GeoJSON data for map

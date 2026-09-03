@@ -1,6 +1,6 @@
 import { httpClient } from "../../services/httpClient";
 import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from "../Project/Model.d";
-import type { ApiMessageResult, ApiTransactionResult, FileUpload, RevisionLists, RevisionPagination, RevisionProjectPayload } from "./Model";
+import type { ApiMessageResult, ApiTransactionResult, FileUpload, RevisionEnums, RevisionLists, RevisionPagination, RevisionProjectPayload } from "./Model";
 
 interface RevisionDetailsRequest {
     CategoryId?: number | null;
@@ -116,6 +116,18 @@ export const fetchModificationList = async (data: RevisionPagination) => {
         return response;
     } catch (error) {
         console.error('Error fetching modification list:', error);
+        throw error;
+    }
+};
+
+export const fetchRevisionEnums = async () => {
+    try {
+        const response = await httpClient.post<RevisionEnums>('/Revision/RevisionEnums', null, {
+            preloaderMessage: 'Loading revision filters...'
+        });
+        return response;
+    } catch (error) {
+        console.error('Error fetching revision enums:', error);
         throw error;
     }
 };

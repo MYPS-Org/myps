@@ -1493,7 +1493,13 @@ The map panel appears at the top of the project form. Click the **Project Locati
 | Green | Approved | Fully approved; changes are published |
 | Gray | Other / Pending | No status yet assigned |
 
-> **Status display logic:** When the Region Office has approved (Region Status = Approved), the displayed status reflects the Central Office status. Otherwise, the Region status is shown.
+> **Status display logic:** Each revision shows a single status reflecting its current state — *For Endorsement* while waiting on RPC (Region) review (RPC's action forwards the revision, it doesn't finalize it — see Terminology below), *For Approval of Central Office* once RPC has endorsed and it's waiting on PS Admin (Central Office), *For Correction* once returned to the requester by either office, *Disapproved* if either office rejects it, or *Approved* once both offices have approved.
+>
+> **Note (2026-09-03):** *For Endorsement* does not currently match any of the 5 Status Badge Colors above — the badge for this state renders **Gray** ("Other/Pending"), not Yellow, because the badge-color logic hasn't been updated for this term yet. This is a known, accepted gap pending a future frontend update; the status *text* is correct even though its *color* isn't yet.
+>
+> **Terminology:** RPC's review is called an *Endorsement*, not an *Approval* — RPC forwards a revision to PS Admin, it does not finalize it. PS Admin's review is the terminal *Approval*.
+>
+> **Visibility:** RPC (Region) users see their own pending items, anything already forwarded to PS Admin (Central Office), and any fully-Approved outcome. PS Admin (Central Office) users see their own pending items, plus anything Disapproved, returned For Correction, or fully Approved. The original requester always sees their own revisions in every state, regardless of role.
 
 **Field Reference — Toolbar:**
 
@@ -1503,6 +1509,13 @@ The map panel appears at the top of the project form. Click the **Project Locati
 | 2 | Search | Submit the Project ID search | Button |
 | 3 | Clear (✕) | Remove the active search and reload the full list | Appears only when a search term is active |
 | 4 | View | Open the revision request in detail view | Per-row button (blue) |
+
+> **Backend filtering capability (2026-09-03), not yet surfaced in this UI:** the `RevisionRequests`
+> API now also accepts a **Program Name** filter (partial/contains match) and a **Revision Status**
+> filter (exact match against one of the 5 badge states above). A companion endpoint,
+> `ShowRevisionStatusDropdown`, returns the fixed list of valid status values for a filter dropdown.
+> Both are backend-only as of this date — no toolbar control for either exists in the current
+> screen; update this table with a Field Ref row for each once the UI is built.
 
 **Step-by-Step:**
 

@@ -59,7 +59,6 @@ namespace WebAPI.Controllers.Auth
                 var verifyAccount = await _db.vUsers.FirstOrDefaultAsync(x => (x.UserId == dto.UserName || x.EmployeeId == dto.UserName || x.Email == dto.UserName) && x.IsActive == true);
 
                 if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active."; return UnauthorizedUser("Invalid credentials. Please check your user ID and password and try again."); }
-
                 // Local dev escape hatch. The PIS auth service lives at eptisa-dev.com,
                 // which only resolves on the Eptisa network — off VPN every login fails
                 // with "No such host is known". With PIS:BypassLogin set in
@@ -71,12 +70,14 @@ namespace WebAPI.Controllers.Auth
                 if (bypassPIS)
                 {
                     Console.WriteLine($"[WARN] PIS:BypassLogin is ON — signing in '{dto.UserName}' without a password check.");
-                    employee = "Valid Login";
+                    employee = "Valid Login - Bypass Login";
                 }
                 else
                 {
-                    var request = new AuthenticatePIS(verifyAccount.EmployeeId, dto.Password);
+                    //var request = new AuthenticatePIS(verifyAccount.EmployeeId, dto.Password);
+                    var request = new AuthenticatePIS(verifyAccount.UserId, dto.Password);
                     employee = await APIRequest.XML(request);
+                    LoginLog.ValidationMessage = employee;
                 }
                 if(employee.Contains("Valid Login"))
                 {
@@ -100,10 +101,6 @@ namespace WebAPI.Controllers.Auth
                         authProperties
                     );
                     LoginLog.IsValid = true;
-                }
-                else
-                {
-                    LoginLog.ValidationMessage = employee;
                 }
                 //LdapConnection ldap_conn = new LdapConnection();
                 //await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
@@ -142,7 +139,9 @@ namespace WebAPI.Controllers.Auth
                 _db.tLoginHistory.Add(LoginLog);
                 await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
-                return LoginLog.IsValid ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser("Invalid credentials. Please check your user ID and password and try again.");
+                return LoginLog.IsValid ? Ok(new { Message = "Login successful", 
+                    Data = new { Authenticated = true, User = verifyAccount } }) : 
+                    UnauthorizedUser($"Invalid credentials. Please check your user ID and password and try again. PIS Response: {employee}");
             }
             catch (LdapException error)
             {

@@ -203,3 +203,16 @@ export interface ActionRevisionRules{
     CanForCorrection: boolean;
     CanSubmit: boolean;
 }
+
+export interface RevisionTypeOption {
+    RevisionGroupId: number;
+    RevisionName: string;
+}
+
+// Backed by /Revision/RevisionEnums — options for the Revision List filter dialog.
+// No CurrentStage options: live CurrentStage values include a dynamic per-user group name
+// (see RevisionController.RevisionEnums), which doesn't fit a fixed dropdown.
+export interface RevisionEnums {
+    RevisionTypes: RevisionTypeOption[];
+    RevisionStatuses: string[];
+}

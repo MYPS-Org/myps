@@ -139,6 +139,21 @@ namespace WebAPI.Controllers.Revision
 
 
                 // ================================================================
+                // PROGRAM NAME
+                // ================================================================
+
+                if (!string.IsNullOrWhiteSpace(
+                    dto.Filters.ProgramName))
+                {
+                    filters.Add((
+                        "v.ProgramName LIKE @ProgramName",
+                        "@ProgramName",
+                        $"%{dto.Filters.ProgramName.Trim()}%"
+                    ));
+                }
+
+
+                // ================================================================
                 // USER ROLES
                 // ================================================================
 
@@ -232,7 +247,68 @@ namespace WebAPI.Controllers.Revision
                     _Session.UserId.ToString());
             }
         }
+        // Options for the Revision List filter dialog (FE: FilterDialogRevisionList).
+        // RevisionStatuses is hardcoded, not queried -- it is text produced by fRevisionQueue's
+        // CASE expression, not backed by a lookup table. Verified against the LIVE dbo.fRevisionQueue
+        // definition on myps_db_dev (sp_helptext, 2026-09-03) -- the checked-in copy in
+        // Revision.Queue.sql had already drifted from live again by that point, so trust live over
+        // the file if they disagree. Live values: Disapproved, For Correction, Approved,
+        // For Endorsement (waiting on RO), For Approval of Central Office (RO done, waiting on CO).
+        // There is deliberately no CurrentStage option here: live CurrentStage is no longer the
+        // fixed RO/CO/OWNER/REJECTED/DONE set -- it's now 'RPC', 'PS Admin', 'UNKNOWN', or (for
+        // the returned-to-owner case) the creator's actual tGroups.GroupName, which is an open-ended
+        // per-user value unsuited to a fixed dropdown.
+        [HttpPost]
+        public async Task<IActionResult> RevisionEnums(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var RevisionTypes = await _db.tOptionRevisionHeader
+                    .AsNoTracking()
+                    .Where(x => x.IsActive)
+                    .OrderBy(x => x.RevisionName)
+                    .Select(x => new { x.RevisionGroupId, x.RevisionName })
+                    .ToListAsync(cancellationToken);
 
+                return Ok(new
+                {
+                    RevisionTypes,
+                    RevisionStatuses = new[]
+                    {
+                        "For Endorsement",
+                        "For Approval of Central Office",
+                        "For Correction",
+                        "Disapproved",
+                        "Approved"
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
+            }
+        }
+
+        [HttpPost]
+        // Read-only: the fixed set of values dbo.fRevisionQueue's RevisionStatus column can
+        // produce, for a Revision List filter dropdown. Static, not DB-driven -- these are
+        // computed display strings (a CASE expression), not a stored lookup table, and a
+        // SELECT DISTINCT would wrongly omit any state with zero current rows. Excludes the
+        // "Status Unavailable" fallback (an unexpected-data state, not a real filter target).
+        public IActionResult ShowRevisionStatusDropdown()
+        {
+            return Ok(new
+            {
+                RevisionStatuses = new[]
+                {
+                    "For Approval",
+                    "For Approval of Central Office",
+                    "For Correction",
+                    "Disapproved",
+                    "Approved"
+                }
+            });
+        }
         [HttpPost]
         public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -301,7 +377,7 @@ namespace WebAPI.Controllers.Revision
                     "Packaged";
                 #endregion
                 DBHelper.Models.Table.Revision.RevisionRules? SelectedRules = null;
-                if (RevisionDetails.RevisionCreatedBy == _Session.UserId && (ApprovalStatus.ROStatus == 3 || ApprovalStatus.COStatus == 3))
+                if (RevisionDetails.RevisionCreatedBy == _Session.Name && (ApprovalStatus.ROStatus == 3 || ApprovalStatus.COStatus == 3))
                 {
                     SelectedRules = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.IsActive && x.ReasonId == RevisionRoot.ReasonId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus, cancellationToken);
                 }
@@ -1854,6 +1930,19 @@ namespace WebAPI.Controllers.Revision
                 var RevisionDetails = ValidateTransacionId.Data.RevisionDetail;
                 var RevisionRoot = ValidateTransacionId.Data.RevisionParent;
                 bool HasExistingApproval = true;
+
+                var SelectedProjectRevision = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
+                if (SelectedProjectRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Project Revision details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project Revision not found" });
+                }
+                var OldRevisionProjects = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == SelectedProjectRevision.ProjectId && x.IsActive);
+                if(OldRevisionProjects == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"No current active project state found for '{SelectedProjectRevision.ProjectFK}' -- cannot approve a revision with no established source state.", Title = "Active Project State Not Found" });
+                }
+
+
                 var Approval = await _db.tRevisionApprovals.FirstOrDefaultAsync(x => x.RevisionDetailFK == RevisionDetails.Id && x.Level == UserRole, cancellationToken);
                 if (Approval == null)
                 {
@@ -1871,12 +1960,6 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (isCOUser)
                 {
-                    var SelectedProjectRevision = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
-                    if (SelectedProjectRevision == null)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Project Revision details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project Revision not found" });
-                    }
-                    var OldRevisionProjects = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == SelectedProjectRevision.ProjectId && x.IsActive);
                     int RevisionGroupId = RevisionRoot.RevisionGroupId;
                     int? CategoryId = RevisionRoot.CategoryId;
                     int ReasonId = RevisionRoot.ReasonId;
@@ -2265,7 +2348,7 @@ namespace WebAPI.Controllers.Revision
                 if (approvalStatusAfterSave?.IsFullyApproved == 1)
                 {
                     await _db.pRecomputeProgramCost
-                        .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={RevisionDetails.ProgramId}")
+                        .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={OldRevisionProjects.ProgramFK}")
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
                 }
