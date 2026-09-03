@@ -78,7 +78,7 @@ const ImportProjectsJobDialog: React.FC<ImportProjectsJobDialogProps> = ({
         File: file,
       });
 
-      setPendingJobs((prev) => [...prev, jobResponse.Data.JobId]);
+      setPendingJobs((prev) => [...prev, { jobId: jobResponse.Data.JobId, kind: mode }]);
       const verb = isUpdateMode ? 'Update' : 'Import';
       showToast({ type: 'info', message: `${verb} queued for ${file.name} — you'll be notified here when it finishes.` });
       setSubmitting(false);

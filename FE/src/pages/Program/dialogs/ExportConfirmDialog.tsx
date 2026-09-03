@@ -40,7 +40,7 @@ const ExportConfirmDialog: React.FC<ExportConfirmDialogProps> = ({
               <div className="mt-3 space-y-4">
                 {/* Message */}
                 <p className="text-sm text-gray-600">
-                  You are about to export all projects for the following program. The data will be downloaded as a file.
+                  You are about to export all projects for the following program. The export runs in the background — you'll get a notification with a download link once it's ready.
                 </p>
 
                 {/* Program Info */}
