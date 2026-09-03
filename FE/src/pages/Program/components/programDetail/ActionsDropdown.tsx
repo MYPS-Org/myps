@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useSetAtom } from 'jotai';
 import { ChevronDownIcon, Cog6ToothIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
-import { downloadAIPReport, downloadImportTemplate, exportProjects } from '../../Service';
+import { pendingImportJobsAtom } from '../../../../atoms/importJobs.atom';
+import { downloadAIPReport, downloadImportTemplate, startExportProjectsJob } from '../../Service';
 import type { AIPReportParams, TableEnum } from '../../Model';
 import AIPReportDialog from '../../dialogs/AIPReportDialog';
 import ExportConfirmDialog from '../../dialogs/ExportConfirmDialog';
@@ -25,6 +27,7 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
   onLoadingChange,
 }) => {
   const { showToast } = useToast();
+  const setPendingJobs = useSetAtom(pendingImportJobsAtom);
   const [isOpen, setIsOpen] = useState(false);
   const [importDialogMode, setImportDialogMode] = useState<'import' | 'update' | null>(null);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -69,28 +72,22 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
     setIsOpen(false);
   };
 
+  // Export now runs as a Hangfire background job (same as Import/Update) instead of streaming
+  // the workbook back synchronously — this only queues the job. ImportJobNotifier (mounted
+  // app-wide) picks it up from pendingImportJobsAtom via SignalR and reports the result, with a
+  // download link, as a toast once it completes.
   const handleConfirmExportProjects = async () => {
     try {
       onLoadingChange(true);
-      const { blob, filename } = await exportProjects(programId, stageName);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      const jobResponse = await startExportProjectsJob({ ProgramId: programId, StageName: stageName });
+      setPendingJobs((prev) => [...prev, { jobId: jobResponse.Data.JobId, kind: 'export' }]);
       showToast({
-        type: 'success',
-        message: 'Projects exported successfully.',
+        type: 'info',
+        message: 'Export queued — you\'ll be notified here when it finishes.',
       });
     } catch (error) {
       console.error('Error exporting projects:', error);
-      showToast({
-        type: 'error',
-        message: 'Failed to export projects. Please try again.',
-      });
+      // httpClient interceptor already toasted the API error
     } finally {
       onLoadingChange(false);
     }

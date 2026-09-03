@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
-import { pendingImportJobsAtom } from '../atoms/importJobs.atom';
+import { pendingImportJobsAtom, type ImportJobKind, type PendingImportJob } from '../atoms/importJobs.atom';
 import { useSignalR } from '../hooks/useSignalR';
 import { signalRService } from '../services/signalrService';
 import { useToast } from './toaster/ToasterContext';
@@ -9,7 +9,23 @@ import type { ImportJobNotification } from '../pages/Program/Model.d';
 
 const TERMINAL_STATUSES = new Set(['Completed', 'CompletedWithErrors', 'Failed', 'Cancelled']);
 
-const buildMessage = (event: ImportJobNotification): string => {
+// Export is read-only (no validation rows to report), so its "Completed" case uses the job's own
+// Message ("Projects exported: N.") straight from the server rather than the
+// valid/warning-count phrasing that only makes sense for Import/Update.
+const buildMessage = (event: ImportJobNotification, kind: ImportJobKind): string => {
+  if (kind === 'export') {
+    switch (event.Status) {
+      case 'Completed':
+        return event.Message || `Export completed: ${event.ValidCount ?? 0} project(s).`;
+      case 'Failed':
+        return `Export failed: ${event.Message || 'Unknown error.'}`;
+      case 'Cancelled':
+        return `Export cancelled: ${event.Message || 'The job was cancelled.'}`;
+      default:
+        return event.Message || `Export ${event.Status}`;
+    }
+  }
+
   switch (event.Status) {
     case 'Completed':
       return `Import completed: ${event.ValidCount ?? 0} valid, ${event.WarningCount ?? 0} warning(s).`;
@@ -40,7 +56,7 @@ export const ImportJobNotifier = () => {
   const [pendingJobs, setPendingJobs] = useAtom(pendingImportJobsAtom);
   const { on, off, invoke } = useSignalR('import');
   const { showToast } = useToast();
-  const pendingJobsRef = useRef<string[]>(pendingJobs);
+  const pendingJobsRef = useRef<PendingImportJob[]>(pendingJobs);
   const joinedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -49,21 +65,23 @@ export const ImportJobNotifier = () => {
 
   const resolveJob = useCallback((jobId: string) => {
     console.log('[ImportJobNotifier] resolving job, leaving group:', jobId);
-    setPendingJobs((prev) => prev.filter((id) => id !== jobId));
+    setPendingJobs((prev) => prev.filter((job) => job.jobId !== jobId));
     joinedRef.current.delete(jobId);
     invoke('LeaveJobGroup', jobId).catch((err) => console.error('[ImportJobNotifier] Failed to leave job group:', jobId, err));
   }, [invoke, setPendingJobs]);
 
-  const notify = useCallback((event: ImportJobNotification) => {
+  const notify = useCallback((event: ImportJobNotification, kind: ImportJobKind) => {
     console.log('[ImportJobNotifier] notifying toast for job:', event.JobId, event);
+    // Export's ExcelFileUrl is the exported workbook itself, not an error report — the label has
+    // to say so, or a successful export reads like something went wrong.
     const actions = [
       event.TextFileUrl ? { label: 'View Report', href: event.TextFileUrl } : null,
-      event.ExcelFileUrl ? { label: 'View Errors', href: event.ExcelFileUrl } : null,
+      event.ExcelFileUrl ? { label: kind === 'export' ? 'Download' : 'View Errors', href: event.ExcelFileUrl } : null,
     ].filter((a): a is { label: string; href: string } => a !== null);
 
     showToast({
       type: toastTypeForStatus(event.Status),
-      message: buildMessage(event),
+      message: buildMessage(event, kind),
       actions: actions.length > 0 ? actions : undefined,
     });
   }, [showToast]);
@@ -71,7 +89,7 @@ export const ImportJobNotifier = () => {
   // Join the SignalR group for any newly-queued job so this connection starts
   // receiving that job's ImportStatusChanged events.
   useEffect(() => {
-    pendingJobs.forEach((jobId) => {
+    pendingJobs.forEach(({ jobId }) => {
       if (joinedRef.current.has(jobId)) return;
       joinedRef.current.add(jobId);
       console.log('[ImportJobNotifier] joining job group:', jobId);
@@ -87,7 +105,8 @@ export const ImportJobNotifier = () => {
     const handleStatusChanged = (event: ImportJobNotification) => {
       console.log('[ImportJobNotifier] ImportStatusChanged received:', event);
 
-      if (!pendingJobsRef.current.includes(event.JobId)) {
+      const trackedJob = pendingJobsRef.current.find((job) => job.jobId === event.JobId);
+      if (!trackedJob) {
         console.log('[ImportJobNotifier] ignoring — job not tracked:', event.JobId, pendingJobsRef.current);
         return;
       }
@@ -96,7 +115,7 @@ export const ImportJobNotifier = () => {
         return;
       }
 
-      notify(event);
+      notify(event, trackedJob.kind);
       resolveJob(event.JobId);
     };
 
@@ -114,13 +133,13 @@ export const ImportJobNotifier = () => {
   useEffect(() => {
     signalRService.onReconnected(async () => {
       console.log('[ImportJobNotifier] SignalR reconnected, rechecking pending jobs:', pendingJobsRef.current);
-      for (const jobId of pendingJobsRef.current) {
+      for (const { jobId, kind } of pendingJobsRef.current) {
         try {
           await invoke('JoinJobGroup', jobId);
           const response = await getImportJobStatus(jobId);
           console.log('[ImportJobNotifier] reconnect status check:', jobId, response.Data.Status);
           if (TERMINAL_STATUSES.has(response.Data.Status)) {
-            notify(response.Data);
+            notify(response.Data, kind);
             resolveJob(jobId);
           }
         } catch (err) {

@@ -324,17 +324,18 @@ export const fetchAIPReportDropdownData = async (): Promise<AIPReportDropdowns> 
     }
 };
 
-export const exportProjects = async (ProgramId: string, StageName: string) => {
+// Same job-queue contract as startImportProjectJob/startUpdateProjectJob — the backend now
+// builds the export workbook as a Hangfire background job (ImportProjectJobService.ProcessExport)
+// instead of streaming it back synchronously, so this only queues the job and returns its JobId.
+// The workbook is picked up later via GetImportStatus/DownloadImportFile, same as Import/Update.
+export const startExportProjectsJob = async (data: { ProgramId: string; StageName: string }) => {
     try {
-        const response = await httpClient.post<Blob>('/Reporting/RequestRawProjects', { ProgramId, StageName }, {
-            preloaderMessage: 'Exporting projects...',
-            responseType: 'blob'
+        const response = await httpClient.post<{ JobId: string; HangfireJobId: string; Message: string; Title: string }>('/Importing/ExportProjects', data, {
+            preloaderMessage: 'Queuing export...'
         });
-        const blob = response.Data as Blob;
-        const filename = `${ProgramId}_${StageName}_Projects.xlsx`;
-        return { blob, filename };
+        return response;
     } catch (ErrorResponse) {
-        console.error('Error exporting projects:', ErrorResponse);
-        throw ErrorResponse; 
+        console.error('Error starting export job:', ErrorResponse);
+        throw ErrorResponse;
     }
-}
+};
