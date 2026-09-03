@@ -124,7 +124,7 @@ const Dashboard: React.FC = () => {
         projects={projects}
         lsProjects={lsProjects}
         onClose={() => setSelectedKpi(null)}
-        onOpenProject={(project) => navigate(`/projects/project-details/${encodeURIComponent(project.projectPK)}:${encodeURIComponent(project.stageName)}`)}
+        onOpenProject={(project) => navigate(`/projects/project-details/${encodeURIComponent(project.projectId)}:${encodeURIComponent(project.stageName)}`)}
         onOpenLsProject={(project) => navigate(`/lumpsum/${project.id}`)}
       />
     </div>
