@@ -71,7 +71,7 @@ namespace WebAPI.Controllers.Auth
                 if (bypassPIS)
                 {
                     Console.WriteLine($"[WARN] PIS:BypassLogin is ON — signing in '{dto.UserName}' without a password check.");
-                    employee = "Valid Login";
+                    employee = "Valid Login - Bypass Login";
                 }
                 else
                 {
@@ -143,7 +143,9 @@ namespace WebAPI.Controllers.Auth
                 _db.tLoginHistory.Add(LoginLog);
                 await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
-                return LoginLog.IsValid ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser("Invalid credentials. Please check your user ID and password and try again.");
+                return LoginLog.IsValid ? Ok(new { Message = "Login successful", 
+                    Data = new { Authenticated = true, User = verifyAccount } }) : 
+                    UnauthorizedUser($"Invalid credentials. Please check your user ID and password and try again. PIS Response: {employee}");
             }
             catch (LdapException error)
             {
