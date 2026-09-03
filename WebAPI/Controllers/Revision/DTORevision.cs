@@ -15,6 +15,7 @@ namespace WebAPI.Controllers.Revision
         public string? RevisionType { get; set; }
         public string? RevisionStatus { get; set; }
         public string? CurrentStage { get; set; }
+        public string? ProgramName { get; set; }
     }
     public class RevisionRequestsDTO : EnumPagination<RevisionRequestsFilter> { }
 
