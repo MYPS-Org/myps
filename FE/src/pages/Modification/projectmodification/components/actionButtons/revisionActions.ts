@@ -18,8 +18,10 @@ import type { ActionRevisionRules } from '../../../Model';
 // ViewReviseProject's ProjectStatus object doesn't return a RevisionStatus field at all; only
 // ConstructionStatus/PackageStatus come back.
 //
-// RevisionDetails.CurrentStage ('IO' | 'RO' | 'CO' | 'Disapproved' | 'Done', from the SQL function
-// fRevisionDetail()) is used for exactly one thing ActionRules doesn't cover: notYetSubmitted —
+// RevisionDetails.CurrentStage ('RO' | 'CO' | 'OWNER' | 'REJECTED' | 'DONE' | 'UNKNOWN', from the
+// SQL function fRevisionDetail() — re-synced live 2026-09-03 alongside fRevisionQueue's identical
+// relabeling in commit 6b681d65; the previous 'IO' | 'Disapproved' vocabulary documented below no
+// longer comes back) is used for exactly one thing ActionRules doesn't cover: notYetSubmitted —
 // RevisionDetails is absent entirely until a revision is actually submitted, which is what tells
 // "Submit Revision Request" (brand new) apart from "Re-Submit Revision" (already submitted).
 //
@@ -33,26 +35,26 @@ import type { ActionRevisionRules } from '../../../Model';
 // staler source than the RevisionRoot.CreatedBy the backend now uses for CanSubmit), so it could go
 // out of sync and hide the button even when CanSubmit was correctly true.
 //
-// fRevisionDetail() itself hasn't been updated for the new ROStatus==1-means-CO's-turn convention
-// (it still reads ROStatus==1 as CurrentStage 'RO'), so don't use CurrentStage to gate Approve/For
-// Correction/Disapprove/Re-Submit — ActionRules is the accurate signal for all of those.
+// fRevisionDetail() is stage-aware the same way fRevisionQueue is (ROStatus==1 means RO already
+// approved, it's CO's turn), so don't use CurrentStage to gate Approve/For Correction/Disapprove/
+// Re-Submit — ActionRules is the accurate signal for all of those.
 const normalizeStage = (stage?: string | null) => stage?.toLowerCase().trim() ?? '';
 
+// Matches the UserManual's 5.4.1 Revision List legend (For Approval / For Correction /
+// Disapproved / Approved / Other-Pending) and fRevisionDetail()'s current CurrentStage values.
 const STAGE_LABELS: Record<string, string> = {
   ro: 'For Approval',
   co: 'For Approval',
-  disapproved: 'Disapproved',
+  rejected: 'Disapproved',
+  owner: 'For Correction',
   done: 'Approved',
 };
 
 // Human-facing label for the revision's current stage — use this instead of displaying
 // RevisionDetails.CurrentStage or ProjectStatus.RevisionStatus verbatim.
-export const getRevisionStageLabel = (currentStage?: string | null, forCorrectionsCount?: number): string => {
+export const getRevisionStageLabel = (currentStage?: string | null): string => {
   if (!currentStage) return 'N/A';
   const stage = normalizeStage(currentStage);
-  if (stage === 'io') {
-    return (forCorrectionsCount ?? 0) > 0 ? 'For Correction' : 'For Approval';
-  }
   return STAGE_LABELS[stage] ?? currentStage;
 };
 
