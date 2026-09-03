@@ -23,15 +23,17 @@ interface RevisionState {
     transactionId?: string;
 }
 
-// Colors per UserManual 5.4.1 "Status Badge Colors": Yellow=For Approval, Red(light)=For
-// Correction, Red(dark)=Disapproved, Green=Approved, Gray=Other/Pending. The light/dark reds are
-// deliberately far apart in weight (pale pill vs. solid fill) so a returned-for-correction row
-// can't be mistaken for a terminal disapproved one at a glance.
+// Colors per UserManual 5.4.1 "Status Badge Colors": Yellow=For Approval/For Endorsement,
+// Red(light)=For Correction, Red(dark)=Disapproved, Green=Approved, Gray=Other/Pending. The
+// light/dark reds are deliberately far apart in weight (pale pill vs. solid fill) so a
+// returned-for-correction row can't be mistaken for a terminal disapproved one at a glance.
+// "For Endorsement" is RO's tier of the same For Approval flow (see STAGE_LABELS in
+// revisionActions.ts) so it shares the same yellow.
 const getStatusBadge = (statusName: string): string => {
     const name = (statusName || '').toLowerCase();
     if (name.includes('for correction')) return 'bg-red-100 text-red-800';
     if (name.includes('disapproved')) return 'bg-red-600 text-white';
-    if (name.includes('for approval')) return 'bg-yellow-100 text-yellow-800';
+    if (name.includes('for approval') || name.includes('for endorsement')) return 'bg-yellow-100 text-yellow-800';
     if (name.includes('approved')) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
 };

@@ -42,8 +42,10 @@ const normalizeStage = (stage?: string | null) => stage?.toLowerCase().trim() ??
 
 // Matches the UserManual's 5.4.1 Revision List legend (For Approval / For Correction /
 // Disapproved / Approved / Other-Pending) and fRevisionDetail()'s current CurrentStage values.
+// RO's action on its own tier is "Endorse" (forwards to CO), not the terminal "Approve" CO
+// performs — see isRPCUser below — so the stage label mirrors that split.
 const STAGE_LABELS: Record<string, string> = {
-  ro: 'For Approval',
+  ro: 'For Endorsement',
   co: 'For Approval',
   rejected: 'Disapproved',
   owner: 'For Correction',
