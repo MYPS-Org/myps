@@ -321,9 +321,11 @@ const LSWalletList: React.FC = () => {
               </Pagination>
 
               <div className="mb-3.5 text-center">
+                {/* Client doesn't want the "Showing X of Y" summary — commented out, not deleted.
                 <p className="text-sm text-gray-500">
                   Showing {walletData.lists.length} of {walletData.total} wallets
                 </p>
+                */}
               </div>
             </>
           )}

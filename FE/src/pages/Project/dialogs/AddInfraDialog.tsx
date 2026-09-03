@@ -92,7 +92,7 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
               <TableRow>
                 <TableHeader>Select</TableHeader>
                 <TableHeader>Section ID</TableHeader>
-                <TableHeader>Road ID</TableHeader>
+                <TableHeader>Road Name</TableHeader>
                 {/* <TableHeader>DEO</TableHeader> */}
                 {/* <TableHeader>Length (m)</TableHeader> */}
                 <TableHeader>Network Status</TableHeader>
@@ -132,6 +132,7 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
       {!isLoading && data.total > 0 && (
         <div className="px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-sm text-gray-600">
+            {/* Client doesn't want the "Showing X of Y" summary — commented out, not deleted.
             <span>
               Showing{' '}
               <span className="font-medium">{(data.page - 1) * data.limit + 1}</span>
@@ -140,6 +141,7 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
               {' '}of{' '}
               <span className="font-medium">{data.total}</span>
             </span>
+            */}
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
@@ -242,6 +244,7 @@ const BridgesPane: React.FC<BridgesPaneProps> = ({ selectedRoadSectionId, search
       {!isLoading && data.total > 0 && (
         <div className="px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-sm text-gray-600">
+            {/* Client doesn't want the "Showing X of Y" summary — commented out, not deleted.
             <span>
               Showing{' '}
               <span className="font-medium">{(data.page - 1) * data.limit + 1}</span>
@@ -250,6 +253,7 @@ const BridgesPane: React.FC<BridgesPaneProps> = ({ selectedRoadSectionId, search
               {' '}of{' '}
               <span className="font-medium">{data.total}</span>
             </span>
+            */}
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}

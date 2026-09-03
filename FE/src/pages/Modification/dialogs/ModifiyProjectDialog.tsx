@@ -115,10 +115,6 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
                                     <span className="font-medium text-gray-700">Project ID:</span>
                                     <p className="text-gray-600">{projectId}</p>
                                 </div>
-                                <div>
-                                    <span className="font-medium text-gray-700">Current Revision:</span>
-                                    <p className="text-gray-600">{revisionTypeDescription}</p>
-                                </div>
                                 <div className="col-span-2">
                                     <span className="font-medium text-gray-700">Stage Name:</span>
                                     <p className="text-gray-600">{stageName}</p>

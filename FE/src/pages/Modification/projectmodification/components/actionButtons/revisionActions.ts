@@ -74,6 +74,12 @@ type Params = {
   // (ReviseProject, the start-a-new-revision endpoint, never returns a RevisionDetails object).
   currentStage?: string | null;
 
+  // Whether the current user is in the RPC (RO) usergroup. RPC's "approve" only forwards the
+  // revision to CO for final approval, so it's labeled "Endorse" rather than "Approve" — CO (AUC)
+  // still sees "Approve" since their action is the terminal one. Same CanApprove/backend action
+  // either way (see isROUser/isCOUser split in RevisionController.cs).
+  isRPCUser?: boolean;
+
   loading: {
     revise?: boolean;
     resubmit?: boolean;
@@ -89,6 +95,7 @@ type Params = {
     openApprove: () => void;
     openReview: () => void;
     openReject: () => void;
+    openEndorse: () => void;
   };
 };
 
@@ -96,6 +103,7 @@ export const getRevisionActions = ({
   isEdit,
   actionRules,
   currentStage,
+  isRPCUser,
   loading,
   actions,
 }: Params): RevisionAction[] => {
@@ -119,9 +127,9 @@ export const getRevisionActions = ({
     {
       show: isEdit && !!actionRules?.CanApprove && !notYetSubmitted,
       color: 'green',
-      label: 'Approve',
+      label: isRPCUser ? 'Endorse' : 'Approve',
       loading: loading.approve,
-      onClick: () => actions.openApprove(),
+      onClick: () => (isRPCUser ? actions.openEndorse() : actions.openApprove()),
     },
     {
       show: isEdit && !!actionRules?.CanForCorrection && !notYetSubmitted,

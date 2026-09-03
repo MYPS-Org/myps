@@ -167,7 +167,6 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
                                     onChange={(e) => setRejectionReason(e.target.value)}
                                     placeholder={`Explain why this ${category} request is being rejected...`}
                                     rows={5}
-                                    required
                                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
                                     disabled={isSubmitting}
                                 />

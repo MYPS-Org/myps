@@ -167,7 +167,6 @@ const ItemizedProjectRevisionDialog: React.FC<ItemizedProjectRevisionDialogProps
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Explain why this revision is needed..."
                   rows={3}
-                  required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={isSubmitting}
                 />
@@ -188,7 +187,6 @@ const ItemizedProjectRevisionDialog: React.FC<ItemizedProjectRevisionDialogProps
                   placeholder="0.00"
                   step="0.01"
                   min="0.01"
-                  required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={isSubmitting}
                 />

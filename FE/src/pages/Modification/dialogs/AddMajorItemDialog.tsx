@@ -5,6 +5,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { ComponentCost, ScopeOfWorkEnum, InfraTypeEnum } from '../../Project/Model.d';
 import type { ProgramLatest } from '../../Program/Model';
 import { useFieldPermissionState } from '../hooks/useFieldPermissions';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddMajorItemDialogProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   }), [yearStart]);
 
   const [formData, setFormData] = useState(defaultFormData);
+  const { showToast } = useToast();
 
   // const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
 
@@ -131,28 +133,28 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     
     // Validation
     if (!formData.ComponentId) {
-      alert('Please select a component');
+      showToast({ type: 'error', message: 'Please select a component.' });
       return;
     }
-    
+
     // Check if there are available components for add mode
     if (mode === 'add' && availableComponentCosts.length === 0) {
-      alert('No components available. Please add more components first.');
+      showToast({ type: 'error', message: 'No components available. Please add more components first.' });
       return;
     }
-    
+
     if (!formData.InfraType) {
-      alert('Please select an infrastructure type');
+      showToast({ type: 'error', message: 'Please select an infrastructure type.' });
       return;
     }
-    
+
     if (formData.WorkTypeId === 0) {
-      alert('Please select a type of work');
+      showToast({ type: 'error', message: 'Please select a type of work.' });
       return;
     }
-    
+
     if (formData.YearOfWork < 1900 || formData.YearOfWork > 2100) {
-      alert('Please enter a valid year');
+      showToast({ type: 'error', message: 'Please enter a valid year.' });
       return;
     }
 
@@ -224,7 +226,6 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                   !isFieldEditable('ComponentId') ? 'bg-gray-100 cursor-not-allowed' : ''
                 }`}
                 disabled={!isFieldEditable('ComponentId')}
-                required
               >
                 <option value="">Select Component</option>
                 {availableComponentCosts.filter(cost => !cost.IsDeleted).map((cost) => (
@@ -256,7 +257,6 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 disabled={!isFieldEditable('YearOfWork')}
                 min={programDetails?.StartYear}
                 max="2100"
-                required
               />
             </div>
 
@@ -273,7 +273,6 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                   !isFieldEditable('InfraType') ? 'bg-gray-100 cursor-not-allowed' : ''
                 }`}
                 disabled={!isFieldEditable('InfraType')}
-                required
               >
                 <option value="">Select Infrastructure Type</option>
                 {infraTypeOptions.map((infraType) => (
@@ -297,7 +296,6 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                   !isFieldEditable('WorkTypeId') || !formData.InfraType ? 'bg-gray-100 cursor-not-allowed' : ''
                 }`}
                 disabled={!isFieldEditable('WorkTypeId') || !formData.InfraType}
-                required
               >
                 <option value={0}>
                   {!formData.InfraType ? 'Select Infrastructure Type first' : 'Select Type of Work'}

@@ -5,6 +5,7 @@ import type { RevisionProjectPayload } from '../../../Model';
 type Props = {
   mode: string;
   initialData?: RevisionProjectPayload;
+  isRPCUser?: boolean;
 
   loading: {
     revise?: boolean;
@@ -21,12 +22,14 @@ type Props = {
     openApprove: () => void;
     openReview: () => void;
     openReject: () => void;
+    openEndorse: () => void;
   };
 };
 
 export const RevisionActionButtons = ({
   mode,
   initialData,
+  isRPCUser,
   loading,
   actions,
 }: Props) => {
@@ -34,6 +37,7 @@ export const RevisionActionButtons = ({
     isEdit: mode === 'edit',
     actionRules: initialData?.ActionRules,
     currentStage: initialData?.RevisionDetails?.CurrentStage,
+    isRPCUser,
     loading,
     actions,
   });

@@ -179,11 +179,8 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                         <h5 className="text-sm font-bold text-gray-800">Correction #{index + 1}</h5>
-                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                            Transaction ID: {correction.TransactionId}
-                                        </span>
                                     </div>
-                                    
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {/* Centralized Comments for correction*/}
                                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -191,7 +188,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                 </svg>
-                                                <h6 className="text-xs font-bold text-blue-800 uppercase tracking-wide">{correction.IsCentralOffice ? 'Central Office' : 'Regional Office'}</h6>
+                                                <h6 className="text-xs font-bold text-blue-800 uppercase tracking-wide">{correction.ReturnedBy === 'CO' ? 'Central Office' : 'Regional Office'}</h6>
                                             </div>
                                             <div className="space-y-2">
                                                 <div>

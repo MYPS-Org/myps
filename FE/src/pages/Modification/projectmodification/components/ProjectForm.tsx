@@ -787,6 +787,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           <RevisionActionButtons
             mode={mode}
             initialData={initialData}
+            isRPCUser={!!user?.UserGroupNames.find(x => x === 'RPC')}
             loading={{
               revise: updateReviseProject,
               resubmit: updateResubmitRevision,
@@ -801,6 +802,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               openApprove: () => setIsApproveDialogOpen(true),
               openReview: () => setIsForReviewDialogOpen(true),
               openReject: () => setIsRejectDialogOpen(true),
+              openEndorse: () => setIsApproveDialogOpen(true),
             }}
           />
         </div>

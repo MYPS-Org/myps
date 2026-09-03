@@ -3,6 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import type { ComponentCost, MajorItemOfWorksWithDropdown } from '../../Project/Model.d';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface CopyMajorItemDialogProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
   majorItemList: _majorItemList,
 }) => {
   const [selectedComponentId, setSelectedComponentId] = useState('');
+  const { showToast } = useToast();
 
   // Reset selection when dialog opens/closes
   useEffect(() => {
@@ -59,7 +61,7 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
 
   const handleConfirm = () => {
     if (!selectedComponentId) {
-      alert('Please select a component for the copy');
+      showToast({ type: 'error', message: 'Please select a component for the copy.' });
       return;
     }
     
@@ -129,7 +131,6 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
                 value={selectedComponentId}
                 onChange={(e) => setSelectedComponentId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                required
               >
                 <option value="">Select Component</option>
                 {availableComponentCosts.map((cost) => (

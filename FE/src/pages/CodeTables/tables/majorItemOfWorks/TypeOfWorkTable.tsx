@@ -421,9 +421,11 @@ const TypeOfWorkTable: React.FC = () => {
       </div>
 
       <div className="flex items-center justify-between text-sm text-gray-500">
+        {/* Client doesn't want the "Showing X of Y entries" summary — commented out, not deleted.
         <span>
           Showing {filteredData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} entries
         </span>
+        */}
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
             <Button color="zinc" className="text-xs px-3 py-1" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>Previous</Button>

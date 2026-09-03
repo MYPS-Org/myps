@@ -75,7 +75,6 @@ const VIewUserDialog: React.FC<VIewUserDialogProps> = ({ isOpen, onClose, /*onSu
                   onChange={(e) => handleChange('employeeId', e.target.value)}
                   placeholder="Enter employee ID"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  required
                 />
               </div>
               <div>
@@ -88,7 +87,6 @@ const VIewUserDialog: React.FC<VIewUserDialogProps> = ({ isOpen, onClose, /*onSu
                   onChange={(e) => handleChange('userId', e.target.value)}
                   placeholder="Enter user ID"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  required
                 />
               </div>
             </div>
@@ -103,7 +101,6 @@ const VIewUserDialog: React.FC<VIewUserDialogProps> = ({ isOpen, onClose, /*onSu
                 onChange={(e) => handleChange('name', e.target.value)}
                 placeholder="Enter name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
               />
             </div>
 
@@ -117,7 +114,6 @@ const VIewUserDialog: React.FC<VIewUserDialogProps> = ({ isOpen, onClose, /*onSu
                 onChange={(e) => handleChange('email', e.target.value)}
                 placeholder="Enter email"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
               />
             </div>
 

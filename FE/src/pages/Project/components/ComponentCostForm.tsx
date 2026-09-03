@@ -6,6 +6,7 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from ".
 import { ComponentCostDialog } from "../dialogs";
 import DeleteComponentDialog from "../dialogs/deleteDialogs/DeleteComponentDialog";
 import { getDisabledClass } from "../../../utils/GlobalFunctions";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCost[];
@@ -32,6 +33,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   maxAmountCost,
   disabled = false
 }) => {
+  const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
@@ -280,9 +282,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                     </div>
                   </TableCell>
                   <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
-                  <TableCell>{cost.CreatedBy || '-'}</TableCell>
+                  <TableCell>{!cost.Id ? (user?.Name || 'no name') : (cost.CreatedBy || '-')}</TableCell>
                   <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
-                  <TableCell>{cost.UpdatedBy ? cost.UpdatedBy : cost.CreatedBy}</TableCell>
+                  <TableCell>{!cost.Id ? (user?.Name || 'no name') : (cost.UpdatedBy ? cost.UpdatedBy : cost.CreatedBy)}</TableCell>
                   <TableCell>{cost.UpdatedDate ? new Date(cost.UpdatedDate).toLocaleDateString() : cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">

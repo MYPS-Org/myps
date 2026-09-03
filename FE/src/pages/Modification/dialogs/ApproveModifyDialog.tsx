@@ -62,7 +62,9 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
 
             showToast({
                 type: 'success',
-                message: 'Modification request approved successfully. Changes will be published to MYPS, PCMA, and other applications.'
+                message: isCentralOffice
+                    ? 'Modification request approved successfully. Changes will be published to MYPS, PCMA, and other applications.'
+                    : 'Modification request endorsed successfully. It has been forwarded to the Central Office for approval.'
             });
 
             onClose();
@@ -74,10 +76,10 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                 navigate('/revision');
             }
         } catch (error) {
-            console.error('Error approving modification request:', error);
+            console.error(isCentralOffice ? 'Error approving modification request:' : 'Error endorsing modification request:', error);
             showToast({
                 type: 'error',
-                message: 'Failed to approve modification request.'
+                message: isCentralOffice ? 'Failed to approve modification request.' : 'Failed to endorse modification request.'
             });
         } finally {
             setIsSubmitting(false);
@@ -97,7 +99,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                         <div className="flex items-center gap-3">
                             <CheckCircleIcon className="h-6 w-6 text-green-600" />
                             <DialogTitle className="text-lg font-semibold text-gray-900">
-                                Approve Modification Request
+                                {isCentralOffice ? 'Approve Modification Request' : 'Endorse Modification Request'}
                             </DialogTitle>
                         </div>
                         <button
@@ -114,10 +116,14 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                         {/* Warning Message */}
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                             <p className="text-sm text-green-800 font-medium">
-                                Are you sure you want to approve this revision?
+                                {isCentralOffice
+                                    ? 'Are you sure you want to approve this revision?'
+                                    : 'Are you sure you want to endorse this revision to the Central Office?'}
                             </p>
                             <p className="text-sm text-green-700 mt-2">
-                                This will update the project to central office.
+                                {isCentralOffice
+                                    ? 'This will finalize the approval and publish changes to MYPS, PCMA, and other applications.'
+                                    : 'This will forward the project to the Central Office (CO) for final approval.'}
                             </p>
                         </div>
 
@@ -205,7 +211,9 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                             onClick={handleApprove}
                             disabled={isSubmitting || (isCentralOffice && !approvalDocument)}
                         >
-                            {isSubmitting ? 'Approving...' : 'Approve Revision'}
+                            {isCentralOffice
+                                ? (isSubmitting ? 'Approving...' : 'Approve Revision')
+                                : (isSubmitting ? 'Endorsing...' : 'Endorse Revision')}
                         </Button>
                         <Button
                             type="button"

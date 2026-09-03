@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { Permissions } from '../Model.d';
 import { updatePermission } from '../service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface UpdatePermissionDialogProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface UpdatePermissionDialogProps {
 }
 
 const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen, onClose, onSubmit, permission }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     Id: permission.Id,
     ControllerName: permission.ControllerName || '',
@@ -37,6 +39,16 @@ const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!formData.ControllerName.trim()) {
+      showToast({ type: 'error', message: 'Module is required.' });
+      return;
+    }
+
+    if (!formData.ActionName.trim()) {
+      showToast({ type: 'error', message: 'Module Function is required.' });
+      return;
+    }
 
     try {
       // Call the API to update the permission
@@ -92,7 +104,6 @@ const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen,
                 onChange={(e) => handleChange('ControllerName', e.target.value)}
                 placeholder="e.g., UserManagementController"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
               />
             </div>
 
@@ -106,7 +117,6 @@ const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen,
                 onChange={(e) => handleChange('ActionName', e.target.value)}
                 placeholder="e.g., manage_users"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
               />
             </div>
 

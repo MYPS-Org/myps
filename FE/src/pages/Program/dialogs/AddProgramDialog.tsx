@@ -63,6 +63,9 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
     if (formData.Type !== 3 && (!formData.Stage || formData.Stage === 0)) {
       validationErrors.Stage = 'Program Stage is required.';
     }
+    if (formData.IsSkipped && !formData.SkipReason.trim()) {
+      validationErrors.SkipReason = 'Reason is required when skipping this step.';
+    }
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       Object.values(validationErrors).forEach(msg => showToast({ type: 'error', message: msg }));
@@ -214,7 +217,6 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                     value={formData.Name}
                     onChange={(e) => handleChange('Name', e.target.value)}
                     className='w-full px-3 py-2 border rounded-l-md shadow-sm focus:outline-none focus:ring-2 bg-gray-200'
-                    required
                     disabled
                     placeholder="Auto-generated Name"
                   />
@@ -229,7 +231,6 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                     onChange={(e) => handleChange('AddedName', e.target.value)}
                     className='w-full px-3 py-2 border-y border-r rounded-r-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
                     placeholder="Add Sub Name"
-                    required
                     maxLength={100}
                   />
                 </div>
@@ -246,7 +247,6 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                 max={2100}
                 onChange={(e) => handleChange('YearStart', Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
               />
             </div>
             <div className="mb-4">
@@ -302,13 +302,13 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                   </p>
                 </div>
                 <div className="content-center">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                  <label className={`block text-sm font-medium mb-2 ${errors.SkipReason ? 'text-red-500' : 'text-gray-700'}`}>Reason</label>
                   <input
                     type="text"
                     value={formData.SkipReason}
                     onChange={(e) => handleChange('SkipReason', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                    required
+                    className={`w-full px-3 py-2 border ${errors.SkipReason ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500`}
+                    maxLength={250}
                     placeholder='Reason'
                   />
                 </div>

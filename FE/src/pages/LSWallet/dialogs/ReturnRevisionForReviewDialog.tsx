@@ -165,7 +165,6 @@ const ReturnRevisionForReviewDialog: React.FC<ReturnRevisionForReviewDialogProps
                   onChange={(e) => setReviewComments(e.target.value)}
                   placeholder="Describe what changes or additional information is needed..."
                   rows={5}
-                  required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   disabled={isSubmitting}
                 />

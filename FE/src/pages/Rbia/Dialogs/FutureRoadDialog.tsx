@@ -6,12 +6,14 @@ import { Button } from '../../../components/tailwindui/button';
 import { roadsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
 import { addFutureRoad, editFutureRoad } from "../Service";
 import { useRoadData } from "../hooks";
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface FutureRoadDialogProps {
   onClose: () => void;
 }
 
 const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
+  const { showToast } = useToast();
   const [roads, setRoads] = useAtom(roadsAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
   // Hook
@@ -47,7 +49,7 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
     // }
 
     if (!formData.RoadId || !formData.Name || !formData.Classification) {
-      alert("Please fill in all required fields");
+      showToast({ type: 'error', message: 'Please fill in all required fields.' });
       return;
     }
 
@@ -137,7 +139,6 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
                 value={formData.RoadId}
                 onChange={(e) => handleChange('RoadId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
                 placeholder="Enter Road ID (must start with 'FR' and end with Island Code)"
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -155,7 +156,6 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
                 value={formData.Name}
                 onChange={(e) => handleChange('Name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
                 placeholder="Enter road name"
               />
             </div>
@@ -169,7 +169,6 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
                 value={formData.Classification}
                 onChange={(e) => handleChange('Classification', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                required
               >
                 <option value="">Select classification...</option>
                 {Array.isArray(roadClassifications) && roadClassifications.length > 0 ? (

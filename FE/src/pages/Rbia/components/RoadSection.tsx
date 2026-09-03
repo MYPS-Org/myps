@@ -344,7 +344,9 @@ const RoadSectionList: React.FC = () => {
       <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
         {roadSectionData.lists.length > 0 ? (
           <p className="text-sm text-gray-500">
+            {/* Client doesn't want the "Showing X of Y" summary — commented out, not deleted.
             Showing {roadSectionData.limit * (roadSectionData.page - 1) + 1} to {Math.min(roadSectionData.limit * roadSectionData.page, roadSectionData.total)} of {roadSectionData.total} road sections
+            */}
           </p>
         ) : (
           <p className="text-sm text-gray-500">

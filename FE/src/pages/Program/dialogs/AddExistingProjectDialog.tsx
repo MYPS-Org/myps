@@ -282,9 +282,11 @@ const AddExistingProjectDialog: React.FC<AddExistingProjectDialogProps> = ({
               <p className="text-sm text-red-600">{error}</p>
             )}
             <div className="flex items-center justify-between">
+              {/* Client doesn't want the "Showing X of Y" summary — commented out, not deleted.
               <span className="text-xs text-gray-500">
                 Showing {filteredProjects.length} of {projects.length} available projects
               </span>
+              */}
               <div className="flex gap-3">
                 <Button color="zinc" onClick={handleClose}>
                   Cancel

@@ -258,7 +258,9 @@ const RegionTable: React.FC = () => {
 
       {filtered.length > ITEMS_PER_PAGE && (
         <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
+          {/* Client doesn't want the "Showing X of Y entries" summary — commented out, not deleted.
           <span>Showing {filtered.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} entries</span>
+          */}
           <div className="flex items-center gap-2">
             <Button color="zinc" className="text-xs px-3 py-1" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>Previous</Button>
             <span>Page {currentPage} of {totalPages}</span>
