@@ -59,7 +59,7 @@ namespace WebAPI.Controllers.Auth
                 var verifyAccount = await _db.vUsers.FirstOrDefaultAsync(x => (x.UserId == dto.UserName || x.EmployeeId == dto.UserName || x.Email == dto.UserName) && x.IsActive == true);
 
                 if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active."; return UnauthorizedUser("Invalid credentials. Please check your user ID and password and try again."); }
-
+                LoginLog.UserId = verifyAccount.EmployeeId;
                 // Local dev escape hatch. The PIS auth service lives at eptisa-dev.com,
                 // which only resolves on the Eptisa network — off VPN every login fails
                 // with "No such host is known". With PIS:BypassLogin set in
@@ -75,7 +75,8 @@ namespace WebAPI.Controllers.Auth
                 }
                 else
                 {
-                    var request = new AuthenticatePIS(verifyAccount.EmployeeId, dto.Password);
+                    //var request = new AuthenticatePIS(verifyAccount.EmployeeId, dto.Password);
+                    var request = new AuthenticatePIS(verifyAccount.UserId, dto.Password);
                     employee = await APIRequest.XML(request);
                 }
                 if(employee.Contains("Valid Login"))

@@ -12,13 +12,17 @@
 	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
 		<EnvironmentName>Development</EnvironmentName>
 		<DebugType>pdbonly</DebugType>
-		<Optimize>true</Optimize>
+		<Optimize>False</Optimize>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Staging'">
 		<EnvironmentName>Staging</EnvironmentName>
 		<DebugType>pdbonly</DebugType>
-		<Optimize>true</Optimize>
+		<Optimize>False</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+	  <Optimize>False</Optimize>
 	</PropertyGroup>
 	
 	<!--

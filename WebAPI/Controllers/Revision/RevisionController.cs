@@ -232,7 +232,7 @@ namespace WebAPI.Controllers.Revision
                     _Session.UserId.ToString());
             }
         }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -301,7 +301,7 @@ namespace WebAPI.Controllers.Revision
                     "Packaged";
                 #endregion
                 DBHelper.Models.Table.Revision.RevisionRules? SelectedRules = null;
-                if (RevisionDetails.RevisionCreatedBy == _Session.UserId && (ApprovalStatus.ROStatus == 3 || ApprovalStatus.COStatus == 3))
+                if (RevisionDetails.RevisionCreatedBy == _Session.Name && (ApprovalStatus.ROStatus == 3 || ApprovalStatus.COStatus == 3))
                 {
                     SelectedRules = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.IsActive && x.ReasonId == RevisionRoot.ReasonId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus, cancellationToken);
                 }
@@ -1854,6 +1854,19 @@ namespace WebAPI.Controllers.Revision
                 var RevisionDetails = ValidateTransacionId.Data.RevisionDetail;
                 var RevisionRoot = ValidateTransacionId.Data.RevisionParent;
                 bool HasExistingApproval = true;
+
+                var SelectedProjectRevision = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
+                if (SelectedProjectRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Project Revision details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project Revision not found" });
+                }
+                var OldRevisionProjects = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == SelectedProjectRevision.ProjectId && x.IsActive);
+                if(OldRevisionProjects == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"No current active project state found for '{SelectedProjectRevision.ProjectFK}' -- cannot approve a revision with no established source state.", Title = "Active Project State Not Found" });
+                }
+
+
                 var Approval = await _db.tRevisionApprovals.FirstOrDefaultAsync(x => x.RevisionDetailFK == RevisionDetails.Id && x.Level == UserRole, cancellationToken);
                 if (Approval == null)
                 {
@@ -1871,12 +1884,6 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (isCOUser)
                 {
-                    var SelectedProjectRevision = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
-                    if (SelectedProjectRevision == null)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Project Revision details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project Revision not found" });
-                    }
-                    var OldRevisionProjects = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == SelectedProjectRevision.ProjectId && x.IsActive);
                     int RevisionGroupId = RevisionRoot.RevisionGroupId;
                     int? CategoryId = RevisionRoot.CategoryId;
                     int ReasonId = RevisionRoot.ReasonId;
@@ -2265,7 +2272,7 @@ namespace WebAPI.Controllers.Revision
                 if (approvalStatusAfterSave?.IsFullyApproved == 1)
                 {
                     await _db.pRecomputeProgramCost
-                        .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={RevisionDetails.ProgramId}")
+                        .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={OldRevisionProjects.ProgramFK}")
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
                 }

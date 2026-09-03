@@ -1589,7 +1589,9 @@ The map panel appears at the top of the project form. Click the **Project Locati
 | Green | Approved | Fully approved; changes are published |
 | Gray | Other / Pending | No status yet assigned |
 
-> **Status display logic:** When the Region Office has approved (Region Status = Approved), the displayed status reflects the Central Office status. Otherwise, the Region status is shown.
+> **Status display logic:** Each revision shows a single status reflecting its current state — *For Approval* while waiting on either the Region or Central Office review (the same label covers both; the column doesn't separately say which office currently owns it), *For Correction* once returned to the requester by either office, *Disapproved* if either office rejects it, or *Approved* once both offices have approved.
+>
+> **Visibility:** Region Office users see their own pending items, anything already forwarded to Central Office, and any fully-Approved outcome. Central Office users see their own pending items, plus anything Disapproved, returned For Correction, or fully Approved. The original requester always sees their own revisions in every state, regardless of role.
 
 **Field Reference — Toolbar:**
 
