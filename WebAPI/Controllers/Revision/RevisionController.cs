@@ -139,6 +139,21 @@ namespace WebAPI.Controllers.Revision
 
 
                 // ================================================================
+                // PROGRAM NAME
+                // ================================================================
+
+                if (!string.IsNullOrWhiteSpace(
+                    dto.Filters.ProgramName))
+                {
+                    filters.Add((
+                        "v.ProgramName LIKE @ProgramName",
+                        "@ProgramName",
+                        $"%{dto.Filters.ProgramName.Trim()}%"
+                    ));
+                }
+
+
+                // ================================================================
                 // USER ROLES
                 // ================================================================
 
@@ -274,6 +289,26 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
+        [HttpPost]
+        // Read-only: the fixed set of values dbo.fRevisionQueue's RevisionStatus column can
+        // produce, for a Revision List filter dropdown. Static, not DB-driven -- these are
+        // computed display strings (a CASE expression), not a stored lookup table, and a
+        // SELECT DISTINCT would wrongly omit any state with zero current rows. Excludes the
+        // "Status Unavailable" fallback (an unexpected-data state, not a real filter target).
+        public IActionResult ShowRevisionStatusDropdown()
+        {
+            return Ok(new
+            {
+                RevisionStatuses = new[]
+                {
+                    "For Approval",
+                    "For Approval of Central Office",
+                    "For Correction",
+                    "Disapproved",
+                    "Approved"
+                }
+            });
+        }
         [HttpPost]
         public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
         {

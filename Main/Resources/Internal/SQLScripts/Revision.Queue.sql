@@ -28,11 +28,75 @@
         queue entirely under the old @Level design's business rules -- that exclusion no longer
         applies under the current live design and this fix).
       - User-facing RevisionStatus text (2026-09-03): renamed to match the UserManual's exact
-        5-row badge legend (For Approval / For Correction / Disapproved / Approved / Other-Pending)
-        so the frontend's fixed keyword-matching badge logic (ModifcationList.tsx:getStatusBadge,
-        NOT modified by this change) resolves every state to the correct color. RO-pending and
-        CO-pending deliberately collapse to the same "For Approval" text, matching the legend's
-        single "For Approval" row.
+        badge legend (For Approval / For Correction / Disapproved / Approved / Other-Pending) so
+        the frontend's fixed keyword-matching badge logic (ModifcationList.tsx:getStatusBadge,
+        NOT modified by this change) resolves every state to the correct color.
+      - Same-day correction (2026-09-03, later pass): RO-pending and CO-pending were initially
+        collapsed to the identical "For Approval" text, which made the RO->CO hand-off invisible
+        (the underlying CASE already picked the right status, but both branches rendered
+        identically). CO-pending now reads "For Approval of Central Office" -- still contains the
+        substring "for approval", so the frontend's yellow-badge keyword match still fires for
+        both -- while RO-pending stays plain "For Approval".
+      - Program columns (2026-09-03, same pass): ProgramName/ProgramId/ProgramFK added via a
+        LEFT JOIN to vProjectLatest (tRevisionDetails.ProjectFK -> vProjectLatest.ProjectPK), the
+        established convention this codebase already uses everywhere for "get Program info for a
+        Project" -- backs a new ProgramName filter on the RevisionRequests list endpoint.
+      - CurrentStage relabeled to real group identity (2026-09-03, 3rd pass): 'RO' -> 'RPC'
+        (RPC is tGroups.GroupName = "Regional Planning Coordinator", the actual group this
+        codebase already checks membership against in RevisionController.cs/RevisionHelper.cs --
+        confirmed live, tGroups has no row for "AUC"'s generic abbreviation either). 'CO' ->
+        'PS Admin' -- confirmed via live tGroups query that no "PS Admin" row exists (AUC's real
+        description is "Application User Coordinator"); "PS Admin" is a hardcoded label chosen to
+        match the UserManual's own established human-facing convention (60+ occurrences,
+        including its glossary), not a group name pulled from data. CurrentStage is confirmed
+        (2026-09-03 session, 2 Explore agents) to never be displayed anywhere in the frontend --
+        only consumed by this function's own WHERE clause and an unused inbound filter -- so this
+        rename carries no frontend display risk. The WHERE clause literals below changed in
+        lockstep; visibility logic itself is unchanged, only the labels.
+      - RevisionStatus 'For Endorsement' for ROStatus=0 (2026-09-03, 3rd pass, operator-directed):
+        matches this system's own established terminology -- the frontend already labels RPC's
+        action "Endorse" (not "Approve") elsewhere, since RPC only forwards to PS Admin/CO for the
+        real approval (revisionActions.ts). KNOWN, ACCEPTED SIDE EFFECT: the frontend's fixed
+        badge-color keyword list (ModifcationList.tsx:getStatusBadge, NOT modified) has no match
+        for "endorsement" -- this state now renders gray ("Other/Pending") instead of yellow. This
+        was confirmed and explicitly accepted by the operator rather than compromising the wording
+        to preserve the yellow badge, since touching the frontend keyword list was ruled out.
+      - CurrentStage redesigned to ALWAYS resolve to a real group (2026-09-03, 4th pass,
+        operator-directed): CurrentStage previously still fell back to the status words REJECTED/
+        OWNER/DONE for those 3 states -- the operator confirmed (3x) it should instead show WHICH
+        group -- RPC or PS Admin -- for every branch, with no 3rd "OWNER"-style value, since no
+        group-membership check for a submitter role exists anywhere in this workflow (confirmed by
+        grep -- only RPC/AUC are ever checked; "DEO" is a project field, not a group). Mapping:
+        RPC rejected (ROStatus=2) -> RPC; PS Admin rejected (COStatus=2) -> PS Admin; RPC returned
+        for correction (ROStatus=3) -> RPC; PS Admin returned for correction (COStatus=3) -> PS
+        Admin; fully approved/DONE (ROStatus=1,COStatus=1) -> PS Admin (the group whose action
+        finalized it); RPC-pending/PS-Admin-pending unchanged from Pass 3.
+        CRITICAL DEPENDENCY HANDLED: the WHERE clause below used to key visibility directly off
+        CurrentStage's string value (IN ('RPC','PS Admin','DONE') etc, Pass 3's design) -- collapsing
+        CurrentStage to just 2 possible values would have made REJECTED/OWNER/DONE indistinguishable
+        from the pending states and silently broken the visibility fix from Pass 1. Fixed by
+        introducing a 3rd, INTERNAL-ONLY value in the same CROSS APPLY, StageBucket (REJECTED/OWNER/
+        DONE/RPC_PENDING/PSADMIN_PENDING/UNKNOWN) -- exactly Pass 3's own classification under
+        renamed literals, not exposed in the outer SELECT, used purely by the WHERE clause. This
+        keeps visibility semantics byte-for-byte identical to Pass 3 while freeing CurrentStage to
+        be a pure, always-a-group display value. Proven via a rollback-only drill confirming both
+        the new CurrentStage values AND unchanged RO/CO visibility counts before deploying.
+      - CurrentStage for "For Correction" (OWNER bucket) resolves to the REQUESTOR's real group,
+        not a reviewer's (2026-09-03, same 4th pass, operator refinement): "For Correction" means
+        the next action belongs to whoever created the revision, not to RPC or PS Admin (they
+        already acted -- that's WHY it bounced back). Resolved dynamically via
+        dbo.tUserGroups.GroupIds (a JSON array of Group IDs per UserId, confirmed live schema) ->
+        dbo.tGroups.GroupName, matched against tRevisionDetails.CreatedBy -- e.g. confirmed live,
+        'caldokp' (creator of 3 real test revisions) resolves to GroupIds='[4]' -> tGroups.Id=4 ->
+        GroupName='DPC'. This is the SAME real lookup mechanism 'RPC'/'PS Admin' themselves,
+        confirmed to exist and now reused generally rather than assuming only 2 groups are ever
+        relevant. If a creator belongs to multiple groups, TOP 1 ordered by tGroups.Id is used
+        (deterministic, but an arbitrary tie-break -- flagged, not resolved against real
+        multi-group data, since no creator in the current dataset has more than one group). If the
+        creator has no resolvable group at all, falls back to 'UNKNOWN'. REJECTED and DONE stay
+        reviewer-based (who rejected / who approved as CO) -- operator explicitly confirmed this
+        after a clarifying round ("Reject and done should be whoever did the action like who
+        rejects, or approved by co"), not an assumption.
 */
 
 SET ANSI_NULLS ON;
@@ -63,7 +127,11 @@ RETURN
 
         rd.CreatedDate AS RevisionDate,
 
-        DATEDIFF(DAY, rd.CreatedDate, GETDATE()) AS Age
+        DATEDIFF(DAY, rd.CreatedDate, GETDATE()) AS Age,
+
+        vpl.ProgramName,
+        vpl.ProgramId,
+        vpl.ProgramFK
 
     FROM dbo.tRevisionDetails rd
 
@@ -76,7 +144,29 @@ RETURN
     INNER JOIN dbo.tOptionRevisionReasons rr
         ON rr.ReasonId = rd.ReasonId
 
+    LEFT JOIN dbo.vProjectLatest vpl
+        ON vpl.ProjectPK = rd.ProjectFK
+
     CROSS APPLY dbo.fRevisionApprovalStatus(rd.Id) apst
+
+    -- ========================================================================
+    -- REQUESTOR'S REAL GROUP -- used only by the "For Correction" branch of
+    -- CurrentStage below. dbo.tUserGroups.GroupIds is a JSON array of Group
+    -- IDs per UserId; TOP 1 ordered by Id if a user has more than one group
+    -- (arbitrary tie-break, not exercised by any real creator in current
+    -- data -- see file header, Pass 4 refinement).
+    -- ========================================================================
+
+    OUTER APPLY
+    (
+        SELECT TOP 1 g.GroupName
+        FROM dbo.tUserGroups ug
+        CROSS APPLY OPENJSON(ug.GroupIds) WITH (GroupId INT '$') gid
+        INNER JOIN dbo.tGroups g
+            ON g.Id = gid.GroupId
+        WHERE ug.UserId = rd.CreatedBy
+        ORDER BY g.Id
+    ) creatorGroup
 
     -- ========================================================================
     -- WORKFLOW STATUS
@@ -126,19 +216,26 @@ RETURN
                     THEN N'Approved'
 
                 -- -------------------------------------------------------------
-                -- Waiting for RO
+                -- Waiting for RO (RPC) -- "Endorsement", not "Approval": RPC only
+                -- forwards to PS Admin/CO for the real approval (matches this
+                -- system's own established terminology, see file header).
                 -- -------------------------------------------------------------
 
                 WHEN apst.ROStatus = 0
-                    THEN N'For Approval'
+                    THEN N'For Endorsement'
 
                 -- -------------------------------------------------------------
                 -- RO approved; waiting for CO
+                --
+                -- Distinct text from RO-pending (2026-09-03 correction) -- both
+                -- contain "for approval" so the frontend's yellow-badge keyword
+                -- match still fires for either, but the RO->CO hand-off is now
+                -- observable instead of rendering identically to RO-pending.
                 -- -------------------------------------------------------------
 
                 WHEN apst.ROStatus = 1
                  AND apst.COStatus = 0
-                    THEN N'For Approval'
+                    THEN N'For Approval of Central Office'
 
                 -- -------------------------------------------------------------
                 -- Unexpected state
@@ -148,69 +245,100 @@ RETURN
             END,
 
             -- =================================================================
-            -- WHO CURRENTLY OWNS THE NEXT ACTION?
+            -- STAGE BUCKET -- internal only, NOT selected in the outer SELECT.
+            -- Drives the WHERE clause's visibility routing. Identical
+            -- classification to CurrentStage pre-Pass-4, under renamed
+            -- literals so they can't collide with CurrentStage's new
+            -- always-a-group values below. See file header, Pass 4.
             -- =================================================================
 
             CASE
-                -- -------------------------------------------------------------
-                -- Terminal: rejected
-                -- -------------------------------------------------------------
-
                 WHEN apst.ROStatus = 2
                   OR apst.COStatus = 2
                     THEN N'REJECTED'
-
-                -- -------------------------------------------------------------
-                -- Correction always returns to the revision creator/owner.
-                --
-                -- RO returned:
-                --
-                --      RO = 3
-                --      CO = 0
-                --
-                -- CO returned:
-                --
-                --      RO = 1
-                --      CO = 3
-                -- -------------------------------------------------------------
 
                 WHEN apst.ROStatus = 3
                   OR apst.COStatus = 3
                     THEN N'OWNER'
 
-                -- -------------------------------------------------------------
-                -- Completed
-                -- -------------------------------------------------------------
-
                 WHEN apst.ROStatus = 1
                  AND apst.COStatus = 1
                     THEN N'DONE'
 
+                WHEN apst.ROStatus = 0
+                    THEN N'RPC_PENDING'
+
+                WHEN apst.ROStatus = 1
+                 AND apst.COStatus = 0
+                    THEN N'PSADMIN_PENDING'
+
+                ELSE N'UNKNOWN'
+            END,
+
+            -- =================================================================
+            -- CURRENT STAGE -- always resolves to a real group (RPC or PS
+            -- Admin), never a status word. See file header, Pass 4, for why
+            -- REJECTED/OWNER/DONE became group-based and how visibility
+            -- routing was preserved via StageBucket above.
+            -- =================================================================
+
+            CASE
                 -- -------------------------------------------------------------
-                -- Waiting for RO
+                -- Rejected -- shows WHICH group rejected it.
+                -- -------------------------------------------------------------
+
+                WHEN apst.ROStatus = 2
+                    THEN N'RPC'
+
+                WHEN apst.COStatus = 2
+                    THEN N'PS Admin'
+
+                -- -------------------------------------------------------------
+                -- Returned for correction -- shows the REQUESTOR's real group
+                -- (not a reviewer's -- see file header, Pass 4 refinement).
+                -- Whichever office sent it back, the next action belongs to
+                -- whoever created the revision, so both branches resolve the
+                -- same way via creatorGroup (dbo.tUserGroups/dbo.tGroups).
                 --
-                -- Initial IO submission:
+                -- RO returned:  RO = 3, CO = 0
+                -- CO returned:  RO = 1, CO = 3
+                -- -------------------------------------------------------------
+
+                WHEN apst.ROStatus = 3
+                  OR apst.COStatus = 3
+                    THEN ISNULL(creatorGroup.GroupName, N'UNKNOWN')
+
+                -- -------------------------------------------------------------
+                -- Fully approved -- PS Admin's action is what finalized it
+                -- (CO always acts last in the sequential RO-then-CO model).
+                -- -------------------------------------------------------------
+
+                WHEN apst.ROStatus = 1
+                 AND apst.COStatus = 1
+                    THEN N'PS Admin'
+
+                -- -------------------------------------------------------------
+                -- Waiting for RO -- displayed as the real group name, RPC
+                -- (Regional Planning Coordinator, confirmed live tGroups row),
+                -- not the abstract "RO" abbreviation. See file header.
                 --
-                --      RO = 0
-                --      CO = 0
-                --
-                -- Correction resubmission:
-                --
-                --      RO = 0
-                --      CO = 0
-                --
+                -- Initial IO submission:      RO = 0, CO = 0
+                -- Correction resubmission:    RO = 0, CO = 0
                 -- -------------------------------------------------------------
 
                 WHEN apst.ROStatus = 0
-                    THEN N'RO'
+                    THEN N'RPC'
 
                 -- -------------------------------------------------------------
-                -- RO approved; now CO
+                -- RO approved; now CO -- displayed as "PS Admin", the
+                -- UserManual's established human-facing label for this role
+                -- (no "PS Admin" row exists in tGroups; AUC is the real group,
+                -- described as "Application User Coordinator"). See file header.
                 -- -------------------------------------------------------------
 
                 WHEN apst.ROStatus = 1
                  AND apst.COStatus = 0
-                    THEN N'CO'
+                    THEN N'PS Admin'
 
                 ELSE N'UNKNOWN'
             END
@@ -218,31 +346,40 @@ RETURN
     ) q
     (
         RevisionStatus,
+        StageBucket,
         CurrentStage
     )
 
     -- ========================================================================
     -- QUEUE ACCESS
     --
+    -- @IsRO/@IsCO are role FLAGS (unchanged param names -- they mean "is this
+    -- user in the RPC group" / "is this user in the AUC group" respectively).
+    -- Visibility routes off StageBucket (internal-only, Pass 4), NOT
+    -- CurrentStage -- CurrentStage is now a pure, always-a-group display
+    -- value and can no longer distinguish REJECTED/OWNER/DONE from the
+    -- pending states (see file header, Pass 4, "CRITICAL DEPENDENCY HANDLED").
+    --
     -- OWNER:
     --      Only the creator gets a correction returned to them (and, via this
     --      same branch, visibility into every other state of their own rows).
     --
-    -- RO:
-    --      Any authorized RO user gets RO approval work, CO approval work
-    --      (visibility only), and fully-approved (DONE) outcomes -- DONE
-    --      added 2026-09-03 per operator ("RO should also see the revision
-    --      approved").
+    -- RO (RPC):
+    --      Any authorized RPC user gets RPC's own approval work, PS Admin's
+    --      approval work (visibility only), and fully-approved (DONE)
+    --      outcomes -- DONE added 2026-09-03 per operator ("RO should also
+    --      see the revision approved").
     --
-    -- CO:
-    --      Any authorized CO user gets CO approval work, plus Rejected,
-    --      returned-for-correction (OWNER), and fully-approved (DONE)
-    --      outcomes -- REJECTED/OWNER/DONE all added 2026-09-03 per operator
-    --      ("CO user should see the rejected and forcorrection revision...
-    --      RO should also see the revision approved" -- DONE extended to CO
-    --      too, for symmetry with RO, per operator confirmation). Before this
-    --      change CO saw only CurrentStage = 'CO' and nothing else unless
-    --      they were also the creator.
+    -- CO (PS Admin):
+    --      Any authorized AUC user gets PS Admin's own approval work, plus
+    --      Rejected, returned-for-correction (OWNER), and fully-approved
+    --      (DONE) outcomes -- REJECTED/OWNER/DONE all added 2026-09-03 per
+    --      operator ("CO user should see the rejected and forcorrection
+    --      revision... RO should also see the revision approved" -- DONE
+    --      extended to CO too, for symmetry with RO, per operator
+    --      confirmation). Before that change CO saw only StageBucket =
+    --      'PSADMIN_PENDING' and nothing else unless they were also the
+    --      creator.
     --
     --      The previous @IsRO = 2 branch here was dead code (@IsRO is BIT,
     --      can never equal 2) and has been removed.
@@ -253,13 +390,13 @@ RETURN
 
         OR
         (
-            q.CurrentStage IN (N'RO', N'CO', N'DONE')
+            q.StageBucket IN (N'RPC_PENDING', N'PSADMIN_PENDING', N'DONE')
             AND @IsRO = 1
         )
 
         OR
         (
-            q.CurrentStage IN (N'CO', N'REJECTED', N'OWNER', N'DONE')
+            q.StageBucket IN (N'PSADMIN_PENDING', N'REJECTED', N'OWNER', N'DONE')
             AND @IsCO = 1
         )
 );
