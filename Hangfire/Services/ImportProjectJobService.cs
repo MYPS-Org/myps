@@ -1,4 +1,5 @@
 ﻿using DBHelper.Data;
+using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Hangfire.Hubs;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
@@ -26,17 +28,20 @@ namespace Hangfire.Services
     public class ImportProjectJobService
     {
         private readonly MYPSDbContext _db;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly IWebHostEnvironment _env;
         private readonly IHubContext<ImportHub> _hub;
         private readonly ILogger<ImportProjectJobService> _logger;
 
         public ImportProjectJobService(
             MYPSDbContext db,
+            IServiceScopeFactory serviceScopeFactory,
             IWebHostEnvironment env,
             IHubContext<ImportHub> hub,
             ILogger<ImportProjectJobService> logger)
         {
             _db = db;
+            _serviceScopeFactory = serviceScopeFactory;
             _env = env;
             _hub = hub;
             _logger = logger;
@@ -118,32 +123,210 @@ namespace Hangfire.Services
         public Task ProcessUpdate(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken)
             => RunImportAsync(payload, jobCancellationToken, isUpdate: true);
 
+        // ── Export: read-only, so — unlike Import/Update above — this never opens a DB transaction
+        // and never touches tImportingStatus's system-wide lock. It can run fully concurrently with
+        // Import/Update and with other Export jobs; nothing it does can conflict with a write.
+        [AutomaticRetry(Attempts = 0)]
+        public async Task ProcessExport(ExportProjectsJobPayload payload, IJobCancellationToken jobCancellationToken)
+        {
+            // Nullable and assigned only inside the try below — same reasoning as RunImportAsync's
+            // jobRecord: fetching the row and saving "Processing" can themselves throw (transient DB
+            // issues), and that must not leave the job stuck at "Queued" forever with no catch block
+            // ever running to mark it Failed.
+            ImportJobResult? jobRecord = null;
+
+            try
+            {
+                jobRecord = await _db.tImportJobResult.FirstOrDefaultAsync(x => x.JobId == payload.JobId);
+                if (jobRecord == null) return;
+
+                jobRecord.Status = "Processing";
+                jobRecord.StartedAt = Functions.CurrentDate();
+                _db.tImportJobResult.Update(jobRecord);
+                await _db.SaveChangesAsync();
+
+                await NotifyClient(payload.JobId, "Processing", "Export job has started processing.");
+
+                jobCancellationToken.ThrowIfCancellationRequested();
+
+                // Re-validated here even though the controller already checked before enqueueing —
+                // cheap, and closes the window where the Program/Stage is deleted between enqueue
+                // and job start.
+                var IsValidProgram = await _db.IsValidProgramId(payload.ProgramId, payload.StageName);
+                if (!IsValidProgram.IsValid)
+                {
+                    await FailExportJob(IsValidProgram.Message);
+                    return;
+                }
+
+                var stageName = payload.StageName.Replace("-", "");
+                if (!Enum.TryParse<EnumProgramStage>(stageName, true, out var selectedStage))
+                {
+                    await FailExportJob($"Invalid program stage '{payload.StageName}'.");
+                    return;
+                }
+
+                jobCancellationToken.ThrowIfCancellationRequested();
+                var cache = await ImportLookupCache.LoadAsync(_db);
+
+                var exportData = await ExportProjectsHelper.BuildExportData(
+                    _db, _serviceScopeFactory, cache, payload.ProgramId, selectedStage, jobCancellationToken.ShutdownToken);
+
+                if (exportData.ProjectDetails.Count == 0)
+                {
+                    await FailExportJob("No projects found for the given Program and Stage.");
+                    return;
+                }
+
+                jobCancellationToken.ThrowIfCancellationRequested();
+                var bytes = ImportErrorWorkbookBuilder.Build(
+                    cache,
+                    exportData.ProjectDetails,
+                    exportData.FundingProfile,
+                    exportData.ComponentDetails,
+                    exportData.MajorItemsOfWork,
+                    IsValidProgram.ProgramDetails.StartYear);
+
+                var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Imports");
+                Directory.CreateDirectory(tempFolder);
+
+                var safeProgramId = string.Join("_", payload.ProgramId.Split(Path.GetInvalidFileNameChars()));
+                var safeStageName = string.Join("_", payload.StageName.Split(Path.GetInvalidFileNameChars()));
+                var excelFileName = $"{safeProgramId}_{safeStageName}_Projects_{payload.JobId}.xlsm";
+
+                await File.WriteAllBytesAsync(Path.Combine(tempFolder, excelFileName), bytes, jobCancellationToken.ShutdownToken);
+
+                jobRecord.Status = "Completed";
+                jobRecord.Message = $"Projects exported: {exportData.ProjectDetails.Count}.";
+                jobRecord.ValidCount = exportData.ProjectDetails.Count;
+                jobRecord.ExcelFileName = excelFileName;
+                jobRecord.CompletedAt = Functions.CurrentDate();
+                _db.tImportJobResult.Update(jobRecord);
+                await _db.SaveChangesAsync();
+
+                await _hub.Clients.Group($"import-{payload.JobId}").SendAsync("ImportStatusChanged", new
+                {
+                    jobRecord.JobId,
+                    jobRecord.Status,
+                    jobRecord.Message,
+                    jobRecord.ValidCount,
+                    jobRecord.CompletedAt,
+                    ExcelFileUrl = $"/api/Importing/DownloadImportFile?fileName={excelFileName}"
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Export job {JobId} was cancelled", payload.JobId);
+
+                try
+                {
+                    _db.ChangeTracker.Clear();
+
+                    // jobRecord can still be null here if the very first fetch is itself what threw —
+                    // re-fetch by JobId so a startup-time failure still reaches a terminal status
+                    // instead of leaving the row stuck at "Queued".
+                    jobRecord ??= await _db.tImportJobResult.FirstOrDefaultAsync(x => x.JobId == payload.JobId);
+
+                    if (jobRecord != null)
+                    {
+                        jobRecord.Status = "Cancelled";
+                        jobRecord.Message = "Export job was cancelled.";
+                        jobRecord.CompletedAt = Functions.CurrentDate();
+                        _db.tImportJobResult.Update(jobRecord);
+                        await _db.SaveChangesAsync();
+                    }
+
+                    await NotifyClient(payload.JobId, "Cancelled", "Export job was cancelled.");
+                }
+                catch (Exception saveEx)
+                {
+                    _logger.LogError(saveEx, "Failed to save cancelled status for export job {JobId}", payload.JobId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Export job {JobId} failed", payload.JobId);
+
+                try
+                {
+                    _db.ChangeTracker.Clear();
+
+                    // See the matching comment in the OperationCanceledException catch above.
+                    jobRecord ??= await _db.tImportJobResult.FirstOrDefaultAsync(x => x.JobId == payload.JobId);
+
+                    if (jobRecord != null)
+                    {
+                        jobRecord.Status = "Failed";
+                        jobRecord.Message = ex.Message;
+                        jobRecord.CompletedAt = Functions.CurrentDate();
+                        _db.tImportJobResult.Update(jobRecord);
+                        await _db.SaveChangesAsync();
+                    }
+
+                    await NotifyClient(payload.JobId, "Failed", ex.Message);
+                }
+                catch (Exception saveEx)
+                {
+                    _logger.LogError(saveEx, "Failed to save error status for export job {JobId}", payload.JobId);
+                }
+                // No throw — AutomaticRetry(Attempts = 0) means Hangfire won't retry this job anyway,
+                // and every terminal branch above has already recorded and notified the failure.
+            }
+
+            // ── Local helper — marks the job Failed for an expected (non-exceptional) stop condition,
+            // e.g. an invalid Program/Stage or zero projects found. Mirrors RunImportAsync's FailJob,
+            // minus the lock-release/transaction-commit calls this read-only job never needed.
+            async Task FailExportJob(string message)
+            {
+                _db.ChangeTracker.Clear();
+
+                jobRecord!.Status = "Failed";
+                jobRecord.Message = message;
+                jobRecord.CompletedAt = Functions.CurrentDate();
+                _db.tImportJobResult.Update(jobRecord);
+                await _db.SaveChangesAsync();
+
+                await NotifyClient(payload.JobId, "Failed", message);
+            }
+        }
+
         // ── Shared core — both entry points funnel through here so fixes/behavior only live in one place ──
         private async Task RunImportAsync(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken, bool isUpdate)
         {
-            var jobRecord = await _db.tImportJobResult
-                .FirstOrDefaultAsync(x => x.JobId == payload.JobId);
-
-            if (jobRecord == null) return;
-
             // ── Track the uploaded file so we can clean it up regardless of outcome ──
             string? uploadedFilePath = payload.FileUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? null : payload.FileUrl;
 
-            jobRecord.Status = "Processing";
-            jobRecord.StartedAt = Functions.CurrentDate();
-            _db.tImportJobResult.Update(jobRecord);
-            await _db.SaveChangesAsync();
-
-            // ── Notify: processing ────────────────────────────────────────────
-            await NotifyClient(payload.JobId, "Processing", "Import job has started processing.");
-
             // ── Track whether the transaction was already finalized ────────────
             bool transactionFinalized = false;
-            var transaction = await _db.Database.BeginTransactionAsync();
+
+            // Both nullable and assigned INSIDE the try below (not before it): fetching the job
+            // record, saving its "Processing" status, and opening the transaction can all
+            // legitimately throw (transient DB issues), and previously ran before any try/catch
+            // existed — an exception there left the job stuck at "Queued"/"Processing" forever
+            // (no catch block ever ran to mark it Failed) and, worse, left tImportingStatus's
+            // system-wide import lock permanently held, since every ReleaseLock/TryReleaseLock
+            // call site lives inside this try/catch. Moving the setup inside closes that gap.
+            ImportJobResult? jobRecord = null;
+            IDbContextTransaction? transaction = null;
 
             try
             {
+                jobRecord = await _db.tImportJobResult
+                    .FirstOrDefaultAsync(x => x.JobId == payload.JobId);
+
+                if (jobRecord == null) return;
+
+                jobRecord.Status = "Processing";
+                jobRecord.StartedAt = Functions.CurrentDate();
+                _db.tImportJobResult.Update(jobRecord);
+                await _db.SaveChangesAsync();
+
+                // ── Notify: processing ────────────────────────────────────────────
+                await NotifyClient(payload.JobId, "Processing", "Import job has started processing.");
+
+                transaction = await _db.Database.BeginTransactionAsync();
+
                 jobCancellationToken.ThrowIfCancellationRequested();
                 // ── Program validation ─────────────────────────────────────────
                 var IsValidProgram = await _db.IsValidProgramId(payload.ProgramId, payload.StageName);
@@ -291,7 +474,7 @@ namespace Hangfire.Services
                     jobCancellationToken.ThrowIfCancellationRequested();
                     foreach (var item in importDto.ProjectDetails)
                     {
-                        var r = _db.ValidateProjectDetails(item, cache, existingDescriptionPairs);
+                        var r = _db.ValidateProjectDetails(item, cache, existingDescriptionPairs, IsValidProgram.ProgramDetails.StartYear);
                         if (!r.IsValid) ErrorProjectDetails.Add(item);
                         else if (r.IsWarning) WarningProjectDetails.Add(item);
                         else ValidProjectDetails.Add(item);
@@ -307,9 +490,14 @@ namespace Hangfire.Services
                     }
 
                     jobCancellationToken.ThrowIfCancellationRequested();
+                    // Precomputed once for the whole file, not per row — ValidateComponentDetails'
+                    // group-cost-overflow check does a dictionary lookup instead of re-scanning and
+                    // re-summing componentCosts for every row, and reuses the per-row core
+                    // validation this also computes instead of re-running it a second time.
+                    var ComponentCostGroupTotals = ImportingHelper.BuildComponentCostGroupTotals(importDto.ComponentDetails, cache, IsValidProgram.ProgramDetails.StartYear);
                     foreach (var item in importDto.ComponentDetails)
                     {
-                        var r = _db.ValidateComponentDetails(item, importDto.ComponentDetails, cache, IsValidProgram.ProgramDetails.StartYear);
+                        var r = _db.ValidateComponentDetails(item, importDto.ComponentDetails, cache, IsValidProgram.ProgramDetails.StartYear, ComponentCostGroupTotals);
                         if (!r.IsValid) ErrorComponentDetails.Add(item);
                         else if (r.IsWarning) WarningComponentDetails.Add(item);
                         else ValidComponentDetails.Add(item);
@@ -332,6 +520,134 @@ namespace Hangfire.Services
                         ErrorProjectDetails, ErrorFundingProfile, ErrorComponentDetails, ErrorMajorItemsOfWork);
 
                     jobCancellationToken.ThrowIfCancellationRequested();
+                    // ── Shared cascade: files the given ProjectIds' rows as errors (with a
+                    // per-item message) across all four sheets and removes them from the
+                    // Valid/Warning lists, so a disregarded ProjectId's Funding/Component/
+                    // MajorItemsOfWork rows never end up pointing at a project that was never
+                    // saved (or saved with different data than the file's row implied). Shared by
+                    // both Import and Update mode below (previously Import re-implemented this
+                    // same cascade inline just for its own "already exists" rejection).
+                    void DisregardProjectRows(HashSet<string> ids, Func<ImportProjectDetailsExcel, string> messageFor, string childMessage = "Update: parent ProjectId was disregarded.")
+                    {
+                        if (ids.Count == 0) return;
+
+                        foreach (var item in ValidProjectDetails.Concat(WarningProjectDetails).Where(x => ids.Contains(x.ProjectId)))
+                        {
+                            item.ErrorMessage = messageFor(item);
+                            ErrorProjectDetails.Add(item);
+                        }
+                        ValidProjectDetails.RemoveAll(x => ids.Contains(x.ProjectId));
+                        WarningProjectDetails.RemoveAll(x => ids.Contains(x.ProjectId));
+
+                        foreach (var item in ValidFundingProfile.Concat(WarningFundingProfile).Where(x => ids.Contains(x.ProjectId)))
+                        {
+                            item.ErrorMessage = childMessage;
+                            ErrorFundingProfile.Add(item);
+                        }
+                        ValidFundingProfile.RemoveAll(x => ids.Contains(x.ProjectId));
+                        WarningFundingProfile.RemoveAll(x => ids.Contains(x.ProjectId));
+
+                        foreach (var item in ValidComponentDetails.Concat(WarningComponentDetails).Where(x => ids.Contains(x.ProjectId)))
+                        {
+                            item.ErrorMessage = childMessage;
+                            ErrorComponentDetails.Add(item);
+                        }
+                        ValidComponentDetails.RemoveAll(x => ids.Contains(x.ProjectId));
+                        WarningComponentDetails.RemoveAll(x => ids.Contains(x.ProjectId));
+
+                        foreach (var item in ValidMajorItemsOfWork.Concat(WarningMajorItemsOfWork).Where(x => ids.Contains(x.ProjectId)))
+                        {
+                            item.ErrorMessage = childMessage;
+                            ErrorMajorItemsOfWork.Add(item);
+                        }
+                        ValidMajorItemsOfWork.RemoveAll(x => ids.Contains(x.ProjectId));
+                        WarningMajorItemsOfWork.RemoveAll(x => ids.Contains(x.ProjectId));
+                    }
+
+                    // ── Identity resolution, computed exactly once per run and shared by every
+                    // consumer below (Update's pre-check, Import's pre-check, and — via `resolver`
+                    // passed down — SaveProjectDetails/SoftDeleteProjectsByProgramStage in
+                    // ImportingHelper.cs) instead of each one independently re-deriving the same
+                    // AlternateId-or-ProjectFK-fallback rule and re-querying the DB. See
+                    // ProjectIdentityResolver.cs for the full rationale.
+
+                    // AlternateId -> ProjectFK (the immutable ProjectId string itself, e.g.
+                    // "BP01000001LZ"). Nulls filtered out: a revision with no AlternateId was
+                    // never created via Excel import, so it can never match an Excel row's
+                    // ProjectId (already required non-blank by ValidateProjectDetails) — this
+                    // filter exists only so Dictionary construction doesn't throw on a null key.
+                    // An AlternateId matching more than one distinct ProjectFK under this Program
+                    // (data predating SaveProjectDetails' own ambiguity guard) is deliberately
+                    // excluded from the map rather than resolved by picking one arbitrarily —
+                    // it's handled as its own disregard reason below instead.
+                    var KnownProjectGroups = (await _db.tProjectRevisions
+                            .Where(x => x.ProgramFK == IsValidProgram.ProgramDetails.ProgramPK && x.AlternateId != null)
+                            .Select(x => new { x.AlternateId, x.ProjectFK })
+                            .Distinct()
+                            .ToListAsync(jobCancellationToken.ShutdownToken))
+                        .GroupBy(x => x.AlternateId!, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    var KnownProjectMap = KnownProjectGroups
+                        .Where(g => g.Select(x => x.ProjectFK).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1)
+                        .ToDictionary(g => g.Key, g => g.First().ProjectFK, StringComparer.OrdinalIgnoreCase);
+
+                    var AmbiguousProjectIds = new HashSet<string>(
+                        KnownProjectGroups
+                            .Where(g => g.Select(x => x.ProjectFK).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+                            .Select(g => g.Key),
+                        StringComparer.OrdinalIgnoreCase);
+
+                    // Fallback identity for a project that has no AlternateId yet: its own
+                    // ProjectFK is also a valid match (self-mapped), so a re-exported file for
+                    // such a project — whose Project ID column is that ProjectFK, since it has
+                    // no AlternateId to show instead (ExportProjectsHelper.cs) — is recognized
+                    // here instead of being disregarded as "does not exist". SaveProjectDetails
+                    // (ImportingHelper.cs) recognizes the same fallback and sets AlternateId on
+                    // first successful match, so this path is only ever needed once per project.
+                    // "No AlternateId" is stored as an empty string on tProjectRevisions, not
+                    // NULL — must check both, or every row here would be silently excluded.
+                    var ProjectFKFallbackMap = (await _db.tProjectRevisions
+                            .Where(x => x.ProgramFK == IsValidProgram.ProgramDetails.ProgramPK
+                                     && (x.AlternateId == null || x.AlternateId == string.Empty))
+                            .Select(x => x.ProjectFK)
+                            .Distinct()
+                            .ToListAsync(jobCancellationToken.ShutdownToken))
+                        .ToDictionary(fk => fk, fk => fk, StringComparer.OrdinalIgnoreCase);
+
+                    // Also ambiguous: a ProjectId whose text matches one project's real
+                    // AlternateId AND a different project's ProjectFK fallback identity (e.g. a
+                    // project was previously given a literal AlternateId equal to some other
+                    // project's own permanent ID). Without this check, the resolver would silently
+                    // pick the AlternateId match and never notice the collision.
+                    foreach (var id in KnownProjectMap.Keys)
+                    {
+                        if (ProjectFKFallbackMap.TryGetValue(id, out var fallbackFK)
+                            && !string.Equals(KnownProjectMap[id], fallbackFK, StringComparison.OrdinalIgnoreCase))
+                        {
+                            AmbiguousProjectIds.Add(id);
+                        }
+                    }
+
+                    // Program + THIS specific target Stage — separate from the two Program-wide
+                    // maps above. A project with no entry here (despite resolving via one of the
+                    // maps above) has only ever existed at a *different* stage — the legitimate
+                    // cross-stage-progression case SaveProjectDetails handles by reusing its
+                    // ProjectFK under a brand-new revision, not by treating it as "already exists
+                    // at this stage".
+                    var CurrentStageRevisionRows = await (
+                        from ps in _db.tProjectStages
+                        join rev in _db.tProjectRevisions on ps.RevisionId equals rev.Id
+                        where ps.ProgramFK == IsValidProgram.ProgramDetails.ProgramPK
+                           && ps.StageName == payload.StageName
+                        select new { Stage = ps, Revision = rev }
+                    ).ToListAsync(jobCancellationToken.ShutdownToken);
+
+                    var CurrentStageRevisionByProjectFK = CurrentStageRevisionRows
+                        .ToDictionary(x => x.Revision.ProjectFK, x => (x.Stage, x.Revision), StringComparer.OrdinalIgnoreCase);
+
+                    var resolver = new ProjectIdentityResolver(KnownProjectMap, ProjectFKFallbackMap, AmbiguousProjectIds, CurrentStageRevisionByProjectFK);
+
                     // ── Update mode: disregard any ProjectId that doesn't already exist ────
                     // UpdateProject only refreshes existing projects — a ProjectId with no
                     // prior tProjectRevisions match under this Program is dropped from the
@@ -341,118 +657,99 @@ namespace Hangfire.Services
                     // visible in the job result rather than silently vanishing.
                     if (isUpdate)
                     {
-                        var KnownProjectIds = await _db.tProjectRevisions
-                            .Where(x => x.ProgramFK == IsValidProgram.ProgramDetails.ProgramPK)
-                            .Select(x => x.AlternateId)
-                            .Distinct()
-                            .ToListAsync(jobCancellationToken.ShutdownToken);
-
-                        var KnownProjectIdSet = new HashSet<string>(KnownProjectIds, StringComparer.OrdinalIgnoreCase);
-
                         var DisregardedIds = new HashSet<string>(
                             ValidProjectDetails.Concat(WarningProjectDetails)
                                 .Select(x => x.ProjectId)
-                                .Where(id => !KnownProjectIdSet.Contains(id)),
+                                .Where(id => resolver.Resolve(id, out _) == MatchOutcome.NotFound),
                             StringComparer.OrdinalIgnoreCase);
 
-                        if (DisregardedIds.Count > 0)
+                        DisregardProjectRows(DisregardedIds, _ => "Update: ProjectId does not exist for this Program and was disregarded.");
+
+                        // DisregardProjectRows already filters its `ids` set against the current
+                        // Valid/Warning lists internally, so AmbiguousProjectIds (the raw DB-derived
+                        // set) can be passed directly — no need to re-intersect it against the file
+                        // first.
+                        DisregardProjectRows(AmbiguousProjectIds, _ => "Update: ProjectId is ambiguous under this Program (matches multiple existing projects) and was disregarded.");
+
+                        // ── Island conflict: a project's Island is permanently encoded in the last
+                        // characters of its ProjectId (GenerateProjectID, ProjectHelper.cs) and is
+                        // never regenerated after creation. If the Excel file's Region resolves to a
+                        // different Island than the one already baked into the existing ProjectId,
+                        // applying it would silently desync the project's data from its own permanent
+                        // identity — reject the row instead. Compared against ProjectFK itself, not
+                        // the mutable IslandCode column, since an earlier version of this exact import
+                        // path could already have corrupted that column on an older row. Only flagged
+                        // when the existing ProjectFK actually ends with a recognized island code (the
+                        // longest match, to avoid one code being a trailing substring of another) —
+                        // a ProjectFK that doesn't follow the current ID scheme at all (e.g. legacy/
+                        // pre-migration data) is left unchecked rather than falsely rejected.
+                        var ValidIslandCodes = cache.Regions
+                            .Select(x => x.IslandCode)
+                            .Where(code => !string.IsNullOrEmpty(code))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .OrderByDescending(code => code.Length)
+                            .ToList();
+
+                        // Continuation-fork projects (RevisionController.cs, RevisionGroupId==13/
+                        // ReasonId==47, "Terminated project but balance of work to be continued as
+                        // another project") use ProjectPK = "{OriginalProjectFK}-A" — a documented,
+                        // operator-confirmed exception to the {Stage}{Year}{Sequence}{IslandCode}
+                        // format ("cannot be parsed by code that assumes that format"). Strip any
+                        // trailing "-A" suffix(es) before matching so a forked project's island is
+                        // still resolved from its original ID instead of silently skipping the check.
+                        string? ExistingIslandOf(string projectFK)
                         {
-                            foreach (var item in ValidProjectDetails.Concat(WarningProjectDetails).Where(x => DisregardedIds.Contains(x.ProjectId)))
-                            {
-                                item.ErrorMessage = "Update: ProjectId does not exist for this Program and was disregarded.";
-                                ErrorProjectDetails.Add(item);
-                            }
-                            ValidProjectDetails.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
-                            WarningProjectDetails.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
-
-                            foreach (var item in ValidFundingProfile.Concat(WarningFundingProfile).Where(x => DisregardedIds.Contains(x.ProjectId)))
-                            {
-                                item.ErrorMessage = "Update: parent ProjectId was disregarded.";
-                                ErrorFundingProfile.Add(item);
-                            }
-                            ValidFundingProfile.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
-                            WarningFundingProfile.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
-
-                            foreach (var item in ValidComponentDetails.Concat(WarningComponentDetails).Where(x => DisregardedIds.Contains(x.ProjectId)))
-                            {
-                                item.ErrorMessage = "Update: parent ProjectId was disregarded.";
-                                ErrorComponentDetails.Add(item);
-                            }
-                            ValidComponentDetails.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
-                            WarningComponentDetails.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
-
-                            foreach (var item in ValidMajorItemsOfWork.Concat(WarningMajorItemsOfWork).Where(x => DisregardedIds.Contains(x.ProjectId)))
-                            {
-                                item.ErrorMessage = "Update: parent ProjectId was disregarded.";
-                                ErrorMajorItemsOfWork.Add(item);
-                            }
-                            ValidMajorItemsOfWork.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
-                            WarningMajorItemsOfWork.RemoveAll(x => DisregardedIds.Contains(x.ProjectId));
+                            var idToMatch = projectFK;
+                            while (idToMatch.EndsWith("-A", StringComparison.Ordinal))
+                                idToMatch = idToMatch[..^2];
+                            return ValidIslandCodes.FirstOrDefault(code => idToMatch.EndsWith(code, StringComparison.OrdinalIgnoreCase));
                         }
+
+                        // Keyed by ProjectId -> the existing project's conflicting island. Built in
+                        // a single pass (each row's island resolved via ExistingIslandOf exactly
+                        // once) so the message callback below can look it up instead of re-deriving it.
+                        var IslandConflicts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var item in ValidProjectDetails.Concat(WarningProjectDetails))
+                        {
+                            if (string.IsNullOrEmpty(item.RegionIslandCode)) continue;
+                            if (resolver.Resolve(item.ProjectId, out var existingProjectFK) != MatchOutcome.Found) continue;
+                            var existingIsland = ExistingIslandOf(existingProjectFK!);
+                            if (existingIsland == null || existingIsland.Equals(item.RegionIslandCode, StringComparison.OrdinalIgnoreCase)) continue;
+                            IslandConflicts[item.ProjectId] = existingIsland;
+                        }
+
+                        DisregardProjectRows(new HashSet<string>(IslandConflicts.Keys, StringComparer.OrdinalIgnoreCase), item =>
+                            $"Update: Region resolves to Island '{item.RegionIslandCode}', which conflicts with the existing project's Island '{IslandConflicts[item.ProjectId]}' (from its Project ID). Changing a project's island via import is not supported.");
                     }
                     else
                     {
                         // ── Fresh import mode: reject any ProjectId that already exists under this
                         // exact Program+Stage — the mirror image of the Update-mode guard above.
-                        // SaveProjectDetails (ImportingHelper.cs) resolves identity by AlternateId
-                        // regardless of which mode called it: it always looks for an existing
-                        // revision under this Program+Stage first and, if found, retains and updates
-                        // it in place rather than creating anything new. Without this guard, a fresh
-                        // Import run whose file happens to reuse an existing ProjectId would silently
-                        // overwrite that project's data instead of erroring — indistinguishable from
-                        // an Update. Scoped to Program+Stage, matching the exact StageMatches
-                        // condition SaveProjectDetails itself checks, so this catches exactly the
-                        // rows that would otherwise silently retain-and-update.
-                        var ExistingProjectIds = await (
-                            from ps in _db.tProjectStages
-                            join rev in _db.tProjectRevisions on ps.RevisionId equals rev.Id
-                            where ps.ProgramFK == IsValidProgram.ProgramDetails.ProgramPK
-                               && ps.StageName == payload.StageName
-                            select rev.AlternateId
-                        ).Distinct().ToListAsync(jobCancellationToken.ShutdownToken);
-
-                        var ExistingProjectIdSet = new HashSet<string>(ExistingProjectIds, StringComparer.OrdinalIgnoreCase);
-
+                        // SaveProjectDetails (ImportingHelper.cs) resolves identity via the same
+                        // shared resolver regardless of which mode called it: it always looks for an
+                        // existing revision under this Program+Stage first and, if found, retains and
+                        // updates it in place rather than creating anything new. Without this guard, a
+                        // fresh Import run whose file happens to reuse an existing ProjectId would
+                        // silently overwrite that project's data instead of erroring — indistinguishable
+                        // from an Update. Scoped to Program+Stage via CurrentStageRevisionByProjectFK,
+                        // so this catches exactly the rows that would otherwise silently retain-and-update
+                        // — a match at a *different* stage (legitimate cross-stage progression) is not
+                        // rejected here. An Ambiguous resolution is rejected too, with the same message —
+                        // Import can't create a new project for an id that's already contested, and
+                        // "already exists, use Update" is the correct actionable advice either way.
                         var CollidingIds = new HashSet<string>(
                             ValidProjectDetails.Concat(WarningProjectDetails)
                                 .Select(x => x.ProjectId)
-                                .Where(id => ExistingProjectIdSet.Contains(id)),
+                                .Where(id =>
+                                {
+                                    var outcome = resolver.Resolve(id, out var fk);
+                                    if (outcome == MatchOutcome.Ambiguous) return true;
+                                    return outcome == MatchOutcome.Found && resolver.CurrentStageRevisionByProjectFK.ContainsKey(fk!);
+                                }),
                             StringComparer.OrdinalIgnoreCase);
 
-                        if (CollidingIds.Count > 0)
-                        {
-                            foreach (var item in ValidProjectDetails.Concat(WarningProjectDetails).Where(x => CollidingIds.Contains(x.ProjectId)))
-                            {
-                                item.ErrorMessage = "Import: ProjectId already exists for this Program and Stage. Use Update instead.";
-                                ErrorProjectDetails.Add(item);
-                            }
-                            ValidProjectDetails.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
-                            WarningProjectDetails.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
-
-                            foreach (var item in ValidFundingProfile.Concat(WarningFundingProfile).Where(x => CollidingIds.Contains(x.ProjectId)))
-                            {
-                                item.ErrorMessage = "Import: parent ProjectId already exists and was disregarded.";
-                                ErrorFundingProfile.Add(item);
-                            }
-                            ValidFundingProfile.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
-                            WarningFundingProfile.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
-
-                            foreach (var item in ValidComponentDetails.Concat(WarningComponentDetails).Where(x => CollidingIds.Contains(x.ProjectId)))
-                            {
-                                item.ErrorMessage = "Import: parent ProjectId already exists and was disregarded.";
-                                ErrorComponentDetails.Add(item);
-                            }
-                            ValidComponentDetails.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
-                            WarningComponentDetails.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
-
-                            foreach (var item in ValidMajorItemsOfWork.Concat(WarningMajorItemsOfWork).Where(x => CollidingIds.Contains(x.ProjectId)))
-                            {
-                                item.ErrorMessage = "Import: parent ProjectId already exists and was disregarded.";
-                                ErrorMajorItemsOfWork.Add(item);
-                            }
-                            ValidMajorItemsOfWork.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
-                            WarningMajorItemsOfWork.RemoveAll(x => CollidingIds.Contains(x.ProjectId));
-                        }
+                        DisregardProjectRows(CollidingIds, _ => "Import: ProjectId already exists for this Program and Stage. Use Update instead.",
+                            childMessage: "Import: parent ProjectId already exists and was disregarded.");
                     }
 
                     jobCancellationToken.ThrowIfCancellationRequested();
@@ -487,9 +784,8 @@ namespace Hangfire.Services
                             .ToList();
 
                         await _db.SoftDeleteProjectsByProgramStage(
-                            IsValidProgram.ProgramDetails.ProgramPK,
-                            payload.StageName,
                             UpdateProjectIds,
+                            resolver,
                             jobRecord.RequestedBy,
                             jobCancellationToken.ShutdownToken);
                     }
@@ -503,7 +799,7 @@ namespace Hangfire.Services
 
                     foreach (var Item in ValidProjectDetails.Concat(WarningProjectDetails))
                     {
-                        var Projects = await _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, jobCancellationToken.ShutdownToken);
+                        var Projects = await _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, resolver, jobCancellationToken.ShutdownToken);
 
                         // ── Reused project (found via AlternateId): entity is already tracked by EF,
                         // field updates made inside SaveProjectDetails persist on SaveChanges below —
@@ -598,8 +894,8 @@ namespace Hangfire.Services
                                 OldProjectFK = Item.ProjectId,
                                 ComponentId = Item.ComponentId,
                                 NewComponentId = Validate.ComponentCost.Id,
-                                WorkTypeFK = (int)Item.ScopeOfWorkEnum!,
-                                InfraTypeFK = Item.InfraTypeInfraCode!
+                                WorkTypeFK = Item.ScopeOfWorkEnum,
+                                InfraTypeFK = Item.InfraTypeInfraCode
                             };
                             ComponentReference.Add(ReferenceComponent);
 
@@ -695,7 +991,8 @@ namespace Hangfire.Services
                     {
                         var excelBytes = ImportErrorWorkbookBuilder.Build(
                             cache, ErrorProjectDetails, ErrorFundingProfile,
-                            ErrorComponentDetails, ErrorMajorItemsOfWork);
+                            ErrorComponentDetails, ErrorMajorItemsOfWork,
+                            IsValidProgram.ProgramDetails.StartYear);
 
                         await File.WriteAllBytesAsync(Path.Combine(tempFolder, excelFileName), excelBytes, jobCancellationToken.ShutdownToken);
                     }
@@ -741,7 +1038,7 @@ namespace Hangfire.Services
                 // ── Hangfire cancelled the job (server shutdown or manual delete) ──
                 _logger.LogWarning("Import job {JobId} was cancelled", payload.JobId);
 
-                if (!transactionFinalized)
+                if (transaction != null && !transactionFinalized)
                 {
                     try { await transaction.RollbackAsync(); }
                     catch (Exception rbEx) { _logger.LogWarning(rbEx, "Rollback failed for cancelled job {JobId}", payload.JobId); }
@@ -749,16 +1046,35 @@ namespace Hangfire.Services
 
                 try
                 {
-                    jobRecord.Status = "Cancelled";
-                    jobRecord.Message = "Import job was cancelled.";
-                    jobRecord.CompletedAt = Functions.CurrentDate();
-                    _db.tImportJobResult.Update(jobRecord);
-                    await _db.SaveChangesAsync();
+                    // Discard any entities still tracked from the failed save (e.g. an
+                    // out-of-range value that never got here) so persisting the status
+                    // below can't fail again on the same poisoned change tracker.
+                    _db.ChangeTracker.Clear();
+
+                    // jobRecord can still be null here if the very first fetch (now inside this
+                    // try block) is itself what threw — re-fetch by JobId so a startup-time
+                    // failure still reaches a terminal status instead of leaving the row stuck.
+                    jobRecord ??= await _db.tImportJobResult.FirstOrDefaultAsync(x => x.JobId == payload.JobId);
+
+                    if (jobRecord != null)
+                    {
+                        jobRecord.Status = "Cancelled";
+                        jobRecord.Message = "Import job was cancelled.";
+                        jobRecord.CompletedAt = Functions.CurrentDate();
+                        _db.tImportJobResult.Update(jobRecord);
+                        await _db.SaveChangesAsync();
+                    }
 
                     await NotifyClient(payload.JobId, "Cancelled", "Import job was cancelled.");
                 }
                 catch (Exception saveEx) { _logger.LogError(saveEx, "Failed to save cancelled status for job {JobId}", payload.JobId); }
 
+                // Releases tImportingStatus's system-wide import lock. Must run unconditionally
+                // here (not just when jobRecord is known) — the controller acquires this lock
+                // before the job even starts, so any failure in this method, including before
+                // jobRecord was ever fetched, must still release it or every future Import/Update
+                // request gets blocked with "Import is currently in use" until someone manually
+                // clears the row in the DB.
                 await TryReleaseLock();
             }
             catch (Exception ex)
@@ -766,7 +1082,7 @@ namespace Hangfire.Services
                 _logger.LogError(ex, "Import job {JobId} failed", payload.JobId);
 
                 // ── Only rollback if the transaction wasn't already finalized ──
-                if (!transactionFinalized)
+                if (transaction != null && !transactionFinalized)
                 {
                     try
                     {
@@ -782,23 +1098,35 @@ namespace Hangfire.Services
                 // ── Save failure status outside the dead transaction ───────────
                 try
                 {
-                    jobRecord.Status = "Failed";
-                    jobRecord.Message = ex.Message;
-                    jobRecord.CompletedAt = Functions.CurrentDate();
-                    _db.tImportJobResult.Update(jobRecord);
-                    await _db.SaveChangesAsync();
+                    // Discard whatever entity caused SaveChangesAsync to fail so it can't
+                    // keep failing the same way when we try to persist "Failed" below.
+                    _db.ChangeTracker.Clear();
+
+                    // See the matching comment in the OperationCanceledException catch above.
+                    jobRecord ??= await _db.tImportJobResult.FirstOrDefaultAsync(x => x.JobId == payload.JobId);
+
+                    if (jobRecord != null)
+                    {
+                        jobRecord.Status = "Failed";
+                        jobRecord.Message = ex.Message;
+                        jobRecord.CompletedAt = Functions.CurrentDate();
+                        _db.tImportJobResult.Update(jobRecord);
+                        await _db.SaveChangesAsync();
+                    }
                 }
                 catch (Exception saveEx)
                 {
                     _logger.LogError(saveEx, "Failed to save error status for job {JobId}", payload.JobId);
                 }
 
+                // See the matching comment in the OperationCanceledException catch above.
                 await TryReleaseLock();
                 throw;
             }
             finally
             {
-                await transaction.DisposeAsync();
+                if (transaction != null)
+                    await transaction.DisposeAsync();
 
                 // ── Clean up the uploaded source file ───────────────────────────
                 if (uploadedFilePath != null)
@@ -838,6 +1166,13 @@ namespace Hangfire.Services
                 //finalized = true;
                 transactionFinalized = true;
                 await tx.CommitAsync();
+
+                // Same as the two catch blocks below: discard any entities still tracked from a
+                // failed save so persisting the status here can't fail again on the same poisoned
+                // change tracker. Currently a no-op for every existing call site (all fire before
+                // any tracked-entity work), but that's incidental to call-site ordering, not
+                // structural — keep it so a future call site doesn't silently reintroduce the crash.
+                _db.ChangeTracker.Clear();
 
                 record.Status = "Failed";
                 record.Message = message;

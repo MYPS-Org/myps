@@ -39,6 +39,8 @@ namespace Hangfire.Importing
         private const double MaxColumnWidth = 60;
 
         // Column letters, 1-based, matching the PROJECT DETAILS layout below.
+        private const int ColCategory = 6;    // F
+        private const int ColThrust = 7;    // G
         private const int ColProvince = 10;   // J
         private const int ColCity = 11;   // K
         private const int ColDistrict = 12;   // L
@@ -95,17 +97,26 @@ namespace Hangfire.Importing
             ws.Cells[1, 1].Value = SystemMarkerValue;
         }
 
+        // referenceYear drives the Category/Thrust ValidUntil/window filters below — must be the
+        // same Program StartYear ValidateProjectDetails checks against (ImportingHelper.cs), or
+        // this dropdown could offer a value the backend then rejects, or hide one it would accept.
+        // DownloadTemplate (ImportingController.cs) has no Program context at all — it's an
+        // anonymous, generic template downloaded before any Program is chosen and reused across
+        // many future imports — so it falls back to today's calendar year there; only the
+        // post-import error-report regeneration (ImportProjectJobService.cs), which does know the
+        // specific Program, can pass the real StartYear.
         public static byte[] Build(
             ImportLookupCache cache,
             List<ImportProjectDetailsExcel> errorProjectDetails,
             List<ImportFundingProfileExcel> errorFundingProfile,
             List<ImportComponentDetailsExcel> errorComponentDetails,
-            List<ImportMajorItemsOfWorkExcel> errorMajorItemsOfWork)
+            List<ImportMajorItemsOfWorkExcel> errorMajorItemsOfWork,
+            int referenceYear)
         {
             using var pkg = new ExcelPackage();
             pkg.Workbook.CreateVBAProject();
 
-            var lookups = BuildLookupSheet(pkg, cache, errorProjectDetails, errorFundingProfile, errorComponentDetails);
+            var lookups = BuildLookupSheet(pkg, cache, errorProjectDetails, errorFundingProfile, errorComponentDetails, referenceYear);
 
             BuildProjectDetailsSheet(pkg, errorProjectDetails, lookups);
             BuildFundingProfileSheet(pkg, errorFundingProfile, lookups);
@@ -170,7 +181,8 @@ namespace Hangfire.Importing
             ImportLookupCache cache,
             List<ImportProjectDetailsExcel> errorProjectDetails,
             List<ImportFundingProfileExcel> errorFundingProfile,
-            List<ImportComponentDetailsExcel> errorComponentDetails)
+            List<ImportComponentDetailsExcel> errorComponentDetails,
+            int referenceYear)
         {
             var ws = pkg.Workbook.Worksheets.Add("_Lookups");
             ws.Hidden = eWorkSheetHidden.VeryHidden;
@@ -193,17 +205,20 @@ namespace Hangfire.Importing
             var names = new LookupNames
             {
                 Tier = WriteFlatList("Lookup_Tier", cache.Tiers.Select(x => x.Name)),
-                // Excludes expired categories (ValidUntil != 0 and already passed) — matches the
-                // reference template's own dropdown-filtering rule, and ValidateProjectDetails
-                // (ImportingHelper.cs) now rejects an expired category the same way.
+                // Excludes expired categories (ValidUntil != 0 and already passed, relative to
+                // referenceYear) — matches the reference template's own dropdown-filtering rule,
+                // and ValidateProjectDetails (ImportingHelper.cs) now rejects an expired category
+                // the same way, against the same referenceYear (the Program's StartYear).
                 Category = WriteFlatList("Lookup_Category", cache.Categories
-                    .Where(x => x.ValidUntil == 0 || x.ValidUntil > Functions.CurrentDate().Year)
+                    .Where(x => x.ValidUntil == 0 || x.ValidUntil > referenceYear)
                     .Select(x => x.CategoryName)),
                 // Excludes expired/not-yet-active Thrusts (mirrors the reference template's
-                // SubCategory validity-date filter, and ValidateProjectDetails now rejects
-                // an out-of-range Thrust the same way).
+                // SubCategory validity-date filter, and ValidateProjectDetails rejects an
+                // out-of-range Thrust the same way, against the same referenceYear). Flat list —
+                // the per-Category cascade was reverted along with CategoryId itself (see
+                // OptionProjectThrustList.cs); re-introduce once that schema change has rolled out.
                 Thrust = WriteFlatList("Lookup_Thrust", cache.Thrusts
-                    .Where(x => x.ValidToDate == 0 || (x.ValidFromDate < Functions.CurrentDate().Year && x.ValidToDate > Functions.CurrentDate().Year))
+                    .Where(x => x.ValidToDate == 0 || (x.ValidFromDate < referenceYear && x.ValidToDate > referenceYear))
                     .Select(x => x.ThrustDescription)),
                 Province = WriteFlatList("Lookup_Province", cache.Provinces.Select(x => x.Name)),
                 RegionWide = WriteFlatList("Lookup_RegionWide", cache.RegionWides.Select(x => x.Name)),
@@ -445,8 +460,8 @@ namespace Hangfire.Importing
                 ws.Cells[row, 3].Value = item.ExternalId;
                 ws.Cells[row, 4].Value = item.UACS;
                 ws.Cells[row, 5].Value = item.Tier;
-                ws.Cells[row, 6].Value = item.Category;
-                ws.Cells[row, 7].Value = item.Thrust;
+                ws.Cells[row, ColCategory].Value = item.Category;
+                ws.Cells[row, ColThrust].Value = item.Thrust;
                 ws.Cells[row, 8].Value = item.MYCAApprovalDate;
                 ws.Cells[row, 9].Value = item.Description;
                 ws.Cells[row, ColProvince].Value = item.Province;
@@ -487,8 +502,8 @@ namespace Hangfire.Importing
             // row added later by hand still gets the dropdown — matching the reference
             // template's own approach (e.g. its Province column is validated J2:J1048576).
             AddColumnListValidation(ws, 5, lookups.Tier);
-            AddColumnListValidation(ws, 6, lookups.Category);
-            AddColumnListValidation(ws, 7, lookups.Thrust);
+            AddColumnListValidation(ws, ColCategory, lookups.Category);
+            AddColumnListValidation(ws, ColThrust, lookups.Thrust);
             AddColumnListValidation(ws, ColProvince, lookups.Province);
             AddColumnListValidation(ws, 17, lookups.RegionWide);
             AddColumnListValidation(ws, 18, lookups.Origin);
@@ -1162,14 +1177,12 @@ End Sub
             // just the individually-failed rows.
             //
             // The Major-Item exemption list (component types that don't need a physical Major
-            // Item) mirrors the reference's own list, matched against our live
-            // tOptionProjectComponentType.ComponentId codes rather than hardcoded reference
-            // strings: EAO/EAOS (admin overhead), EXC (Excess), SAV (Savings), CoS (Consultancy),
-            // FS (Feasibility Study), DED (Detailed Engineering Design), LS (Lump Sum),
-            // OTH2-4 (Institutional Capacity/Training/LGU Assistance), EXP (Expired Funding),
-            // CS (Construction Supervision). Right of Way (ROW/ROW2) and Civil Works/Design
-            // (CW/CWD/DR) are deliberately NOT exempted, matching the reference's own choice —
-            // those component types do carry trackable physical/location items.
+            // Item) is interpolated from ImportingHelper.NonPhysicalComponentTypeIds — the same
+            // set ValidateComponentDetailsCore uses to exempt these types from requiring an
+            // Infrastructure Type/Type of Work — rather than a second hardcoded copy here, so the
+            // client-side warning and the server-side validation can't silently drift apart again.
+            var nonPhysicalComponentTypesVba = string.Join(", ", ImportingHelper.NonPhysicalComponentTypeIds.Select(id => $"\"{id}\""));
+
             var mandatory = pkg.Workbook.VbaProject.Modules.AddModule("ModuleMandatory");
             mandatory.Code = $@"
 Option Explicit
@@ -1179,7 +1192,7 @@ Public Function MandatoryFieldsMessage_All(ByRef firstBad As Range) As String
     Set issues = New Collection
 
     CollectMissingSheet ThisWorkbook.Worksheets(""PROJECT DETAILS""), _
-        Array(1, 5, 6, 7, 9, {ColProvince}, {ColCity}, {ColDistrict}, {ColRegion}, {ColDeo}, {ColImplOffice}, {ColOpUnit}, 17, 18, 19, 20, 21, 22, 23, 25), _
+        Array(1, 5, {ColCategory}, {ColThrust}, 9, {ColProvince}, {ColCity}, {ColDistrict}, {ColRegion}, {ColDeo}, {ColImplOffice}, {ColOpUnit}, 17, 18, 19, 20, 21, 22, 23, 25), _
         issues, firstBad
 
     CollectMissingSheet ThisWorkbook.Worksheets(""FUNDING PROFILE""), _
@@ -1240,7 +1253,7 @@ NextProject:
     Dim excluded As Object
     Set excluded = CreateObject(""Scripting.Dictionary"")
     Dim ex As Variant
-    For Each ex In Array(""EAO"", ""EAOS"", ""EXC"", ""SAV"", ""COS"", ""FS"", ""DED"", ""LS"", ""OTH2"", ""OTH3"", ""OTH4"", ""EXP"", ""CS"")
+    For Each ex In Array({nonPhysicalComponentTypesVba})
         excluded(ex) = True
     Next ex
 
