@@ -77,6 +77,7 @@ namespace WebAPI.Controllers.Auth
                     //var request = new AuthenticatePIS(verifyAccount.EmployeeId, dto.Password);
                     var request = new AuthenticatePIS(verifyAccount.UserId, dto.Password);
                     employee = await APIRequest.XML(request);
+                    LoginLog.ValidationMessage = employee;
                 }
                 if(employee.Contains("Valid Login"))
                 {
@@ -100,10 +101,6 @@ namespace WebAPI.Controllers.Auth
                         authProperties
                     );
                     LoginLog.IsValid = true;
-                }
-                else
-                {
-                    LoginLog.ValidationMessage = employee;
                 }
                 //LdapConnection ldap_conn = new LdapConnection();
                 //await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
