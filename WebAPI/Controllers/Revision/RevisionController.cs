@@ -232,7 +232,6 @@ namespace WebAPI.Controllers.Revision
                     _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
         {
