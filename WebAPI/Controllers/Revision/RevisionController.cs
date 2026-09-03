@@ -232,6 +232,48 @@ namespace WebAPI.Controllers.Revision
                     _Session.UserId.ToString());
             }
         }
+        // Options for the Revision List filter dialog (FE: FilterDialogRevisionList).
+        // RevisionStatuses is hardcoded, not queried -- it is text produced by fRevisionQueue's
+        // CASE expression, not backed by a lookup table. Verified against the LIVE dbo.fRevisionQueue
+        // definition on myps_db_dev (sp_helptext, 2026-09-03) -- the checked-in copy in
+        // Revision.Queue.sql had already drifted from live again by that point, so trust live over
+        // the file if they disagree. Live values: Disapproved, For Correction, Approved,
+        // For Endorsement (waiting on RO), For Approval of Central Office (RO done, waiting on CO).
+        // There is deliberately no CurrentStage option here: live CurrentStage is no longer the
+        // fixed RO/CO/OWNER/REJECTED/DONE set -- it's now 'RPC', 'PS Admin', 'UNKNOWN', or (for
+        // the returned-to-owner case) the creator's actual tGroups.GroupName, which is an open-ended
+        // per-user value unsuited to a fixed dropdown.
+        [HttpPost]
+        public async Task<IActionResult> RevisionEnums(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var RevisionTypes = await _db.tOptionRevisionHeader
+                    .AsNoTracking()
+                    .Where(x => x.IsActive)
+                    .OrderBy(x => x.RevisionName)
+                    .Select(x => new { x.RevisionGroupId, x.RevisionName })
+                    .ToListAsync(cancellationToken);
+
+                return Ok(new
+                {
+                    RevisionTypes,
+                    RevisionStatuses = new[]
+                    {
+                        "For Endorsement",
+                        "For Approval of Central Office",
+                        "For Correction",
+                        "Disapproved",
+                        "Approved"
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
+            }
+        }
+
         [HttpPost]
         public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
         {

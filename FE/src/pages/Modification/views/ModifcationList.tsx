@@ -2,13 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import MagnifyingGlassIcon from '@heroicons/react/24/outline/MagnifyingGlassIcon';
+import FunnelIcon from '@heroicons/react/24/outline/FunnelIcon';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { Button } from '../../../components/tailwindui/button';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 import { XMarkIcon } from '@heroicons/react/20/solid';
 import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
-import { fetchModificationList } from '../Service';
-import type { RevisionFilter, RevisionLists } from '../Model';
+import { FilterDialogRevisionList } from '../dialogs/FilterDialogRevisionList';
+import { fetchModificationList, fetchRevisionEnums } from '../Service';
+import type { RevisionEnums, RevisionFilter, RevisionLists } from '../Model';
 import { usePagination } from '../../../hooks/usePagination';
 import { getRevisionNavigationPath, parseTransactionId } from '../utils/revisionNavigation';
 
@@ -47,11 +49,16 @@ const ModificationList: React.FC = () => {
     const [ isAdjustDialogOpen, setIsAdjustDialogOpen ] = useState<boolean>(false);
     const [ searchInput, setSearchInput ] = useState<string>('');
 
+    // Filter dialog state — mirrors Program.tsx's Filters button pattern.
+    const [ isFilterDialogOpen, setIsFilterDialogOpen ] = useState<boolean>(false);
+    const [ isEnumsLoading, setIsEnumsLoading ] = useState<boolean>(false);
+    const [ revisionEnums, setRevisionEnums ] = useState<RevisionEnums | null>(null);
+
     const navigate = useNavigate();
 
     // Shared keyset-pagination hook — matches the pattern used by Project.tsx/Program.tsx.
     const pagination = usePagination<RevisionFilter, RevisionLists>(fetchModificationList, {
-        initialFilters: { ProjectId: '' },
+        initialFilters: { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '' },
         limit: 10,
     });
 
@@ -79,6 +86,27 @@ const ModificationList: React.FC = () => {
             ProjectId: '',
         });
     }
+
+    const handleOpenFilterDialog = async () => {
+        try {
+            if (!revisionEnums) {
+                setIsEnumsLoading(true);
+                const response = await fetchRevisionEnums();
+                setRevisionEnums(response.Data);
+                setIsEnumsLoading(false);
+            }
+            setIsFilterDialogOpen(true);
+        } catch (error) {
+            console.error('Error fetching revision enums:', error);
+            setIsEnumsLoading(false);
+        }
+    };
+
+    // Receives a RevisionFilter from the dialog; passes straight into the hook
+    // which resets page 1 and clears keyset cursors before fetching.
+    const handleApplyFilters = (filters: RevisionFilter) => {
+        pagination.applyFilters(filters);
+    };
 
     const handleViewDetails = (revision: RevisionLists) => {
         console.log("View Details Clicked for:", revision);
@@ -175,6 +203,20 @@ const ModificationList: React.FC = () => {
                                             Clear
                                         </Button>
                                     )}
+                                    <Button
+                                        color="yellow"
+                                        onClick={handleOpenFilterDialog}
+                                        disabled={isEnumsLoading || pagination.isLoading}
+                                        className="text-xs px-3 py-1.5"
+                                    >
+                                        <FunnelIcon className="w-4 h-4 mr-1 text-white" />
+                                        Filters
+                                        {(pagination.currentFilters?.TransactionId || pagination.currentFilters?.RevisionType || pagination.currentFilters?.RevisionStatus) && (
+                                            <span className="ml-1.5 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                                {[pagination.currentFilters?.TransactionId, pagination.currentFilters?.RevisionType, pagination.currentFilters?.RevisionStatus].filter(Boolean).length}
+                                            </span>
+                                        )}
+                                    </Button>
                                 </div>
                                 {/* <Button color="blue" onClick={() => handleAddProject()} disabled={pagination.isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
@@ -275,6 +317,15 @@ const ModificationList: React.FC = () => {
                     stageName={state?.stageName || ''}
                 />
             )}
+
+            {/* Filter Dialog */}
+            <FilterDialogRevisionList
+                isOpen={isFilterDialogOpen}
+                onClose={() => setIsFilterDialogOpen(false)}
+                currentFilters={pagination.currentFilters ?? { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '' }}
+                revisionEnums={revisionEnums || undefined}
+                onApplyFilters={handleApplyFilters}
+            />
         </div>
     );
 };
