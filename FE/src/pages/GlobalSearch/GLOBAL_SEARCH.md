@@ -114,7 +114,7 @@ Defined in `GlobalSearchDialog.tsx`. Maps `CategoryName` → a function that bui
 | `UACS` | `/projects/project-details/{ProjectId}:{StageName}` |
 | `Program Name` | `/programs/programdetails/{ProgramPK}:{StageName}` |
 | `Roads` | *(not in CATEGORY_NAV — no View button)* |
-| `Road Section` | *(not in CATEGORY_NAV — no View button)* |
+| `Road Sections` | *(not in CATEGORY_NAV — no View button)* |
 | `Bridge` | *(not in CATEGORY_NAV — no View button)* |
 
 > If both `ProjectId` and `StageName` are present the URL is `/projects/project-details/{ProjectId}:{StageName}`. Navigation is performed via React Router `useNavigate`; the dialog closes immediately on navigate.
@@ -133,7 +133,7 @@ To add navigation for a new category, add an entry to `CATEGORY_NAV` in `GlobalS
 | `uacs` | UACS | `Projects` | `UACS` | `/projects/project-details/:ProjectId::StageName` |
 | `programName` | Program Name | `Programs` | `Name` | `/programs/programdetails/:ProgramPK` |
 | `roads` | Roads | `vRoads` | `RoadName` | *(no link — pending)* |
-| `roadSection` | Road Section | `vRoadSections` | `RoadSectionId` | *(no link — pending)* |
+| `roadSection` | Road Sections | `vRoadSections` | `RoadSectionId` | *(no link — pending)* |
 | `bridge` | Bridge | `vBridges` | `BridgeName` | *(no link — pending)* |
 
 > `vRoads`, `vRoadSections`, and `vBridges` need to be whitelisted in `GlobalSearchController.cs` when the backend views are ready.  
@@ -152,9 +152,9 @@ The dialog renders exactly these columns (in this order, with these labels) for 
 | Description | `ProjectId`, `Description`, `ProgramName`, `StageName`, `Region` |
 | UACS | `ProjectId`, `UACS`, `Description`, `StageName`, `Region` |
 | Program Name | `ProgramId`, `Name`, `StageName`, `YearStart`, `Status` |
-| Roads | `RoadId`, `RoadName`, `Region`, `Length` |
-| Road Section | `RoadSectionId`, `RoadName`, `Region`, `RoadLength` |
-| Bridge | `BridgeId`, `BridgeName`, `Region`, `Length` |
+| Roads | `RoadId`, `Name`, `Region`, `Length` |
+| Road Sections | `RoadSectionId`, `RoadName`, `Region`, `LengthM` |
+| Bridge | `BridgeId`, `Name`, `Region`, `Length` |
 
 ---
 
@@ -240,8 +240,9 @@ Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts`. Its `label` m
 | Results capped at 50 | By design. UI shows amber hint when limit is hit. Add pagination if needed. |
 | No multi-field search | Current design: one field at a time. |
 | No date-range search | Values are always `LIKE %value%`. Date filtering would need a new control. |
-| Roads / Road Section / Bridge | Backend views not yet whitelisted — View buttons not shown. |
+| Roads / Road Sections / Bridge | Backend views not yet whitelisted — View buttons not shown. |
 | `getSearchColumns` / `SearchableTable` / `SearchableColumn` | Legacy code — safe to remove if the GetColumns endpoint is also removed from the backend. |
+| Road Sections columns: `RoadName`, `Region` | These fields don't exist on `tFutureRoadSections` (actual columns: `RoadId`, `LengthM`, `DEOParticipantId`, `RegionParticipantId`) — the backend returns the raw entity with no join to a Roads table, so these two columns still render `—` for every result. (`RoadLength` → `LengthM` was fixed — see Changelog.) Same issue likely applies to `Region`/`Length` on Roads and Bridge. Needs either a backend join/view or updated `resultColumns` field names. |
 
 ---
 
@@ -256,3 +257,5 @@ Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts`. Its `label` m
 | 2026-07-31 | Claude | Added `EXCLUDED_RESULT_COLUMNS` / `isExcludedResultColumn()` to `config.ts` (exact-match list + `PK`/`FKId` suffix rule) and wired it into `GlobalSearchDialog.tsx`'s `dynamicColumns` filter, so internal PK/FK columns (e.g. `StageFKId`, `ProgramPK`) returned by backend view models no longer render in the results table |
 | 2026-07-31 | Claude | Replaced dynamic column derivation with `SEARCH_FIELD_CONFIG`-driven columns: `GlobalSearchDialog.tsx` now looks up the entry whose `label` matches the selected `CategoryName` and renders its `resultColumns` directly, instead of deriving/filtering/ordering/labeling columns from the raw API row. Removed the now-unused `EXCLUDED_RESULT_COLUMNS`, `isExcludedResultColumn()`, `getColumnLabel()`, `COLUMN_ORDER_BY_CATEGORY`, `orderResultColumns()` from `config.ts`. `SEARCH_FIELD_CONFIG` is no longer reference-only — adding a category now requires a matching entry (see "How to Add a New Searchable Field") |
 | 2026-08-11 | Claude | Fixed `Program Name` navigation to use `ProgramPK` instead of `ProgramId` in the URL (`GlobalSearchDialog.tsx`'s `CATEGORY_NAV` and `config.ts`'s reference `getLink`). `ProgramDetail.tsx`'s `:program` route param is resolved via `ProgramPK` everywhere else in the app (`Program.tsx`, `AddProgramDialog.tsx`); `ProgramId` is a separate display code and was producing a route the backend couldn't resolve |
+| 2026-09-03 | Claude | Fixed `config.ts`'s Road Sections entry: `label` was `'Road Section'` (singular) but the backend `CategoryName` is `'Road Sections'` (plural, see `GlobalSearchController.cs`'s category list). The mismatch meant `SEARCH_FIELD_CONFIG.find()` never matched, so `resultColumns` resolved to `[]` and the results table rendered with zero columns even when matches were found |
+| 2026-09-03 | Claude | Fixed three more `resultColumns` field-name mismatches in `config.ts`: Road Sections' `RoadLength` → `LengthM` (matches `tFutureRoadSections`'s actual column), Roads' `RoadName` → `Name` and Bridge's `BridgeName` → `Name`. `RoadName`/`Region` on Road Sections remain mismatched (see Known Limitations) — `vRoads`/`vRoadSections`/`vBridges` are also still un-whitelisted on the backend, so none of this is testable end-to-end yet |

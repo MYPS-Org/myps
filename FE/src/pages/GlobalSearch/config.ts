@@ -131,7 +131,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
     placeholder: 'e.g. National Highway',
     resultColumns: [
       { field: 'RoadId',   label: 'Road ID'   },
-      { field: 'RoadName', label: 'Road Name' },
+      { field: 'Name', label: 'Road Name' },
       { field: 'Region',   label: 'Region'    },
       { field: 'Length',   label: 'Length'    },
     ],
@@ -139,7 +139,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
   },
   {
     key: 'roadSection',
-    label: 'Road Section',
+    label: 'Road Sections',
     tableKey: 'vRoadSections',
     columnField: 'RoadSectionId',
     placeholder: 'e.g. RS-001',
@@ -147,7 +147,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
       { field: 'RoadSectionId', label: 'Section ID'   },
       { field: 'RoadName',      label: 'Road Name'    },
       { field: 'Region',        label: 'Region'       },
-      { field: 'RoadLength',    label: 'Length (m)'   },
+      { field: 'LengthM',    label: 'Length (m)'   },
     ],
     getLink: null,
   },
@@ -159,7 +159,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
     placeholder: 'e.g. Marcos Bridge',
     resultColumns: [
       { field: 'BridgeId',   label: 'Bridge ID'   },
-      { field: 'BridgeName', label: 'Bridge Name' },
+      { field: 'Name', label: 'Bridge Name' },
       { field: 'Region',     label: 'Region'      },
       { field: 'Length',     label: 'Length (m)'  },
     ],
