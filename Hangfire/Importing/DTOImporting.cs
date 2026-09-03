@@ -127,8 +127,12 @@ namespace Hangfire.Importing
         public string OldProjectFK { get; set; } = string.Empty;
         public string ComponentId { get; set; } = string.Empty;
         public int NewComponentId { get; set; }
-        public int WorkTypeFK { get; set; }
-        public string InfraTypeFK { get; set; }
+        // Null for NonPhysicalComponentTypeIds-exempt components (no ScopeOfWorkEnum/InfraTypeInfraCode
+        // to assign). Safe: ValidateMajorItemsOfWork rejects any Major Item row referencing such a
+        // component (blank WorkTypeId fails its "Incorrect Target Unit" check), so a row that reaches
+        // SaveMajorItemsOfWork is guaranteed to belong to a component where these are non-null.
+        public int? WorkTypeFK { get; set; }
+        public string? InfraTypeFK { get; set; }
     }
 
     public class ImportMajorWorkItemReference
@@ -160,10 +164,13 @@ namespace Hangfire.Importing
         public IFormFile File { get; set; } = default!;
     }
 
-    //public class ImportProgramDetailsWithFileURL
-    //{
-    //    public string ProgramId { get; set; }
-    //    public string StageName { get; set; }
-    //    public string FileURL { get; set; }
-    //}
+    // Same shape as ImportProgramDetailsWithFile minus the file — ExportProjects has nothing to
+    // upload, it generates a workbook from existing DB data for this Program+Stage.
+    public class ExportProjectsDTO
+    {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
+        [Required]
+        public string StageName { get; set; } = string.Empty;
+    }
 }

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Hangfire.Importing
 {
+    //to commit
     // Hangfire/Importing/ImportLookupCache.cs
     public class ImportLookupCache
     {
@@ -37,11 +38,21 @@ namespace Hangfire.Importing
         // Component Details lookups
         public List<OptionProjectComponentType> Components { get; set; }
         public List<OptionInfraType> InfraTypes { get; set; }
+        // InfraName (trimmed) -> InfraCode, built from the UNFILTERED tOptionInfraType table
+        // (unlike InfraTypes above, which is IsActive-filtered). Used by ValidateMajorItemsOfWork's
+        // Infrastructure ID prefix-format check — a pure ID-format rule, not a "is this type
+        // currently selectable" rule (InfraTypes/IsActive already enforces that, separately, in
+        // ValidateComponentDetails) — a Component whose InfraType has since been deactivated still
+        // needs its Infrastructure ID format validated against the same prefix it always had. Also
+        // an O(1) lookup instead of an O(InfraTypes.Count) scan per MajorItemsOfWork row.
+        public Dictionary<string, string> InfraNameToCode { get; set; }
         public List<OptionScopeOfWork> ScopeOfWorks { get; set; }
 
         // ── Load all lookups in one DB round-trip ──────────────────────────────
         public static async Task<ImportLookupCache> LoadAsync(MYPSDbContext db)
         {
+            var allInfraTypes = await db.tOptionInfraType.AsNoTracking().ToListAsync();
+
             return new ImportLookupCache
             {
                 Tiers = await db.tOptionProjectTier.AsNoTracking().ToListAsync(),
@@ -84,11 +95,11 @@ namespace Hangfire.Importing
                 Components = await db.tOptionProjectComponentType.AsNoTracking().ToListAsync(),
                 // InfraType/ScopeOfWork (WorkType) ARE genuinely enforced with IsActive at the
                 // main app's actual save gate (ProjectController.cs ~lines 1115-1154, "Invalid
-                // Work Type"/"invalid or inactive" — a real rejection, not just a dropdown
-                // filter). Verified against real data: InfraCode='LB' ("Local Bridges") is
-                // IsActive=0 with zero current usage, so no live impact, but keeps import
-                // consistent with the main app going forward.
-                InfraTypes = await db.tOptionInfraType.AsNoTracking().Where(x => x.IsActive).ToListAsync(),
+                // Work Type"/"invalid or inactive" — a real rejection, not just a dropdown filter).
+                InfraTypes = allInfraTypes.Where(x => x.IsActive).ToList(),
+                InfraNameToCode = allInfraTypes
+                    .GroupBy(x => x.InfraName.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().InfraCode, StringComparer.OrdinalIgnoreCase),
                 ScopeOfWorks = await db.tOptionScopeOfWork.AsNoTracking().Where(x => x.IsActive).ToListAsync(),
             };
         }

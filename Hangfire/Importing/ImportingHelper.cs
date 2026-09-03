@@ -22,6 +22,21 @@ namespace Hangfire.Importing
 {
     public static class ImportingHelper
     {
+        // Component types with no physical infrastructure attributes — administrative/overhead
+        // cost lines (EAO/EAOS), consultancy (CoS), studies/design (FS, DED), lump-sum (LS),
+        // institutional-capacity items (OTH2-4), expired funding (EXP), construction supervision
+        // (CS), excess/savings (EXC/SAV) — matched against tOptionProjectComponentType.ComponentId
+        // codes. This is the SAME exemption list ImportErrorWorkbookBuilder.cs's client-side VBA
+        // "Component -> Major Item" mandatory-fields macro already uses (mirroring the reference
+        // template's own list) to warn a user when one of these components has no Major Item row —
+        // that macro interpolates this exact set rather than hardcoding its own copy, so the two
+        // stay in sync. Right of Way (ROW/ROW2) and Civil Works/Design (CW/CWD/DR) are deliberately
+        // NOT included — those types do carry trackable physical/location items.
+        public static readonly HashSet<string> NonPhysicalComponentTypeIds = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "EAO", "EAOS", "EXC", "SAV", "COS", "FS", "DED", "LS", "OTH2", "OTH3", "OTH4", "EXP", "CS"
+        };
+
         public class ValidationResponse
         {
             public string Message { get; set; } = string.Empty;
@@ -41,7 +56,10 @@ namespace Hangfire.Importing
         // "IsWarning=true; Message = append(...)" pattern used throughout every
         // Validate* method below, so call sites read as one line instead of three,
         // and the comma-joining/append logic only lives in one place.
-        private sealed class ValidationState
+        // public (not private): BuildComponentCostGroupTotals returns a per-row ValidationState
+        // cache that ValidateComponentDetails reuses, so this type appears in those public method
+        // signatures and needs matching accessibility.
+        public sealed class ValidationState
         {
             public bool IsValid { get; private set; } = true;
             public bool IsWarning { get; private set; } = false;
@@ -67,6 +85,18 @@ namespace Hangfire.Importing
                 Message = Message.Length > 0 ? string.Format("{0}, {1}", Message, message) : message;
             }
         }
+        // ── Max value accepted for money fields (Amount, Cost) — matches the SQL
+        // decimal(18,5) precision of their destination columns (tProjectFundingProfile.Amount,
+        // tProjectComponentCost.Total, tProjectComponentCostPerYear.Amount). A value that parses
+        // fine as a .NET decimal but exceeds this would otherwise pass validation and only fail
+        // later at SaveChangesAsync with a raw ArgumentException, crashing the whole import job
+        // instead of being reported as a normal per-row error.
+        private const decimal MaxDecimal18_5 = 9999999999999.99999m;
+        // decimal(18,5) constrains scale (5 fractional digits) as well as magnitude — a value
+        // like 100.123456 is nowhere near MaxDecimal18_5 but still has more fractional digits
+        // than the column allows, and would otherwise reach SQL Server and be silently rounded
+        // on insert instead of being reported as a normal per-row import error.
+        private static bool ExceedsDecimal18_5Scale(decimal value) => decimal.Round(value, 5) != value;
         // ── Shared case-insensitive / trim-tolerant name comparison ────────────
         // Use this everywhere a lookup/reference name is compared against an
         // imported Excel value, instead of raw `==`, so casing differences
@@ -81,37 +111,41 @@ namespace Hangfire.Importing
             { "I", 1 }, { "II", 2 }
         };
 
-        // ── Infrastructure Type -> expected InfrastructureId prefix ─────────────────────────
-        // Verified against real data: every sampled real InfrastructureId for these types
-        // starts with this exact prefix (UserManual.md's "Auto-generated ID Prefixes by
-        // Infrastructure Type" table, cross-checked against actual tProjectMajorWorkLocations
-        // rows — several of the manual's documented prefixes differ from the DB's own InfraCode
-        // field, e.g. Hospitals is InfraCode "H" but real IDs use "HSP"). The main app's own UI
-        // never lets a user type an arbitrary Infrastructure ID for any type — it's always either
-        // auto-generated (the types below, apart from Roads/Bridges) or selected from RBIA's real
-        // inventory (Roads/Bridges) — so import's free-text entry is the only path that could ever
-        // produce a mismatch. Infra types not in this map (Drainage Protection Works, Drainage
-        // Structures along Roads, Road Slope Protection Structures, Test Infrastructure Type,
-        // Waterway) have no confirmed prefix — absent from both the manual and real data — and are
-        // deliberately left unchecked rather than guessed.
-        private static readonly Dictionary<string, string> InfraTypePrefixes = new(StringComparer.OrdinalIgnoreCase)
+        // ── InfraCode -> auto-generated Infrastructure ID prefix ─────────────────────────
+        // Mirrors FE/src/utils/infraIdGenerator.ts's getInfraTypePrefix() "Short InfraCodes
+        // (from JSON InfraTypes)" map exactly (keys lowercased there; StringComparer here makes
+        // that irrelevant). That FE function is the actual code that assigns a Work Location's
+        // real Infrastructure ID when a user adds one in the main app for any type other than
+        // Roads/Bridges (shouldAutoGenerateInfraId() returns false for those two — they use
+        // RBIA's own inventory instead, handled separately via the Roads/Bridges special case in
+        // ValidateMajorItemsOfWork, NOT via this table). Deliberately excludes InfraCode "R"/"B":
+        // the FE map still lists 'r':'RD'/'b':'BR' for completeness, but that branch of
+        // getInfraTypePrefix() is dead code in practice for Roads/Bridges — real IDs for those
+        // two come from RBIA's own convention (Roads "S...", Bridges "B..."), not this generator.
+        // The prefix is NOT simply the InfraCode itself — several diverge (e.g. Hospitals is
+        // InfraCode "H" but every generated ID uses "HSP") — do not "simplify" this back to
+        // reading InfraCode directly without re-checking infraIdGenerator.ts first.
+        private static readonly Dictionary<string, string> InfraCodeToAutoGeneratedPrefix = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "Roads", "S" },
-            { "Bridges", "B" },
-            { "Flood Control Structures", "FCS" },
-            { "Local Roads", "LRD" },
-            { "Septage and Sewerage Plants", "SPS" },
-            { "Accessibility Facility", "AF" },
-            { "Hospitals", "HSP" },
-            { "Other Buildings", "OTB" },
-            { "Rain Water Collector", "RWC" },
-            { "Consultancy", "CS" },
-            { "Local Bridges", "LBR" },
-            { "Local Flood Control Structures", "LFCS" },
-            { "Multi Purpose Buildings", "MPB" },
-            { "Non-Infra", "NI" },
-            { "School Buildings", "SCH" },
-            { "Water Supply Systems", "WSS" },
+            { "AF", "AF" },
+            { "CS", "CS" },
+            { "DPW", "DPW" },
+            { "DS", "DS" },
+            { "FCS", "FCS" },
+            { "H", "HSP" },
+            { "LB", "LBR" },
+            { "LFCS", "LFCS" },
+            { "LR", "LRD" },
+            { "LWW", "LWW" },
+            { "MPB", "MPB" },
+            { "NI", "NI" },
+            { "OB", "OTB" },
+            { "RS", "RSS" },
+            { "RW", "RWC" },
+            { "SB", "SCH" },
+            { "SS", "SPS" },
+            { "WS", "WSS" },
+            { "WW", "WW" },
         };
 
         // Extracts the tier's numeric value regardless of whether it's written as
@@ -164,7 +198,7 @@ namespace Hangfire.Importing
         #region Validation - Project Details 
         public class ValidateProjectDetailsResponse : ValidationResponse
         { }
-        public static ValidateProjectDetailsResponse ValidateProjectDetails(this MYPSDbContext _db, ImportProjectDetailsExcel details, ImportLookupCache cache, List<(string Description, string ProjectId)> existingProjectDescriptions)
+        public static ValidateProjectDetailsResponse ValidateProjectDetails(this MYPSDbContext _db, ImportProjectDetailsExcel details, ImportLookupCache cache, List<(string Description, string ProjectId)> existingProjectDescriptions, int programStartYear)
         {
             var v = new ValidationState();
 
@@ -202,8 +236,11 @@ namespace Hangfire.Importing
             // categories whose ValidUntil year has already passed — verified against real data:
             // 7 such categories exist (e.g. CategoryId=1 "MFO 1: National Road Network Services",
             // ValidUntil=2017, still IsActive=True), none currently used by a saved project but
-            // fully selectable in the main app.
-            else if (!Category.IsActive && Category.ValidUntil != 0 && Category.ValidUntil < Functions.CurrentDate().Year)
+            // fully selectable in the main app. Compared against the Program's own StartYear, not
+            // today's calendar year — a Program can legitimately be for a past or future year, and
+            // "was this Category valid in the Program's year" is the question that actually matters
+            // for a row being imported into that Program.
+            else if (!Category.IsActive && Category.ValidUntil != 0 && Category.ValidUntil < programStartYear)
             {
                 v.Fail("Category is no longer valid");
             }
@@ -212,14 +249,16 @@ namespace Hangfire.Importing
             {
                 v.Fail("Incorrect Thrust");
             }
-            // No ValidFromDate/ValidToDate window check here: the main app's own Thrust
-            // validation (ProjectHelper.cs's ValidateProjectDetailsLookups) is entirely commented
-            // out — it enforces neither existence nor a validity window on this field at save
-            // time. A window Fail here (based on the reference template's dropdown-filtering
-            // rule, not an actual save-time rule) would be stricter than the main app for no
-            // reason — verified against real data: 69 real Thrust rows currently have a
-            // "lapsed" window by that rule, several still IsActive=True, none currently used by
-            // a saved project but fully selectable in the main app regardless of window.
+            // Mirrors the FE dropdown's own window rule (ProjectDetailsForm.tsx: ValidToDate === 0
+            // means "no expiry"; otherwise only ValidFromDate < year < ValidToDate is selectable) —
+            // same shape as the Category.ValidUntil check above, including comparing against the
+            // Program's StartYear rather than today's calendar year, for the same reason.
+            else if (Thrust.ValidToDate != 0 && !(Thrust.ValidFromDate < programStartYear && Thrust.ValidToDate > programStartYear))
+            {
+                v.Fail("Selected Thrust is no longer valid");
+            }
+            // Thrust<->Category relation check excluded for now, along with CategoryId itself
+            // (see OptionProjectThrustList.cs) — the column doesn't exist on the shared dev DB yet.
             if (string.IsNullOrWhiteSpace(details.Description))
             {
                 v.Fail("Required Description");
@@ -435,7 +474,13 @@ namespace Hangfire.Importing
                 // Matches the main app's hard requirement (ProjectHelper.cs's
                 // ValidateProjectDetailsLookups): Feasibility Date is required and cannot be in
                 // the past when Feasibility Study is "Yes" — both are Fails here, not Warns,
-                // since the main app blocks on both rather than merely flagging them.
+                // since the main app blocks on both rather than merely flagging them. Confirmed
+                // live against the real Add Project form (screenshot, 2026-09-04): the main app
+                // genuinely rejects a past Feasibility Date today, so this is deliberate, current
+                // behavior to mirror exactly — not a stale/unreachable rule. An earlier attempt to
+                // compare against the Program's StartYear instead was reverted: real data shows
+                // FeasibilityDate legitimately precedes StartYear (the study finishes before the
+                // program starts), so that comparison direction doesn't fit this field either.
                 if (details.Feasibility.Trim().Equals("YES", StringComparison.OrdinalIgnoreCase))
                 {
                     if (string.IsNullOrWhiteSpace(details.FeasibilityDate))
@@ -473,7 +518,9 @@ namespace Hangfire.Importing
                 // Same parity rule as Feasibility Date above, matching the main app's *intended*
                 // behavior (ProjectHelper.cs has a pre-existing bug where its own "required" guard
                 // for this field never fires — left untouched per direction; this validator
-                // enforces the rule correctly rather than reproducing that bug).
+                // enforces the rule correctly rather than reproducing that bug). Same "compare
+                // against today, confirmed live against the real Add Project form" reasoning as
+                // Feasibility Date above for the date-window check itself.
                 if (details.DetailedDesign.Trim().Equals("YES", StringComparison.OrdinalIgnoreCase))
                 {
                     if (string.IsNullOrWhiteSpace(details.DetailedDesignDate))
@@ -571,6 +618,16 @@ namespace Hangfire.Importing
             {
                 v.Fail("Amount must be greater than zero");
             }
+            // A value can parse fine as a decimal but still exceed the destination column's
+            // SQL precision — catch that here instead of letting SaveChangesAsync crash the job.
+            else if (amountValue > MaxDecimal18_5)
+            {
+                v.Fail("Amount exceeds the maximum allowed value");
+            }
+            else if (ExceedsDecimal18_5Scale(amountValue))
+            {
+                v.Fail("Amount has more than 5 decimal places, exceeding the allowed precision");
+            }
             details.ErrorMessage = v.Message;
             if (v.IsValid)
             {
@@ -584,7 +641,59 @@ namespace Hangfire.Importing
         #region Validation - Component Details
         public class ValidateComponentDetailsResponse : ValidationResponse
         { }
-        public static ValidateComponentDetailsResponse ValidateComponentDetails(this MYPSDbContext _db, ImportComponentDetailsExcel details, List<ImportComponentDetailsExcel> componentCosts, ImportLookupCache cache, int programStartYear)
+        // Builds the ProjectId+ComponentId -> summed Cost lookup consumed by the group-total
+        // overflow check below, PLUS a per-row cache of ValidateComponentDetailsCore's own result
+        // (keyed by row reference) so ValidateComponentDetails can reuse it instead of re-running
+        // the same Component Type/ComponentId-format/duplicate-scan logic a second time for the
+        // same row — that scan is itself O(componentCosts.Count), so recomputing it per row would
+        // double the O(N^2) cost of validating a large file. Only sums rows that pass
+        // ValidateComponentDetailsCore into the group total — a row that will be rejected for an
+        // unrelated reason (bad ComponentType, bad ComponentId, a duplicate, etc.) is never
+        // actually persisted (RunImportAsync only sums ValidComponentDetails+WarningComponentDetails
+        // into tProjectComponentCost.Total), so it must not count toward whether some OTHER,
+        // genuinely valid row in the same group gets wrongly flagged as exceeding the max.
+        public static (Dictionary<string, decimal> GroupTotals, Dictionary<ImportComponentDetailsExcel, ComponentDetailsCoreResult> CoreByRow)
+            BuildComponentCostGroupTotals(List<ImportComponentDetailsExcel> componentCosts, ImportLookupCache cache, int programStartYear)
+        {
+            var totals = new Dictionary<string, decimal>();
+            var coreByRow = new Dictionary<ImportComponentDetailsExcel, ComponentDetailsCoreResult>();
+            foreach (var group in componentCosts.GroupBy(x => ComponentCostGroupKey(x.ProjectId, x.ComponentId)))
+            {
+                decimal total = 0m;
+                foreach (var row in group)
+                {
+                    var core = ValidateComponentDetailsCore(row, componentCosts, cache, programStartYear);
+                    coreByRow[row] = core;
+                    if (core.State.IsValid)
+                        total += core.Cost;
+                }
+                totals[group.Key] = total;
+            }
+            return (totals, coreByRow);
+        }
+
+        private static string ComponentCostGroupKey(string? projectId, string? componentId)
+            => (projectId ?? string.Empty) + "|" + (componentId?.Trim() ?? string.Empty).ToUpperInvariant();
+
+        // Bundles ValidateComponentDetailsCore's full verdict: not just Pass/Fail, but every value
+        // the outer ValidateComponentDetails needs to finish the row on success (Cost/ScopeOfWorkEnum/
+        // InfraTypeInfraCode) — anything less than the FULL "would this row actually be persisted"
+        // verdict here would let a row failing for a reason Core doesn't check (previously: InfraType/
+        // WorkType/ActiveYear/dates) still count toward BuildComponentCostGroupTotals's group sum.
+        public sealed class ComponentDetailsCoreResult
+        {
+            public required ValidationState State { get; init; }
+            public decimal Cost { get; init; }
+            public int? ScopeOfWorkEnum { get; init; }
+            public string? InfraTypeInfraCode { get; init; }
+        }
+
+        // Everything ValidateComponentDetails checks EXCEPT the group-cost-total overflow check
+        // itself (which needs this method's own pass/fail verdict to have already excluded
+        // non-qualifying rows from the group sum in BuildComponentCostGroupTotals — see that
+        // method's comment). This IS the full "would this row actually be persisted" determination,
+        // so every check that can Fail the row belongs here, not in the outer method.
+        private static ComponentDetailsCoreResult ValidateComponentDetailsCore(ImportComponentDetailsExcel details, List<ImportComponentDetailsExcel> componentCosts, ImportLookupCache cache, int programStartYear)
         {
             var v = new ValidationState();
 
@@ -661,8 +770,7 @@ namespace Hangfire.Importing
                     v.Fail($"Duplicate Component ID '{componentId}' for Year '{details.ActiveYear}' within Project '{details.ProjectId}'");
                 }
             }
-            decimal costValue;
-            bool isValidCost = decimal.TryParse(details.Cost, NumberStyles.Currency, CultureInfo.GetCultureInfo("en-PH"), out costValue);
+            bool isValidCost = decimal.TryParse(details.Cost, NumberStyles.Currency, CultureInfo.GetCultureInfo("en-PH"), out var costValue);
             if (!isValidCost)
             {
                 v.Fail("Incorrect Cost");
@@ -674,6 +782,17 @@ namespace Hangfire.Importing
             {
                 v.Fail("Cost must be at least 1");
             }
+            // A value can parse fine as a decimal but still exceed the destination column's
+            // SQL precision — catch that here instead of letting SaveChangesAsync crash the job.
+            else if (costValue > MaxDecimal18_5)
+            {
+                v.Fail("Cost exceeds the maximum allowed value");
+            }
+            else if (ExceedsDecimal18_5Scale(costValue))
+            {
+                v.Fail("Cost has more than 5 decimal places, exceeding the allowed precision");
+            }
+
             DateTime? startDateValue = null, endDateValue = null;
             if (!string.IsNullOrWhiteSpace(details.StartDate))
             {
@@ -699,13 +818,22 @@ namespace Hangfire.Importing
                     endDateValue = parsedEndDate;
                 }
             }
-            var InfraType = cache.InfraTypes.FirstOrDefault(x => NamesMatch(x.InfraName, details.InfraType));
-            if (InfraType == null)
+            // Component types with no physical infrastructure attributes (administrative overhead,
+            // consultancy, studies, lump-sum, etc. — see NonPhysicalComponentTypeIds) never have an
+            // Infrastructure Type/Type of Work: nothing in the DB stores it for them (that data only
+            // ever lives on a Major Work Item sharing this ComponentId, and these types are the same
+            // ones ImportErrorWorkbookBuilder.cs's client-side macro already knows never get one), so
+            // requiring it here would hard-Fail every real row of these types — including a faithful
+            // ExportProjects round-trip of already-valid data, which has nothing else to offer.
+            bool infraTypeExempt = Component != null && NonPhysicalComponentTypeIds.Contains(Component.ComponentId);
+
+            var InfraType = infraTypeExempt ? null : cache.InfraTypes.FirstOrDefault(x => NamesMatch(x.InfraName, details.InfraType));
+            if (InfraType == null && !infraTypeExempt)
             {
                 v.Fail("Incorrect Infrastructure Type");
             }
-            var ScopeOfWork = cache.ScopeOfWorks.Where(x => NamesMatch(x.Description, details.WorkTypeId)).ToList();
-            if (ScopeOfWork.Count == 0)
+            var ScopeOfWork = infraTypeExempt ? new List<DBHelper.Models.Table.Lookups.OptionScopeOfWork>() : cache.ScopeOfWorks.Where(x => NamesMatch(x.Description, details.WorkTypeId)).ToList();
+            if (ScopeOfWork.Count == 0 && !infraTypeExempt)
             {
                 v.Fail("Incorrect Work Type");
             }
@@ -756,12 +884,47 @@ namespace Hangfire.Importing
                     v.Warn("Planned End Date cannot be earlier than the Active Year");
                 }
             }
+
+            return new ComponentDetailsCoreResult { State = v, Cost = costValue, ScopeOfWorkEnum = ScopeOfWorkEnum, InfraTypeInfraCode = InfraType?.InfraCode };
+        }
+
+        public static ValidateComponentDetailsResponse ValidateComponentDetails(this MYPSDbContext _db, ImportComponentDetailsExcel details, List<ImportComponentDetailsExcel> componentCosts, ImportLookupCache cache, int programStartYear,
+            (Dictionary<string, decimal> GroupTotals, Dictionary<ImportComponentDetailsExcel, ComponentDetailsCoreResult> CoreByRow) componentCostContext)
+        {
+            // Reuses the full verdict BuildComponentCostGroupTotals already computed for this exact
+            // row (same reference, from the same componentCosts list) instead of re-running
+            // ValidateComponentDetailsCore's Component Type/ComponentId/InfraType/WorkType/duplicate
+            // scan a second time. Falls back to computing it directly only if the cache is somehow
+            // missing this row (shouldn't happen when called with the list BuildComponentCostGroupTotals
+            // was built from, but keeps this method correct even if it's ever called standalone).
+            var core = componentCostContext.CoreByRow.TryGetValue(details, out var cached)
+                ? cached
+                : ValidateComponentDetailsCore(details, componentCosts, cache, programStartYear);
+            var v = core.State;
+
+            if (v.IsValid)
+            {
+                // RunImportAsync rolls every year-row sharing this ProjectId+ComponentId into
+                // one tProjectComponentCost.Total (ExistingComponentCost.Total += ...), so several
+                // rows that are each individually within range can still overflow decimal(18,5)
+                // once summed. Mirrors the duplicate-ComponentId check above (same componentCosts
+                // list, same ProjectId+ComponentId grouping) but across all years instead of one.
+                string groupComponentId = details.ComponentId?.Trim() ?? string.Empty;
+                decimal groupCostTotal = componentCostContext.GroupTotals.TryGetValue(
+                    ComponentCostGroupKey(details.ProjectId, details.ComponentId), out var total) ? total : core.Cost;
+
+                if (groupCostTotal > MaxDecimal18_5)
+                {
+                    v.Fail($"Total Cost for Component '{groupComponentId}' across all its year rows exceeds the maximum allowed value");
+                }
+            }
+
             details.ErrorMessage = v.Message;
             if (v.IsValid)
             {
-                details.Cost = costValue.ToString();
-                details.ScopeOfWorkEnum = ScopeOfWorkEnum; // tProjectMajorWorkItem.WorkTypeFK
-                details.InfraTypeInfraCode = InfraType.InfraCode; // tProjectMajorWorkItem.InfraTypeFK
+                details.Cost = core.Cost.ToString();
+                details.ScopeOfWorkEnum = core.ScopeOfWorkEnum; // tProjectMajorWorkItem.WorkTypeFK
+                details.InfraTypeInfraCode = core.InfraTypeInfraCode; // tProjectMajorWorkItem.InfraTypeFK
             }
             return new ValidateComponentDetailsResponse { IsValid = v.IsValid, Message = v.Message, IsWarning = v.IsWarning };
         }
@@ -788,10 +951,41 @@ namespace Hangfire.Importing
             {
                 v.Fail("Incorrect Infrastructure ID");
             }
-            else if (Component != null && InfraTypePrefixes.TryGetValue(Component.InfraType ?? string.Empty, out var expectedInfraPrefix)
-                && !details.InfrastructureId.Trim().StartsWith(expectedInfraPrefix, StringComparison.OrdinalIgnoreCase))
+            else if (Component != null)
             {
-                v.Fail($"Infrastructure ID '{details.InfrastructureId}' does not match the expected '{expectedInfraPrefix}' prefix for Infrastructure Type '{Component.InfraType}'");
+                // InfraNameToCode (built from AllInfraTypes, not IsActive-filtered InfraTypes) —
+                // an Infrastructure ID's required prefix format doesn't depend on whether its type
+                // is currently active; that's a separate rule already enforced elsewhere
+                // (ValidateComponentDetails' "Incorrect Infrastructure Type" check). Dictionary
+                // lookup instead of a per-row FirstOrDefault scan, since this runs once per
+                // MajorItemsOfWork row.
+                var infraCode = Component.InfraType != null
+                    && cache.InfraNameToCode.TryGetValue(Component.InfraType.Trim(), out var resolvedInfraCode)
+                        ? resolvedInfraCode
+                        : null;
+                // Roads/Bridges (InfraCode "R"/"B") are National types selected from RBIA's own
+                // inventory rather than auto-generated — FE/src/utils/infraIdGenerator.ts's
+                // shouldAutoGenerateInfraId() returns false for these two, so getInfraTypePrefix()
+                // (and its 'r':'RD'/'b':'BR' entries) is never actually invoked for them. Hardcoded
+                // here instead, confirmed against real location data: Roads IDs are RBIA Road
+                // Section IDs ("S..."), Bridges IDs are RBIA Bridge IDs ("B..."). Every other
+                // type's expected prefix comes from InfraCodeToAutoGeneratedPrefix, NOT the raw
+                // InfraCode — mirroring getInfraTypePrefix()'s "Short InfraCodes (from JSON
+                // InfraTypes)" map exactly, since that function is what actually assigns real
+                // Infrastructure IDs for these types when a user adds a Work Location in the main
+                // app.
+                var expectedInfraPrefix = NamesMatch(Component.InfraType, "Roads")
+                    ? "S"
+                    : NamesMatch(Component.InfraType, "Bridges")
+                        ? "B"
+                        : infraCode != null && InfraCodeToAutoGeneratedPrefix.TryGetValue(infraCode, out var mappedPrefix)
+                            ? mappedPrefix
+                            : null;
+                if (expectedInfraPrefix != null
+                    && !details.InfrastructureId.Trim().StartsWith(expectedInfraPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    v.Fail($"Infrastructure ID '{details.InfrastructureId}' does not match the expected '{expectedInfraPrefix}' prefix for Infrastructure Type '{Component.InfraType}'");
+                }
             }
 
             // ── Special case: Roads items whose Infrastructure ID starts with 'S', and
@@ -1056,30 +1250,28 @@ namespace Hangfire.Importing
             // retained and updated in place — its Id/ProjectId are preserved, not regenerated.
             public bool IsNewRevision { get; set; } = true;
         }
-        public static async Task<SaveProjectResponse> SaveProjectDetails(this MYPSDbContext _db, DBHelper.Models.Functions.Program.ProgramDetails ProgramDetails, ImportProjectDetailsExcel details, List<ImportProjectReference> Saved, CancellationToken cancellationToken)
+        public static async Task<SaveProjectResponse> SaveProjectDetails(this MYPSDbContext _db, DBHelper.Models.Functions.Program.ProgramDetails ProgramDetails, ImportProjectDetailsExcel details, List<ImportProjectReference> Saved, ProjectIdentityResolver resolver, CancellationToken cancellationToken)
         {
             string ProgramFK = ProgramDetails.ProgramPK;
             string ProgramId = ProgramDetails.ProgramId;
 
-            // ── Look for an existing revision under THIS exact Program + Stage, keyed by the
-            // excel ProjectId (AlternateId). If found, it's retained and updated in place —
-            // its Id and ProjectId are preserved rather than soft-deleted and recreated. Only
-            // the tables underneath it (funding profile, component cost, etc.) get replaced.
-            var StageMatches = await (
-                from ps in _db.tProjectStages
-                join rev in _db.tProjectRevisions on ps.RevisionId equals rev.Id
-                where ps.ProgramFK == ProgramFK
-                   && ps.StageName == ProgramDetails.StageName
-                   && rev.AlternateId == details.ProjectId
-                select new { Stage = ps, Revision = rev }
-            ).ToListAsync(cancellationToken);
+            // Identity resolution (AlternateId, or a no-AlternateId project's own ProjectFK
+            // fallback) is computed once per RunImportAsync call and shared via resolver instead
+            // of this method re-querying the DB per row — see ProjectIdentityResolver.cs. Ambiguous
+            // is a genuine third outcome here: the pre-checks in RunImportAsync (ImportProjectJobService.cs)
+            // already disregard/reject any ambiguous row before it reaches this method, so this
+            // throw should be unreachable in practice — kept as a safety net, not the primary guard.
+            var outcome = resolver.Resolve(details.ProjectId, out var resolvedProjectFK);
 
-            if (StageMatches.Count > 1)
+            if (outcome == MatchOutcome.Ambiguous)
             {
                 throw new InvalidOperationException(
-                    $"Ambiguous ProjectId '{details.ProjectId}' under Program '{ProgramFK}' / Stage '{ProgramDetails.StageName}': matches {StageMatches.Count} existing revisions. Reconcile the data before this row can be imported.");
+                    $"Ambiguous ProjectId '{details.ProjectId}' under Program '{ProgramFK}': matches multiple existing projects. Reconcile the data before this row can be imported.");
             }
 
+            // If found, it's retained and updated in place — its Id and ProjectId are preserved
+            // rather than soft-deleted and recreated. Only the tables underneath it (funding
+            // profile, component cost, etc.) get replaced.
             string ProjectPK;
             bool IsNewProject;
             bool IsNewRevision;
@@ -1087,10 +1279,11 @@ namespace Hangfire.Importing
             DBHelper.Models.Table.Project.ProjectStages ProjectStage;
             DBHelper.Models.Table.Project.ProjectRevisions ProjectRevision;
 
-            if (StageMatches.Count == 1)
+            if (outcome == MatchOutcome.Found
+                && resolver.CurrentStageRevisionByProjectFK.TryGetValue(resolvedProjectFK!, out var stageMatch))
             {
                 // ── Retain: same revision row (same Id, same ProjectId) gets updated in place ──
-                ProjectPK = StageMatches[0].Revision.ProjectFK;
+                ProjectPK = stageMatch.Revision.ProjectFK;
                 IsNewProject = false;
                 IsNewRevision = false;
 
@@ -1099,27 +1292,23 @@ namespace Hangfire.Importing
                 NewProject.MYId = details.MYId;
                 NewProject.ProjectType = details.RegionIslandCode!;
 
-                ProjectStage = StageMatches[0].Stage;       // tracked, already points at this revision
-                ProjectRevision = StageMatches[0].Revision; // tracked — fields refreshed below
+                ProjectStage = stageMatch.Stage;       // tracked, already points at this revision
+                ProjectRevision = stageMatch.Revision; // tracked — fields refreshed below
+
+                // Self-heal: this row was matched via the ProjectFK fallback above (its
+                // AlternateId was null), so it now permanently gains a real AlternateId — every
+                // future Import/Update for this project matches it the normal way from here on.
+                if (string.IsNullOrEmpty(ProjectRevision.AlternateId))
+                {
+                    ProjectRevision.AlternateId = details.ProjectId;
+                }
             }
             else
             {
                 // No revision under this Program+Stage yet. The project itself might still exist
                 // (e.g. this ProjectId was previously imported under a different Stage) — reuse
                 // its ProjectPK, but this Stage needs its own brand-new revision + stage row.
-                var OtherProjectFKs = await _db.tProjectRevisions
-                    .Where(x => x.ProgramFK == ProgramFK && x.AlternateId == details.ProjectId)
-                    .Select(x => x.ProjectFK)
-                    .Distinct()
-                    .ToListAsync(cancellationToken);
-
-                if (OtherProjectFKs.Count > 1)
-                {
-                    throw new InvalidOperationException(
-                        $"Ambiguous ProjectId '{details.ProjectId}' under Program '{ProgramFK}': matches {OtherProjectFKs.Count} different existing projects ({string.Join(", ", OtherProjectFKs)}). Reconcile the data before this row can be imported.");
-                }
-
-                IsNewProject = OtherProjectFKs.Count == 0;
+                IsNewProject = outcome != MatchOutcome.Found;
                 IsNewRevision = true;
 
                 if (IsNewProject)
@@ -1151,7 +1340,7 @@ namespace Hangfire.Importing
                 }
                 else
                 {
-                    ProjectPK = OtherProjectFKs[0];
+                    ProjectPK = resolvedProjectFK!;
                     NewProject = await _db.tProjects.FirstAsync(x => x.ProjectPK == ProjectPK, cancellationToken);
                     NewProject.ExternalId = details.ExternalId;
                     NewProject.MYId = details.MYId;
@@ -1297,8 +1486,12 @@ namespace Hangfire.Importing
         public static SaveMajorWorkItemResponse SaveMajorItemsOfWork(this MYPSDbContext _db, ImportMajorItemsOfWorkExcel details, ImportComponentReference ComponentRef)
         {
             int NewComponentId = ComponentRef.NewComponentId;
-            int WorkTypeFK = ComponentRef.WorkTypeFK;
-            string InfraTypeFK = ComponentRef.InfraTypeFK;
+            // Non-null here is guaranteed by ValidateMajorItemsOfWork: a row referencing a
+            // NonPhysicalComponentTypeIds-exempt component (blank WorkTypeId) fails validation
+            // before it can reach this save step, so only components with a resolved
+            // ScopeOfWorkEnum/InfraTypeInfraCode ever get here.
+            int WorkTypeFK = ComponentRef.WorkTypeFK!.Value;
+            string InfraTypeFK = ComponentRef.InfraTypeFK!;
 
             var MajorWorkItemProfile = new DBHelper.Models.Table.Project.ProjectMajorWorkItem
             {
@@ -1448,13 +1641,14 @@ namespace Hangfire.Importing
         /// <summary>
         /// Soft-deletes only the tables hanging off a project's revision — funding profile,
         /// component cost, component cost per year, major work items, major work locations —
-        /// for a given Program + Stage, scoped ONLY to the ProjectIds present in the current
-        /// excel import. tProjectRevisions itself is NOT soft-deleted: SaveProjectDetails
+        /// scoped ONLY to the ProjectIds present in the current excel import, resolved against
+        /// the given resolver's Program+Stage (see ProjectIdentityResolver.cs). tProjectRevisions
+        /// itself is NOT soft-deleted: SaveProjectDetails
         /// retains and updates that row in place (same Id, same ProjectId) instead of replacing
         /// it, so its history/identity stays intact across Update runs. tProjects and
         /// tProjectStages are likewise untouched — reused, never orphaned.
         /// </summary>
-        public static async Task<int> SoftDeleteProjectsByProgramStage(this MYPSDbContext _db, string ProgramFK, string StageName, List<string> ProjectIds, string UpdatedBy, CancellationToken cancellationToken)
+        public static async Task<int> SoftDeleteProjectsByProgramStage(this MYPSDbContext _db, List<string> ProjectIds, ProjectIdentityResolver resolver, string UpdatedBy, CancellationToken cancellationToken)
         {
             var DistinctProjectIds = (ProjectIds ?? new List<string>())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -1463,16 +1657,22 @@ namespace Hangfire.Importing
 
             if (DistinctProjectIds.Count == 0) return 0;
 
-            // ── Resolve the exact revisions to touch via LINQ (safely parameterized IN clause,
-            // no manual string-building needed since AlternateId is free-text) ──
-            var RevisionIds = await (
-                from ps in _db.tProjectStages
-                join rev in _db.tProjectRevisions on ps.RevisionId equals rev.Id
-                where ps.ProgramFK == ProgramFK
-                   && ps.StageName == StageName
-                   && DistinctProjectIds.Contains(rev.AlternateId)
-                select rev.Id
-            ).Distinct().ToListAsync(cancellationToken);
+            // Resolved via the shared resolver (built once in RunImportAsync) instead of its own
+            // query — same fallback-matching rule (AlternateId, or a no-AlternateId project's own
+            // ProjectFK) as SaveProjectDetails. This runs BEFORE the save loop's self-heal, but the
+            // resolver's maps were built before that too, from the same pre-loop DB snapshot, so
+            // a project's first fallback-matched Update is still found correctly here; without
+            // that, its pre-existing children would never get soft-deleted and the save loop would
+            // insert a second, duplicate set alongside them.
+            var RevisionIds = DistinctProjectIds
+                .Select(id => resolver.Resolve(id, out var fk) == MatchOutcome.Found
+                           && resolver.CurrentStageRevisionByProjectFK.TryGetValue(fk!, out var match)
+                    ? match.Revision.Id
+                    : (int?)null)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
 
             if (RevisionIds.Count == 0) return 0;
 
