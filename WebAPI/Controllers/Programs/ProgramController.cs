@@ -236,6 +236,13 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid.", Title = "Invalid Type" });
                 }
+                // 2026-09-05: [Required] on a non-nullable int is a no-op (a value type can never
+                // be "missing"), so YearStart previously accepted 0, negative, or any arbitrary
+                // year with no check at all.
+                if (dto.YearStart < Functions.CurrentDate().Year)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Year Start '{dto.YearStart}' cannot be earlier than the current year ({Functions.CurrentDate().Year}).", Title = "Invalid Year" });
+                }
                 // 2026-09-05: an empty array previously passed both checks below vacuously (an
                 // empty .Where() always yields zero invalid items), silently saving a program
                 // with no Data Security Group / UserGroup at all. A program saved with a blank
@@ -2377,6 +2384,22 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                // 2026-09-05: aligned with its 3 sibling Batch* actions (BatchRestrictPublish,
+                // BatchAllowPublish, BatchDelete), which all have these same guards -- this one
+                // previously had none, falling straight through to a DB lookup on a possibly-null
+                // dto or a generic, less-helpful error on a blank/whitespace-only ProjectIds.
+                if (dto == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Request data is required.", Title = "Invalid Request" });
+                }
+                if (string.IsNullOrWhiteSpace(dto.ProgramId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Program ID is required.", Title = "Invalid Program" });
+                }
+                if (string.IsNullOrWhiteSpace(dto.ProjectIds))
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one project ID is required.", Title = "No Projects Selected" });
+                }
                 DateTime CurrentDate = Functions.CurrentDate();
                 var checkProgram = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
@@ -2400,7 +2423,10 @@ namespace WebAPI.Controllers.Programs
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramRevisions = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
-                char[] delimiters = { ';', ',', '.', '&', ' ', '\n', '\r', '\t' };
+                // 2026-09-05: was { ';', ',', '.', '&', ' ', '\n', '\r', '\t' } -- the extra '.'
+                // and '&' were unique to this one action, a silent divergence from all 3 sibling
+                // Batch* actions. Aligned to the same delimiter set as its siblings.
+                char[] delimiters = { ';', ',', ' ', '\n', '\r', '\t' };
                 var projectIds = dto.ProjectIds
                     .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
