@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Text;
 using WebAPI.MicroService;
 
@@ -56,7 +57,11 @@ namespace WebAPI.Controllers.MockUps
                 {
                     EmployeeId = employee.EmployeeId,
                     UserId = UserId,
-                    Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
+                    // PIS returns names in ALL CAPS (e.g. "JOSE MONTILLO" / "PAJARON"). TextInfo.ToTitleCase
+                    // treats an already-all-uppercase word as an acronym and leaves it unchanged, so the
+                    // input must be lowercased first for it to actually title-case each word.
+                    Name = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(
+                        $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}".ToLowerInvariant()),
                     Email = "",
                     RegCode = (getRegCode != null) ? getRegCode.RegionParticipantId : $"{employee.CentralOrRegionId} (Not Exists)",
                     RegName = (getRegCode != null) ? getRegCode.RegionName : "",
@@ -106,7 +111,11 @@ namespace WebAPI.Controllers.MockUps
                 {
                     EmployeeId = employee.EmployeeId,
                     UserId = UserId,
-                    Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
+                    // PIS returns names in ALL CAPS (e.g. "JOSE MONTILLO" / "PAJARON"). TextInfo.ToTitleCase
+                    // treats an already-all-uppercase word as an acronym and leaves it unchanged, so the
+                    // input must be lowercased first for it to actually title-case each word.
+                    Name = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(
+                        $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}".ToLowerInvariant()),
                     Email = "",
                     RegCode = (getRegCode != null) ? getRegCode.RegionParticipantId : $"{employee.CentralOrRegionId} (Not Exists)",
                     RegName = (getRegCode != null) ? getRegCode.RegionName : "",
