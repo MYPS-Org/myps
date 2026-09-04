@@ -52,7 +52,6 @@ namespace WebAPI.Controllers.GlobalSearch
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Search([FromBody] SearchDTO dto, CancellationToken cancellationToken)
         {
