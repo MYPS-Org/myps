@@ -41,7 +41,23 @@ namespace Helpers
 
             using (var client = new HttpClient(handler))
             {
-                using (var response = await client.SendAsync(request.ToHttpRequest()))
+                HttpResponseMessage response;
+                try
+                {
+                    response = await client.SendAsync(request.ToHttpRequest());
+                }
+                catch (Exception ex)
+                {
+                    // 2026-09-04: a network/TLS-level failure (e.g. a broken certificate chain)
+                    // throws here, before there's any HttpResponseMessage to log a body from --
+                    // previously this reached the caller's generic exception handler with zero
+                    // context from APIRequest itself about which PIS call/host was involved.
+                    // Re-thrown unchanged so callers keep seeing the original exception type and
+                    // stack trace; this only adds a log line, it doesn't swallow or reshape it.
+                    Console.WriteLine($"[ERROR] APIRequest.XML: network/TLS failure calling {request.RequestUri}. {ex}");
+                    throw;
+                }
+                using (response)
                 {
                     // 2026-09-04: previously only logged response.ToString() (status/headers) or
                     // the exception object -- the response BODY, where a SOAP fault's actual detail
