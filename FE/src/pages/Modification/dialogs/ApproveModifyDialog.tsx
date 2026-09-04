@@ -38,6 +38,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
     const { user } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const { file: approvalDocument, handleFileChange } = usePdfUpload();
+    const [isCertified, setIsCertified] = useState<boolean>(false);
     const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
 
     // CO (AUC) approval requires an approval document; RO (RPC) approval does not.
@@ -48,6 +49,14 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
             showToast({
                 type: 'error',
                 message: 'Please upload the CO approval document.'
+            });
+            return;
+        }
+
+        if (isCentralOffice && !isCertified) {
+            showToast({
+                type: 'error',
+                message: 'Please certify that the attached document is accurate and aligned with the revisions.'
             });
             return;
         }
@@ -122,7 +131,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                             </p>
                             <p className="text-sm text-green-700 mt-2">
                                 {isCentralOffice
-                                    ? 'This will finalize the approval and publish changes to MYPS, PCMA, and other applications.'
+                                    ? 'The proposed revisions will be applied and subsequently published to PCMA.'
                                     : 'This will forward the project to the Central Office (CO) for final approval.'}
                             </p>
                         </div>
@@ -169,7 +178,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                         {isCentralOffice && (
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-gray-700">
-                                    *CO Approval Document (PDF only)
+                                    *Approval Document (PDF only)
                                 </label>
                                 <div className="relative">
                                     <div className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
@@ -201,6 +210,24 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                                 </div>
                             </div>
                         )}
+
+                        {/* Certification Checkbox - required for Central Office (AUC) approval only */}
+                        {isCentralOffice && approvalDocument && (
+                            <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={isCertified}
+                                        onChange={(e) => setIsCertified(e.target.checked)}
+                                        disabled={isSubmitting}
+                                        className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    />
+                                    <span className="text-sm text-gray-700 flex-1">
+                                        I hereby certify that the attached approval document is accurate, complete, and aligned with the revisions being submitted for this project.
+                                    </span>
+                                </label>
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -209,7 +236,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                             type="button"
                             color="green"
                             onClick={handleApprove}
-                            disabled={isSubmitting || (isCentralOffice && !approvalDocument)}
+                            disabled={isSubmitting || (isCentralOffice && (!approvalDocument || !isCertified))}
                         >
                             {isCentralOffice
                                 ? (isSubmitting ? 'Approving...' : 'Approve Revision')

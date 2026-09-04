@@ -234,7 +234,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                         </div>
                         <div className='space-y-2'>
                             <label className='block text-sm font-medium text-gray-700'>
-                                *Approval Document (PDF only)
+                                *Documentary Requirement (PDF only)
                             </label>
                             <div className="relative">
                                 <div className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
