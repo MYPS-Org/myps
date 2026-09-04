@@ -65,15 +65,12 @@ namespace Hangfire.Importing
             public bool IsWarning { get; private set; } = false;
             public string Message { get; private set; } = string.Empty;
 
-            // Marks the record invalid (hard error) and appends the message.
             public void Fail(string message)
             {
                 IsValid = false;
                 Append(message);
             }
 
-            // Marks the record as having a warning (soft error) and appends the message.
-            // Does not affect IsValid — a record can carry warnings and still be valid.
             public void Warn(string message)
             {
                 IsWarning = true;
@@ -177,20 +174,11 @@ namespace Hangfire.Importing
 
         public static bool ValidateYear(string input, out int year)
         {
-            // 1. Ensure the input string converts cleanly to an integer
             if (!int.TryParse(input, out year))
             {
                 return false;
             }
-            // 2. Enforce only a generous upper sanity boundary. No lower bound here — a
-            // lower bound tied to "today's calendar year" would collide with (and pre-empt)
-            // the context-aware "cannot be earlier than the Program's Start Year" checks that
-            // already run right after every call site: a Program's own StartYear can legitimately
-            // predate the current year (verified against real data — e.g. a real Program with
-            // StartYear 2016 whose ComponentCostPerYear/MajorWorkItem rows are all dated 2016),
-            // and this function returning false for those years would block the more accurate
-            // check from ever running, rejecting perfectly legitimate historical data with a
-            // generic "Incorrect ... Year" message instead.
+
             int maxYear = Functions.CurrentDate().Year + 100;
 
             return year <= maxYear;
@@ -247,7 +235,7 @@ namespace Hangfire.Importing
             var Thrust = cache.Thrusts.FirstOrDefault(x => NamesMatch(x.ThrustDescription, details.Thrust));
             if (Thrust == null)
             {
-                v.Fail("Incorrect Thrust");
+                v.Fail("Incorrect Sub-Category");
             }
             // Mirrors the FE dropdown's own window rule (ProjectDetailsForm.tsx: ValidToDate === 0
             // means "no expiry"; otherwise only ValidFromDate < year < ValidToDate is selectable) —
@@ -255,10 +243,30 @@ namespace Hangfire.Importing
             // Program's StartYear rather than today's calendar year, for the same reason.
             else if (Thrust.ValidToDate != 0 && !(Thrust.ValidFromDate < programStartYear && Thrust.ValidToDate > programStartYear))
             {
-                v.Fail("Selected Thrust is no longer valid");
+                v.Fail("Selected Sub-Category is no longer valid");
             }
-            // Thrust<->Category relation check excluded for now, along with CategoryId itself
-            // (see OptionProjectThrustList.cs) — the column doesn't exist on the shared dev DB yet.
+            // Category<->Thrust relation, via tOptionProjectCategoryToPAPMap (CategoryId -> PAPKey).
+            // Only checked once Category and Thrust are each already individually valid above.
+            // A Category is treated as unrestricted (same as an explicit PAPKey = -1) whenever its
+            // mapping can't actually restrict anything: no rows for this CategoryId, an explicit
+            // -1 among them, or every mapped PAPKey is a dangling reference with no matching row in
+            // cache.Thrusts at all — safe-by-default so an incomplete/not-yet-populated mapping
+            // never silently locks out an entire Category.
+            else if (Category != null)
+            {
+                var mappedPAPKeys = cache.CategoryToPAPMap
+                    .Where(x => x.CategoryId == Category.CategoryId)
+                    .Select(x => x.PAPKey)
+                    .ToList();
+                bool unrestricted = mappedPAPKeys.Count == 0
+                    || mappedPAPKeys.Contains(-1)
+                    || !mappedPAPKeys.Any(k => cache.Thrusts.Any(t => t.PAPKey == k));
+
+                if (!unrestricted && !mappedPAPKeys.Contains(Thrust.PAPKey))
+                {
+                    v.Fail($"Selected Sub-Category '{details.Thrust}' is not valid for Category '{details.Category}'");
+                }
+            }
             if (string.IsNullOrWhiteSpace(details.Description))
             {
                 v.Fail("Required Description");
@@ -351,7 +359,7 @@ namespace Hangfire.Importing
                 var City = cache.Cities.FirstOrDefault(x => NamesMatch(x.Name, details.City));
                 if (City == null)
                 {
-                    v.Fail("Incorrect City");
+                    v.Fail("Incorrect City Municipality");
                 }
                 var Region = cache.Regions.FirstOrDefault(x => NamesMatch(x.Name, details.Region));
                 if (Region == null)
@@ -361,7 +369,7 @@ namespace Hangfire.Importing
                 var Deo = cache.DEOs.FirstOrDefault(x => NamesMatch(x.Name, details.DEO));
                 if (Deo == null)
                 {
-                    v.Fail("Incorrect DEO");
+                    v.Fail("Incorrect District Engineering Office");
                 }
                 var ImplementingOffice = cache.ImplementingOffices.FirstOrDefault(x => NamesMatch(x.Name, details.ImplementingOffice));
                 if (ImplementingOffice == null)
@@ -389,7 +397,7 @@ namespace Hangfire.Importing
                     var City = cache.Cities.FirstOrDefault(x => NamesMatch(x.Name, details.City) && x.ProvinceCode == Province.Code);
                     if (City == null)
                     {
-                        v.Fail("Incorrect City");
+                        v.Fail("Incorrect City Municipality");
                     }
 
                     var Region = cache.Regions.FirstOrDefault(x => NamesMatch(x.Name, details.Region) && x.ParticipantId == Province.RegionParticipantId);
@@ -401,7 +409,7 @@ namespace Hangfire.Importing
                     var Deo = cache.DEOs.FirstOrDefault(x => NamesMatch(x.Name, details.DEO) && x.ProvinceCode == Province.Code);
                     if (Deo == null)
                     {
-                        v.Fail("Incorrect DEO");
+                        v.Fail("Incorrect District Engineering Office");
                     }
 
                     if (Region != null && Deo != null)
@@ -437,7 +445,7 @@ namespace Hangfire.Importing
             var RegionWide = cache.RegionWides.FirstOrDefault(x => NamesMatch(x.Name, details.RegionWide));
             if (RegionWide == null)
             {
-                v.Fail("Incorrect Region Wide");
+                v.Fail("Incorrect Regionwide");
             }
             var Origin = cache.Origins.FirstOrDefault(x => NamesMatch(x.Name, details.Origin));
             if (Origin == null)
@@ -447,7 +455,7 @@ namespace Hangfire.Importing
             var Agency = cache.Agencies.FirstOrDefault(x => NamesMatch(x.Name, details.Agency));
             if (Agency == null)
             {
-                v.Fail("Incorrect Agency");
+                v.Fail("Incorrect Originating Agency");
             }
             var ImplementationMode = cache.ImplementationModes.FirstOrDefault(x => NamesMatch(x.Name, details.ImplementationMode));
             if (ImplementationMode == null)
@@ -1266,7 +1274,7 @@ namespace Hangfire.Importing
             if (outcome == MatchOutcome.Ambiguous)
             {
                 throw new InvalidOperationException(
-                    $"Ambiguous ProjectId '{details.ProjectId}' under Program '{ProgramFK}': matches multiple existing projects. Reconcile the data before this row can be imported.");
+                    $"Ambiguous Project ID '{details.ProjectId}' under Program '{ProgramFK}': matches multiple existing projects. Reconcile the data before this row can be imported.");
             }
 
             // If found, it's retained and updated in place — its Id and ProjectId are preserved
