@@ -66,14 +66,23 @@ namespace WebAPI.Controllers
                 bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
                     .Any(meta => meta is AllowAnonymousAttribute);
 
-                bool IsAuthenticated = (HttpContext.User.Identity != null) ? HttpContext.User.Identity.IsAuthenticated : true;
                 /*
                     DPC: macatangayac
                     RPC: olegalml
                     AUC: jimeneznr
                  */
                 string userId = User.FindFirstValue(ClaimTypes.NameIdentifier);// ?? "jimeneznr";
-                if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
+                // Fixed 2026-09-04: this used to be `if (!hasAllowAnonymous || IsAuthenticated ||
+                // !string.IsNullOrEmpty(userId))` -- which does NOT mean "skip for [AllowAnonymous]
+                // actions". It only skipped for a caller with zero cookie/claims at all. A caller
+                // hitting Login/Logout (both [AllowAnonymous]) while still carrying a
+                // stale-but-cookie-valid session (deactivated account, deleted vUsers row) still ran
+                // this block, failed the vUsers lookup below, and got bounced with "session has
+                // expired" -- before Login's own body ever executed, and before Logout could even
+                // clear the bad cookie. Matches the correct pattern AuthorizeSessionAttribute.cs's
+                // PermissionFilter already uses: unconditionally skip re-resolution for
+                // [AllowAnonymous] actions.
+                if (!hasAllowAnonymous)
                 {
                     var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
                     if(user == null)

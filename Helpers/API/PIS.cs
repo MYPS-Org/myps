@@ -2,6 +2,7 @@ using DBHelper.Models.Extra;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Net.Http.Headers;
+using System.Security;
 using System.Xml.Linq;
 
 namespace Helpers.API
@@ -18,14 +19,17 @@ namespace Helpers.API
         protected override string SoapAction => "\"https://www.dpwh.gov.ph/pis_get_employee\"";
         internal override string RequestUri => Appsetting.PIS.Host;
 
+        // 2026-09-04: values interpolated into a SOAP body must be XML-escaped -- a raw
+        // '&'/'<'/'>' in any of these (e.g. a password) produces malformed XML, a SOAP fault, and
+        // an undiagnosable failure downstream in APIRequest.XML.
         protected override string GetSoapHeader()
         => $@"<UserDetails xmlns=""https://www.dpwh.gov.ph/"">
-                        <userName>{Appsetting.PIS.userName}</userName>
-                        <password>{Appsetting.PIS.password}</password>
+                        <userName>{SecurityElement.Escape(Appsetting.PIS.userName)}</userName>
+                        <password>{SecurityElement.Escape(Appsetting.PIS.password)}</password>
                     </UserDetails>";
         protected override string GetSoapBody()
             => $@"<pis_get_employee xmlns=""https://www.dpwh.gov.ph/"">
-                        <employee_id>{_employeeId}</employee_id>
+                        <employee_id>{SecurityElement.Escape(_employeeId)}</employee_id>
                     </pis_get_employee>";
 
         internal override async Task<EmployeeResponse> ReadResponseContent(HttpContent responseContent)
@@ -78,10 +82,11 @@ namespace Helpers.API
         internal override string RequestUri => Appsetting.PIS.Login;//Appsetting.PIS.Host;
 
         protected override string GetSoapHeader() => string.Empty;
+        // 2026-09-04: XML-escape both values -- see GetUserInfoPIS's GetSoapHeader comment above.
         protected override string GetSoapBody()
             => $@"<ad_validate_login xmlns=""https://www.dpwh.gov.ph/"">
-                        <networkid>{_employeeId}</networkid>
-                        <pw>{_password}</pw>
+                        <networkid>{SecurityElement.Escape(_employeeId)}</networkid>
+                        <pw>{SecurityElement.Escape(_password)}</pw>
                     </ad_validate_login>";
 
         internal override async Task<string> ReadResponseContent(HttpContent responseContent)

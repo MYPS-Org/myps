@@ -72,15 +72,23 @@ namespace Main
                         options.Cookie.SameSite = SameSiteMode.Lax; // cross-origin localhost
                         options.Cookie.SecurePolicy = CookieSecurePolicy.None; // allow HTTP
                     }
-                    else if (Appsetting.Environment == "Staging")
+                    else // Staging and Production
                     {
-                        options.Cookie.SameSite = SameSiteMode.Lax;  // same domain
+                        // 2026-09-04: Production previously had its own, stricter branch here
+                        // (SameSiteMode.Strict + CookieSecurePolicy.Always, HTTPS-only). That
+                        // requires the app to see the request as HTTPS -- but UseHttpsRedirection()
+                        // is commented out (Main/Program.cs) and no ForwardedHeaders middleware is
+                        // registered, so behind a reverse proxy terminating TLS the app sees plain
+                        // HTTP regardless of what the browser used, and CookieSecurePolicy.Always
+                        // silently drops the auth cookie -- a confirmed, plausible root cause of
+                        // production login failures presenting as "login succeeded, then bounced
+                        // back to /login". Rather than guess at unconfirmed reverse-proxy topology,
+                        // Production now uses the same policy as Staging (confirmed working):
+                        // SameAsRequest adapts to whatever scheme the request actually arrives as.
+                        // Revisit if Production's actual topology is later confirmed and
+                        // ForwardedHeaders/UseHttpsRedirection are properly configured instead.
+                        options.Cookie.SameSite = SameSiteMode.Lax;
                         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-                    }
-                    else // Production
-                    {
-                        options.Cookie.SameSite = SameSiteMode.Strict;
-                        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                     }
 
 
