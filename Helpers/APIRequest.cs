@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Net.Security;
 using System.Text.Json;
 
 namespace Helpers
@@ -37,6 +38,40 @@ namespace Helpers
                  */
                 handler.ServerCertificateCustomValidationCallback =
                     HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            }
+            else
+            {
+                // 2026-09-04: log full certificate-chain detail on a validation failure outside
+                // Development -- does NOT change the trust decision. Returns exactly what .NET's
+                // default validator would decide with no custom callback at all
+                // (sslPolicyErrors == None); this only adds logging on the way to that same
+                // decision, so a real chain failure still fails identically. Added after a
+                // PartialChain failure against apps.dpwh.gov.ph reached the generic exception
+                // handler with no chain detail, requiring a separate manual diagnostic to
+                // pinpoint which certificate was the problem.
+                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
+                {
+                    if (sslPolicyErrors != SslPolicyErrors.None)
+                    {
+                        Console.WriteLine($"[ERROR] APIRequest.XML: certificate validation failed for {request.RequestUri}. SslPolicyErrors: {sslPolicyErrors}");
+                        if (chain != null)
+                        {
+                            foreach (var status in chain.ChainStatus)
+                            {
+                                Console.WriteLine($"[ERROR] APIRequest.XML:   ChainStatus: {status.Status} - {status.StatusInformation}");
+                            }
+                            foreach (var element in chain.ChainElements)
+                            {
+                                Console.WriteLine($"[ERROR] APIRequest.XML:   Chain element: {element.Certificate.Subject} | Issuer: {element.Certificate.Issuer}");
+                                foreach (var elementStatus in element.ChainElementStatus)
+                                {
+                                    Console.WriteLine($"[ERROR] APIRequest.XML:     Element issue: {elementStatus.Status} - {elementStatus.StatusInformation}");
+                                }
+                            }
+                        }
+                    }
+                    return sslPolicyErrors == SslPolicyErrors.None;
+                };
             }
 
             using (var client = new HttpClient(handler))
