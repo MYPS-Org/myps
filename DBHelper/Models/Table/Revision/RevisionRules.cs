@@ -25,6 +25,6 @@ namespace DBHelper.Models.Table.Revision
         [MaxLength(1500)]
         public string Field { get; set; } = string.Empty;
         [Required]
-        public bool IsActive { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }
