@@ -70,7 +70,7 @@ const LoginForm: React.FC = () => {
 						maxLength={50}
 						disabled={isLoading}
 						className={`w-full !text-black rounded-lg px-4 py-3 focus:ring-2 focus:ring-violet-500 ${submitted && !credentials.UserName ? 'border-2 border-red-500 ring-2 ring-red-300' : 'border border-gray-200'}`}
-						placeholder="User ID, Employee ID, or Email"
+						placeholder="User ID"
 					/>
 					{submitted && !credentials.UserName && <p className="mt-1 text-xs text-red-500">Username is required</p>}
 					</div>
