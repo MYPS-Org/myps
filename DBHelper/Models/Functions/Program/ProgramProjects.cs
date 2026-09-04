@@ -30,42 +30,41 @@ namespace DBHelper.Models.Functions.Program
         [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
-        [Required]
-        public int Category { get; set; }
+        public int? Category { get; set; }
         [MaxLength(200)]
         public string? CategoryName { get; set; }
         [MaxLength(400)]
         public string? ThrustName { get; set; }
-        [Required]
-        public string Description { get; set; } = string.Empty;
-        [Required]
+        public string? Description { get; set; }
         [MaxLength(20)]
-        public string Region { get; set; } = string.Empty;
+        public string? Region { get; set; }
         [Required]
         [MaxLength(255)]
         public string OperatingUnitName { get; set; } = string.Empty;
-        [Required]
         [MaxLength(20)]
-        public string OperatingUnitParticipantId { get; set; } = string.Empty;
+        public string? OperatingUnitParticipantId { get; set; }
         [Required]
         [MaxLength(255)]
         public string ImplementingOfficeName { get; set; } = string.Empty;
-        [Required]
         [MaxLength(20)]
-        public string ImplementingOfficeParticipantId { get; set; } = string.Empty;
+        public string? ImplementingOfficeParticipantId { get; set; }
         [Required]
         [MaxLength(8)]
         public string Source { get; set; } = string.Empty;
-        public bool IsPublishable { get; set; } = false;
-        public bool IsPublished { get; set; } = false;
         [Required]
-        public DateTime CreatedDate { get; set; }
-        [MaxLength(200)]
-        public string? LastUpdatedBy { get; set; }
-        public DateTime? LastUpdatedDate { get; set; }
+        public bool IsPublishable { get; set; }
+        [Required]
+        public bool IsPublished { get; set; }
         [Required]
         [MaxLength(100)]
-        public string RevisionCreatedBy { get; set; } = string.Empty;
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? LastUpdatedBy { get; set; }
+        public DateTime? LastUpdatedDate { get; set; }
+        [MaxLength(100)]
+        public string? RevisionCreatedBy { get; set; }
         [Required]
         public DateTime RevisionCreatedDate { get; set; }
     }

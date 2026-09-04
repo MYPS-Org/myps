@@ -75,7 +75,8 @@ namespace WebAPI.Controllers.CodeTable
                         ReasonId = rule.ReasonId,
                         PCMA_Status = rule.PCMA_Status,
                         Package_Status = rule.Package_Status,
-                        Field = rule.Field
+                        Field = rule.Field,
+                        IsActive = rule.IsActive
                     })
                     .ToListAsync(cancellationToken);
                 var revisionDocuments = await _db.tOptionRevisionDocuments.AsNoTracking().ToListAsync(cancellationToken);

@@ -18,5 +18,6 @@ namespace DBHelper.Models.Views
         public string PCMA_Status { get; set; } = string.Empty;
         public string Package_Status { get; set; } = string.Empty;
         public string Field { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = true;
     }
 }
