@@ -156,6 +156,7 @@ namespace DBHelper.Data
         #region Lookups
         public DbSet<Models.Table.Lookups.Project.OptionProjectTier> tOptionProjectTier { get; set; }
         public DbSet<OptionProjectCategory> tOptionProjectCategory { get; set; }
+        public DbSet<OptionProjectCategoryToPAPMap> tOptionProjectCategoryToPAPMap { get; set; }
         public DbSet<Models.Table.Lookups.Project.OptionProjectThrustList> tOptionProjectThrustList { get; set; }
 
         public DbSet<OptionRegionWide> tOptionRegionWide { get; set; }
