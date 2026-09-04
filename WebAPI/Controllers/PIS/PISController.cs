@@ -63,8 +63,14 @@ namespace WebAPI.Controllers.MockUps
                     Name = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(
                         $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}".ToLowerInvariant()),
                     Email = "",
-                    RegCode = (getRegCode != null) ? getRegCode.RegionParticipantId : $"{employee.CentralOrRegionId} (Not Exists)",
-                    RegName = (getRegCode != null) ? getRegCode.RegionName : "",
+                    // 2026-09-04: OI10 (Central Office) and its divisions/boards/PMOs are real rows in
+                    // vAdminImplementingOffice, but their RegionParticipantId/RegionName are NULL at the
+                    // source -- Central Office isn't part of any of the 18 regions, only DEO/R rows are.
+                    // The old (getRegCode != null) check only caught a genuinely missing row, so a found
+                    // row with null Region fields fell through to null/blank instead of the
+                    // "(Not Exists)" fallback. Fall back to the office's own ParticipantId/Name instead.
+                    RegCode = (getRegCode != null) ? (getRegCode.RegionParticipantId ?? getRegCode.ParticipantId) : $"{employee.CentralOrRegionId} (Not Exists)",
+                    RegName = (getRegCode != null) ? (getRegCode.RegionName ?? getRegCode.Name) : "",
                     PlantillaOffice = (getPlantillaOffice != null) ? getPlantillaOffice.ParticipantId : $"{employee.PlantillaOfficeId} (Not Exists)",
                     PlantillaOfficeName = (getPlantillaOffice != null) ? getPlantillaOffice.Name : "",
                     IsActive = false
@@ -117,8 +123,14 @@ namespace WebAPI.Controllers.MockUps
                     Name = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(
                         $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}".ToLowerInvariant()),
                     Email = "",
-                    RegCode = (getRegCode != null) ? getRegCode.RegionParticipantId : $"{employee.CentralOrRegionId} (Not Exists)",
-                    RegName = (getRegCode != null) ? getRegCode.RegionName : "",
+                    // 2026-09-04: OI10 (Central Office) and its divisions/boards/PMOs are real rows in
+                    // vAdminImplementingOffice, but their RegionParticipantId/RegionName are NULL at the
+                    // source -- Central Office isn't part of any of the 18 regions, only DEO/R rows are.
+                    // The old (getRegCode != null) check only caught a genuinely missing row, so a found
+                    // row with null Region fields fell through to null/blank instead of the
+                    // "(Not Exists)" fallback. Fall back to the office's own ParticipantId/Name instead.
+                    RegCode = (getRegCode != null) ? (getRegCode.RegionParticipantId ?? getRegCode.ParticipantId) : $"{employee.CentralOrRegionId} (Not Exists)",
+                    RegName = (getRegCode != null) ? (getRegCode.RegionName ?? getRegCode.Name) : "",
                     PlantillaOffice = (getPlantillaOffice != null) ? getPlantillaOffice.ParticipantId : $"{employee.PlantillaOfficeId} (Not Exists)",
                     PlantillaOfficeName = (getPlantillaOffice != null) ? getPlantillaOffice.Name : "",
                     IsActive = false
