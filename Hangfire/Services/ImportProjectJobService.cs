@@ -113,6 +113,22 @@ namespace Hangfire.Services
             return letters;
         }
 
+        // Sanitizes a value for use as a filename component — same treatment every generated
+        // file's Program/Stage segment gets, so a stray invalid character can't produce a
+        // filename the filesystem rejects.
+        private static string SanitizeForFileName(string value)
+            => string.Join("_", value.Split(Path.GetInvalidFileNameChars()));
+
+        // Compact, sortable, human-readable file suffix: a "when this ran" timestamp plus a
+        // short slice of the job's GUID — not the full 32 characters, just enough to disambiguate
+        // two jobs for the same Program+Stage that happen to complete within the same second
+        // (seen in practice: concurrent Hangfire servers racing for the same job, see the
+        // Hangfire Queue Collision write-up). Replaces the previous filename scheme, which used
+        // the full raw JobId and, for the Import Report/Errors files, carried no Program/Stage
+        // context at all.
+        private static string BuildFileSuffix(string jobId, DateTime timestamp)
+            => $"{timestamp:yyyyMMdd-HHmmss}-{jobId.Substring(0, Math.Min(8, jobId.Length))}";
+
         // ── Fresh import: inserts new projects for a Program+Stage, nothing existing is touched ──
         [AutomaticRetry(Attempts = 0)]
         public Task ProcessImport(ImportProjectJobPayload payload, IJobCancellationToken jobCancellationToken)
@@ -190,9 +206,10 @@ namespace Hangfire.Services
                 var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Imports");
                 Directory.CreateDirectory(tempFolder);
 
-                var safeProgramId = string.Join("_", payload.ProgramId.Split(Path.GetInvalidFileNameChars()));
-                var safeStageName = string.Join("_", payload.StageName.Split(Path.GetInvalidFileNameChars()));
-                var excelFileName = $"{safeProgramId}_{safeStageName}_Projects_{payload.JobId}.xlsm";
+                var safeProgramId = SanitizeForFileName(payload.ProgramId);
+                var safeStageName = SanitizeForFileName(payload.StageName);
+                var completedAt = Functions.CurrentDate();
+                var excelFileName = $"{safeProgramId}_{safeStageName}_Projects_{BuildFileSuffix(payload.JobId, completedAt)}.xlsm";
 
                 await File.WriteAllBytesAsync(Path.Combine(tempFolder, excelFileName), bytes, jobCancellationToken.ShutdownToken);
 
@@ -200,7 +217,7 @@ namespace Hangfire.Services
                 jobRecord.Message = $"Projects exported: {exportData.ProjectDetails.Count}.";
                 jobRecord.ValidCount = exportData.ProjectDetails.Count;
                 jobRecord.ExcelFileName = excelFileName;
-                jobRecord.CompletedAt = Functions.CurrentDate();
+                jobRecord.CompletedAt = completedAt;
                 _db.tImportJobResult.Update(jobRecord);
                 await _db.SaveChangesAsync();
 
@@ -527,7 +544,7 @@ namespace Hangfire.Services
                     // saved (or saved with different data than the file's row implied). Shared by
                     // both Import and Update mode below (previously Import re-implemented this
                     // same cascade inline just for its own "already exists" rejection).
-                    void DisregardProjectRows(HashSet<string> ids, Func<ImportProjectDetailsExcel, string> messageFor, string childMessage = "Update: parent ProjectId was disregarded.")
+                    void DisregardProjectRows(HashSet<string> ids, Func<ImportProjectDetailsExcel, string> messageFor, string childMessage = "Update: parent Project ID was disregarded.")
                     {
                         if (ids.Count == 0) return;
 
@@ -663,13 +680,13 @@ namespace Hangfire.Services
                                 .Where(id => resolver.Resolve(id, out _) == MatchOutcome.NotFound),
                             StringComparer.OrdinalIgnoreCase);
 
-                        DisregardProjectRows(DisregardedIds, _ => "Update: ProjectId does not exist for this Program and was disregarded.");
+                        DisregardProjectRows(DisregardedIds, _ => "Update: Project ID does not exist for this Program and was disregarded.");
 
                         // DisregardProjectRows already filters its `ids` set against the current
                         // Valid/Warning lists internally, so AmbiguousProjectIds (the raw DB-derived
                         // set) can be passed directly — no need to re-intersect it against the file
                         // first.
-                        DisregardProjectRows(AmbiguousProjectIds, _ => "Update: ProjectId is ambiguous under this Program (matches multiple existing projects) and was disregarded.");
+                        DisregardProjectRows(AmbiguousProjectIds, _ => "Update: Project ID is ambiguous under this Program (matches multiple existing projects) and was disregarded.");
 
                         // ── Island conflict: a project's Island is permanently encoded in the last
                         // characters of its ProjectId (GenerateProjectID, ProjectHelper.cs) and is
@@ -748,8 +765,8 @@ namespace Hangfire.Services
                                 }),
                             StringComparer.OrdinalIgnoreCase);
 
-                        DisregardProjectRows(CollidingIds, _ => "Import: ProjectId already exists for this Program and Stage. Use Update instead.",
-                            childMessage: "Import: parent ProjectId already exists and was disregarded.");
+                        DisregardProjectRows(CollidingIds, _ => "Import: Project ID already exists for this Program and Stage. Use Update Function instead.",
+                            childMessage: "Import: parent Project ID already exists and was disregarded.");
                     }
 
                     jobCancellationToken.ThrowIfCancellationRequested();
@@ -976,8 +993,15 @@ namespace Hangfire.Services
                     var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Imports");
                     Directory.CreateDirectory(tempFolder);
 
-                    var textFileName = $"ImportReport_{payload.JobId}.txt";
-                    var excelFileName = $"ImportErrors_{payload.JobId}.xlsm";
+                    var safeProgramId = SanitizeForFileName(payload.ProgramId);
+                    var safeStageName = SanitizeForFileName(payload.StageName);
+                    // Computed once here and reused as jobRecord.CompletedAt below (moved earlier
+                    // than the post-commit point it was previously set at) so the filename and the
+                    // job record agree on the same completion timestamp — same as ProcessExport.
+                    var completedAt = Functions.CurrentDate();
+                    var fileSuffix = BuildFileSuffix(payload.JobId, completedAt);
+                    var textFileName = $"ImportReport_{safeProgramId}_{safeStageName}_{fileSuffix}.txt";
+                    var excelFileName = $"ImportErrors_{safeProgramId}_{safeStageName}_{fileSuffix}.xlsm";
 
                     // Text file
                     var textBytes = GenerateTextReport(
@@ -1014,7 +1038,7 @@ namespace Hangfire.Services
                     jobRecord.ErrorCount = ErrorProjectDetails.Count + ErrorFundingProfile.Count + ErrorComponentDetails.Count + ErrorMajorItemsOfWork.Count;
                     jobRecord.TextFileName = textFileName;
                     jobRecord.ExcelFileName = hasErrors ? excelFileName : string.Empty;
-                    jobRecord.CompletedAt = Functions.CurrentDate();
+                    jobRecord.CompletedAt = completedAt;
                     _db.tImportJobResult.Update(jobRecord);
                     await _db.SaveChangesAsync();
 
@@ -1277,7 +1301,7 @@ namespace Hangfire.Services
                 StringComparer.OrdinalIgnoreCase);
 
             PropagateErrors(duplicateProjectIds, errP, validP, warnP, x => x.ProjectId,
-                "Duplicate ProjectId: this ProjectId appears on more than one row in PROJECT DETAILS within the same import file. Each ProjectId must appear only once per file.");
+                "Duplicate Project ID: this Project ID appears on more than one row in PROJECT DETAILS within the same import file. Each Project ID must appear only once per file.");
 
             // Step 1 — Initial cascade
             RunCascadeLoop();
@@ -1380,10 +1404,10 @@ namespace Hangfire.Services
                 sb.AppendLine();
             }
 
-            WriteSection(validP, "--- VALID: PROJECT DETAILS ---", x => $"ProjectId: {x.ProjectId}");
-            WriteSection(validF, "--- VALID: FUNDING PROFILE ---", x => $"ProjectId: {x.ProjectId}");
-            WriteSection(validC, "--- VALID: COMPONENT DETAILS ---", x => $"ProjectId: {x.ProjectId} | ComponentId: {x.ComponentId}");
-            WriteSection(validM, "--- VALID: MAJOR ITEMS OF WORK ---", x => $"ProjectId: {x.ProjectId} | InfrastructureId: {x.InfrastructureId}");
+            WriteSection(validP, "--- VALID: PROJECT DETAILS ---", x => $"Project ID: {x.ProjectId}");
+            WriteSection(validF, "--- VALID: FUNDING PROFILE ---", x => $"Project ID: {x.ProjectId}");
+            WriteSection(validC, "--- VALID: COMPONENT DETAILS ---", x => $"Project ID: {x.ProjectId} | Component ID: {x.ComponentId}");
+            WriteSection(validM, "--- VALID: MAJOR ITEMS OF WORK ---", x => $"Project ID: {x.ProjectId} | Infrastructure ID: {x.InfrastructureId}");
 
             sb.AppendLine("--- WARNING RECORDS ---");
             sb.AppendLine($"Project Details:      {warnP.Count}");
@@ -1392,10 +1416,10 @@ namespace Hangfire.Services
             sb.AppendLine($"Major Items of Work:  {warnM.Count}");
             sb.AppendLine();
 
-            WriteSection(warnP, "--- WARNING: PROJECT DETAILS ---", x => $"ProjectId: {x.ProjectId} | Warning: {x.ErrorMessage}");
-            WriteSection(warnF, "--- WARNING: FUNDING PROFILE ---", x => $"ProjectId: {x.ProjectId} | Warning: {x.ErrorMessage}");
-            WriteSection(warnC, "--- WARNING: COMPONENT DETAILS ---", x => $"ProjectId: {x.ProjectId} | ComponentId: {x.ComponentId} | Warning: {x.ErrorMessage}");
-            WriteSection(warnM, "--- WARNING: MAJOR ITEMS OF WORK ---", x => $"ProjectId: {x.ProjectId} | InfrastructureId: {x.InfrastructureId} | Warning: {x.ErrorMessage}");
+            WriteSection(warnP, "--- WARNING: PROJECT DETAILS ---", x => $"Project ID: {x.ProjectId} | Warning: {x.ErrorMessage}");
+            WriteSection(warnF, "--- WARNING: FUNDING PROFILE ---", x => $"Project ID: {x.ProjectId} | Warning: {x.ErrorMessage}");
+            WriteSection(warnC, "--- WARNING: COMPONENT DETAILS ---", x => $"Project ID: {x.ProjectId} | Component ID: {x.ComponentId} | Warning: {x.ErrorMessage}");
+            WriteSection(warnM, "--- WARNING: MAJOR ITEMS OF WORK ---", x => $"Project ID: {x.ProjectId} | Infrastructure ID: {x.InfrastructureId} | Warning: {x.ErrorMessage}");
 
             return Encoding.UTF8.GetBytes(sb.ToString());
         }

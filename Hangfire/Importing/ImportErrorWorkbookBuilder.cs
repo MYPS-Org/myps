@@ -214,9 +214,11 @@ namespace Hangfire.Importing
                     .Select(x => x.CategoryName)),
                 // Excludes expired/not-yet-active Thrusts (mirrors the reference template's
                 // SubCategory validity-date filter, and ValidateProjectDetails rejects an
-                // out-of-range Thrust the same way, against the same referenceYear). Flat list —
-                // the per-Category cascade was reverted along with CategoryId itself (see
-                // OptionProjectThrustList.cs); re-introduce once that schema change has rolled out.
+                // out-of-range Thrust the same way, against the same referenceYear). This flat list
+                // is no longer used for the Sub-Category column's own dropdown — that's now a
+                // per-Category cascade (Thrust_{key} named ranges below, mirroring the per-Province
+                // grouped lists) — but is kept as the base "individually valid" set those buckets
+                // are built from.
                 Thrust = WriteFlatList("Lookup_Thrust", cache.Thrusts
                     .Where(x => x.ValidToDate == 0 || (x.ValidFromDate < referenceYear && x.ValidToDate > referenceYear))
                     .Select(x => x.ThrustDescription)),
@@ -358,6 +360,38 @@ namespace Hangfire.Importing
                 WriteFlatList($"OpUnit_{key}", bucket.OpUnits.Concat(centralOffice));
             }
 
+            // ── Per-Category grouped Thrust lists, mirroring ValidateProjectDetails' own
+            // Category<->Thrust relation (tOptionProjectCategoryToPAPMap, CategoryId -> PAPKey).
+            // "Unrestricted" here matches the validation's safe-fallback rule exactly: no mapped
+            // rows for the Category, an explicit PAPKey = -1, or every mapped PAPKey being a
+            // dangling reference with no matching row in cache.Thrusts at all.
+            var validThrusts = cache.Thrusts
+                .Where(x => x.ValidToDate == 0 || (x.ValidFromDate < referenceYear && x.ValidToDate > referenceYear))
+                .ToList();
+            var thrustGroups = new Dictionary<string, List<string?>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var category in cache.Categories.Where(x => x.ValidUntil == 0 || x.ValidUntil > referenceYear))
+            {
+                var key = SanitizeKey(category.CategoryName ?? string.Empty);
+                if (!thrustGroups.TryGetValue(key, out var bucket))
+                {
+                    bucket = new List<string?>();
+                    thrustGroups[key] = bucket;
+                }
+
+                var mappedPAPKeys = cache.CategoryToPAPMap
+                    .Where(x => x.CategoryId == category.CategoryId)
+                    .Select(x => x.PAPKey)
+                    .ToList();
+                bool unrestricted = mappedPAPKeys.Count == 0
+                    || mappedPAPKeys.Contains(-1)
+                    || !mappedPAPKeys.Any(k => cache.Thrusts.Any(t => t.PAPKey == k));
+
+                bucket.AddRange((unrestricted ? validThrusts : validThrusts.Where(t => mappedPAPKeys.Contains(t.PAPKey)))
+                    .Select(t => t.ThrustDescription));
+            }
+            foreach (var (key, bucket) in thrustGroups)
+                WriteFlatList($"Thrust_{key}", bucket);
+
             // ── Per-Source grouped Agreement lists (Funding Profile), mirroring
             // ValidateFundingProfile's Source.Organization == Agreement.SourceOrg check.
             var sourceGroups = new Dictionary<string, List<string?>>(StringComparer.OrdinalIgnoreCase);
@@ -484,6 +518,11 @@ namespace Hangfire.Importing
                 ws.Cells[row, 27].Value = item.Rank;
                 ws.Cells[row, ColMessage].Value = item.ErrorMessage;
 
+                // Category-dependent dropdown: correct for THIS row's Category value set now, at
+                // generation time — same reasoning as the Province-dependent dropdowns below.
+                var categoryKey = SanitizeKey(item.Category ?? string.Empty);
+                AddListValidation(ws, row, ColThrust, $"Thrust_{categoryKey}");
+
                 // Province-dependent dropdowns: correct for THIS row's Province value set now,
                 // at generation time — the macro (AuthorCascadeMacros) only needs to re-point
                 // these if the user edits Province after opening the file, including on a row
@@ -501,9 +540,11 @@ namespace Hangfire.Importing
             // column (row 2 through Excel's last row), not just the rows written above, so a
             // row added later by hand still gets the dropdown — matching the reference
             // template's own approach (e.g. its Province column is validated J2:J1048576).
+            // Sub-Category (Thrust) is NOT here — it's a Category-dependent column now, same as
+            // City/District/etc. are Province-dependent: only the per-row cascade above plus the
+            // VBA Worksheet_Change re-cascade (on Category edit) set its validation.
             AddColumnListValidation(ws, 5, lookups.Tier);
             AddColumnListValidation(ws, ColCategory, lookups.Category);
-            AddColumnListValidation(ws, ColThrust, lookups.Thrust);
             AddColumnListValidation(ws, ColProvince, lookups.Province);
             AddColumnListValidation(ws, 17, lookups.RegionWide);
             AddColumnListValidation(ws, 18, lookups.Origin);
@@ -1360,11 +1401,17 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     On Error GoTo CleanUp
     Application.EnableEvents = False
 
+    Dim key As String
+
     If Target.Column = 1 Then
         ModuleShared.CheckDuplicateProjectId Me, Target, 1
 
+    ElseIf Target.Column = {ColCategory} Then
+        key = ModuleShared.MakeValidName(CStr(Target.Value))
+
+        ModuleShared.ApplyCascadeCell Me.Cells(Target.Row, {ColThrust}), ""Thrust_"" & key
+
     ElseIf Target.Column = {ColProvince} Then
-        Dim key As String
         key = ModuleShared.MakeValidName(CStr(Target.Value))
 
         ModuleShared.ApplyCascadeCell Me.Cells(Target.Row, {ColCity}), ""City_"" & key

@@ -15,6 +15,10 @@ namespace Hangfire.Importing
         public List<OptionProjectTier> Tiers { get; set; }
         public List<DBHelper.Models.Table.Lookups.OptionProjectCategory> Categories { get; set; }
         public List<OptionProjectThrustList> Thrusts { get; set; }
+        // Category -> PAPKey mapping backing the Category/Thrust dropdown relation. PAPKey = -1
+        // means "any valid Thrust is allowed" for that Category — see ValidateProjectDetails and
+        // ImportErrorWorkbookBuilder's per-Category Thrust cascade.
+        public List<OptionProjectCategoryToPAPMap> CategoryToPAPMap { get; set; }
         public List<OptionAdminAreaProvince> Provinces { get; set; }
         public List<OptionAdminAreaCityMunicipality> Cities { get; set; }
         public List<OptionAdminAreaCongressionalDistrict> Districts { get; set; }
@@ -58,6 +62,7 @@ namespace Hangfire.Importing
                 Tiers = await db.tOptionProjectTier.AsNoTracking().ToListAsync(),
                 Categories = await db.tOptionProjectCategory.AsNoTracking().ToListAsync(),
                 Thrusts = await db.tOptionProjectThrustList.AsNoTracking().ToListAsync(),
+                CategoryToPAPMap = await db.tOptionProjectCategoryToPAPMap.AsNoTracking().ToListAsync(),
                 // Matches the main app's rule (ProjectHelper.cs's ValidateProjectDetailsLookups:
                 // !x.Deprecated on each of these three) — no admin area is currently deprecated
                 // in this DB, so this has no effect on any real row today, but keeps import
