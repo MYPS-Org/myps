@@ -236,6 +236,21 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid.", Title = "Invalid Type" });
                 }
+                // 2026-09-05: an empty array previously passed both checks below vacuously (an
+                // empty .Where() always yields zero invalid items), silently saving a program
+                // with no Data Security Group / UserGroup at all. A program saved with a blank
+                // DataSecurityGroup becomes invisible in every filtered listing for every region
+                // (ShowProgram/ShowProjectsInProgram's ApplyFilter EXISTS check against
+                // vProgramDataSecurityGroups never matches), and a blank UserGroup was previously
+                // never checked at all.
+                if (dto.DataSecurityGroup == null || dto.DataSecurityGroup.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one Data Security Group must be selected.", Title = "Data Security Group Required" });
+                }
+                if (dto.UserGroup == null || dto.UserGroup.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one User Group must be selected.", Title = "User Group Required" });
+                }
                 string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
                 var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync(cancellationToken);
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Contains(x));
@@ -521,6 +536,10 @@ namespace WebAPI.Controllers.Programs
                 await _db.tTransactionLog.AddRangeAsync(TransactionLog);
 
                 var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
+                if (ProgramRevisions == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                }
 
                 var ProjectsInProgram = await _db.tProjects.Where(x => x.ProgramId == ProgramRevisions.ProgramId).AsNoTracking().ToListAsync(cancellationToken);
                 HashSet<string> ReferenceIds = ProjectsInProgram.Select(x => x.ProjectPK).ToHashSet();
@@ -563,7 +582,6 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateProgramDetails([FromBody] UpdateProgramDTO dto, CancellationToken cancellationToken)
         {
@@ -618,6 +636,10 @@ namespace WebAPI.Controllers.Programs
                 //    CreatedDate = CurrentDate
                 //};
                 var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
+                if (ProgramRevisions == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                }
                 if (dto.Name != ProgramRevisions.Name && !string.IsNullOrEmpty(ProgramRevisions.Name))
                 {
                     hasUpdated = true;
@@ -634,7 +656,26 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                if (dto.UserGroup != ProgramParent.UserGroup)
+                // 2026-09-05: an empty array previously satisfied every check below (a reference
+                // `!=` compare is essentially always true for two distinct array instances, and
+                // the "invalid items" query below yields zero items on an empty array), so a
+                // blank UserGroup/DataSecurityGroup could unconditionally overwrite an existing,
+                // valid value with nothing. A blank DataSecurityGroup makes the program invisible
+                // in every filtered listing (ApplyFilter's EXISTS check against
+                // vProgramDataSecurityGroups never matches an empty array).
+                if (dto.DataSecurityGroup == null || dto.DataSecurityGroup.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one Data Security Group must be selected.", Title = "Data Security Group Required" });
+                }
+                if (dto.UserGroup == null || dto.UserGroup.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one User Group must be selected.", Title = "User Group Required" });
+                }
+                // 2026-09-05: was `!=`, which is reference equality on an array -- two distinct
+                // array instances holding the exact same values were always "changed", so every
+                // update wrote a transaction log entry and touched this column regardless of
+                // whether the selection actually changed. Order-independent content comparison.
+                if (!dto.UserGroup.OrderBy(x => x).SequenceEqual(ProgramParent.UserGroup.OrderBy(x => x)))
                 {
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
@@ -650,14 +691,19 @@ namespace WebAPI.Controllers.Programs
                     });
                     ProgramParent.UserGroup = dto.UserGroup;
                 }
+                // 2026-09-05: aligned with AddProgram's equivalent check (line ~240) -- this query
+                // previously omitted the OrgType filter, so "valid" security groups accepted here
+                // could include org types AddProgram would reject, a divergence between the two
+                // write paths for the same field.
                 string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
-                var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().ToListAsync(cancellationToken);
+                var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync(cancellationToken);
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Select(x => x.ParticipantId).Contains(x));
                 if (CheckItems.Count() > 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid.", Title = "Invalid Security Group" });
                 }
-                if (dto.DataSecurityGroup != ProgramParent.DataSecurityGroup)
+                // 2026-09-05: was `!=` (reference equality) -- see UserGroup comment above, same fix.
+                if (!dto.DataSecurityGroup.OrderBy(x => x).SequenceEqual(ProgramParent.DataSecurityGroup.OrderBy(x => x)))
                 {
                     hasUpdated = true;
                     string CurrentSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.Name).Where(sg => ProgramParent.DataSecurityGroup.Contains(sg)));
@@ -770,7 +816,6 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateProgramStage([FromBody] UpdateProgramStageDTO dto, CancellationToken cancellationToken)
         {
@@ -813,6 +858,10 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} is already in the '{dto.Stage}' stage. Please ensure you are updating to a different stage.", Title = "Update Failed" });
                 }
                 var ProgramRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
+                if (ProgramRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                }
 
                 var checkProjects = await _db.vProjectLatest
                 .Where(x => x.ProgramFK == ProgramParent.ProgramPK)
