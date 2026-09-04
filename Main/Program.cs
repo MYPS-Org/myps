@@ -120,6 +120,11 @@ builder.Services.AddTransient<ReportJobService>();
 
 var app = builder.Build();
 
+// 2026-09-04: APIRequest is a static helper with no DI of its own -- this is the minimal way
+// to route its diagnostics through the same ILogger pipeline ExceptionHandler uses, instead of
+// Console.WriteLine, which never reached the same log sink as the "MYPS ERROR EVENT" reports.
+APIRequest.Logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Helpers.APIRequest");
+
 
 // ==========================================================
 // DEVELOPMENT
