@@ -236,6 +236,28 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid.", Title = "Invalid Type" });
                 }
+                // 2026-09-05: [Required] on a non-nullable int is a no-op (a value type can never
+                // be "missing"), so YearStart previously accepted 0, negative, or any arbitrary
+                // year with no check at all.
+                if (dto.YearStart < Functions.CurrentDate().Year)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Year Start '{dto.YearStart}' cannot be earlier than the current year ({Functions.CurrentDate().Year}).", Title = "Invalid Year" });
+                }
+                // 2026-09-05: an empty array previously passed both checks below vacuously (an
+                // empty .Where() always yields zero invalid items), silently saving a program
+                // with no Data Security Group / UserGroup at all. A program saved with a blank
+                // DataSecurityGroup becomes invisible in every filtered listing for every region
+                // (ShowProgram/ShowProjectsInProgram's ApplyFilter EXISTS check against
+                // vProgramDataSecurityGroups never matches), and a blank UserGroup was previously
+                // never checked at all.
+                if (dto.DataSecurityGroup == null || dto.DataSecurityGroup.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one Data Security Group must be selected.", Title = "Data Security Group Required" });
+                }
+                if (dto.UserGroup == null || dto.UserGroup.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one User Group must be selected.", Title = "User Group Required" });
+                }
                 string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
                 var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync(cancellationToken);
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Contains(x));
@@ -507,20 +529,32 @@ namespace WebAPI.Controllers.Programs
                         return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has projects associated with it.", Title = "Delete Not Allowed" });
                     }
                 }
+                // 2026-09-05: this log entry previously claimed AffectedColumn = "IsDeleted",
+                // NewValue = "true" -- but nothing in this action sets that flag; the rows below
+                // are hard-deleted (RemoveRange/Remove), and tProjects/tProjectStages/
+                // tProgramRevisions/tProgramStages don't even have an IsDeleted column to set.
+                // Corrected to describe what actually happens. Converting this to a real
+                // soft-delete is tracked separately (RISK/REC, not part of this fix) -- it needs
+                // schema work (4 missing IsDeleted columns) and updating every consuming view
+                // (vProgramLatest currently has no IsDeleted filter either), not a quick patch.
                 var TransactionLog = new TransactionLog()
                 {
                     ReferenceId = ProgramId,
                     TransactionType = EnumTransactionType.Delete.ToString(),
-                    AffectedTable = "tPrograms",
-                    AffectedColumn = "IsDeleted",
-                    NewValue = "true",
-                    OldValue = "false",
+                    AffectedTable = "tPrograms, tProgramRevisions, tProgramStages, tProjects, tProjectRevisions, tProjectStages",
+                    AffectedColumn = "Row",
+                    NewValue = "Permanently deleted",
+                    OldValue = "Existed",
                     CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 };
                 await _db.tTransactionLog.AddRangeAsync(TransactionLog);
 
                 var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
+                if (ProgramRevisions == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                }
 
                 var ProjectsInProgram = await _db.tProjects.Where(x => x.ProgramId == ProgramRevisions.ProgramId).AsNoTracking().ToListAsync(cancellationToken);
                 HashSet<string> ReferenceIds = ProjectsInProgram.Select(x => x.ProjectPK).ToHashSet();
@@ -563,7 +597,6 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateProgramDetails([FromBody] UpdateProgramDTO dto, CancellationToken cancellationToken)
         {
@@ -618,6 +651,10 @@ namespace WebAPI.Controllers.Programs
                 //    CreatedDate = CurrentDate
                 //};
                 var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
+                if (ProgramRevisions == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                }
                 if (dto.Name != ProgramRevisions.Name && !string.IsNullOrEmpty(ProgramRevisions.Name))
                 {
                     hasUpdated = true;
@@ -634,7 +671,26 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                if (dto.UserGroup != ProgramParent.UserGroup)
+                // 2026-09-05: an empty array previously satisfied every check below (a reference
+                // `!=` compare is essentially always true for two distinct array instances, and
+                // the "invalid items" query below yields zero items on an empty array), so a
+                // blank UserGroup/DataSecurityGroup could unconditionally overwrite an existing,
+                // valid value with nothing. A blank DataSecurityGroup makes the program invisible
+                // in every filtered listing (ApplyFilter's EXISTS check against
+                // vProgramDataSecurityGroups never matches an empty array).
+                if (dto.DataSecurityGroup == null || dto.DataSecurityGroup.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one Data Security Group must be selected.", Title = "Data Security Group Required" });
+                }
+                if (dto.UserGroup == null || dto.UserGroup.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one User Group must be selected.", Title = "User Group Required" });
+                }
+                // 2026-09-05: was `!=`, which is reference equality on an array -- two distinct
+                // array instances holding the exact same values were always "changed", so every
+                // update wrote a transaction log entry and touched this column regardless of
+                // whether the selection actually changed. Order-independent content comparison.
+                if (!dto.UserGroup.OrderBy(x => x).SequenceEqual(ProgramParent.UserGroup.OrderBy(x => x)))
                 {
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
@@ -650,14 +706,19 @@ namespace WebAPI.Controllers.Programs
                     });
                     ProgramParent.UserGroup = dto.UserGroup;
                 }
+                // 2026-09-05: aligned with AddProgram's equivalent check (line ~240) -- this query
+                // previously omitted the OrgType filter, so "valid" security groups accepted here
+                // could include org types AddProgram would reject, a divergence between the two
+                // write paths for the same field.
                 string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
-                var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().ToListAsync(cancellationToken);
+                var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync(cancellationToken);
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Select(x => x.ParticipantId).Contains(x));
                 if (CheckItems.Count() > 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid.", Title = "Invalid Security Group" });
                 }
-                if (dto.DataSecurityGroup != ProgramParent.DataSecurityGroup)
+                // 2026-09-05: was `!=` (reference equality) -- see UserGroup comment above, same fix.
+                if (!dto.DataSecurityGroup.OrderBy(x => x).SequenceEqual(ProgramParent.DataSecurityGroup.OrderBy(x => x)))
                 {
                     hasUpdated = true;
                     string CurrentSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.Name).Where(sg => ProgramParent.DataSecurityGroup.Contains(sg)));
@@ -770,7 +831,6 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateProgramStage([FromBody] UpdateProgramStageDTO dto, CancellationToken cancellationToken)
         {
@@ -813,6 +873,10 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} is already in the '{dto.Stage}' stage. Please ensure you are updating to a different stage.", Title = "Update Failed" });
                 }
                 var ProgramRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
+                if (ProgramRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                }
 
                 var checkProjects = await _db.vProjectLatest
                 .Where(x => x.ProgramFK == ProgramParent.ProgramPK)
@@ -2328,6 +2392,22 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                // 2026-09-05: aligned with its 3 sibling Batch* actions (BatchRestrictPublish,
+                // BatchAllowPublish, BatchDelete), which all have these same guards -- this one
+                // previously had none, falling straight through to a DB lookup on a possibly-null
+                // dto or a generic, less-helpful error on a blank/whitespace-only ProjectIds.
+                if (dto == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Request data is required.", Title = "Invalid Request" });
+                }
+                if (string.IsNullOrWhiteSpace(dto.ProgramId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Program ID is required.", Title = "Invalid Program" });
+                }
+                if (string.IsNullOrWhiteSpace(dto.ProjectIds))
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one project ID is required.", Title = "No Projects Selected" });
+                }
                 DateTime CurrentDate = Functions.CurrentDate();
                 var checkProgram = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
@@ -2351,7 +2431,10 @@ namespace WebAPI.Controllers.Programs
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramRevisions = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
-                char[] delimiters = { ';', ',', '.', '&', ' ', '\n', '\r', '\t' };
+                // 2026-09-05: was { ';', ',', '.', '&', ' ', '\n', '\r', '\t' } -- the extra '.'
+                // and '&' were unique to this one action, a silent divergence from all 3 sibling
+                // Batch* actions. Aligned to the same delimiter set as its siblings.
+                char[] delimiters = { ';', ',', ' ', '\n', '\r', '\t' };
                 var projectIds = dto.ProjectIds
                     .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
