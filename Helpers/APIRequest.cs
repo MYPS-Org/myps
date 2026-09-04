@@ -43,6 +43,9 @@ namespace Helpers
             {
                 using (var response = await client.SendAsync(request.ToHttpRequest()))
                 {
+                    // 2026-09-04: previously only logged response.ToString() (status/headers) or
+                    // the exception object -- the response BODY, where a SOAP fault's actual detail
+                    // lives, was never logged either way, making every failure here undiagnosable.
                     if (response.IsSuccessStatusCode)
                         try
                         {
@@ -50,15 +53,28 @@ namespace Helpers
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine(ex);
-                            // Do nothing (for now)
+                            string body = await SafeReadBody(response);
+                            Console.WriteLine($"[ERROR] APIRequest.XML: ReadResponseContent threw. {ex}\nResponse body: {body}");
                         }
                     else
                     {
-                        Console.WriteLine(response.ToString());
+                        string body = await SafeReadBody(response);
+                        Console.WriteLine($"[ERROR] APIRequest.XML: non-success status {(int)response.StatusCode} {response.StatusCode}.\nResponse body: {body}");
                     }
                     return default;
                 }
+            }
+        }
+
+        private static async Task<string> SafeReadBody(HttpResponseMessage response)
+        {
+            try
+            {
+                return await response.Content.ReadAsStringAsync();
+            }
+            catch (Exception ex)
+            {
+                return $"<could not read response body: {ex.Message}>";
             }
         }
     }
