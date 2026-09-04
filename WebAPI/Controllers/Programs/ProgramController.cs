@@ -529,14 +529,22 @@ namespace WebAPI.Controllers.Programs
                         return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has projects associated with it.", Title = "Delete Not Allowed" });
                     }
                 }
+                // 2026-09-05: this log entry previously claimed AffectedColumn = "IsDeleted",
+                // NewValue = "true" -- but nothing in this action sets that flag; the rows below
+                // are hard-deleted (RemoveRange/Remove), and tProjects/tProjectStages/
+                // tProgramRevisions/tProgramStages don't even have an IsDeleted column to set.
+                // Corrected to describe what actually happens. Converting this to a real
+                // soft-delete is tracked separately (RISK/REC, not part of this fix) -- it needs
+                // schema work (4 missing IsDeleted columns) and updating every consuming view
+                // (vProgramLatest currently has no IsDeleted filter either), not a quick patch.
                 var TransactionLog = new TransactionLog()
                 {
                     ReferenceId = ProgramId,
                     TransactionType = EnumTransactionType.Delete.ToString(),
-                    AffectedTable = "tPrograms",
-                    AffectedColumn = "IsDeleted",
-                    NewValue = "true",
-                    OldValue = "false",
+                    AffectedTable = "tPrograms, tProgramRevisions, tProgramStages, tProjects, tProjectRevisions, tProjectStages",
+                    AffectedColumn = "Row",
+                    NewValue = "Permanently deleted",
+                    OldValue = "Existed",
                     CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 };
