@@ -31,8 +31,56 @@ public static class ReportRequestMapper
             ReportFamily.Rbp => MapRbp(body, out legacyParams, out error),
             ReportFamily.Aip => MapAip(body, out legacyParams, out error),
             ReportFamily.ExtractPcmiow => MapExtract(body, out legacyParams, out error),
+            ReportFamily.RbpSummary => MapRbpSummary(body, out legacyParams, out error),
             _ => Fail(out legacyParams, out error, "Unknown report family.")
         };
+    }
+
+    // rbp-summary-report / rbp-summary-report-with-tier are backed by unparameterized views
+    // (MYPS_vw_rptRBPSummary / MYPS_vw_rptRBPSummaryTier) -- none of these 6 fields filter the
+    // SQL query. They exist purely because the .rpt templates define them as Crystal report-level
+    // display parameters (letterhead/signature block) and Crystal fails export if any is missing.
+    // Confirmed live against CrystalReportService 2026-09-05: all 6 are required by both .rpt
+    // files, none have a usable default -- so unlike MapRbp (which treats the signatory fields as
+    // optional even though the .rpt also wants them), all 6 are required here to avoid shipping
+    // the same mapper-says-optional/Crystal-says-required mismatch documented as a known caveat.
+    private static bool MapRbpSummary(JsonElement body, out Dictionary<string, string> legacyParams, out string? error)
+    {
+        legacyParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        error = null;
+
+        if (!TryDeserialize(body, out GenerateRbpSummaryRequestDTO? request, out error))
+            return Fail(out legacyParams, out error, error!);
+
+        if (request == null)
+            return Fail(out legacyParams, out error, "Invalid RBP Summary request body.");
+
+        if (!request.YearStart.HasValue)
+            return Fail(out legacyParams, out error, "yearStart is required.");
+
+        if (string.IsNullOrWhiteSpace(request.RegionCode))
+            return Fail(out legacyParams, out error, "regionCode is required.");
+
+        if (string.IsNullOrWhiteSpace(request.ProgramId))
+            return Fail(out legacyParams, out error, "programId is required.");
+
+        if (string.IsNullOrWhiteSpace(request.PlanningEngr))
+            return Fail(out legacyParams, out error, "planningEngr is required.");
+
+        if (string.IsNullOrWhiteSpace(request.ReviewedBy))
+            return Fail(out legacyParams, out error, "reviewedBy is required.");
+
+        if (string.IsNullOrWhiteSpace(request.ApprovedBy))
+            return Fail(out legacyParams, out error, "approvedBy is required.");
+
+        legacyParams["yearstart"] = request.YearStart.Value.ToString();
+        legacyParams["region"] = request.RegionCode;
+        legacyParams["programid"] = request.ProgramId;
+        legacyParams["planningEngr"] = request.PlanningEngr;
+        legacyParams["reviewedBy"] = request.ReviewedBy;
+        legacyParams["approvedBy"] = request.ApprovedBy;
+
+        return true;
     }
 
     private static bool MapRbp(JsonElement body, out Dictionary<string, string> legacyParams, out string? error)

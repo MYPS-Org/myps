@@ -21,6 +21,16 @@ public class GenerateAipRequestDTO
     public string? ReportTypeTitle { get; set; }
 }
 
+public class GenerateRbpSummaryRequestDTO
+{
+    public int? YearStart { get; set; }
+    public string? ProgramId { get; set; }
+    public string? RegionCode { get; set; }
+    public string? PlanningEngr { get; set; }
+    public string? ReviewedBy { get; set; }
+    public string? ApprovedBy { get; set; }
+}
+
 public class GenerateExtractPcmiowRequestDTO
 {
     public string[]? ProgramIds { get; set; }

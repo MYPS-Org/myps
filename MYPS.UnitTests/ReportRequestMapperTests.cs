@@ -96,6 +96,63 @@ public class ReportRequestMapperTests
     }
 
     [Fact]
+    public void Map_RbpSummary_MapsAllRequiredFields()
+    {
+        var ok = ReportRequestMapper.TryMap(
+            "rbp-summary-report",
+            Body("""{"yearStart":2026,"programId":"p1","regionCode":"OI237","planningEngr":"PE","reviewedBy":"R","approvedBy":"A"}"""),
+            out var legacy,
+            out var error);
+
+        Assert.True(ok, error);
+        Assert.Equal("2026", legacy["yearstart"]);
+        Assert.Equal("OI237", legacy["region"]);
+        Assert.Equal("p1", legacy["programid"]);
+        Assert.Equal("PE", legacy["planningEngr"]);
+        Assert.Equal("R", legacy["reviewedBy"]);
+        Assert.Equal("A", legacy["approvedBy"]);
+    }
+
+    [Fact]
+    public void Map_RbpSummaryWithTier_UsesSameFamily()
+    {
+        var ok = ReportRequestMapper.TryMap(
+            "rbp-summary-report-with-tier",
+            Body("""{"yearStart":2026,"programId":"p1","regionCode":"OI237","planningEngr":"PE","reviewedBy":"R","approvedBy":"A"}"""),
+            out var legacy,
+            out var error);
+
+        Assert.True(ok, error);
+        Assert.Equal("PE", legacy["planningEngr"]);
+    }
+
+    [Fact]
+    public void Map_RbpSummary_MissingPlanningEngr_Fails()
+    {
+        var ok = ReportRequestMapper.TryMap(
+            "rbp-summary-report",
+            Body("""{"yearStart":2026,"programId":"p1","regionCode":"OI237","reviewedBy":"R","approvedBy":"A"}"""),
+            out _,
+            out var error);
+
+        Assert.False(ok);
+        Assert.Contains("planningEngr", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Map_RbpSummary_MissingRegionCode_Fails()
+    {
+        var ok = ReportRequestMapper.TryMap(
+            "rbp-summary-report",
+            Body("""{"yearStart":2026,"programId":"p1","planningEngr":"PE","reviewedBy":"R","approvedBy":"A"}"""),
+            out _,
+            out var error);
+
+        Assert.False(ok);
+        Assert.Contains("regionCode", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Map_Rbp_MissingYearStart_Fails()
     {
         var ok = ReportRequestMapper.TryMap(
