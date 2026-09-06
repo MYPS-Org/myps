@@ -34,7 +34,10 @@ export interface FilterProgramItem {
     Name: string;
 }
 
-export interface GenerateReportRequest {
+export type ReportFamily = 'rbp' | 'aip' | 'extract-pcmiow' | 'rbp-summary';
+
+// Matches WebAPI.Controllers.CrystalReport.GenerateRbpRequestDTO
+export interface GenerateRbpRequest {
     YearStart?: number;
     ProgramIds?: string[];
     RegionCode?: string;
@@ -42,6 +45,47 @@ export interface GenerateReportRequest {
     ApprovedBy?: string;
     ReviewedBy?: string;
 }
+
+// Matches WebAPI.Controllers.CrystalReport.GenerateAipRequestDTO
+export interface GenerateAipRequest {
+    YearStart?: number;
+    ProgramIds?: string[];
+    RegionCode?: string;
+    ReportType?: string;
+    ReportTypeTitle?: string;
+}
+
+// Matches WebAPI.Controllers.CrystalReport.GenerateRbpSummaryRequestDTO -- note the
+// singular ProgramId (not ProgramIds) and PlanningEngr (not PlanningEngineer), both
+// genuinely different field names from GenerateRbpRequest, not just casing.
+export interface GenerateRbpSummaryRequest {
+    YearStart?: number;
+    ProgramId?: string;
+    RegionCode?: string;
+    PlanningEngr?: string;
+    ReviewedBy?: string;
+    ApprovedBy?: string;
+}
+
+// Matches WebAPI.Controllers.CrystalReport.GenerateExtractPcmiowRequestDTO
+export interface GenerateExtractPcmiowRequest {
+    ProgramIds?: string[];
+    CategoryId?: number;
+    RegionCode?: string;
+    DeoCode?: string;
+    IoCode?: string;
+    ProgramLabel?: string;
+    CategoryLabel?: string;
+    RegionLabel?: string;
+    DeoLabel?: string;
+    IoLabel?: string;
+}
+
+export type GenerateReportRequest =
+    | GenerateRbpRequest
+    | GenerateAipRequest
+    | GenerateRbpSummaryRequest
+    | GenerateExtractPcmiowRequest;
 
 export interface GenerateReportResponse {
     JobId: string;

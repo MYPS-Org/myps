@@ -8,6 +8,12 @@ import type {
     ReportStatusEvent,
 } from './Model';
 
+// Reused as-is for the Extract PCMIOW report's Category/DEO/Implementing Office
+// dropdowns -- this endpoint already returns exactly that data (ParticipantId-keyed,
+// same shape the SQL layer's rocode/deocode/io_code params expect), so no new
+// backend endpoint is needed for the Crystal Reports page.
+export { fetchAIPReportDropdownData } from '../Program/Service';
+
 export const fetchReportOptions = async () => {
     try {
         const response = await httpClient.get<ReportOptions>('/reports/options', undefined, {

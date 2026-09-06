@@ -14,14 +14,34 @@ import {
   queueReportGeneration,
   fetchReportFile,
   fetchReportJobStatus,
+  fetchAIPReportDropdownData,
 } from './Service';
 import type {
   ReportOptions,
   FilterProgramItem,
   GenerateReportRequest,
+  ReportFamily,
   ReportJobStatus,
   ReportStatusEvent,
 } from './Model';
+import type { AIPReportDropdowns } from '../Program/Model';
+
+// Report keys are grouped into families because each backing SQL object wants a
+// different request shape (see WebAPI.Controllers.CrystalReport.ReportRequestMapper) --
+// mirrors ReportCatalog.TryGetFamily on the backend so client-side validation and
+// field visibility agree with what the server will actually accept.
+const AIP_REPORT_KEYS = new Set(['aip-official', 'aip-executive', 'aip-official-without-ld', 'aip-executive-2']);
+const RBP_SUMMARY_REPORT_KEYS = new Set(['rbp-summary-report', 'rbp-summary-report-with-tier']);
+
+function getReportFamily(reportKey: string): ReportFamily | null {
+  if (!reportKey) return null;
+  const key = reportKey.toLowerCase();
+  if (key === 'rbp') return 'rbp';
+  if (key === 'extract-pcmiow') return 'extract-pcmiow';
+  if (AIP_REPORT_KEYS.has(key)) return 'aip';
+  if (RBP_SUMMARY_REPORT_KEYS.has(key)) return 'rbp-summary';
+  return null;
+}
 
 interface CurrentJob {
   jobId: string;
@@ -58,8 +78,22 @@ const Reports: React.FC = () => {
   const [isLoadingPrograms, setIsLoadingPrograms] = useState(false);
   const [selectedProgramIds, setSelectedProgramIds] = useState<string[]>([]);
 
+  // AIP family only — Crystal report-level letterhead fields, not SQL filters.
+  const [aipReportType, setAipReportType] = useState('');
+  const [aipReportTypeTitle, setAipReportTypeTitle] = useState('');
+
+  // Extract PCMIOW family only — reuses the same dropdown data source and
+  // Region→DEO→Implementing Office cascade AIPReportDialog.tsx already uses.
+  const [categoryId, setCategoryId] = useState('');
+  const [deoCode, setDeoCode] = useState('');
+  const [ioCode, setIoCode] = useState('');
+  const [dropdowns, setDropdowns] = useState<AIPReportDropdowns | null>(null);
+  const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(false);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentJob, setCurrentJob] = useState<CurrentJob | null>(null);
+
+  const reportFamily = getReportFamily(reportType);
 
   useEffect(() => {
     setIsLoadingOptions(true);
@@ -94,6 +128,64 @@ const Reports: React.FC = () => {
       cancelled = true;
     };
   }, [yearStart, programStage]);
+
+  useEffect(() => {
+    if (reportFamily !== 'extract-pcmiow' || dropdowns || isLoadingDropdowns) return;
+
+    setIsLoadingDropdowns(true);
+    fetchAIPReportDropdownData()
+      .then(setDropdowns)
+      .catch(() => setDropdowns(null))
+      .finally(() => setIsLoadingDropdowns(false));
+  }, [reportFamily, dropdowns, isLoadingDropdowns]);
+
+  // Region → DEO → Implementing Office cascade, same filtering rule
+  // AIPReportDialog.tsx already uses (ParticipantId-keyed, not name-keyed, since
+  // this pipeline's SQL params want codes, not display names).
+  const selectedDeo = deoCode ? dropdowns?.DEOs.find((d) => d.ParticipantId === deoCode) ?? null : null;
+
+  const filteredDEOs = regionCode
+    ? dropdowns?.DEOs.filter((d) => d.RegionParticipantId === regionCode) ?? []
+    : [];
+
+  const filteredImplementingOffices = !regionCode
+    ? []
+    : selectedDeo
+    ? dropdowns?.ImplementingOffices.filter(
+        (io) =>
+          (io.RegionParticipantId === selectedDeo.RegionParticipantId && io.OrgType === 'R') ||
+          io.OrgType === 'UPMO' ||
+          io.ParticipantId === selectedDeo.ParticipantId
+      ) ?? []
+    : dropdowns?.ImplementingOffices.filter((io) => io.RegionParticipantId === regionCode) ?? [];
+
+  const handleReportTypeChange = (value: string) => {
+    setReportType(value);
+    const family = getReportFamily(value);
+
+    if (family === 'aip') {
+      const label = options?.ReportTypes.find((rt) => rt.Id === value)?.Label ?? '';
+      setAipReportType(label);
+      setAipReportTypeTitle(label);
+    }
+
+    if (family !== 'extract-pcmiow') {
+      setCategoryId('');
+      setDeoCode('');
+      setIoCode('');
+    }
+  };
+
+  const handleRegionChange = (value: string) => {
+    setRegionCode(value);
+    setDeoCode('');
+    setIoCode('');
+  };
+
+  const handleDeoChange = (value: string) => {
+    setDeoCode(value);
+    setIoCode('');
+  };
 
   const downloadReportFile = async (fileName: string) => {
     try {
@@ -193,7 +285,7 @@ const Reports: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    if (!reportType) {
+    if (!reportType || !reportFamily) {
       showToast({ type: 'error', message: 'Please select a report type before generating.' });
       return;
     }
@@ -203,18 +295,112 @@ const Reports: React.FC = () => {
       return;
     }
 
+    let request: GenerateReportRequest;
+
+    switch (reportFamily) {
+      case 'rbp': {
+        request = {
+          YearStart: yearStart || undefined,
+          ProgramIds: selectedProgramIds.length > 0 ? selectedProgramIds : undefined,
+          RegionCode: regionCode,
+          PlanningEngineer: planningEngineer.trim() || undefined,
+          ApprovedBy: approvedBy.trim() || undefined,
+          ReviewedBy: reviewedBy.trim() || undefined,
+        };
+        break;
+      }
+
+      case 'aip': {
+        if (!yearStart) {
+          showToast({ type: 'error', message: 'Please select a year before generating.' });
+          return;
+        }
+        if (selectedProgramIds.length === 0) {
+          showToast({ type: 'error', message: 'Please select at least one program before generating.' });
+          return;
+        }
+        if (!aipReportType.trim() || !aipReportTypeTitle.trim()) {
+          showToast({ type: 'error', message: 'Report Type and Report Type Title are required.' });
+          return;
+        }
+        request = {
+          YearStart: yearStart,
+          ProgramIds: selectedProgramIds,
+          RegionCode: regionCode,
+          ReportType: aipReportType.trim(),
+          ReportTypeTitle: aipReportTypeTitle.trim(),
+        };
+        break;
+      }
+
+      case 'rbp-summary': {
+        if (!yearStart) {
+          showToast({ type: 'error', message: 'Please select a year before generating.' });
+          return;
+        }
+        if (selectedProgramIds.length !== 1) {
+          showToast({ type: 'error', message: 'This report requires exactly one selected program.' });
+          return;
+        }
+        if (!planningEngineer.trim() || !approvedBy.trim() || !reviewedBy.trim()) {
+          showToast({
+            type: 'error',
+            message: 'Planning Engineer, Approved By, and Reviewed By are all required for this report.',
+          });
+          return;
+        }
+        request = {
+          YearStart: yearStart,
+          ProgramId: selectedProgramIds[0],
+          RegionCode: regionCode,
+          PlanningEngr: planningEngineer.trim(),
+          ReviewedBy: reviewedBy.trim(),
+          ApprovedBy: approvedBy.trim(),
+        };
+        break;
+      }
+
+      case 'extract-pcmiow': {
+        if (selectedProgramIds.length === 0) {
+          showToast({ type: 'error', message: 'Please select at least one program before generating.' });
+          return;
+        }
+        if (!categoryId) {
+          showToast({ type: 'error', message: 'Please select a Category before generating.' });
+          return;
+        }
+        if (!deoCode) {
+          showToast({ type: 'error', message: 'Please select a District Engineering Office before generating.' });
+          return;
+        }
+        if (!ioCode) {
+          showToast({ type: 'error', message: 'Please select an Implementing Office before generating.' });
+          return;
+        }
+
+        const selectedCategory = dropdowns?.Categories.find((c) => c.CategoryId === Number(categoryId));
+        const selectedDeoOption = dropdowns?.DEOs.find((d) => d.ParticipantId === deoCode);
+        const selectedIoOption = dropdowns?.ImplementingOffices.find((io) => io.ParticipantId === ioCode);
+        const selectedRegionOption = options?.RegionalOffices.find((r) => r.Id === regionCode);
+
+        request = {
+          ProgramIds: selectedProgramIds,
+          CategoryId: Number(categoryId),
+          RegionCode: regionCode,
+          DeoCode: deoCode,
+          IoCode: ioCode,
+          CategoryLabel: selectedCategory?.CategoryName ?? undefined,
+          RegionLabel: selectedRegionOption?.Name ?? undefined,
+          DeoLabel: selectedDeoOption?.Name ?? undefined,
+          IoLabel: selectedIoOption?.Name ?? undefined,
+        };
+        break;
+      }
+    }
+
     try {
       setIsGenerating(true);
       setCurrentJob(null);
-
-      const request: GenerateReportRequest = {
-        YearStart: yearStart || undefined,
-        ProgramIds: selectedProgramIds.length > 0 ? selectedProgramIds : undefined,
-        RegionCode: regionCode || undefined,
-        PlanningEngineer: planningEngineer.trim() || undefined,
-        ApprovedBy: approvedBy.trim() || undefined,
-        ReviewedBy: reviewedBy.trim() || undefined,
-      };
 
       const response = await queueReportGeneration(reportType, request);
       setCurrentJob({ jobId: response.JobId, status: 'Queued', message: response.Message });
@@ -246,7 +432,7 @@ const Reports: React.FC = () => {
               </label>
               <select
                 value={reportType}
-                onChange={(e) => setReportType(e.target.value)}
+                onChange={(e) => handleReportTypeChange(e.target.value)}
                 className={selectClass}
                 disabled={isLoadingOptions}
               >
@@ -299,48 +485,148 @@ const Reports: React.FC = () => {
               </label>
               <select
                 value={regionCode}
-                onChange={(e) => setRegionCode(e.target.value)}
+                onChange={(e) => handleRegionChange(e.target.value)}
                 className={selectClass}
                 disabled={isLoadingOptions}
               >
                 <option value="">Select a regional office</option>
                 {options?.RegionalOffices.map((region) => (
-                  <option key={region.Id} value={region.Code}>
+                  <option key={region.Id} value={region.Id}>
                     {region.Name}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Planning Engineer</label>
-              <Input
-                type="text"
-                value={planningEngineer}
-                onChange={(e) => setPlanningEngineer(e.target.value)}
-                placeholder="Optional"
-              />
-            </div>
+            {(reportFamily === 'rbp' || reportFamily === 'rbp-summary') && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Planning Engineer
+                    {reportFamily === 'rbp-summary' && <span className="text-red-500"> *</span>}
+                  </label>
+                  <Input
+                    type="text"
+                    value={planningEngineer}
+                    onChange={(e) => setPlanningEngineer(e.target.value)}
+                    placeholder={reportFamily === 'rbp-summary' ? undefined : 'Optional'}
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Approved By</label>
-              <Input
-                type="text"
-                value={approvedBy}
-                onChange={(e) => setApprovedBy(e.target.value)}
-                placeholder="Optional"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Approved By
+                    {reportFamily === 'rbp-summary' && <span className="text-red-500"> *</span>}
+                  </label>
+                  <Input
+                    type="text"
+                    value={approvedBy}
+                    onChange={(e) => setApprovedBy(e.target.value)}
+                    placeholder={reportFamily === 'rbp-summary' ? undefined : 'Optional'}
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reviewed By</label>
-              <Input
-                type="text"
-                value={reviewedBy}
-                onChange={(e) => setReviewedBy(e.target.value)}
-                placeholder="Optional"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reviewed By
+                    {reportFamily === 'rbp-summary' && <span className="text-red-500"> *</span>}
+                  </label>
+                  <Input
+                    type="text"
+                    value={reviewedBy}
+                    onChange={(e) => setReviewedBy(e.target.value)}
+                    placeholder={reportFamily === 'rbp-summary' ? undefined : 'Optional'}
+                  />
+                </div>
+              </>
+            )}
+
+            {reportFamily === 'aip' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Report Type <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    value={aipReportType}
+                    onChange={(e) => setAipReportType(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Report Type Title <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    value={aipReportTypeTitle}
+                    onChange={(e) => setAipReportTypeTitle(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            {reportFamily === 'extract-pcmiow' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className={selectClass}
+                    disabled={isLoadingDropdowns}
+                  >
+                    <option value="">Select a category</option>
+                    {dropdowns?.Categories.map((cat) => (
+                      <option key={cat.Id} value={cat.CategoryId}>
+                        {cat.CategoryName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    District Engineering Office <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={deoCode}
+                    onChange={(e) => handleDeoChange(e.target.value)}
+                    className={selectClass}
+                    disabled={!regionCode || isLoadingDropdowns}
+                  >
+                    <option value="">{!regionCode ? 'Select a regional office first' : 'Select a DEO'}</option>
+                    {filteredDEOs.map((deo) => (
+                      <option key={deo.ParticipantId} value={deo.ParticipantId}>
+                        {deo.Name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Implementing Office <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={ioCode}
+                    onChange={(e) => setIoCode(e.target.value)}
+                    className={selectClass}
+                    disabled={!deoCode || isLoadingDropdowns}
+                  >
+                    <option value="">{!deoCode ? 'Select a DEO first' : 'Select an implementing office'}</option>
+                    {filteredImplementingOffices.map((io) => (
+                      <option key={io.ParticipantId} value={io.ParticipantId}>
+                        {io.Name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-4">
@@ -357,19 +643,26 @@ const Reports: React.FC = () => {
                 <p className="text-sm text-blue-600">Loading programs…</p>
               </>
             ) : (
-              <CheckboxList
-                title="Programs"
-                items={programs.map((program) => ({ id: program.Id, name: program.Name }))}
-                selectedIds={selectedProgramIds}
-                onToggle={toggleProgramId}
-                onSelectAll={() => setSelectedProgramIds(programs.map((program) => program.Id))}
-                onClearAll={() => setSelectedProgramIds([])}
-                idKey="id"
-                nameKey="name"
-                searchPlaceholder="Search programs..."
-                emptyMessage="No programs found for the selected year and stage."
-                defaultExpanded
-              />
+              <>
+                {reportFamily === 'rbp-summary' && (
+                  <p className="text-sm text-amber-600 mb-2">
+                    This report requires exactly one selected program.
+                  </p>
+                )}
+                <CheckboxList
+                  title="Programs"
+                  items={programs.map((program) => ({ id: program.Id, name: program.Name }))}
+                  selectedIds={selectedProgramIds}
+                  onToggle={toggleProgramId}
+                  onSelectAll={() => setSelectedProgramIds(programs.map((program) => program.Id))}
+                  onClearAll={() => setSelectedProgramIds([])}
+                  idKey="id"
+                  nameKey="name"
+                  searchPlaceholder="Search programs..."
+                  emptyMessage="No programs found for the selected year and stage."
+                  defaultExpanded
+                />
+              </>
             )}
           </div>
 

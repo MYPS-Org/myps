@@ -66,6 +66,8 @@ namespace DBHelper.Data
         public DbSet<ProgramDetails> fProgramDetails { get; set; }
         public DbSet<ProgramProjects> fProgramProjects { get; set; }
         public DbSet<ProgramDetailsInProject> fProgramDetailsInProject { get; set; }
+        public DbSet<Models.Functions.Program.ProjectImplementationPlanException> pProjectImplementationPlanExceptions { get; set; }
+        public DbSet<Models.Functions.Program.ProjectLocationException> pProjectLocationExceptions { get; set; }
         #endregion
 
         #region Views

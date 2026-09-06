@@ -2499,5 +2499,73 @@ namespace WebAPI.Controllers.Programs
             }
         }
         #endregion
+
+        #region Exception Reports
+        // Re-derives the same GAA-R rules pAllowProjectPublishing already enforces
+        // (rules 3+4 for Implementation Plan, rule 6 for Location), surfaced as a
+        // program-wide review list instead of a single-project publish gate. See
+        // Main/Resources/Internal/SQLScripts/ for pProjectImplementationPlanExceptions
+        // and pProjectLocationExceptions.
+
+        [HttpGet]
+        public async Task<IActionResult> ProjectImplementationPlanExceptions([FromQuery] string programId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(programId))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Program ID is required.",
+                        Title = "Invalid Request"
+                    });
+                }
+
+                var exceptions = await _db.pProjectImplementationPlanExceptions
+                    .FromSqlRaw($"""
+                    EXEC dbo.pProjectImplementationPlanExceptions
+                        @ProgramId = {programId}
+                    """)
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
+
+                return Ok(exceptions);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ProjectLocationExceptions([FromQuery] string programId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(programId))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Program ID is required.",
+                        Title = "Invalid Request"
+                    });
+                }
+
+                var exceptions = await _db.pProjectLocationExceptions
+                    .FromSqlRaw($"""
+                    EXEC dbo.pProjectLocationExceptions
+                        @ProgramId = {programId}
+                    """)
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
+
+                return Ok(exceptions);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
+            }
+        }
+        #endregion
     }
 }
