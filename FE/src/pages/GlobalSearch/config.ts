@@ -129,11 +129,12 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
     tableKey: 'vRoads',
     columnField: 'RoadName',
     placeholder: 'e.g. National Highway',
+    // tFutureRoads has no Region/Length column (see FutureRoads.cs) -- the backend
+    // returns the raw entity with no join, so those fields never existed in the
+    // response. Only RoadId/Name are real.
     resultColumns: [
-      { field: 'RoadId',   label: 'Road ID'   },
-      { field: 'Name', label: 'Road Name' },
-      { field: 'Region',   label: 'Region'    },
-      { field: 'Length',   label: 'Length'    },
+      { field: 'RoadId', label: 'Road ID'   },
+      { field: 'Name',   label: 'Road Name' },
     ],
     getLink: null,
   },
@@ -143,11 +144,13 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
     tableKey: 'vRoadSections',
     columnField: 'RoadSectionId',
     placeholder: 'e.g. RS-001',
+    // tFutureRoadSections has RoadId (not RoadName). Region is resolved server-side
+    // from RegionParticipantId via tOptionAdminAreaRegion -- see GlobalSearchController.
     resultColumns: [
-      { field: 'RoadSectionId', label: 'Section ID'   },
-      { field: 'RoadName',      label: 'Road Name'    },
-      { field: 'Region',        label: 'Region'       },
-      { field: 'LengthM',    label: 'Length (m)'   },
+      { field: 'RoadSectionId', label: 'Section ID' },
+      { field: 'RoadId',        label: 'Road ID'    },
+      { field: 'Region',        label: 'Region'     },
+      { field: 'LengthM',       label: 'Length (m)' },
     ],
     getLink: null,
   },
@@ -157,11 +160,11 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
     tableKey: 'vBridges',
     columnField: 'BridgeName',
     placeholder: 'e.g. Marcos Bridge',
+    // tFutureBridge has no Region column at all (see FutureBridge.cs).
     resultColumns: [
-      { field: 'BridgeId',   label: 'Bridge ID'   },
-      { field: 'Name', label: 'Bridge Name' },
-      { field: 'Region',     label: 'Region'      },
-      { field: 'Length',     label: 'Length (m)'  },
+      { field: 'BridgeId', label: 'Bridge ID'   },
+      { field: 'Name',     label: 'Bridge Name' },
+      { field: 'Length',   label: 'Length (m)'  },
     ],
     getLink: null,
   },

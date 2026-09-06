@@ -29,6 +29,17 @@ namespace WebAPI.Controllers.GlobalSearch
             exceptionHandler)
         { }
 
+        // fProjectDetails/vProjects store Region as the raw admin-area ParticipantId (e.g. "R3"),
+        // same as everywhere else project data flows (see ProjectDetailsForm.tsx's Region dropdown,
+        // which maps ParticipantId -> Name) -- there's no separate "RegionName" field like the other
+        // coded columns (Category/Thrust/Origin/Agency) get, so callers must resolve it themselves
+        // before it reaches the FE.
+        private async Task<Dictionary<string, string>> GetRegionNamesAsync(CancellationToken cancellationToken)
+        {
+            return await _db.tOptionAdminAreaRegion.AsNoTracking()
+                .ToDictionaryAsync(r => r.ParticipantId, r => r.Name, cancellationToken);
+        }
+
         [HttpPost]
         public async Task<IActionResult> GetSearchCategory(CancellationToken cancellationToken)
         {
@@ -161,7 +172,16 @@ namespace WebAPI.Controllers.GlobalSearch
                             filtersParameter)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
-                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });
+                    var regionNames = await GetRegionNamesAsync(cancellationToken);
+                    var Result = selectedRevisions.Select(x => new
+                    {
+                        x.ProjectId,
+                        x.AlternateId,
+                        x.Description,
+                        x.StageName,
+                        Region = x.Region != null && regionNames.TryGetValue(x.Region, out var regionName) ? regionName : x.Region
+                    }).ToList();
+                    return Ok(new { Data = Result, Title = $"{Result.Count} project/s found." });
                 }
                 if (dto.Category == "Description")
                 {
@@ -252,7 +272,16 @@ namespace WebAPI.Controllers.GlobalSearch
                             filtersParameter)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
-                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });
+                    var regionNames = await GetRegionNamesAsync(cancellationToken);
+                    var Result = selectedRevisions.Select(x => new
+                    {
+                        x.ProjectId,
+                        x.Description,
+                        x.ProgramName,
+                        x.StageName,
+                        Region = x.Region != null && regionNames.TryGetValue(x.Region, out var regionName) ? regionName : x.Region
+                    }).ToList();
+                    return Ok(new { Data = Result, Title = $"{Result.Count} project/s found." });
                 }
                 if (dto.Category == "Program Name")
                 {
@@ -435,7 +464,43 @@ namespace WebAPI.Controllers.GlobalSearch
                             filtersParameter)
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
-                    return Ok(new { Data = selectedRevisions, Title = $"{selectedRevisions.Count} project/s found." });
+                    var regionNames = await GetRegionNamesAsync(cancellationToken);
+                    var Result = selectedRevisions.Select(x => new
+                    {
+                        x.ProjectId,
+                        x.Description,
+                        x.ProgramName,
+                        x.StageName,
+                        Region = x.Region != null && regionNames.TryGetValue(x.Region, out var regionName) ? regionName : x.Region
+                    }).ToList();
+                    return Ok(new { Data = Result, Title = $"{Result.Count} project/s found." });
+                }
+                if (dto.Category == "UACS")
+                {
+                    if (dto.SearchFor.Length <= SearchLength)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = $"{dto.Category} must contain at least {SearchLength + 1} characters.",
+                            Title = "Invalid Search"
+                        });
+                    }
+                    // vProjects already carries ProjectId/Description/ProgramName/StageName/Region/UACS
+                    // in one row, unlike the tProjectRevisions+tProjectStages join the other project
+                    // categories use -- no cross-apply to fProjectDetails needed here.
+                    var Projects = await _db.vProjects.AsNoTracking()
+                        .Where(x => x.UACS != null && x.UACS.Contains(dto.SearchFor))
+                        .ToListAsync(cancellationToken);
+                    var regionNames = await GetRegionNamesAsync(cancellationToken);
+                    var Result = Projects.Select(x => new
+                    {
+                        x.ProjectId,
+                        x.UACS,
+                        x.Description,
+                        x.StageName,
+                        Region = x.Region != null && regionNames.TryGetValue(x.Region, out var regionName) ? regionName : x.Region
+                    }).ToList();
+                    return Ok(new { Data = Result, Title = $"{Result.Count} project/s found." });
                 }
                 if (dto.Category == "Bridge")
                 {
@@ -460,7 +525,23 @@ namespace WebAPI.Controllers.GlobalSearch
                             Title = "Invalid Search"
                         });
                     }
-                    var RoadSections = await _db.tFutureRoadSections.Where(x => x.RoadSectionId.Contains(dto.SearchFor) || x.RoadId.Contains(dto.SearchFor)).ToListAsync(cancellationToken);
+                    // RegionParticipantId is a raw admin-area code (e.g. "R3"), not a display name --
+                    // resolve it against tOptionAdminAreaRegion the same way ProjectController/
+                    // ReportingController do, instead of returning the code as-is.
+                    var RoadSections = await (
+                        from rs in _db.tFutureRoadSections.AsNoTracking()
+                        where rs.RoadSectionId.Contains(dto.SearchFor) || rs.RoadId.Contains(dto.SearchFor)
+                        join region in _db.tOptionAdminAreaRegion.AsNoTracking()
+                            on rs.RegionParticipantId equals region.ParticipantId into regionJoin
+                        from region in regionJoin.DefaultIfEmpty()
+                        select new
+                        {
+                            rs.RoadSectionId,
+                            rs.RoadId,
+                            rs.LengthM,
+                            Region = region != null ? region.Name : null
+                        })
+                        .ToListAsync(cancellationToken);
                     return Ok(new { Data = RoadSections, Title = $"{RoadSections.Count} road section/s found." });
                 }
                 if (dto.Category == "Roads")
