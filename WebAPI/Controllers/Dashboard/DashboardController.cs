@@ -65,7 +65,8 @@ namespace WebAPI.Controllers.Dashboard
                 // The deployed databases currently span two LS schemas. Read
                 // only persisted wallet/view values while supporting both the
                 // legacy flat tLSWallets shape and normalized vLSWalletLatest.
-                var walletRows = await LoadWalletRows(cancellationToken);
+                // var walletRows = await LoadWalletRows(cancellationToken);
+                var walletRows = new List < DashboardWalletRow>();
                 var annualWallets = walletRows
                     .GroupBy(wallet => wallet.Year)
                     .Select(yearGroup => new
@@ -228,35 +229,35 @@ namespace WebAPI.Controllers.Dashboard
                     .Where(wallet => wallet.Year == selectedYear)
                     .ToList();
 
-                var selectedWalletIds = selectedWallets
-                    .Select(wallet => wallet.Id)
-                    .ToArray();
-                var selectedWalletChildren = await _db.vLSWalletProjectSet
-                    .AsNoTracking()
-                    .Where(project => selectedWalletIds.Contains(project.ParentWalletId))
-                    .Select(project => new
-                    {
-                        project.ParentWalletId,
-                        Child = new DashboardLsChildProjectDTO
-                        {
-                            Id = project.Id,
-                            ProjectPK = project.ProjectPK,
-                            ProjectId = project.ProjectId,
-                            Description = project.Description ?? "Not recorded",
-                            StageName = project.StageName ?? "Unstaged",
-                            FundingTotal = project.EffectiveDraw,
-                            ComponentCostTotal = project.CurrentDrawAmount,
-                            IsPublished = project.IsPublished
-                        }
-                    })
-                    .ToListAsync(cancellationToken);
-                var childrenByWallet = selectedWalletChildren
-                    .GroupBy(project => project.ParentWalletId)
-                    .ToDictionary(
-                        group => group.Key,
-                        group => group.Select(project => project.Child)
-                            .OrderByDescending(project => project.ComponentCostTotal)
-                            .ToList());
+                // var selectedWalletIds = selectedWallets
+                //     .Select(wallet => wallet.Id)
+                //     .ToArray();
+                // var selectedWalletChildren = await _db.vLSWalletProjectSet
+                //     .AsNoTracking()
+                //     .Where(project => selectedWalletIds.Contains(project.ParentWalletId))
+                //     .Select(project => new
+                //     {
+                //         project.ParentWalletId,
+                //         Child = new DashboardLsChildProjectDTO
+                //         {
+                //             Id = project.Id,
+                //             ProjectPK = project.ProjectPK,
+                //             ProjectId = project.ProjectId,
+                //             Description = project.Description ?? "Not recorded",
+                //             StageName = project.StageName ?? "Unstaged",
+                //             FundingTotal = project.EffectiveDraw,
+                //             ComponentCostTotal = project.CurrentDrawAmount,
+                //             IsPublished = project.IsPublished
+                //         }
+                //     })
+                //     .ToListAsync(cancellationToken);
+                // var childrenByWallet = selectedWalletChildren
+                //     .GroupBy(project => project.ParentWalletId)
+                //     .ToDictionary(
+                //         group => group.Key,
+                //         group => group.Select(project => project.Child)
+                //             .OrderByDescending(project => project.ComponentCostTotal)
+                //             .ToList());
 
                 var activityUserIds = projectRows.Select(item => item.UpdatedBy)
                     .Concat(selectedWallets.Select(wallet => wallet.UpdatedBy ?? wallet.CreatedBy))
@@ -356,20 +357,21 @@ namespace WebAPI.Controllers.Dashboard
                     Statuses = statuses,
                     Islands = islands,
                     Projects = projects,
-                    LsProjects = selectedWallets.Select(wallet => new DashboardLsProjectDTO
-                    {
-                        Id = wallet.Id,
-                        ProjectPK = wallet.ProjectPK,
-                        ProjectId = wallet.ProjectId,
-                        Description = wallet.Description ?? "Not recorded",
-                        ProgramName = wallet.ProgramName ?? "Not recorded",
-                        StageName = wallet.StageName ?? "Unstaged",
-                        TotalAllocation = wallet.OriginalAllocation,
-                        ItemizedAmount = wallet.ItemizedTotal,
-                        RemainingAmount = wallet.Remaining,
-                        ItemizedCount = checked((int)wallet.ItemizedCount),
-                        Children = childrenByWallet.GetValueOrDefault(wallet.Id) ?? new()
-                    }).OrderByDescending(wallet => wallet.ItemizedAmount).ToList(),
+                    // LsProjects = selectedWallets.Select(wallet => new DashboardLsProjectDTO
+                    // {
+                    //     Id = wallet.Id,
+                    //     ProjectPK = wallet.ProjectPK,
+                    //     ProjectId = wallet.ProjectId,
+                    //     Description = wallet.Description ?? "Not recorded",
+                    //     ProgramName = wallet.ProgramName ?? "Not recorded",
+                    //     StageName = wallet.StageName ?? "Unstaged",
+                    //     TotalAllocation = wallet.OriginalAllocation,
+                    //     ItemizedAmount = wallet.ItemizedTotal,
+                    //     RemainingAmount = wallet.Remaining,
+                    //     ItemizedCount = checked((int)wallet.ItemizedCount),
+                    //     Children = childrenByWallet.GetValueOrDefault(wallet.Id) ?? new()
+                    // }).OrderByDescending(wallet => wallet.ItemizedAmount).ToList(),
+                    LsProjects = new List<DashboardLsProjectDTO>(),
                     Activities = projectActivities.Concat(walletActivities)
                         .OrderByDescending(activity => activity.Timestamp)
                         .Take(12)
