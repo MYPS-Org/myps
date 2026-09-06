@@ -305,7 +305,7 @@ const Reports: React.FC = () => {
               >
                 <option value="">Select a regional office</option>
                 {options?.RegionalOffices.map((region) => (
-                  <option key={region.Id} value={region.Code}>
+                  <option key={region.Id} value={region.Id}>
                     {region.Name}
                   </option>
                 ))}

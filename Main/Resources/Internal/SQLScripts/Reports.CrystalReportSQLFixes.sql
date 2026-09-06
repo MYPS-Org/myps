@@ -13,7 +13,7 @@
     sys.sql_expression_dependencies (zero remaining cross-database references) and live
     re-execution with real sample data.
 
-    Additional fixes beyond the database-name rename:
+    Round 1 fixes (2026-09-05):
       - MYPS_vw_rptRBPSummary: TotalNo/TotalAmount were hardcoded literal 100000 instead of real
         SUM(...) expressions; the OO1 (category 16) branch was missing the ps.StageName='RBP'
         filter the other 3 category branches applied (an inconsistent, apples-to-oranges total).
@@ -22,6 +22,93 @@
         outside 16/17/18/19/29/30 produced a phantom all-zero row in the rendered report.
         Restricted to WHERE CategoryId IN (16,17,18,19,29,30), matching the effective filtering
         the non-Tier view already had via its UNION-ALL-of-filtered-branches structure.
+
+    Round 2 fixes (2026-09-06) -- triggered by the operator still hitting the AIP "reportType is
+    required." frontend gap (reproduced live on https://myps.eptisa-dev.com). Investigation found
+    an earlier attempt at that exact frontend fix (PR #114, 2026-08-27) was reverted 32 minutes
+    after merging (PR #121, same author, clean total revert, zero explanation in the commit
+    message). Reconstructed cause: commit f6745df0 (2026-08-25, ~19 min before PR #114) had just
+    documented severe data-correctness bugs in sp_RBP/a1_usp_AIP2/usp_extract_PC_MIOW_list --
+    shipping the frontend that exposed those broken report types to real users was the actual
+    problem, not the frontend code. Operator confirmed sequencing: SQL fixes first, then frontend.
+    Re-verified all three flagged bugs directly against live myps_db_dev before fixing -- all
+    three were still present, none had been touched by the round-1 pass above.
+
+      - sp_RBP, a1_usp_AIP2: unconstrained fan-out. Both joined tProgramRevisions/tProgramStages
+        on ProgramFK alone, no revision/stage-specific filter. Real programs have up to 7 rows in
+        tProgramRevisions per ProgramFK -- every result row was duplicated once per revision, and
+        any SUM/COUNT over the join was proportionally inflated (confirmed live: 49-row test case
+        collapsed to 1 correct row after the fix, with zero query errors). Fixed by inserting
+        LatestProgRev/LatestProgStage CTEs (ROW_NUMBER() OVER (PARTITION BY ProgramFK ORDER BY Id
+        DESC) AS rn) ahead of the existing CTEs, and rewiring the ProgramFK joins to the new CTEs
+        with an added "AND <alias>.rn = 1" -- the same "latest revision" pattern already used
+        elsewhere in this codebase (e.g. pAllowProjectPublishing's LatestBase CTE), not a new one.
+        OPEN QUESTION (not yet resolved, flagged to the operator): "latest by Id DESC" may not be
+        the correct semantic for sp_RBP specifically -- the already-fixed MYPS_vw_rptRBPSummary(Tier)
+        views instead filter explicitly to StageName='RBP'. sp_RBP's own name suggests it may want
+        RBP-stage-specific data rather than "whatever revision/stage is currently latest." Revisit
+        if RBP report output looks wrong for a program with an RBP stage that isn't also its most
+        recent revision.
+      - sp_RBP, a1_usp_AIP2: Target_Amount was mapped to a peso cost column (pccpy.Amount /
+        pcs.cost) instead of a physical-quantity column -- a straight duplicate of Component_Cost
+        on every row, not a target quantity. Fixed to pmwl.PhysicalTarget (sp_RBP) and
+        x.target_amount (a1_usp_AIP2, already computed as SUM(pmwl.PhysicalTarget) in the existing
+        x CTE, previously commented out directly below the wrong line).
+      - a1_usp_AIP2: the regionwide CASE branches checked WHEN rw.Name = 'Regionwide - AIP ignores
+        DEO' (with a dash). Queried dbo.tOptionRegionWide directly -- the real stored value is
+        'Regionwide AIP ignores DEO' (no dash, NameId=3). The dash meant that branch could never
+        match; any project flagged this way silently fell through to the wrong CASE branch. Fixed
+        all 3 occurrences to the real stored string.
+      - usp_extract_PC_MIOW_list: restored 5 columns that had been commented out (programid,
+        rocode, deo_code, categoryid, io_code) -- the Crystal .rpt template expects them. Restored
+        rocode as p.Region (not deo.RegionCode) to stay consistent with what @rocode actually
+        filters against, deliberately avoiding the Code-vs-Id mismatch pattern found and fixed the
+        same session in FE/src/pages/Reports/Reports.tsx's region dropdown. Also carried the same
+        fan-out fix as the two procs above (LatestProgRev CTE, tProgramRevisions join constrained
+        to rn = 1) -- confirmed live: 7-row test case (matching a known 7-revision program)
+        collapsed to 1 row, zero errors.
+      - NOT independently re-verified this pass: whether usp_extract_PC_MIOW_list's @region
+        parameter contract (participant-id vs. region name) still silently breaks any remaining
+        "legacy-shaped" caller, per the original 2026-08-25 review's specific framing. @rocode was
+        confirmed to filter p.Region (a ParticipantId-style value), internally consistent with
+        this round's other fixes, but no caller inventory was done to confirm nothing still passes
+        a region name here.
+      - Every fix in this round got a rollback-only drill (BEGIN TRAN / CREATE OR ALTER / real
+        before-vs-after row-count comparison against synthetic and real multi-revision test data /
+        ROLLBACK TRAN) before live deployment -- "runs without error" was explicitly treated as
+        insufficient evidence, since that is exactly the standard the pre-revert, still-broken code
+        was already passing.
+
+    Round 2 correction (2026-09-06, same day) -- the "latest revision by Id DESC, regardless of
+    stage" resolution above was itself wrong for sp_RBP and a1_usp_AIP2, caught before it could
+    ship to the frontend. dbo.tProgramStages turned out to be a 1:1 tag per revision (linked via
+    RevisionId), not an independent fan-out source -- every revision carries exactly one StageName
+    from a fixed set (BP, NEP, NEP-E, HGAB, HGAB-I, GAA, GAA-R = NameId 1-7 in dbo.tOptionProgramStage,
+    the ordinary budget-cycle progression; RBP = NameId 8, a separate planning track; RDIP/PIP/
+    TF/TF-R = NameId 9/11/12/13, also separate). "Latest by revision Id" ignores which track a
+    revision belongs to, so a program with an RBP-stage revision that isn't also its highest-Id
+    revision (or with no RBP-stage revision at all) would show wrong-stage data mislabeled as RBP.
+      - sp_RBP: now filters explicitly to StageName = 'RBP' (matching the already-fixed
+        MYPS_vw_rptRBPSummary/Tier views' own StageName='RBP' filter -- this was the established,
+        correct precedent the whole time). LatestProgStage CTE filters WHERE StageName='RBP' first;
+        LatestProgRev CTE is now defined by joining to that filtered stage row via
+        RevisionId = tProgramRevisions.Id, not an independent "latest by Id" scan, so
+        Program_Description and stage_desc can never disagree about which revision is shown.
+        Verified live: a program with no RBP-stage revision correctly returns 0 rows (was
+        previously showing its BP-stage data mislabeled as RBP); a program with a real RBP-stage
+        revision correctly returns exactly that revision's rows.
+      - a1_usp_AIP2: has no @StageName parameter (nor does the DTO layer feeding it), so an exact
+        stage match like sp_RBP's isn't available without expanding scope. Instead, "latest" is now
+        resolved via StageId DESC restricted to WHERE StageId BETWEEN 1 AND 7 (the BP..GAA-R
+        progression only), explicitly excluding RBP/RDIP/PIP/TF/TF-R (NameId 8/9/11/12/13) from
+        being picked as "the latest AIP data" -- those are separate planning tracks, not later
+        stages than GAA-R. Verified live: a 7-revision program (BP through GAA-R) correctly dedupes
+        to 1 row (picking GAA-R, the true latest-in-progression); a single-BP-stage program still
+        correctly returns its 1 row; a program whose only revision is RBP-tagged correctly returns
+        0 rows (RBP is not part of the AIP progression).
+      - Both fixes drilled the same way as everything else this session: BEGIN TRAN / CREATE OR
+        ALTER / real positive-case AND negative-case row evidence against live data / ROLLBACK TRAN,
+        then a separate real deployment with live post-deploy verification.
 
     'RBP' (Regional Budget Proposal) is a real, distinct stage in dbo.tOptionProgramStage
     (NameId=8), separate from 'BP' (Budget Proposal, NameId=1) -- confirmed by the operator
@@ -48,7 +135,15 @@ CREATE OR ALTER PROCEDURE [dbo].[sp_RBP]
 
 
 
+
+
+
+
 (
+
+
+
+
 
 
 
@@ -56,7 +151,15 @@ CREATE OR ALTER PROCEDURE [dbo].[sp_RBP]
 
 
 
+
+
+
+
     @programid  VARCHAR(MAX) = NULL,
+
+
+
+
 
 
 
@@ -64,7 +167,15 @@ CREATE OR ALTER PROCEDURE [dbo].[sp_RBP]
 
 
 
+
+
+
+
 )
+
+
+
+
 
 
 
@@ -72,23 +183,50 @@ AS
 
 
 
+
+
+
+
 BEGIN
+
+
+
+
 
 
 
     SET NOCOUNT ON;
 
-
-
-
-
-
-
-    ;WITH x AS
-
-
+;WITH LatestProgStage AS
 
     (
+
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY ProgramFK ORDER BY Id DESC) AS rn
+
+        FROM dbo.tProgramStages
+
+        WHERE StageName = 'RBP'
+
+    ),
+
+    LatestProgRev AS
+
+    (
+
+        SELECT pr.*, ROW_NUMBER() OVER (PARTITION BY pr.ProgramFK ORDER BY pr.Id DESC) AS rn
+
+        FROM dbo.tProgramRevisions pr
+
+        JOIN LatestProgStage ps ON ps.RevisionId = pr.Id AND ps.rn = 1
+
+    ),
+
+    x AS
+    (
+
+
+
+
 
 
 
@@ -96,7 +234,15 @@ BEGIN
 
 
 
+
+
+
+
             progrev.Name                AS Program_Description,
+
+
+
+
 
 
 
@@ -104,7 +250,15 @@ BEGIN
 
 
 
+
+
+
+
             RTRIM(p.ProjectId)          AS Project_Id,
+
+
+
+
 
 
 
@@ -112,7 +266,15 @@ BEGIN
 
 
 
+
+
+
+
             --deo.RegionName              AS RO,
+
+
+
+
 
 
 
@@ -120,7 +282,15 @@ BEGIN
 
 
 
+
+
+
+
             p.Description               AS Project_Description,   -- old concatenated name + name_extension; new schema has no name_extension equivalent
+
+
+
+
 
 
 
@@ -128,7 +298,15 @@ BEGIN
 
 
 
+
+
+
+
             io.Name                     AS Implementing_Office,
+
+
+
+
 
 
 
@@ -136,7 +314,15 @@ BEGIN
 
 
 
+
+
+
+
             pcc.ComponentId             AS Component_Id,
+
+
+
+
 
 
 
@@ -144,7 +330,15 @@ BEGIN
 
 
 
+
+
+
+
             PAP.ThrustDescription       AS Thrust,
+
+
+
+
 
 
 
@@ -152,7 +346,15 @@ BEGIN
 
 
 
+
+
+
+
             pccpy.UACS                  AS UACS_PAP_Code,
+
+
+
+
 
 
 
@@ -160,11 +362,23 @@ BEGIN
 
 
 
+
+
+
+
             sow.Measure                 AS Target_Unit,
 
 
 
-            pccpy.Amount                AS Target_Amount,
+
+
+
+
+            pmwl.PhysicalTarget          AS Target_Amount,
+
+
+
+
 
 
 
@@ -172,7 +386,15 @@ BEGIN
 
 
 
+
+
+
+
             rw.Name                     AS rw_flag,
+
+
+
+
 
 
 
@@ -180,7 +402,15 @@ BEGIN
 
 
 
+
+
+
+
             p.ProgramId                 AS programid,
+
+
+
+
 
 
 
@@ -188,7 +418,15 @@ BEGIN
 
 
 
+
+
+
+
             p.MYCAApprovalDate          AS date_of_approval,
+
+
+
+
 
 
 
@@ -196,7 +434,15 @@ BEGIN
 
 
 
+
+
+
+
             pmwl.DetailedScope          AS dsow,
+
+
+
+
 
 
 
@@ -204,7 +450,15 @@ BEGIN
 
 
 
+
+
+
+
             pmwl.EndStationLimit        AS end_station_limit,
+
+
+
+
 
 
 
@@ -212,7 +466,15 @@ BEGIN
 
 
 
+
+
+
+
             pt.Name                     AS tier,
+
+
+
+
 
 
 
@@ -220,7 +482,19 @@ BEGIN
 
 
 
+
+
+
+
             p.Rank                      AS rank
+
+
+
+
+
+
+
+
 
 
 
@@ -236,7 +510,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         JOIN dbo.[tPrograms] prog
+
+
+
+
 
 
 
@@ -244,7 +530,15 @@ BEGIN
 
 
 
+
+
+
+
             AND prog.StartYear  = @yearstart
+
+
+
+
 
 
 
@@ -252,7 +546,15 @@ BEGIN
 
 
 
+
+
+
+
                                 FROM STRING_SPLIT(@programid, ','))
+
+
+
+
 
 
 
@@ -260,7 +562,15 @@ BEGIN
 
 
 
+
+
+
+
             AND RIGHT(p.ProjectId, 2) <> 'NP'
+
+
+
+
 
 
 
@@ -268,7 +578,15 @@ BEGIN
 
 
 
+
+
+
+
             AND (@region IS NULL OR p.Region = @region)
+
+
+
+
 
 
 
@@ -276,11 +594,27 @@ BEGIN
 
 
 
-        JOIN dbo.[tProgramRevisions] progrev
 
 
 
-            ON  progrev.ProgramFK = p.ProgramFK
+
+        JOIN LatestProgRev progrev
+
+
+
+
+
+
+
+            ON  progrev.ProgramFK = p.ProgramFK AND progrev.rn = 1
+
+
+
+
+
+
+
+
 
 
 
@@ -292,7 +626,15 @@ BEGIN
 
 
 
+
+
+
+
             ON  pcc.ProjectRevisionFK = p.Id
+
+
+
+
 
 
 
@@ -304,7 +646,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         JOIN dbo.[tProjectComponentCostPerYear] pccpy
+
+
+
+
 
 
 
@@ -312,7 +666,15 @@ BEGIN
 
 
 
+
+
+
+
             --temp lang
+
+
+
+
 
 
 
@@ -320,7 +682,19 @@ BEGIN
 
 
 
+
+
+
+
             AND pccpy.IsDeleted       = 0
+
+
+
+
+
+
+
+
 
 
 
@@ -332,7 +706,15 @@ BEGIN
 
 
 
+
+
+
+
             ON  pmwi.ComponentCostFK = pcc.Id
+
+
+
+
 
 
 
@@ -344,7 +726,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         JOIN dbo.[tProjectMajorWorkLocations] pmwl
+
+
+
+
 
 
 
@@ -352,7 +746,19 @@ BEGIN
 
 
 
+
+
+
+
             AND pmwl.IsDeleted  = 0
+
+
+
+
+
+
+
+
 
 
 
@@ -364,7 +770,15 @@ BEGIN
 
 
 
+
+
+
+
             ON  sow.Enum = pmwi.WorkTypeFK
+
+
+
+
 
 
 
@@ -372,7 +786,15 @@ BEGIN
 
 
 
+
+
+
+
         LEFT JOIN dbo.[vAdminDEO] deo
+
+
+
+
 
 
 
@@ -380,11 +802,23 @@ BEGIN
 
 
 
+
+
+
+
             ----AND (@region IS NULL OR deo.RegionName = @region)
 
 
 
+
+
+
+
         JOIN dbo.[tOptionProjectCategory] cat
+
+
+
+
 
 
 
@@ -396,11 +830,31 @@ ON  cat.CategoryId = p.Category
 
 
 
-        JOIN dbo.[tProgramStages] progstage
 
 
 
-            ON  progstage.ProgramFK = prog.ProgramPK
+
+
+
+
+
+        JOIN LatestProgStage progstage
+
+
+
+
+
+
+
+            ON  progstage.ProgramFK = prog.ProgramPK AND progstage.rn = 1
+
+
+
+
+
+
+
+
 
 
 
@@ -412,7 +866,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
             ON  ops.NameId = progstage.StageId
+
+
+
+
 
 
 
@@ -420,7 +882,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         LEFT JOIN dbo.[tOptionProjectTier] pt
+
+
+
+
 
 
 
@@ -432,7 +902,19 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
+
+
+
+
         LEFT JOIN dbo.[tOptionProjectThrustList] PAP
+
+
+
+
 
 
 
@@ -444,7 +926,19 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
+
+
+
+
         LEFT JOIN dbo.[vAdminImplementingOffice] io
+
+
+
+
 
 
 
@@ -456,7 +950,19 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
+
+
+
+
         LEFT JOIN dbo.[tOptionAdminAreaCongressionalDistrict] ld
+
+
+
+
 
 
 
@@ -468,7 +974,19 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
+
+
+
+
         LEFT JOIN dbo.[tOptionAdminAreaRegion] ar
+
+
+
+
 
 
 
@@ -480,7 +998,19 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
+
+
+
+
         LEFT JOIN dbo.[vAdminOperatingUnit] ou
+
+
+
+
 
 
 
@@ -492,7 +1022,19 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
+
+
+
+
         LEFT JOIN dbo.[tOptionRegionWide] rw
+
+
+
+
 
 
 
@@ -500,7 +1042,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
     )
+
+
+
+
 
 
 
@@ -508,7 +1058,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.Program_Description,
+
+
+
+
 
 
 
@@ -516,7 +1074,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.Project_Id,
+
+
+
+
 
 
 
@@ -524,7 +1090,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.DEO,
+
+
+
+
 
 
 
@@ -532,7 +1106,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.Operating_Unit,
+
+
+
+
 
 
 
@@ -540,7 +1122,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.Legislative_District,
+
+
+
+
 
 
 
@@ -548,7 +1138,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.Component_Cost,
+
+
+
+
 
 
 
@@ -556,7 +1154,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.Activity_Component_Id,
+
+
+
+
 
 
 
@@ -564,7 +1170,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.Type_Of_Work,
+
+
+
+
 
 
 
@@ -572,7 +1186,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.Target_Amount,
+
+
+
+
 
 
 
@@ -580,7 +1202,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.rw_flag,
+
+
+
+
 
 
 
@@ -588,7 +1218,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.programid,
+
+
+
+
 
 
 
@@ -596,7 +1234,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.date_of_approval,
+
+
+
+
 
 
 
@@ -604,7 +1250,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.dsow,
+
+
+
+
 
 
 
@@ -612,7 +1266,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.end_station_limit,
+
+
+
+
 
 
 
@@ -620,7 +1282,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         x.tier,
+
+
+
+
 
 
 
@@ -628,7 +1298,15 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
         ISNULL(x.rank, 99.9) AS rank,
+
+
+
+
 
 
 
@@ -636,11 +1314,23 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
     FROM x
 
 
 
+
+
+
+
     WHERE x.programid IS NOT NULL
+
+
+
+
 
 
 
@@ -652,16 +1342,22 @@ ON  cat.CategoryId = p.Category
 
 
 
+
+
+
+
+
+
+
+
 END
-
-
-
-
-
-
 GO
 
 CREATE OR ALTER PROCEDURE [dbo].[a1_usp_AIP2]
+
+
+
+
 
 
 
@@ -669,7 +1365,15 @@ CREATE OR ALTER PROCEDURE [dbo].[a1_usp_AIP2]
 
 
 
+
+
+
+
     @yearstart  INT,
+
+
+
+
 
 
 
@@ -677,7 +1381,15 @@ CREATE OR ALTER PROCEDURE [dbo].[a1_usp_AIP2]
 
 
 
+
+
+
+
     @region     VARCHAR(50) = NULL
+
+
+
+
 
 
 
@@ -685,7 +1397,15 @@ CREATE OR ALTER PROCEDURE [dbo].[a1_usp_AIP2]
 
 
 
+
+
+
+
 AS
+
+
+
+
 
 
 
@@ -693,27 +1413,58 @@ BEGIN
 
 
 
+
+
+
+
     SET NOCOUNT ON;
+
+
+
+
 
 
 
     SET QUOTED_IDENTIFIER ON;
 
+;WITH LatestProgStage AS
 
+    (
 
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY ProgramFK ORDER BY StageId DESC, Id DESC) AS rn
 
+        FROM dbo.tProgramStages
 
+        WHERE StageId BETWEEN 1 AND 7 -- BP..GAA-R progression only; excludes RBP/RDIP/PIP/TF/TF-R (NameId 8,9,11,12,13), which are separate planning tracks, not "later than GAA-R"
 
+    ),
 
-    ;WITH pcs AS
+    LatestProgRev AS
 
+    (
 
+        SELECT pr.*, ROW_NUMBER() OVER (PARTITION BY pr.ProgramFK ORDER BY pr.Id DESC) AS rn
 
+        FROM dbo.tProgramRevisions pr
+
+        JOIN LatestProgStage ps ON ps.RevisionId = pr.Id AND ps.rn = 1
+
+    ),
+
+    pcs AS
     (
 
 
 
+
+
+
+
         SELECT
+
+
+
+
 
 
 
@@ -721,7 +1472,15 @@ BEGIN
 
 
 
+
+
+
+
             pcc.ProjectRevisionFK,
+
+
+
+
 
 
 
@@ -729,7 +1488,15 @@ BEGIN
 
 
 
+
+
+
+
             pcc.Description          AS componentname,
+
+
+
+
 
 
 
@@ -737,7 +1504,15 @@ BEGIN
 
 
 
+
+
+
+
             pccpy.Amount             AS cost,
+
+
+
+
 
 
 
@@ -745,7 +1520,15 @@ BEGIN
 
 
 
+
+
+
+
             pccpy.Year               AS year
+
+
+
+
 
 
 
@@ -753,7 +1536,15 @@ BEGIN
 
 
 
+
+
+
+
         JOIN dbo.[tProjectComponentCostPerYear] pccpy
+
+
+
+
 
 
 
@@ -761,7 +1552,15 @@ BEGIN
 
 
 
+
+
+
+
             AND pccpy.IsDeleted       = 0
+
+
+
+
 
 
 
@@ -769,7 +1568,15 @@ BEGIN
 
 
 
+
+
+
+
             AND pccpy.Amount         <> 0
+
+
+
+
 
 
 
@@ -777,7 +1584,15 @@ BEGIN
 
 
 
+
+
+
+
         WHERE pcc.IsDeleted = 0
+
+
+
+
 
 
 
@@ -785,7 +1600,15 @@ BEGIN
 
 
 
+
+
+
+
     x AS
+
+
+
+
 
 
 
@@ -793,7 +1616,15 @@ BEGIN
 
 
 
+
+
+
+
         SELECT
+
+
+
+
 
 
 
@@ -801,7 +1632,15 @@ BEGIN
 
 
 
+
+
+
+
             pmwi.YearOfWork              AS activity_year,
+
+
+
+
 
 
 
@@ -809,7 +1648,15 @@ BEGIN
 
 
 
+
+
+
+
             SUM(pmwl.PhysicalTarget)     AS target_amount,
+
+
+
+
 
 
 
@@ -817,7 +1664,15 @@ BEGIN
 
 
 
+
+
+
+
         FROM dbo.[tProjectMajorWorkItem] pmwi
+
+
+
+
 
 
 
@@ -825,7 +1680,15 @@ BEGIN
 
 
 
+
+
+
+
             ON  pmwl.WorkItemFK = pmwi.Id
+
+
+
+
 
 
 
@@ -833,7 +1696,15 @@ BEGIN
 
 
 
+
+
+
+
         WHERE pmwi.IsDeleted = 0
+
+
+
+
 
 
 
@@ -841,7 +1712,15 @@ BEGIN
 
 
 
+
+
+
+
     )
+
+
+
+
 
 
 
@@ -849,7 +1728,15 @@ BEGIN
 
 
 
+
+
+
+
         prog_rev.Name                               AS Program_Description,
+
+
+
+
 
 
 
@@ -857,11 +1744,23 @@ BEGIN
 
 
 
+
+
+
+
         RTRIM(p.ProjectId)                          AS Project_Id,
 
 
 
+
+
+
+
         ar.Name					                    AS RO,
+
+
+
+
 
 
 
@@ -873,7 +1772,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         (CASE RIGHT(p.ProjectId, 2)
+
+
+
+
 
 
 
@@ -881,11 +1792,27 @@ BEGIN
 
 
 
+
+
+
+
             ELSE deo.Name
 
 
 
+
+
+
+
          END)                                     AS DEO,
+
+
+
+
+
+
+
+
 
 
 
@@ -901,11 +1828,27 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         ou.Name                                    AS Operating_Unit,
 
 
 
+
+
+
+
         io.Name                                     AS Implementing_Office,
+
+
+
+
 
 
 
@@ -917,7 +1860,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         pcs.component                               AS Component_Id,
+
+
+
+
 
 
 
@@ -925,7 +1880,15 @@ BEGIN
 
 
 
+
+
+
+
         --pcs.cost                                    AS Component_Cost,
+
+
+
+
 
 
 
@@ -937,7 +1900,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         pcs.component                               AS Activity_Component_Id,
+
+
+
+
 
 
 
@@ -945,7 +1920,15 @@ BEGIN
 
 
 
+
+
+
+
         pcs.pmsid                                   AS UACS_PAP_Code,
+
+
+
+
 
 
 
@@ -953,7 +1936,15 @@ BEGIN
 
 
 
+
+
+
+
         sow.Measure                                 AS Target_Unit,
+
+
+
+
 
 
 
@@ -961,11 +1952,19 @@ BEGIN
 
 
 
-        pcs.cost                                    AS Target_Amount,
 
 
 
-        --x.target_amount                             AS Target_Amount,
+
+        x.target_amount                             AS Target_Amount,
+
+
+
+
+
+
+
+
 
 
 
@@ -981,7 +1980,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         (CASE rw.Name
+
+
+
+
 
 
 
@@ -989,11 +2000,23 @@ BEGIN
 
 
 
-            WHEN 'Regionwide - AIP ignores DEO' THEN 'Regionwide'
+
+
+
+
+            WHEN 'Regionwide AIP ignores DEO' THEN 'Regionwide'
+
+
+
+
 
 
 
             ELSE 'Non Regionwide'
+
+
+
+
 
 
 
@@ -1005,7 +2028,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         (CASE rw.Name
+
+
+
+
 
 
 
@@ -1013,11 +2048,23 @@ BEGIN
 
 
 
-            WHEN 'Regionwide - AIP ignores DEO' THEN 'zzzRegionwide'
+
+
+
+
+            WHEN 'Regionwide AIP ignores DEO' THEN 'zzzRegionwide'
+
+
+
+
 
 
 
             ELSE ld.Name
+
+
+
+
 
 
 
@@ -1029,7 +2076,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         (CASE rw.Name
+
+
+
+
 
 
 
@@ -1037,11 +2096,23 @@ BEGIN
 
 
 
+
+
+
+
                 CASE RIGHT(p.ProjectId, 2)
 
 
 
+
+
+
+
                     WHEN 'LS' THEN 'National Capital Region'
+
+
+
+
 
 
 
@@ -1049,11 +2120,23 @@ BEGIN
 
 
 
+
+
+
+
                 END
 
 
 
-            WHEN 'Regionwide - AIP ignores DEO' THEN ''
+
+
+
+
+            WHEN 'Regionwide AIP ignores DEO' THEN ''
+
+
+
+
 
 
 
@@ -1061,7 +2144,15 @@ BEGIN
 
 
 
+
+
+
+
                 CASE RIGHT(p.ProjectId, 2)
+
+
+
+
 
 
 
@@ -1069,7 +2160,15 @@ BEGIN
 
 
 
+
+
+
+
                     ELSE deo.Name
+
+
+
+
 
 
 
@@ -1077,7 +2176,19 @@ BEGIN
 
 
 
+
+
+
+
          END)                                       AS rw_deo,
+
+
+
+
+
+
+
+
 
 
 
@@ -1093,11 +2204,27 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         p.ProjectId                                 AS projectid,
 
 
 
+
+
+
+
         p.ProgramId                                 AS programid,
+
+
+
+
 
 
 
@@ -1109,7 +2236,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         p.MYCAApprovalDate                          AS date_of_approval,
+
+
+
+
 
 
 
@@ -1117,7 +2256,19 @@ BEGIN
 
 
 
+
+
+
+
         pcma.date_of_approval                       AS date_modify,
+
+
+
+
+
+
+
+
 
 
 
@@ -1133,11 +2284,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
         (CASE WHEN p.MYCAApprovalDate IS NOT NULL THEN 'MYOA' ELSE '' END) AS myoa,
 
 
 
+
+
+
+
         pcs.pmsid                                    AS uacs
+
+
+
+
+
+
+
+
 
 
 
@@ -1153,7 +2324,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
     JOIN dbo.[tPrograms] prog
+
+
+
+
 
 
 
@@ -1161,7 +2344,15 @@ BEGIN
 
 
 
+
+
+
+
         AND prog.StartYear  = @yearstart
+
+
+
+
 
 
 
@@ -1169,7 +2360,15 @@ BEGIN
 
 
 
+
+
+
+
                                 FROM STRING_SPLIT(@programid, ','))
+
+
+
+
 
 
 
@@ -1177,11 +2376,23 @@ BEGIN
 
 
 
+
+
+
+
         AND RIGHT(p.ProjectId, 2) <> 'NP'
 
 
 
+
+
+
+
         AND p.IsDeleted     = 0
+
+
+
+
 
 
 
@@ -1193,11 +2404,31 @@ BEGIN
 
 
 
-    JOIN dbo.[tProgramRevisions] prog_rev
 
 
 
-        ON  prog_rev.ProgramFK = p.ProgramFK
+
+
+
+
+
+    JOIN LatestProgRev prog_rev
+
+
+
+
+
+
+
+        ON  prog_rev.ProgramFK = p.ProgramFK AND prog_rev.rn = 1
+
+
+
+
+
+
+
+
 
 
 
@@ -1209,7 +2440,19 @@ BEGIN
 
 
 
+
+
+
+
         ON  cat.CategoryId = p.Category
+
+
+
+
+
+
+
+
 
 
 
@@ -1221,7 +2464,19 @@ BEGIN
 
 
 
+
+
+
+
         ON  deo.ParticipantId = p.DEO
+
+
+
+
+
+
+
+
 
 
 
@@ -1233,7 +2488,19 @@ BEGIN
 
 
 
+
+
+
+
         ON  io.ParticipantId = p.ImplementingOffice
+
+
+
+
+
+
+
+
 
 
 
@@ -1245,7 +2512,19 @@ BEGIN
 
 
 
+
+
+
+
         ON  ou.ParticipantId = p.OperatingUnit
+
+
+
+
+
+
+
+
 
 
 
@@ -1257,7 +2536,19 @@ BEGIN
 
 
 
+
+
+
+
         ON  ld.Code = p.LegislativeDistrict
+
+
+
+
+
+
+
+
 
 
 
@@ -1269,7 +2560,19 @@ BEGIN
 
 
 
+
+
+
+
         ON  ar.ParticipantId = p.Region
+
+
+
+
+
+
+
+
 
 
 
@@ -1281,11 +2584,23 @@ BEGIN
 
 
 
+
+
+
+
         ON  rw.NameId = p.RegionWide
 
 
 
+
+
+
+
     LEFT JOIN pcs
+
+
+
+
 
 
 
@@ -1297,11 +2612,27 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
     LEFT JOIN x
 
 
 
+
+
+
+
         ON  x.ComponentCostFK = pcs.ComponentCostId
+
+
+
+
 
 
 
@@ -1313,7 +2644,19 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
     LEFT JOIN dbo.[tOptionScopeOfWork] sow
+
+
+
+
 
 
 
@@ -1325,11 +2668,31 @@ BEGIN
 
 
 
-    LEFT JOIN dbo.[tProgramStages] progstage
 
 
 
-        ON  progstage.ProgramFK = prog.ProgramPK
+
+
+
+
+
+    LEFT JOIN LatestProgStage progstage
+
+
+
+
+
+
+
+        ON  progstage.ProgramFK = prog.ProgramPK AND progstage.rn = 1
+
+
+
+
+
+
+
+
 
 
 
@@ -1341,7 +2704,19 @@ BEGIN
 
 
 
+
+
+
+
         ON  ops.NameId = progstage.StageId
+
+
+
+
+
+
+
+
 
 
 
@@ -1353,7 +2728,19 @@ BEGIN
 
 
 
+
+
+
+
         ON  PAP.PAPKey = p.Thrust
+
+
+
+
+
+
+
+
 
 
 
@@ -1365,7 +2752,15 @@ BEGIN
 
 
 
+
+
+
+
         ON  pcma.projectid = p.ProjectId
+
+
+
+
 
 
 
@@ -1373,11 +2768,27 @@ BEGIN
 
 
 
+
+
+
+
         AND pcma.is_publish = 1
 
 
 
+
+
+
+
         AND pcma.reasons_for_rm IN ('1','2','3','4','5','6','7','8','9','10','11','12','13','14')
+
+
+
+
+
+
+
+
 
 
 
@@ -1393,6 +2804,14 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
     ORDER BY PAP.SequenceNumber;
 
 
@@ -1401,16 +2820,30 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
 END
-
-
-
-
-
-
 GO
 
 CREATE OR ALTER PROCEDURE [dbo].[usp_extract_PC_MIOW_list]
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1418,7 +2851,31 @@ CREATE OR ALTER PROCEDURE [dbo].[usp_extract_PC_MIOW_list]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     @programid  VARCHAR(255),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1426,7 +2883,31 @@ CREATE OR ALTER PROCEDURE [dbo].[usp_extract_PC_MIOW_list]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     @rocode     VARCHAR(20),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1434,7 +2915,31 @@ CREATE OR ALTER PROCEDURE [dbo].[usp_extract_PC_MIOW_list]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     @io_code    VARCHAR(20)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1442,11 +2947,47 @@ CREATE OR ALTER PROCEDURE [dbo].[usp_extract_PC_MIOW_list]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 AS
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 BEGIN
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1458,7 +2999,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     --SELECT
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1466,7 +3043,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     --    categoryid_received = @categoryid,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1474,27 +3075,76 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     --    deocode_received    = '[' + ISNULL(@deocode, 'NULL') + ']',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
     --    io_code_received    = '[' + ISNULL(@io_code, 'NULL') + ']';
 
+;WITH LatestProgRev AS
 
+    (
 
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY ProgramFK ORDER BY Id DESC) AS rn
 
+        FROM dbo.tProgramRevisions
 
+    ),
 
-
-    ;WITH pcs AS
-
-
-
+    pcs AS
     (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         SELECT
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1502,7 +3152,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pcc.ProjectRevisionFK,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1510,7 +3184,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pcc.Total                AS pc_cost,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1518,7 +3216,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             MAX(pccpy.UACS)          AS pmsid,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1526,7 +3248,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             MAX(pccpy.EndDate)       AS end_date
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1534,7 +3280,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         LEFT JOIN dbo.[tProjectComponentCostPerYear] pccpy
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1542,7 +3312,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             AND pccpy.IsDeleted       = 0
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1550,7 +3344,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         GROUP BY pcc.Id, pcc.ProjectRevisionFK, pcc.ComponentId, pcc.Total, pcc.Description
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1558,7 +3376,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     x AS
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1566,7 +3408,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         SELECT
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1574,7 +3440,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pmwi.ComponentCostFK,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1582,7 +3472,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pmwi.InfraTypeFK,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1590,7 +3504,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pmwl.DetailedScope       AS dsow,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1598,7 +3536,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pmwl.StartChainage       AS start_chainage,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1606,7 +3568,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pmwl.Length              AS length,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1614,7 +3600,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pmwl.EndStationLimit     AS end_station_limit,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1622,7 +3632,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pmwl.StartY              AS start_y,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1630,7 +3664,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             pmwl.EndY                AS end_y
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1638,7 +3696,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         JOIN dbo.[tProjectMajorWorkLocations] pmwl
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1646,7 +3728,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             AND pmwl.IsDeleted  = 0
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1654,7 +3760,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1662,7 +3792,31 @@ BEGIN
 
 
 
-        --p.ProgramId                          AS programid,
+
+
+
+
+
+
+
+
+
+
+
+
+        p.ProgramId                          AS programid,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1670,11 +3824,47 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         deo.RegionName                       AS Region,
 
 
 
-        --deo.RegionCode                       AS rocode,
+
+
+
+
+
+
+
+
+
+
+
+
+        p.Region                              AS rocode,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1682,7 +3872,31 @@ BEGIN
 
 
 
-        --p.DEO                                AS deo_code,
+
+
+
+
+
+
+
+
+
+
+
+
+        p.DEO                                AS deo_code,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1690,7 +3904,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         cm.Name                                AS City_Municipality,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1698,7 +3936,31 @@ BEGIN
 
 
 
-        --cat.CategoryId                        AS categoryid,
+
+
+
+
+
+
+
+
+
+
+
+
+        cat.CategoryId                        AS categoryid,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1706,7 +3968,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         po.Name                                 AS Project_Origin,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1714,7 +4000,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         p.Description                          AS Project_Description,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1722,7 +4032,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         pcs.componentname                      AS Project_Component_Description,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1730,7 +4064,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         SUM(pcs.pc_cost) OVER (PARTITION BY p.Id) AS Project_Cost,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1738,7 +4096,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         --sow.InfraType                          AS Infra_Type,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1746,7 +4128,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         sow.Description                 AS Type_of_Work,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1754,7 +4160,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         x.target_amount                        AS Physical_Target,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1762,7 +4192,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         x.dsow                                  AS Detail_Scope_of_Work,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1770,11 +4224,47 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ou.Name                                  AS Operating_Unit,
 
 
 
-        --p.ImplementingOffice                     AS io_code,
+
+
+
+
+
+
+
+
+
+
+
+
+        p.ImplementingOffice                     AS io_code,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1782,7 +4272,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         x.infra_id                               AS Infra_ID,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1790,7 +4304,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         x.end_chainage                           AS End_Chainage,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1798,7 +4336,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         x.start_station_limit                    AS Start_Station_Limit,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1806,7 +4368,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         x.start_x                                AS Start_X,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1814,11 +4400,59 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         x.end_x                                  AS End_X,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         x.end_y                                  AS End_Y
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1834,7 +4468,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     JOIN dbo.[tPrograms] prog
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1842,7 +4512,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         --AND p.ProgramId    = @programid
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1850,7 +4544,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         AND p.ProgramId IN (SELECT TRIM(value)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1858,11 +4576,47 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         AND (ISNULL(@rocode, '') = '' OR p.Region = @rocode)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         AND (ISNULL(@deocode, '')  = '' OR p.DEO                 = @deocode)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1874,11 +4628,71 @@ BEGIN
 
 
 
-    JOIN dbo.[tProgramRevisions] prog_rev
 
 
 
-        ON  prog_rev.ProgramFK = p.ProgramFK
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    JOIN LatestProgRev prog_rev
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        ON  prog_rev.ProgramFK = p.ProgramFK AND prog_rev.rn = 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1890,7 +4704,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ON  deo.ParticipantId = p.DEO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1902,7 +4752,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ON  cat.CategoryId = p.Category
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1914,7 +4788,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN dbo.[tOptionProjectThrustList] PAP
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1926,7 +4836,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN pcs
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1938,7 +4884,42 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN x
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1950,7 +4931,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN dbo.[tOptionScopeOfWork] sow
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1962,7 +4979,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN dbo.[tOptionInfraType] infra
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1970,7 +5023,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     --OUTER APPLY
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1978,7 +5055,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     --    SELECT STRING_AGG(it.InfraName, ', ') AS InfraNames
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1986,11 +5087,47 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     --    JOIN dbo.[tOptionInfraType] it
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     --        ON it.InfraCode = j.value
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2002,7 +5139,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN dbo.[vAdminImplementingOffice] io
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2014,7 +5187,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN dbo.[vAdminOperatingUnit] ou
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2026,7 +5235,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN dbo.[tOptionAdminAreaCongressionalDistrict] ld
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2038,7 +5283,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN dbo.[tOptionAdminAreaCityMunicipality] cm
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2050,7 +5331,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     LEFT JOIN dbo.[tOptionProjectOrigin] po
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2062,7 +5379,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     --LEFT JOIN dbo.[tOptionAdminAreaRegion] ar
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2074,7 +5427,43 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     --WHERE
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2082,7 +5471,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         --AND (ISNULL(@rocode, '') = '' OR p.Region = @rocode)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2090,11 +5503,59 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         --AND (ISNULL(@io_code, '')  = '' OR p.ImplementingOffice   = @io_code)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         --AND (ISNULL(@categoryid, 0) <= 0 OR cat.CategoryId       = @categoryid)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2110,13 +5571,31 @@ BEGIN
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 END
-
-
-
-
-
-
 GO
 
 CREATE OR ALTER VIEW dbo.MYPS_vw_rptRBPSummary
@@ -3052,12 +6531,6 @@ AS
 
 
     --GROUP BY y.ProgramId, y.DEO, y.Legislative_District, y.RO;
-
-
-
-
-
-
 GO
 
 CREATE OR ALTER VIEW [dbo].[MYPS_vw_rptRBPSummaryTier]
@@ -4199,18 +7672,4 @@ AS
 
 
     LEFT JOIN LP   d ON d.ProgramId = r.ProgramId AND d.tier = r.tier AND d.DEO = r.DEO AND d.Legislative_District = r.Legislative_District;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GO
