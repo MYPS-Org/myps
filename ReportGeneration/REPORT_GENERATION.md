@@ -1,5 +1,12 @@
 # Report Generation Documentation
 
+> **This system is currently orphaned.** As of 2026-09-05, `FE/src/pages/Reports` calls only
+> `/api/reports/*`, which is a separate, actively-used Crystal-Reports-based pipeline documented at
+> `CrystalReportService/CRYSTAL_REPORT_GENERATION.md`. The QuestPDF classes and
+> `ReportingController.cs` (`api/Reporting`) described below still exist and still build, but have
+> zero live callers today. Don't delete them without confirming with the operator first, and don't
+> assume this doc describes what actually renders a report right now — check the other file.
+
 > ⚠️ **KEEP THIS FILE UP TO DATE**
 > Every time a report class, shared utility, or controller endpoint is added, modified, or removed,
 > update this document **before merging the PR**.  Treat it as a living specification.

@@ -4,7 +4,8 @@ public enum ReportFamily
 {
     Rbp,
     Aip,
-    ExtractPcmiow
+    ExtractPcmiow,
+    RbpSummary
 }
 
 public static class ReportCatalog
@@ -46,6 +47,18 @@ public static class ReportCatalog
             Id = "aip-executive-2",
             Label = "AIP Executive 2",
             OutputFormat = "pdf"
+        },
+        new ReportTypeOptionDTO
+        {
+            Id = "rbp-summary-report",
+            Label = "RBP Summary Report",
+            OutputFormat = "pdf"
+        },
+        new ReportTypeOptionDTO
+        {
+            Id = "rbp-summary-report-with-tier",
+            Label = "RBP Summary Report with Tier",
+            OutputFormat = "pdf"
         }
     ];
 
@@ -76,6 +89,13 @@ public static class ReportCatalog
             || reportName.Equals("aip-official-without-ld", StringComparison.OrdinalIgnoreCase))
         {
             family = ReportFamily.Aip;
+            return true;
+        }
+
+        if (reportName.Equals("rbp-summary-report", StringComparison.OrdinalIgnoreCase)
+            || reportName.Equals("rbp-summary-report-with-tier", StringComparison.OrdinalIgnoreCase))
+        {
+            family = ReportFamily.RbpSummary;
             return true;
         }
 
