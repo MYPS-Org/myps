@@ -65,6 +65,9 @@ Click 🔍 in navbar
 - The search `Value` is always passed as a Dapper `@Value` parameter — fully parameterized.
 - Results capped at **TOP 50** per query. When exactly 50 results are returned, the UI shows an amber hint: "capped at 50 — refine your search".
 
+### Region resolution
+`Region` on project data (`tProjectRevisions.Region`, and everything derived from it — `fProjectDetails`, `vProjects`) stores the raw admin-area `ParticipantId` code (e.g. `"R3"`), not a display name — confirmed via `ProjectDetailsForm.tsx`'s Region dropdown, which maps `ParticipantId -> Name` for the same field. Unlike `Category`/`Thrust`/`Origin`/`Agency`, there's no paired `RegionName` column, so every branch that surfaces `Region` (Project ID, Alternate ID, Description, UACS, Road Sections) resolves it server-side via `GetRegionNamesAsync()` (a `tOptionAdminAreaRegion` `ParticipantId -> Name` dictionary) before returning `Data`, instead of forwarding the raw code to the FE. Roads and Bridge have no region link at all and don't attempt to show one.
+
 ---
 
 ## Frontend
@@ -114,7 +117,7 @@ Defined in `GlobalSearchDialog.tsx`. Maps `CategoryName` → a function that bui
 | `UACS` | `/projects/project-details/{ProjectId}:{StageName}` |
 | `Program Name` | `/programs/programdetails/{ProgramPK}:{StageName}` |
 | `Roads` | *(not in CATEGORY_NAV — no View button)* |
-| `Road Section` | *(not in CATEGORY_NAV — no View button)* |
+| `Road Sections` | *(not in CATEGORY_NAV — no View button)* |
 | `Bridge` | *(not in CATEGORY_NAV — no View button)* |
 
 > If both `ProjectId` and `StageName` are present the URL is `/projects/project-details/{ProjectId}:{StageName}`. Navigation is performed via React Router `useNavigate`; the dialog closes immediately on navigate.
@@ -133,7 +136,7 @@ To add navigation for a new category, add an entry to `CATEGORY_NAV` in `GlobalS
 | `uacs` | UACS | `Projects` | `UACS` | `/projects/project-details/:ProjectId::StageName` |
 | `programName` | Program Name | `Programs` | `Name` | `/programs/programdetails/:ProgramPK` |
 | `roads` | Roads | `vRoads` | `RoadName` | *(no link — pending)* |
-| `roadSection` | Road Section | `vRoadSections` | `RoadSectionId` | *(no link — pending)* |
+| `roadSection` | Road Sections | `vRoadSections` | `RoadSectionId` | *(no link — pending)* |
 | `bridge` | Bridge | `vBridges` | `BridgeName` | *(no link — pending)* |
 
 > `vRoads`, `vRoadSections`, and `vBridges` need to be whitelisted in `GlobalSearchController.cs` when the backend views are ready.  
@@ -152,9 +155,11 @@ The dialog renders exactly these columns (in this order, with these labels) for 
 | Description | `ProjectId`, `Description`, `ProgramName`, `StageName`, `Region` |
 | UACS | `ProjectId`, `UACS`, `Description`, `StageName`, `Region` |
 | Program Name | `ProgramId`, `Name`, `StageName`, `YearStart`, `Status` |
-| Roads | `RoadId`, `RoadName`, `Region`, `Length` |
-| Road Section | `RoadSectionId`, `RoadName`, `Region`, `RoadLength` |
-| Bridge | `BridgeId`, `BridgeName`, `Region`, `Length` |
+| Roads | `RoadId`, `Name` |
+| Road Sections | `RoadSectionId`, `RoadId`, `Region`, `LengthM` |
+| Bridge | `BridgeId`, `Name`, `Length` |
+
+> `Region` is a resolved display name in every row above, not the raw admin-area `ParticipantId` code (e.g. `"R3"`) — see the note in the Backend section below.
 
 ---
 
@@ -240,8 +245,10 @@ Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts`. Its `label` m
 | Results capped at 50 | By design. UI shows amber hint when limit is hit. Add pagination if needed. |
 | No multi-field search | Current design: one field at a time. |
 | No date-range search | Values are always `LIKE %value%`. Date filtering would need a new control. |
-| Roads / Road Section / Bridge | Backend views not yet whitelisted — View buttons not shown. |
+| Roads / Road Sections / Bridge | Backend views not yet whitelisted — View buttons not shown. |
 | `getSearchColumns` / `SearchableTable` / `SearchableColumn` | Legacy code — safe to remove if the GetColumns endpoint is also removed from the backend. |
+| Road Sections `Region` column | Shows `RegionParticipantId` (a participant code, e.g. `R3`), not a resolved region name — there's no join to a Region table on `tFutureRoadSections`. |
+| `UACS` category untested end-to-end | Backend now queries `_db.vProjects` (see Changelog 2026-09-06), but `vProjects` has no other callers anywhere in the codebase, so this path has no existing test coverage. Verify against live data once DB access is available. |
 
 ---
 
@@ -256,3 +263,7 @@ Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts`. Its `label` m
 | 2026-07-31 | Claude | Added `EXCLUDED_RESULT_COLUMNS` / `isExcludedResultColumn()` to `config.ts` (exact-match list + `PK`/`FKId` suffix rule) and wired it into `GlobalSearchDialog.tsx`'s `dynamicColumns` filter, so internal PK/FK columns (e.g. `StageFKId`, `ProgramPK`) returned by backend view models no longer render in the results table |
 | 2026-07-31 | Claude | Replaced dynamic column derivation with `SEARCH_FIELD_CONFIG`-driven columns: `GlobalSearchDialog.tsx` now looks up the entry whose `label` matches the selected `CategoryName` and renders its `resultColumns` directly, instead of deriving/filtering/ordering/labeling columns from the raw API row. Removed the now-unused `EXCLUDED_RESULT_COLUMNS`, `isExcludedResultColumn()`, `getColumnLabel()`, `COLUMN_ORDER_BY_CATEGORY`, `orderResultColumns()` from `config.ts`. `SEARCH_FIELD_CONFIG` is no longer reference-only — adding a category now requires a matching entry (see "How to Add a New Searchable Field") |
 | 2026-08-11 | Claude | Fixed `Program Name` navigation to use `ProgramPK` instead of `ProgramId` in the URL (`GlobalSearchDialog.tsx`'s `CATEGORY_NAV` and `config.ts`'s reference `getLink`). `ProgramDetail.tsx`'s `:program` route param is resolved via `ProgramPK` everywhere else in the app (`Program.tsx`, `AddProgramDialog.tsx`); `ProgramId` is a separate display code and was producing a route the backend couldn't resolve |
+| 2026-09-03 | Claude | Fixed `config.ts`'s Road Sections entry: `label` was `'Road Section'` (singular) but the backend `CategoryName` is `'Road Sections'` (plural, see `GlobalSearchController.cs`'s category list). The mismatch meant `SEARCH_FIELD_CONFIG.find()` never matched, so `resultColumns` resolved to `[]` and the results table rendered with zero columns even when matches were found |
+| 2026-09-03 | Claude | Fixed three more `resultColumns` field-name mismatches in `config.ts`: Road Sections' `RoadLength` → `LengthM` (matches `tFutureRoadSections`'s actual column), Roads' `RoadName` → `Name` and Bridge's `BridgeName` → `Name`. `RoadName`/`Region` on Road Sections remain mismatched (see Known Limitations) — `vRoads`/`vRoadSections`/`vBridges` are also still un-whitelisted on the backend, so none of this is testable end-to-end yet |
+| 2026-09-06 | Claude | Fixed remaining `resultColumns` mismatches: Road Sections' `RoadName` → `RoadId` and `Region` → `RegionParticipantId` (closest real column, not a resolved name); removed `Region`/`Length` from Roads and `Region` from Bridge entirely — `tFutureRoads` and `tFutureBridge` have no such columns at all (no join backs them), so they always rendered `—`. Also added the missing `UACS` branch to `GlobalSearchController.Search` — it's a real category in `tOptionGlobalSearch` and selectable in the dropdown, but had no `if` branch, so searching it always 400'd with "not implemented yet"; now queries `_db.vProjects` (already carries ProjectId/UACS/Description/StageName/Region in one row). Could not verify against live data — no DB connectivity in this environment (see Known Limitations) |
+| 2026-09-06 | Claude | Fixed Road Sections' `Region` to resolve the actual name instead of the raw `RegionParticipantId` code: `GlobalSearchController.cs` now left-joins `tOptionAdminAreaRegion` and returns `region.Name`; `config.ts` reverted the column back to `field: 'Region'`. Then found the same code-not-name bug on the *other four* project categories (Project ID, Alternate ID, Description, UACS): `tProjectRevisions.Region`/`fProjectDetails`/`vProjects` all store the raw `ParticipantId` with no paired `RegionName` (unlike `Category`/`Thrust`/`Origin`/`Agency`, confirmed via `ProjectDetailsForm.tsx`'s Region dropdown, which maps `ParticipantId -> Name` for this exact field) — every branch was forwarding the code straight to the FE. Added `GetRegionNamesAsync()` (a `tOptionAdminAreaRegion` `ParticipantId -> Name` dictionary) and applied it to all five affected branches, projecting each down to just the fields `SEARCH_FIELD_CONFIG` actually renders instead of returning the full raw row |
