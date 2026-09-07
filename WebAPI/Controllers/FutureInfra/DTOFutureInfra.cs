@@ -152,4 +152,21 @@ namespace WebAPI.Controllers.Programs
         public string BridgeId { get; set; } = string.Empty;
     }
     #endregion
+    #region Infra Selection (Project/Revision work-location picker - DEO required, unlike the Rbia-admin Show* actions above)
+    public class ShowInfraRoadSectionsDTO : EnumPagination<ShowInfraRoadSectionsFilterDTO> { }
+    public class ShowInfraRoadSectionsFilterDTO
+    {
+        [Required]
+        public string DEO { get; set; } = string.Empty;
+        public string? RoadName { get; set; }
+    }
+    public class ShowInfraBridgesDTO : EnumPagination<ShowInfraBridgesFilterDTO> { }
+    public class ShowInfraBridgesFilterDTO
+    {
+        [Required]
+        public string DEO { get; set; } = string.Empty;
+        public string? BridgeName { get; set; }
+        public string? RoadSectionId { get; set; }
+    }
+    #endregion
 }

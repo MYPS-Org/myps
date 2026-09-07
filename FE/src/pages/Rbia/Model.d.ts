@@ -94,3 +94,70 @@ export interface BridgeFilter {
   Length?: number,
   CarriageWay?: number
 }
+
+// Backed by FutureInfraController's ShowInfraRoadSections/ShowInfraBridges — distinct from
+// ShowFutureRoadSections/ShowFutureBridge above (RBIA-admin CRUD). These require DEO and
+// return the scoped, human-readable vInfraRoadSectionOptions/vInfraBridgeOptions views used
+// by the Project/Revision work-location picker (AddInfraDialog).
+export interface InfraRoadSectionOption {
+	Id: number;
+	RoadId: string;
+	RoadSectionId: string;
+	RoadName?: string;
+	LengthM: number;
+	DEOParticipantId: string;
+	RegionParticipantId?: string;
+	NetworkStatusId: number;
+	CreatedBy: string;
+	CreatedByName?: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedByName?: string;
+	UpdatedDate?: string;
+}
+export interface InfraRoadSectionPagination extends PaginationParams {
+  filters?: InfraRoadSectionFilter;
+  sortField?: string;
+  sortDirection?: 0 | 1;
+  Navigation?: PaginationNavigationValue;
+  PreviousFilteredId?: number | null;
+  NextFilteredId?: number | null;
+  PageCursorId?: number | null;
+}
+export interface InfraRoadSectionFilter {
+  DEO: string;
+  RoadName?: string;
+}
+
+export interface InfraBridgeOption {
+	Id: number;
+	BridgeId: string;
+	RoadSectionId: string;
+	BridgeName?: string;
+	DEOParticipantId?: string;
+	RegionParticipantId?: string;
+	FromChainage: number;
+	Length: number;
+	CarriageWay?: number;
+	OverallWidth: number;
+	CreatedBy: string;
+	CreatedByName?: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedByName?: string;
+	UpdatedDate?: string;
+}
+export interface InfraBridgePagination extends PaginationParams {
+  filters?: InfraBridgeFilter;
+  sortField?: string;
+  sortDirection?: 0 | 1;
+  Navigation?: PaginationNavigationValue;
+  PreviousFilteredId?: number | null;
+  NextFilteredId?: number | null;
+  PageCursorId?: number | null;
+}
+export interface InfraBridgeFilter {
+  DEO: string;
+  BridgeName?: string;
+  RoadSectionId?: string;
+}

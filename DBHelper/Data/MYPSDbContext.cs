@@ -305,6 +305,8 @@ namespace DBHelper.Data
         public DbSet<Models.Views.UserViewPermission> vUserViewPermission { get; set; }
         public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }
         public DbSet<Models.Views.APIPermissions> vAPIPermissions { get; set; }
+        public DbSet<Models.Views.Infra.InfraRoadSectionOption> vInfraRoadSectionOptions { get; set; }
+        public DbSet<Models.Views.Infra.InfraBridgeOption> vInfraBridgeOptions { get; set; }
         #endregion
 
         #endregion
@@ -314,6 +316,8 @@ namespace DBHelper.Data
             modelBuilder.Entity<Models.Views.AdminAreas.AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
             modelBuilder.Entity<Models.Views.AdminAreas.AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<Models.Views.AdminAreas.AdminOfficeRegion>().HasNoKey().ToView("vAdminOfficeRegion");
+            modelBuilder.Entity<Models.Views.Infra.InfraRoadSectionOption>().HasNoKey().ToView("vInfraRoadSectionOptions");
+            modelBuilder.Entity<Models.Views.Infra.InfraBridgeOption>().HasNoKey().ToView("vInfraBridgeOptions");
             modelBuilder.Entity<UserVisibleProjects>().HasNoKey().ToView("fUserVisibleProjects");
             modelBuilder.Entity<UserVisiblePrograms>().HasNoKey().ToView("fUserVisiblePrograms");
             modelBuilder.Entity<RevisionApprovalStatus>().HasNoKey().ToView("fRevisionApprovalStatus");

@@ -3,6 +3,7 @@ using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Table.Infra;
+using DBHelper.Models.Views.Infra;
 using Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -1013,6 +1014,136 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+        }
+        #endregion
+        #region Infra Selection (Project/Revision work-location picker)
+
+        // Distinct from ShowFutureRoadSections/ShowFutureBridge above (which serve the
+        // Rbia-admin CRUD screen and treat DEO as optional) - these two require DEO,
+        // and resolve RoadName/CreatedByName/UpdatedByName via vInfraRoadSectionOptions/
+        // vInfraBridgeOptions (both LEFT JOIN tFutureRoadSections/tFutureBridge against
+        // tFutureRoads and tUsers), so ProjectController/RevisionController's work-location
+        // forms can present a scoped, human-readable picker for what becomes InfraId.
+
+        [HttpPost]
+        public async Task<IActionResult> ShowInfraRoadSections([FromBody] ShowInfraRoadSectionsDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dto.Filters.DEO))
+                {
+                    return new BadRequestObjectResult(new { Message = "DEO is required.", Title = "Missing Filter" });
+                }
+
+                var checkDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.Filters.DEO);
+                if (checkDEO == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"DEO '{dto.Filters.DEO}' is not valid.", Title = "Invalid DEO" });
+                }
+
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>
+                {
+                    ("v.DEOParticipantId = @DEOParticipantId", "@DEOParticipantId", dto.Filters.DEO.Trim())
+                };
+
+                if (!string.IsNullOrEmpty(dto.Filters.RoadName))
+                    filters.Add(("v.RoadName LIKE @RoadName", "@RoadName", $"%{dto.Filters.RoadName.Trim()}%"));
+
+                FilterDataResult<InfraRoadSectionOption> result =
+                    await _db.FilterDataCursor<
+                        InfraRoadSectionOption,
+                        ShowInfraRoadSectionsFilterDTO>(
+                            tableName: "vInfraRoadSectionOptions",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
+                {
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ErrorMessage ??
+                                "Unable to retrieve the records."
+                        });
+                }
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ShowInfraBridges([FromBody] ShowInfraBridgesDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dto.Filters.DEO))
+                {
+                    return new BadRequestObjectResult(new { Message = "DEO is required.", Title = "Missing Filter" });
+                }
+
+                var checkDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.Filters.DEO);
+                if (checkDEO == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"DEO '{dto.Filters.DEO}' is not valid.", Title = "Invalid DEO" });
+                }
+
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>
+                {
+                    ("v.DEOParticipantId = @DEOParticipantId", "@DEOParticipantId", dto.Filters.DEO.Trim())
+                };
+
+                if (!string.IsNullOrEmpty(dto.Filters.BridgeName))
+                    filters.Add(("v.BridgeName LIKE @BridgeName", "@BridgeName", $"%{dto.Filters.BridgeName.Trim()}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.RoadSectionId))
+                    filters.Add(("v.RoadSectionId LIKE @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
+
+                FilterDataResult<InfraBridgeOption> result =
+                    await _db.FilterDataCursor<
+                        InfraBridgeOption,
+                        ShowInfraBridgesFilterDTO>(
+                            tableName: "vInfraBridgeOptions",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
+                {
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ErrorMessage ??
+                                "Unable to retrieve the records."
+                        });
+                }
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }

@@ -6,8 +6,8 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '.
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 import { usePagination } from '../../../hooks/usePagination';
 import type { InfraData } from '../Model.d';
-import { fetchRoadSectionData, fetchBridgeData } from '../../Rbia/Service';
-import type { FutureRoadSections, FutureBridge, RoadSectionFilter, BridgeFilter, RoadSectionPagination, BridgePagination } from '../../Rbia/Model.d';
+import { fetchInfraRoadSections, fetchInfraBridges } from '../../Rbia/Service';
+import type { InfraRoadSectionOption, InfraBridgeOption, InfraRoadSectionFilter, InfraBridgeFilter, InfraRoadSectionPagination, InfraBridgePagination } from '../../Rbia/Model.d';
 import { isRoadInfraType, isBridgeInfraType } from '../../../utils/infraIdGenerator';
 
 interface AddInfraDialogProps {
@@ -20,14 +20,14 @@ interface AddInfraDialogProps {
   deo?: string;
 }
 
-// The BE's ShowFutureRoadSections/ShowFutureBridge endpoints use keyset pagination
+// The BE's ShowInfraRoadSections/ShowInfraBridges endpoints use keyset pagination
 // (Helpers.QueryPaginationExtensions.FilterDataCursor) — a request must carry Navigation
 // (+ the matching cursor) or the BE silently forces page 1 (its DTO default is Navigation.First).
 // These adapters translate usePagination's PaginatedRequest<TFilter> shape into the
-// lowercase-`filters` request shape fetchRoadSectionData/fetchBridgeData already expect,
+// lowercase-`filters` request shape fetchInfraRoadSections/fetchInfraBridges already expect,
 // forwarding the keyset fields through untouched.
-const fetchRoadSectionsForDialog = (params: PaginatedRequest<RoadSectionFilter>) =>
-  fetchRoadSectionData({
+const fetchRoadSectionsForDialog = (params: PaginatedRequest<InfraRoadSectionFilter>) =>
+  fetchInfraRoadSections({
     filters: params.Filters,
     sortField: params.SortField ?? '',
     sortDirection: params.sortDirection ?? 1,
@@ -37,10 +37,10 @@ const fetchRoadSectionsForDialog = (params: PaginatedRequest<RoadSectionFilter>)
     PreviousFilteredId: params.PreviousFilteredId,
     NextFilteredId: params.NextFilteredId,
     PageCursorId: params.PageCursorId,
-  } as RoadSectionPagination);
+  } as InfraRoadSectionPagination);
 
-const fetchBridgesForDialog = (params: PaginatedRequest<BridgeFilter>) =>
-  fetchBridgeData({
+const fetchBridgesForDialog = (params: PaginatedRequest<InfraBridgeFilter>) =>
+  fetchInfraBridges({
     filters: params.Filters,
     sortField: params.SortField ?? '',
     sortDirection: params.sortDirection ?? 1,
@@ -50,7 +50,7 @@ const fetchBridgesForDialog = (params: PaginatedRequest<BridgeFilter>) =>
     PreviousFilteredId: params.PreviousFilteredId,
     NextFilteredId: params.NextFilteredId,
     PageCursorId: params.PageCursorId,
-  } as BridgePagination);
+  } as InfraBridgePagination);
 
 interface RoadSectionsPaneProps {
   deo?: string;
@@ -62,9 +62,10 @@ interface RoadSectionsPaneProps {
 }
 
 const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSize, selectedInfraId, onSelect, onPageSizeChange }) => {
-  const pagination = usePagination<RoadSectionFilter, FutureRoadSections>(fetchRoadSectionsForDialog, {
-    initialFilters: { RoadId: '', RoadSectionId: search, DEO: deo || '' },
+  const pagination = usePagination<InfraRoadSectionFilter, InfraRoadSectionOption>(fetchRoadSectionsForDialog, {
+    initialFilters: { DEO: deo || '', RoadName: search },
     limit: pageSize,
+    enabled: !!deo,
   });
 
   const mounted = useRef(false);
@@ -73,11 +74,16 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
       mounted.current = true;
       return;
     }
-    pagination.applyFilters({ RoadId: '', RoadSectionId: search, DEO: deo || '' });
+    if (!deo) return;
+    pagination.applyFilters({ DEO: deo, RoadName: search });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, deo]);
 
   const { data, isLoading, hasPrevious, hasNext, goToPage, goNext, goPrevious, goFirst, goLast } = pagination;
+
+  if (!deo) {
+    return <div className="flex-1 px-6 py-8 text-center text-gray-500">A DEO is required to browse road sections.</div>;
+  }
 
   return (
     <>
@@ -90,38 +96,26 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
           <Table>
             <TableHead>
               <TableRow>
-                <TableHeader>Select</TableHeader>
+                <TableHeader justify="center" className="w-16">Select</TableHeader>
                 <TableHeader>Section ID</TableHeader>
                 <TableHeader>Road Name</TableHeader>
-                {/* <TableHeader>DEO</TableHeader> */}
-                {/* <TableHeader>Length (m)</TableHeader> */}
-                <TableHeader>Network Status</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {data.lists.map((road) => (
                 <TableRow key={road.Id}>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <input
                       type="radio"
                       name="infraSelection"
                       value={road.RoadSectionId}
                       checked={selectedInfraId === road.RoadSectionId}
-                      onChange={() => onSelect(road.RoadSectionId, `${road.DEO} - ${road.RoadId}`, 'Roads', road.RoadLength)}
+                      onChange={() => onSelect(road.RoadSectionId, road.RoadName || road.RoadId, 'Roads', road.LengthM)}
                       className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                     />
                   </TableCell>
                   <TableCell className="font-medium">{road.RoadSectionId}</TableCell>
-                  <TableCell>{road.RoadId}</TableCell>
-                  {/* <TableCell>{road.DEO}</TableCell>
-                  <TableCell>{road.RoadLength}</TableCell> */}
-                  <TableCell>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      road.NetworkStatusId === 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {road.NetworkStatusId === 1 ? 'Active' : 'Inactive'}
-                    </span>
-                  </TableCell>
+                  <TableCell>{road.RoadName || road.RoadId}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -171,6 +165,7 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
 };
 
 interface BridgesPaneProps {
+  deo?: string;
   selectedRoadSectionId: string;
   search: string;
   pageSize: number;
@@ -179,10 +174,11 @@ interface BridgesPaneProps {
   onPageSizeChange: (size: number) => void;
 }
 
-const BridgesPane: React.FC<BridgesPaneProps> = ({ selectedRoadSectionId, search, pageSize, selectedInfraId, onSelect, onPageSizeChange }) => {
-  const pagination = usePagination<BridgeFilter, FutureBridge>(fetchBridgesForDialog, {
-    initialFilters: { RoadSectionId: selectedRoadSectionId || '', BridgeId: search, Name: '' },
+const BridgesPane: React.FC<BridgesPaneProps> = ({ deo, selectedRoadSectionId, search, pageSize, selectedInfraId, onSelect, onPageSizeChange }) => {
+  const pagination = usePagination<InfraBridgeFilter, InfraBridgeOption>(fetchBridgesForDialog, {
+    initialFilters: { DEO: deo || '', RoadSectionId: selectedRoadSectionId || '', BridgeName: search },
     limit: pageSize,
+    enabled: !!deo,
   });
 
   const mounted = useRef(false);
@@ -191,11 +187,16 @@ const BridgesPane: React.FC<BridgesPaneProps> = ({ selectedRoadSectionId, search
       mounted.current = true;
       return;
     }
-    pagination.applyFilters({ RoadSectionId: selectedRoadSectionId || '', BridgeId: search, Name: '' });
+    if (!deo) return;
+    pagination.applyFilters({ DEO: deo, RoadSectionId: selectedRoadSectionId || '', BridgeName: search });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, selectedRoadSectionId]);
+  }, [search, selectedRoadSectionId, deo]);
 
   const { data, isLoading, hasPrevious, hasNext, goToPage, goNext, goPrevious, goFirst, goLast } = pagination;
+
+  if (!deo) {
+    return <div className="flex-1 px-6 py-8 text-center text-gray-500">A DEO is required to browse bridges.</div>;
+  }
 
   return (
     <>
@@ -208,32 +209,32 @@ const BridgesPane: React.FC<BridgesPaneProps> = ({ selectedRoadSectionId, search
           <Table>
             <TableHead>
               <TableRow>
-                <TableHeader>Select</TableHeader>
+                <TableHeader justify="center" className="w-16">Select</TableHeader>
                 <TableHeader>Bridge ID</TableHeader>
                 <TableHeader>Bridge Name</TableHeader>
                 <TableHeader>Road Section ID</TableHeader>
-                <TableHeader>Length (m)</TableHeader>
-                <TableHeader>Overall Width (m)</TableHeader>
+                <TableHeader justify="end">Length (m)</TableHeader>
+                <TableHeader justify="end">Overall Width (m)</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
               {data.lists.map((bridge) => (
                 <TableRow key={bridge.Id}>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <input
                       type="radio"
                       name="infraSelection"
                       value={bridge.BridgeId}
                       checked={selectedInfraId === bridge.BridgeId}
-                      onChange={() => onSelect(bridge.BridgeId, bridge.Name, 'Bridges', bridge.Length)}
+                      onChange={() => onSelect(bridge.BridgeId, bridge.BridgeName || bridge.BridgeId, 'Bridges', bridge.Length)}
                       className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                     />
                   </TableCell>
                   <TableCell className="font-medium">{bridge.BridgeId}</TableCell>
-                  <TableCell>{bridge.Name}</TableCell>
+                  <TableCell>{bridge.BridgeName}</TableCell>
                   <TableCell>{bridge.RoadSectionId}</TableCell>
-                  <TableCell>{bridge.Length}</TableCell>
-                  <TableCell>{bridge.OverallWidth}</TableCell>
+                  <TableCell className="text-right">{bridge.Length}</TableCell>
+                  <TableCell className="text-right">{bridge.OverallWidth}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -309,7 +310,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   // Committed search value — only updated on Enter/submit, so typing doesn't refetch on every keystroke.
   const [submittedSearch, setSubmittedSearch] = useState<string>('');
   const [pageSize, setPageSize] = useState<number>(10);
-  const [deoRoadSections, setDeoRoadSections] = useState<FutureRoadSections[]>([]);
+  const [deoRoadSections, setDeoRoadSections] = useState<InfraRoadSectionOption[]>([]);
   const [selectedRoadSectionId, setSelectedRoadSectionId] = useState<string>('');
 
   useEffect(() => {
@@ -333,8 +334,8 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   // Fetch road sections for DEO when bridge tab becomes active
   useEffect(() => {
     if (isOpen && activeTab === 'bridge' && deo) {
-      fetchRoadSectionData({
-        filters: { RoadId: '', RoadSectionId: '', DEO: deo },
+      fetchInfraRoadSections({
+        filters: { DEO: deo, RoadName: '' },
         sortField: '',
         sortDirection: 1,
         page: 1,
@@ -461,7 +462,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder={activeTab === 'bridge' ? 'Search by Bridge ID...' : `Search ${availableTabs.find(t => t.id === activeTab)?.label.toLowerCase()}...`}
+                placeholder={activeTab === 'bridge' ? 'Search by Bridge Name...' : 'Search by Road Name...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
@@ -485,6 +486,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           {isOpen && activeTab === 'bridge' && (
             <BridgesPane
               key={pageSize}
+              deo={deo}
               selectedRoadSectionId={selectedRoadSectionId}
               search={submittedSearch}
               pageSize={pageSize}
