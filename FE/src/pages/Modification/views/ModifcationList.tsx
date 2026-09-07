@@ -60,7 +60,7 @@ const ModificationList: React.FC = () => {
 
     // Shared keyset-pagination hook — matches the pattern used by Project.tsx/Program.tsx.
     const pagination = usePagination<RevisionFilter, RevisionLists>(fetchModificationList, {
-        initialFilters: { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '' },
+        initialFilters: { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '', ProgramName: '' },
         limit: 10,
     });
 
@@ -213,9 +213,9 @@ const ModificationList: React.FC = () => {
                                     >
                                         <FunnelIcon className="w-4 h-4 mr-1 text-white" />
                                         Filters
-                                        {(pagination.currentFilters?.TransactionId || pagination.currentFilters?.RevisionType || pagination.currentFilters?.RevisionStatus) && (
+                                        {(pagination.currentFilters?.TransactionId || pagination.currentFilters?.RevisionType || pagination.currentFilters?.RevisionStatus || pagination.currentFilters?.ProgramName) && (
                                             <span className="ml-1.5 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                                {[pagination.currentFilters?.TransactionId, pagination.currentFilters?.RevisionType, pagination.currentFilters?.RevisionStatus].filter(Boolean).length}
+                                                {[pagination.currentFilters?.TransactionId, pagination.currentFilters?.RevisionType, pagination.currentFilters?.RevisionStatus, pagination.currentFilters?.ProgramName].filter(Boolean).length}
                                             </span>
                                         )}
                                     </Button>
@@ -232,6 +232,7 @@ const ModificationList: React.FC = () => {
                             <TableRow>
                                 <TableHeader>Revision Type</TableHeader>
                                 <TableHeader>Project ID</TableHeader>
+                                <TableHeader>Program Name</TableHeader>
                                 <TableHeader>Revision No.</TableHeader>
                                 <TableHeader>Reason</TableHeader>
                                 <TableHeader>Date</TableHeader>
@@ -242,7 +243,7 @@ const ModificationList: React.FC = () => {
                         <TableBody>
                             {pagination.data.lists.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                                    <TableCell colSpan={8} className="text-center text-gray-500 py-8">
                                         {pagination.isLoading ? 'Loading...' : 'No revision requests found'}
                                     </TableCell>
                                 </TableRow>
@@ -251,6 +252,7 @@ const ModificationList: React.FC = () => {
                                     <TableRow key={revision.Id}>
                                         <TableCell className="font-medium">{revision.RevisionType}</TableCell>
                                         <TableCell>{parseTransactionId(revision.TransactionId).projectId}</TableCell>
+                                        <TableCell>{revision.ProgramName || '-'}</TableCell>
                                         <TableCell className='text-center'>{parseTransactionId(revision.TransactionId).revision}</TableCell>
                                         <TableCell>{revision.RevisionReason}</TableCell>
                                         <TableCell>{revision.RevisionDate ? new Date(revision.RevisionDate).toLocaleDateString() : '-'}</TableCell>
@@ -324,7 +326,7 @@ const ModificationList: React.FC = () => {
             <FilterDialogRevisionList
                 isOpen={isFilterDialogOpen}
                 onClose={() => setIsFilterDialogOpen(false)}
-                currentFilters={pagination.currentFilters ?? { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '' }}
+                currentFilters={pagination.currentFilters ?? { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '', ProgramName: '' }}
                 revisionEnums={revisionEnums || undefined}
                 onApplyFilters={handleApplyFilters}
             />
