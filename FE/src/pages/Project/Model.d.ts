@@ -469,6 +469,7 @@ export interface RODEOEnum {
 	Name: string;
 	ProvinceCode: string;
 	OfficeType: string;
+	DEOParticipantId?: string;
 	RegionParticipantId?: string;
 	RegionCode?: string;
 	RegionName?: string;
