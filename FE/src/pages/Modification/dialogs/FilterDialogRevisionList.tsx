@@ -45,13 +45,14 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
             RevisionType: '',
             RevisionStatus: '',
             ProgramName: '',
+            CurrentStage: '',
         };
         setLocalFilters(clearedFilters);
         onApplyFilters(clearedFilters);
         onClose();
     };
 
-    const handleFilterChange = (field: 'TransactionId' | 'RevisionType' | 'RevisionStatus' | 'ProgramName', value: string) => {
+    const handleFilterChange = (field: 'TransactionId' | 'RevisionType' | 'RevisionStatus' | 'ProgramName' | 'CurrentStage', value: string) => {
         setLocalFilters((prev: RevisionFilter) => ({
             ...prev,
             [field]: value
@@ -59,7 +60,7 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
     };
 
     const hasActiveFilters = Boolean(
-        localFilters.TransactionId || localFilters.RevisionType || localFilters.RevisionStatus || localFilters.ProgramName
+        localFilters.TransactionId || localFilters.RevisionType || localFilters.RevisionStatus || localFilters.ProgramName || localFilters.CurrentStage
     );
 
     return (
@@ -115,6 +116,21 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
                                 value={localFilters.ProgramName || ''}
                                 onChange={(e) => handleFilterChange('ProgramName', e.target.value)}
                                 placeholder="e.g. Farm-to-Market Road"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                            />
+                        </div>
+
+                        {/* Current Stage Filter */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Current Stage
+                            </label>
+                            <input
+                                type="text"
+                                name="CurrentStage"
+                                value={localFilters.CurrentStage || ''}
+                                onChange={(e) => handleFilterChange('CurrentStage', e.target.value)}
+                                placeholder="e.g. RPC, PS Admin"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                             />
                         </div>
@@ -193,6 +209,13 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm text-blue-800 ring-1 ring-blue-200">
                                             <span className="font-medium">Status:</span>
                                             {localFilters.RevisionStatus}
+                                        </span>
+                                    )}
+
+                                    {localFilters.CurrentStage && (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm text-blue-800 ring-1 ring-blue-200">
+                                            <span className="font-medium">Stage:</span>
+                                            {localFilters.CurrentStage}
                                         </span>
                                     )}
                                 </div>

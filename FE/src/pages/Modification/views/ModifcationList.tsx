@@ -60,7 +60,7 @@ const ModificationList: React.FC = () => {
 
     // Shared keyset-pagination hook — matches the pattern used by Project.tsx/Program.tsx.
     const pagination = usePagination<RevisionFilter, RevisionLists>(fetchModificationList, {
-        initialFilters: { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '', ProgramName: '' },
+        initialFilters: { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '', ProgramName: '', CurrentStage: '' },
         limit: 10,
     });
 
@@ -213,9 +213,9 @@ const ModificationList: React.FC = () => {
                                     >
                                         <FunnelIcon className="w-4 h-4 mr-1 text-white" />
                                         Filters
-                                        {(pagination.currentFilters?.TransactionId || pagination.currentFilters?.RevisionType || pagination.currentFilters?.RevisionStatus || pagination.currentFilters?.ProgramName) && (
+                                        {(pagination.currentFilters?.TransactionId || pagination.currentFilters?.RevisionType || pagination.currentFilters?.RevisionStatus || pagination.currentFilters?.ProgramName || pagination.currentFilters?.CurrentStage) && (
                                             <span className="ml-1.5 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                                {[pagination.currentFilters?.TransactionId, pagination.currentFilters?.RevisionType, pagination.currentFilters?.RevisionStatus, pagination.currentFilters?.ProgramName].filter(Boolean).length}
+                                                {[pagination.currentFilters?.TransactionId, pagination.currentFilters?.RevisionType, pagination.currentFilters?.RevisionStatus, pagination.currentFilters?.ProgramName, pagination.currentFilters?.CurrentStage].filter(Boolean).length}
                                             </span>
                                         )}
                                     </Button>
@@ -326,7 +326,7 @@ const ModificationList: React.FC = () => {
             <FilterDialogRevisionList
                 isOpen={isFilterDialogOpen}
                 onClose={() => setIsFilterDialogOpen(false)}
-                currentFilters={pagination.currentFilters ?? { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '', ProgramName: '' }}
+                currentFilters={pagination.currentFilters ?? { ProjectId: '', TransactionId: '', RevisionType: '', RevisionStatus: '', ProgramName: '', CurrentStage: '' }}
                 revisionEnums={revisionEnums || undefined}
                 onApplyFilters={handleApplyFilters}
             />
