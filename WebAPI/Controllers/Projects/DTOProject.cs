@@ -178,10 +178,8 @@ namespace WebAPI.Controllers.Projects
         public decimal Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
-        [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
-        [Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
@@ -214,14 +212,6 @@ namespace WebAPI.Controllers.Projects
         [Column(TypeName = "decimal(18,5)")]
         public decimal Total { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        [Required]
-        public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
-        [Required]
         public bool IsDeleted { get; set; }
         //public ICollection<ProjectComponentCostPerYearDTO> CostsPerYear { get; set; } = new List<ProjectComponentCostPerYearDTO>();
         //public ICollection<ProjectMajorWorkItemDTO> WorkItems { get; set; } = new List<ProjectMajorWorkItemDTO>();
@@ -245,14 +235,6 @@ namespace WebAPI.Controllers.Projects
         public string? UACS { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        [Required]
-        public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
         //public ProjectComponentCostDTO ComponentCost { get; set; } = null!;

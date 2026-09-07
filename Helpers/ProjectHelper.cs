@@ -294,7 +294,7 @@ namespace Helpers
             if (ValidateRegion == null)
             {
                 response.Message = $"Selected Region '{p.Region}' is not valid."; response.Title = "Invalid Region";
-                //return response;
+                return response;
             }
             string RegionParticipantId = p.Region;//ValidateRegion.ParticipantId;
 
@@ -327,13 +327,13 @@ namespace Helpers
                 return response;
             }
 
-            var ValidateIO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! || x.ParticipantId == p.ImplementingOffice, cancellationToken);
+            var ValidateIO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! && x.ParticipantId == p.ImplementingOffice, cancellationToken);
             if (ValidateIO == null)
             {
                 response.Message = $"Selected Implementing Office '{p.ImplementingOffice}' is not valid."; response.Title = "Invalid Implementing Office";
                 return response;
             }
-            var ValidateOU = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! || x.ParticipantId == p.OperatingUnit, cancellationToken);
+            var ValidateOU = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! && x.ParticipantId == p.OperatingUnit, cancellationToken);
             if (ValidateOU == null)
             {
                 response.Message = $"Selected Operating Unit '{p.OperatingUnit}' is not valid."; response.Title = "Invalid Operating Unit";
@@ -392,8 +392,9 @@ namespace Helpers
             if (ValidateDetailedDesign == null)
             {
                 response.Message = $"Selected Detailed Design '{p.DetailedDesign}' is not valid."; response.Title = "Invalid Detailed Design";
+                return response;
             }
-            if (p.DetailedDesign == 1 && p.DetailedDesign == null)
+            if (p.DetailedDesign == 1 && p.DetailedDesignDate == null)
             {
                 response.Message = "The Detailed Design Date is required when Detailed Design is selected."; response.Title = "Detailed Design Date Required";
                 return response;
