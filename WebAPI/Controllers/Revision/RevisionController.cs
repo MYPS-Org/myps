@@ -475,8 +475,8 @@ namespace WebAPI.Controllers.Revision
                 var InfraTypes = await _db.tOptionInfraType.AsNoTracking().OrderBy(x => x.InfraName).ToListAsync(cancellationToken);
                 #endregion
 
-                bool isROUser = _Session.UserGroupNames.Contains("RPC");
-                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+                bool isROUser = _Session.UserGroupNames?.Contains("RPC") == true;
+                bool isCOUser = _Session.UserGroupNames?.Contains("AUC") == true;
                 var actionRules = new CreateActionRulesParam
                 {
                     ApprovalStatus = ApprovalStatus,
@@ -565,8 +565,8 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
-                bool isROUser = _Session.UserGroupNames.Contains("RPC");
-                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+                bool isROUser = _Session.UserGroupNames?.Contains("RPC") == true;
+                bool isCOUser = _Session.UserGroupNames?.Contains("AUC") == true;
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var projectRevision = await _db.tProjectRevisions.AsNoTracking()
                     .Where(x => x.ProjectId == dto.ProjectId && !x.IsDeleted)
@@ -830,7 +830,6 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto, CancellationToken cancellationToken)
         {
@@ -974,8 +973,8 @@ namespace WebAPI.Controllers.Revision
                 //    var SplitTransaction = HasTransactionId.TransactionId.Split("-");
                 //    TransactionId = ProjectId + "-" + (int.Parse(SplitTransaction[1]) + 1).ToString();
                 //}
-                bool isROUser = _Session.UserGroupNames.Contains("RPC");
-                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+                bool isROUser = _Session.UserGroupNames?.Contains("RPC") == true;
+                bool isCOUser = _Session.UserGroupNames?.Contains("AUC") == true;
                 #endregion
                 #region Funding Profile
                 var BlankFunding = dto.FundingProfile.Where(x => x.Amount <= 0).ToList();
@@ -1904,8 +1903,8 @@ namespace WebAPI.Controllers.Revision
             try
             {
                 DateTime CurrentDate = Functions.CurrentDate();
-                bool isROUser = _Session.UserGroupNames.Contains("RPC");
-                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+                bool isROUser = _Session.UserGroupNames?.Contains("RPC") == true;
+                bool isCOUser = _Session.UserGroupNames?.Contains("AUC") == true;
                 if (!isROUser && !isCOUser)
                 {
                     return new BadRequestObjectResult(new
@@ -2383,8 +2382,8 @@ namespace WebAPI.Controllers.Revision
             try
             {
                 DateTime CurrentDate = Functions.CurrentDate();
-                bool isROUser = _Session.UserGroupNames.Contains("RPC");
-                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+                bool isROUser = _Session.UserGroupNames?.Contains("RPC") == true;
+                bool isCOUser = _Session.UserGroupNames?.Contains("AUC") == true;
                 if (!isROUser && !isCOUser)
                 {
                     return new BadRequestObjectResult(new
@@ -2452,8 +2451,8 @@ namespace WebAPI.Controllers.Revision
             try
             {
                 DateTime CurrentDate = Functions.CurrentDate();
-                bool isROUser = _Session.UserGroupNames.Contains("RPC");
-                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
+                bool isROUser = _Session.UserGroupNames?.Contains("RPC") == true;
+                bool isCOUser = _Session.UserGroupNames?.Contains("AUC") == true;
                 if (!isROUser && !isCOUser)
                 {
                     return new BadRequestObjectResult(new
@@ -2567,29 +2566,29 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = $"Revision project details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Project not found" });
                 }
                 var ExistingFundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.RevisionDetailFK == ExistingRevision.Id).ToListAsync(cancellationToken);
-                if (ExistingFundingProfile == null)
+                if (ExistingFundingProfile.Count == 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision funding profile not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Funding Profile not found" });
                 }
                 var ExistingComponent = await _db.tRevisionProjectComponentCost.Where(x => x.RevisionDetailFK == ExistingRevision.Id).ToListAsync(cancellationToken);
-                if (ExistingComponent == null)
+                if (ExistingComponent.Count == 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost not found" });
                 }
                 var ExistingComponentIds = ExistingComponent.Select(x => x.Id).ToList();
                 var ExistingComponentYear = await _db.tRevisionProjectComponentCostPerYear.Where(x => ExistingComponentIds.Contains(x.RevisionComponentCostFK)).ToListAsync(cancellationToken);
-                if (ExistingComponentYear == null)
+                if (ExistingComponentYear.Count == 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision component cost per year not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost Per Year not found" });
                 }
                 var ExistingMajorWorkItem = await _db.tRevisionProjectMajorWorkItem.Where(x => ExistingComponentIds.Contains(x.ComponentCostFK)).ToListAsync(cancellationToken);
-                if (ExistingMajorWorkItem == null)
+                if (ExistingMajorWorkItem.Count == 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Item not found" });
                 }
                 var ExistingMajorWorkItemIds = ExistingMajorWorkItem.Select(x => x.Id).ToList();
                 var ExistingMajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => ExistingMajorWorkItemIds.Contains(x.RevisionWorkItemFK)).ToListAsync(cancellationToken);
-                if (ExistingMajorWorkLocations == null)
+                if (ExistingMajorWorkLocations.Count == 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision major work locations not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Locations not found" });
                 }
