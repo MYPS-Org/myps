@@ -317,6 +317,18 @@ namespace CrystalReportService.Services
                 var logOnInfo = table.LogOnInfo;
                 logOnInfo.ConnectionInfo = connectionInfo;
                 table.ApplyLogOnInfo(logOnInfo);
+
+                // ApplyLogOnInfo above only redirects the CONNECTION (server/database/
+                // credentials) - it does not touch Location, the fully-qualified
+                // table/view name baked into the .rpt at design time. If Location still
+                // names an object under a different database than connectionInfo now
+                // points at (e.g. a stale pre-migration reference), Crystal's export
+                // pipeline fails resolving it with a low-level COM "path not found"
+                // error, even though SetDataSource/ApplyLogOnInfo both succeeded.
+                // table.Name is the view/table's own design-time name (e.g.
+                // "MYPS_vw_rptRBPSummary") - re-qualifying it against the schema we
+                // actually use resolves it against the connection above instead.
+                table.Location = $"dbo.{table.Name}";
             }
         }
 
