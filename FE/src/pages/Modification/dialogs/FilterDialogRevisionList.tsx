@@ -44,13 +44,14 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
             TransactionId: '',
             RevisionType: '',
             RevisionStatus: '',
+            ProgramName: '',
         };
         setLocalFilters(clearedFilters);
         onApplyFilters(clearedFilters);
         onClose();
     };
 
-    const handleFilterChange = (field: 'TransactionId' | 'RevisionType' | 'RevisionStatus', value: string) => {
+    const handleFilterChange = (field: 'TransactionId' | 'RevisionType' | 'RevisionStatus' | 'ProgramName', value: string) => {
         setLocalFilters((prev: RevisionFilter) => ({
             ...prev,
             [field]: value
@@ -58,7 +59,7 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
     };
 
     const hasActiveFilters = Boolean(
-        localFilters.TransactionId || localFilters.RevisionType || localFilters.RevisionStatus
+        localFilters.TransactionId || localFilters.RevisionType || localFilters.RevisionStatus || localFilters.ProgramName
     );
 
     return (
@@ -99,6 +100,21 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
                                 value={localFilters.TransactionId || ''}
                                 onChange={(e) => handleFilterChange('TransactionId', e.target.value)}
                                 placeholder="e.g. 24-0001-1"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                            />
+                        </div>
+
+                        {/* Program Name Filter */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Program Name
+                            </label>
+                            <input
+                                type="text"
+                                name="ProgramName"
+                                value={localFilters.ProgramName || ''}
+                                onChange={(e) => handleFilterChange('ProgramName', e.target.value)}
+                                placeholder="e.g. Farm-to-Market Road"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                             />
                         </div>
@@ -152,6 +168,13 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
+                                    {localFilters.ProgramName && (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm text-blue-800 ring-1 ring-blue-200">
+                                            <span className="font-medium">Program:</span>
+                                            {localFilters.ProgramName}
+                                        </span>
+                                    )}
+
                                     {localFilters.TransactionId && (
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm text-blue-800 ring-1 ring-blue-200">
                                             <span className="font-medium">Transaction ID:</span>

@@ -167,6 +167,7 @@ export interface RevisionLists {
     RevisionType: string;
     RevisionReason: string;
 	RevisionGroupId: number;
+	ProgramName?: string;
     RevisionStatus?: string;
 	CategoryName?: string;
 	CategoryId?: number;
@@ -196,6 +197,7 @@ export interface RevisionFilter {
   RevisionType?: string | null;
   RevisionStatus?: string | null;
   CurrentStage?: string | null;
+  ProgramName?: string | null;
 }
 
 export interface ActionRevisionRules{
