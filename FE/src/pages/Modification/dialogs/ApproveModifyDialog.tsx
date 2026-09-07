@@ -144,10 +144,6 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                                     <span className="font-medium text-gray-700">Project ID:</span>
                                     <p className="text-gray-600">{project.ProjectId}</p>
                                 </div>
-                                <div>
-                                    <span className="font-medium text-gray-700">Revision Number:</span>
-                                    <p className="text-gray-600">{transactionId}</p>
-                                </div>
                                 <div className="col-span-2">
                                     <span className="font-medium text-gray-700">Description:</span>
                                     <p className="text-gray-600">{project.Description}</p>

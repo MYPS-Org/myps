@@ -52,7 +52,7 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
         onClose();
     };
 
-    const handleFilterChange = (field: 'TransactionId' | 'RevisionType' | 'RevisionStatus' | 'ProgramName' | 'CurrentStage', value: string) => {
+    const handleFilterChange = (field: 'ProjectId' | 'TransactionId' | 'RevisionType' | 'RevisionStatus' | 'ProgramName' | 'CurrentStage', value: string) => {
         setLocalFilters((prev: RevisionFilter) => ({
             ...prev,
             [field]: value
@@ -60,7 +60,7 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
     };
 
     const hasActiveFilters = Boolean(
-        localFilters.TransactionId || localFilters.RevisionType || localFilters.RevisionStatus || localFilters.ProgramName || localFilters.CurrentStage
+        localFilters.ProjectId || localFilters.TransactionId || localFilters.RevisionType || localFilters.RevisionStatus || localFilters.ProgramName || localFilters.CurrentStage
     );
 
     return (
@@ -93,13 +93,14 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
                         {/* Transaction ID Filter */}
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Transaction ID
+                                Project ID
                             </label>
+                            {/* change to Project Id */}
                             <input
                                 type="text"
                                 name="TransactionId"
-                                value={localFilters.TransactionId || ''}
-                                onChange={(e) => handleFilterChange('TransactionId', e.target.value)}
+                                value={localFilters.ProjectId || ''}
+                                onChange={(e) => handleFilterChange('ProjectId', e.target.value)}
                                 placeholder="e.g. 24-0001-1"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                             />
@@ -123,8 +124,9 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
                         {/* Current Stage Filter */}
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Current Stage
+                                Current Processing Office
                             </label>
+                            {/* make this dropdown */}
                             <input
                                 type="text"
                                 name="CurrentStage"
