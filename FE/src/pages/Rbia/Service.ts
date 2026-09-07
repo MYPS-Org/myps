@@ -1,7 +1,7 @@
 import { httpClient, gisClient } from '../../services/httpClient';
 import type { RODEOEnum } from '../Project/Model';
 
-import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, BridgePagination, RoadSectionPagination, RoadPagination, RoadFilter, RoadSectionFilter, BridgeFilter } from './Model.d';
+import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, BridgePagination, RoadSectionPagination, RoadPagination, RoadFilter, RoadSectionFilter, BridgeFilter, InfraRoadSectionOption, InfraBridgeOption, InfraRoadSectionPagination, InfraBridgePagination } from './Model.d';
 
 
 export const fetchRoadInitData = async () => {
@@ -180,6 +180,30 @@ export const importAdminOrgLookups = async (userName: string) => {
         return response;
     } catch (error) {
         console.error('Error importing admin/org lookups:', error);
+        throw error;
+    }
+}
+
+// Project/Revision work-location picker (AddInfraDialog) — distinct from fetchRoadSectionData/
+// fetchBridgeData above (RBIA-admin CRUD screens). These call FutureInfraController's
+// ShowInfraRoadSections/ShowInfraBridges, which require a DEO filter and return the
+// scoped, human-readable vInfraRoadSectionOptions/vInfraBridgeOptions views.
+export const fetchInfraRoadSections = async (data: InfraRoadSectionPagination) => {
+    try {
+        const response = await httpClient.post<PaginationResponse<InfraRoadSectionOption>>('/futureinfra/ShowInfraRoadSections', data);
+        return response;
+    } catch (error) {
+        console.error('Error fetching infra road section options:', error);
+        throw error;
+    }
+}
+
+export const fetchInfraBridges = async (data: InfraBridgePagination) => {
+    try {
+        const response = await httpClient.post<PaginationResponse<InfraBridgeOption>>('/futureinfra/ShowInfraBridges', data);
+        return response;
+    } catch (error) {
+        console.error('Error fetching infra bridge options:', error);
         throw error;
     }
 }
