@@ -308,7 +308,6 @@ namespace WebAPI.Controllers.Projects
         /// details page. Not paginated: a project carries a handful of components, and the
         /// accordion needs all of them before anything is expanded.
         /// </summary>
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectTargetComponents([FromBody] ShowProjectTargetComponentsDTO dto, CancellationToken cancellationToken)
         {
@@ -365,7 +364,6 @@ namespace WebAPI.Controllers.Projects
         /// the project details page. Keyset-paginated; filter by ComponentId to scope it to
         /// the expanded component.
         /// </summary>
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectStageTargets([FromBody] ShowProjectStageTargetsDTO dto, CancellationToken cancellationToken)
         {
@@ -748,12 +746,6 @@ namespace WebAPI.Controllers.Projects
                 EnumProgramStage StageId = ProjectStage.StageId;
 
                 var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramFK, cancellationToken);
-                int ProgramRevisionId = CurrentProgramVersion.RevisionId;
-                var ProgramRevision = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.Id == ProgramRevisionId, cancellationToken);
-                if (ProgramRevision == null)
-                {
-                    return new BadRequestObjectResult(new { Message = "Program Revision not found.", Title = "Program Not Found" });
-                }
                 if (CurrentProgramVersion == null)
                 {
                     return new BadRequestObjectResult(new
@@ -761,6 +753,12 @@ namespace WebAPI.Controllers.Projects
                         Message = "You are viewing an old stage of this project. Please go back to the Project List and open the project again to view the latest stage.",
                         Title = "Outdated Project Stage"
                     });
+                }
+                int ProgramRevisionId = CurrentProgramVersion.RevisionId;
+                var ProgramRevision = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.Id == ProgramRevisionId, cancellationToken);
+                if (ProgramRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Program Revision not found.", Title = "Program Not Found" });
                 }
                 if (CurrentProgramVersion.StageName == "RBP" && CurrentProgramVersion.Status == "1")
                 {
@@ -902,8 +900,9 @@ namespace WebAPI.Controllers.Projects
                 #endregion
 
                 #region Component Cost and Cost Per Year
-                // Validate Component Cost Amount
-                if (dto.ComponentCosts.Any(x => x.Id == 0 && x.Total < 1))
+                // Validate Component Cost Amount -- applies to both new (Id == 0) and existing
+                // (updated) rows; a row being deleted is exempt since its Total no longer matters.
+                if (dto.ComponentCosts.Any(x => !x.IsDeleted && x.Total < 1))
                 {
                     return new BadRequestObjectResult(new
                     {
@@ -1351,7 +1350,22 @@ namespace WebAPI.Controllers.Projects
                 string TransactionReferenceId = $"{ProjectId}-{StageName}";
                 
                 #region Update Project Details
-                var Project = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Id == ProjectRevision.Id, cancellationToken) ?? new ProjectRevisions();
+                // ProjectRevision (above) comes from the fProjectDetails SQL function, a separate
+                // source from tProjectRevisions itself - its .Id is not guaranteed to still resolve
+                // here. The old `?? new ProjectRevisions()` fallback silently produced a blank,
+                // unpersisted entity (no CreatedBy, which is [Required] on this table) that then
+                // got blindly Update()d - surfacing as a confusing "CreatedBy is required" failure
+                // instead of a clear error, and in principle risking a Save that touches zero real
+                // rows. Fails explicitly instead, matching every other lookup in this method.
+                var Project = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Id == ProjectRevision.Id, cancellationToken);
+                if (Project == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Project revision details could not be found for '{ProjectId}'. Please refresh the page and try again.",
+                        Title = "Project Revision Not Found"
+                    });
+                }
 
 
                 if (ProjectRevision.MYId != dto.ProjectDetails?.MYId)
@@ -3783,39 +3797,13 @@ namespace WebAPI.Controllers.Projects
                 }
 
 
-                // ============================================================================
-                // FUNDING REMOVED FROM DTO
-                // ============================================================================
-
-                var FundingRemovedFromRequest =
-                    CurrentFunding
-                        .Where(x =>
-                            !SubmittedExistingFundingIds.Contains(x.Id))
-                        .ToList();
-
-
-                foreach (var ExistingItem in FundingRemovedFromRequest)
-                {
-                    AddDeleteLog(
-                        "tProjectFundingProfile",
-                        ExistingItem);
-
-
-                    ExistingItem.IsDeleted =
-                        true;
-
-
-                    ExistingItem.UpdatedBy =
-                        UserId;
-
-
-                    ExistingItem.UpdatedDate =
-                        CurrentDate;
-
-
-                    HasCostUpdate =
-                        true;
-                }
+                // Deletion is driven exclusively by the client sending an existing row back
+                // with IsDeleted = true (handled below, in the update loop's "Explicit Delete"
+                // section) -- matching every sibling section (Component Cost, Cost Per Year,
+                // Work Item, Work Location). A row simply missing from this request is left
+                // untouched, not deleted; treating omission as a delete signal would wipe a
+                // record for any reason the client didn't include it (a partial save, a stale
+                // client-side list, a bug on the frontend), with no explicit user intent.
 
 
                 // ============================================================================
@@ -4305,13 +4293,14 @@ namespace WebAPI.Controllers.Projects
                 };
                 await _db.tProjectSupportingDocs.AddAsync(AddSupporting);
                 await _db.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync();
 
                 if (!dto.File.UploadFile(FilePath))
                 {
                     await transaction.RollbackAsync(cancellationToken);
                     return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
                 }
+
+                await transaction.CommitAsync();
 
                 return Ok(new { Message = "Supporting Docs added successfully.", Title = "Add Success." });
             }
@@ -4358,10 +4347,6 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Supporting Doc not found.", Title = "Project Not Found" });
                 }
-                if (System.IO.File.Exists(Note.FilePath))
-                {
-                    System.IO.File.Delete(Note.FilePath);
-                }
                 string TransactionReferenceId = $"{ProjectId}-{StageName}";
                 await _db.tTransactionLog.AddAsync(new TransactionLog
                 {
@@ -4377,6 +4362,12 @@ namespace WebAPI.Controllers.Projects
                 _db.tProjectSupportingDocs.Remove(Note);
                 await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
+
+                if (System.IO.File.Exists(Note.FilePath))
+                {
+                    System.IO.File.Delete(Note.FilePath);
+                }
+
                 return Ok(new { Message = "Supporting Document deleted successfully.", Title = "Delete Success." });
             }
             catch (Exception ex)
