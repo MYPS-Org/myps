@@ -1936,11 +1936,6 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = $"Project Revision details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project Revision not found" });
                 }
                 var OldRevisionProjects = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == SelectedProjectRevision.ProjectId && x.IsActive);
-                if(OldRevisionProjects == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"No current active project state found for '{SelectedProjectRevision.ProjectFK}' -- cannot approve a revision with no established source state.", Title = "Active Project State Not Found" });
-                }
-
 
                 var Approval = await _db.tRevisionApprovals.FirstOrDefaultAsync(x => x.RevisionDetailFK == RevisionDetails.Id && x.Level == UserRole, cancellationToken);
                 if (Approval == null)
@@ -2347,7 +2342,7 @@ namespace WebAPI.Controllers.Revision
                 if (approvalStatusAfterSave?.IsFullyApproved == 1)
                 {
                     await _db.pRecomputeProgramCost
-                        .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={OldRevisionProjects.ProgramFK}")
+                        .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={SelectedProjectRevision.ProgramFK}")
                         .AsNoTracking()
                         .ToListAsync(cancellationToken);
                 }
