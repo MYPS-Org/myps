@@ -314,21 +314,54 @@ namespace CrystalReportService.Services
         {
             foreach (Table table in tables)
             {
+                var originalLocation = table.Location;
+
                 var logOnInfo = table.LogOnInfo;
                 logOnInfo.ConnectionInfo = connectionInfo;
                 table.ApplyLogOnInfo(logOnInfo);
 
-                // ApplyLogOnInfo above only redirects the CONNECTION (server/database/
-                // credentials) - it does not touch Location, the fully-qualified
-                // table/view name baked into the .rpt at design time. If Location still
-                // names an object under a different database than connectionInfo now
-                // points at (e.g. a stale pre-migration reference), Crystal's export
-                // pipeline fails resolving it with a low-level COM "path not found"
-                // error, even though SetDataSource/ApplyLogOnInfo both succeeded.
-                // table.Name is the view/table's own design-time name (e.g.
-                // "MYPS_vw_rptRBPSummary") - re-qualifying it against the schema we
-                // actually use resolves it against the connection above instead.
-                table.Location = $"dbo.{table.Name}";
+                // ApplyLogOnInfo above reliably redirects a SERVER change, but Crystal's
+                // export pipeline separately resolves Location - the fully-qualified
+                // table/view reference (e.g. "<database>.dbo.MYPS_vw_rptRBPSummary") baked
+                // into the .rpt at design time - independently of ConnectionInfo when the
+                // DATABASE name itself changes, not just the server. This is a documented
+                // SAP Crystal Reports SDK gotcha for cross-database redirects specifically.
+                //
+                // Two earlier attempts here were wrong: (1) rebuilding Location entirely from
+                // Table.Name produced a malformed string and broke logon itself; (2) searching
+                // for the specific old database name as a literal string worked, but baked in
+                // an assumption about what that string used to be - fragile, and unnecessary.
+                // This version doesn't care what Location currently says: it unconditionally
+                // replaces the leading database-name segment (the part before the first '.')
+                // with whatever database we're actually connected to right now, so there is
+                // nothing here that names, checks for, or depends on any specific old value -
+                // it always ends up correct relative to the live connection, on any deployment.
+                try
+                {
+                    if (!string.IsNullOrEmpty(table.Location))
+                    {
+                        var segments = table.Location.Split(new[] { '.' }, 2);
+                        // Only touch it when Location actually has a "database.rest" shape -
+                        // if it's just a bare name with no dot, we don't know which part (if
+                        // any) is a database segment, so leave it exactly as Crystal wrote it
+                        // rather than guess and risk discarding the table reference entirely.
+                        if (segments.Length == 2)
+                        {
+                            table.Location = $"{connectionInfo.DatabaseName}.{segments[1]}";
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // If this still fails, the exception message below is deliberately
+                    // verbose - table.Name and the ORIGINAL Location (before any of our
+                    // changes) are the two things needed to diagnose this correctly next
+                    // time instead of guessing a third time blind.
+                    throw new Exception(
+                        $"Failed setting Location for table '{table.Name}'. " +
+                        $"OriginalLocation='{originalLocation}'. " +
+                        $"AttemptedLocation='{table.Location}'. Error: {ex.Message}", ex);
+                }
             }
         }
 

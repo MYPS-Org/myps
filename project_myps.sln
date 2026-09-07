@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MYPS.DatabaseTests", "MYPS.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MYPS.ApiIntegrationTests", "MYPS.ApiIntegrationTests\MYPS.ApiIntegrationTests.csproj", "{ACFBCB58-D77A-4E61-B09A-3B1208BB5EA0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrystalReportService", "CrystalReportService\CrystalReportService.csproj", "{F38585B5-EF64-4CBC-92CC-DC62D90AF508}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -196,6 +198,24 @@ Global
 		{ACFBCB58-D77A-4E61-B09A-3B1208BB5EA0}.Staging|x64.Build.0 = Debug|Any CPU
 		{ACFBCB58-D77A-4E61-B09A-3B1208BB5EA0}.Staging|x86.ActiveCfg = Debug|Any CPU
 		{ACFBCB58-D77A-4E61-B09A-3B1208BB5EA0}.Staging|x86.Build.0 = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Debug|x64.Build.0 = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Debug|x86.Build.0 = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Release|x64.ActiveCfg = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Release|x64.Build.0 = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Release|x86.ActiveCfg = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Release|x86.Build.0 = Release|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Staging|Any CPU.ActiveCfg = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Staging|Any CPU.Build.0 = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Staging|x64.ActiveCfg = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Staging|x64.Build.0 = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Staging|x86.ActiveCfg = Debug|Any CPU
+		{F38585B5-EF64-4CBC-92CC-DC62D90AF508}.Staging|x86.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
