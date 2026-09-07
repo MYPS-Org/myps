@@ -370,14 +370,13 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     <div className="text-sm font-medium">
                       ₱{formatCurrency(getPerUnitCost(item))}
                     </div>
-                    <div className="text-xs text-gray-500">per {getTargetUnitName(item.WorkTypeFK)}</div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">{getTargetUnitName(item.WorkTypeFK)}</div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm font-semibold text-blue-600">
-                      {getTotalPhysicalTarget(item).toLocaleString('en-PH')} {getTargetUnitName(item.WorkTypeFK)}
+                      {getTotalPhysicalTarget(item).toLocaleString('en-PH')}
                     </div>
                     <div className="text-xs text-gray-500">
                       {(item.MajorItemLocations?.length || 0)} location(s)
