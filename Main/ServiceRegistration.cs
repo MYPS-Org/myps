@@ -114,6 +114,7 @@ namespace Main
                 });
             return Services;
         }
+        // NOTE 2026-09: not currently called from Program.cs — confirmed unreferenced as of this fix.
         public static async Task<IServiceCollection> AuthRolesBasedOnDbAsync(this IServiceCollection services, CancellationToken cancellationToken)
         {
             try
@@ -139,6 +140,11 @@ namespace Main
             }
             catch (Exception ex)
             {
+                // Logging must never be why this method throws -- GetService, not GetRequiredService.
+                using var serviceProvider = services.BuildServiceProvider();
+                serviceProvider.GetService<ILoggerFactory>()
+                    ?.CreateLogger("Main.AuthRolesBasedOnDbAsync")
+                    .LogError(ex, "AuthRolesBasedOnDbAsync failed to build role-based authorization policies");
                 return services;
             }
             return services;

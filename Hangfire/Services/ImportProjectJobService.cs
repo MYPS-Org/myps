@@ -32,19 +32,22 @@ namespace Hangfire.Services
         private readonly IWebHostEnvironment _env;
         private readonly IHubContext<ImportHub> _hub;
         private readonly ILogger<ImportProjectJobService> _logger;
+        private readonly IMYPSExceptionHandler _exceptionHandler;
 
         public ImportProjectJobService(
             MYPSDbContext db,
             IServiceScopeFactory serviceScopeFactory,
             IWebHostEnvironment env,
             IHubContext<ImportHub> hub,
-            ILogger<ImportProjectJobService> logger)
+            ILogger<ImportProjectJobService> logger,
+            IMYPSExceptionHandler exceptionHandler)
         {
             _db = db;
             _serviceScopeFactory = serviceScopeFactory;
             _env = env;
             _hub = hub;
             _logger = logger;
+            _exceptionHandler = exceptionHandler;
         }
 
         // ── Expected header text per column, keyed by 1-based column index — mirrors the exact
@@ -262,7 +265,7 @@ namespace Hangfire.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Export job {JobId} failed", payload.JobId);
+                _ = _exceptionHandler.Handle(ex, payload, payload.RequestedBy);
 
                 try
                 {
@@ -1103,7 +1106,7 @@ namespace Hangfire.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Import job {JobId} failed", payload.JobId);
+                _ = _exceptionHandler.Handle(ex, payload, payload.RequestedBy);
 
                 // ── Only rollback if the transaction wasn't already finalized ──
                 if (transaction != null && !transactionFinalized)

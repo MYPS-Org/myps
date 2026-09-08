@@ -1,3 +1,4 @@
+using Hangfire.Models;
 using Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -53,6 +54,40 @@ public sealed class ExceptionHandlerTests
         Assert.Contains("[REDACTED]", logger.LastMessage, StringComparison.Ordinal);
         Assert.DoesNotContain("test-user-password", logger.LastMessage, StringComparison.Ordinal);
         Assert.DoesNotContain("test-token-value", logger.LastMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "Characterization")]
+    public void HangfireJobPayload_ProducesDiagnosticWithRequestedByAsUserId()
+    {
+        // ReportJobService/ImportProjectJobService's top-level "job failed" catch blocks now call
+        // _exceptionHandler.Handle(ex, payload, payload.RequestedBy) outside any HTTP request
+        // context (Hangfire jobs run off the job queue, not a controller pipeline) -- confirms the
+        // handler still produces a well-formed diagnostic report for a job-payload-shaped dto, with
+        // no HttpContext available, and that the job's own RequestedBy field flows through as the
+        // report's userId the same way _Session.UserId does for a controller action.
+        var logger = new CapturingLogger<ExceptionHandler>();
+        var handler = new ExceptionHandler(
+            logger,
+            new HttpContextAccessor { HttpContext = null }, // no HTTP context in a background job
+            new TestHostEnvironment(Environments.Development));
+
+        var payload = new ReportJobPayload
+        {
+            JobId = "test-job-id",
+            ReportName = "aip-executive-2",
+            QueryString = "programid=P_TEST",
+            RequestedBy = "test-requester"
+        };
+
+        ObjectResult result = handler.Handle(
+            new InvalidOperationException("simulated report job failure"),
+            payload,
+            payload.RequestedBy);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, result.StatusCode);
+        Assert.Contains("test-job-id", logger.LastMessage, StringComparison.Ordinal);
+        Assert.Contains("test-requester", logger.LastMessage, StringComparison.Ordinal);
     }
 
     private static DefaultHttpContext CreateContext(string path)

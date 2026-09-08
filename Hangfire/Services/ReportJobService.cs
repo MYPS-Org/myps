@@ -22,6 +22,7 @@ namespace Hangfire.Services
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<ReportJobService> _logger;
         private readonly MYPSDbContext _db;
+        private readonly IMYPSExceptionHandler _exceptionHandler;
 
         public ReportJobService(
             IHttpClientFactory httpClientFactory,
@@ -29,7 +30,8 @@ namespace Hangfire.Services
             IHubContext<ReportHub> hub,
             IWebHostEnvironment env,
             ILogger<ReportJobService> logger,
-            MYPSDbContext db)
+            MYPSDbContext db,
+            IMYPSExceptionHandler exceptionHandler)
         {
             _httpClientFactory = httpClientFactory;
             _excelReportGenerator = excelReportGenerator;
@@ -37,6 +39,7 @@ namespace Hangfire.Services
             _env = env;
             _logger = logger;
             _db = db;
+            _exceptionHandler = exceptionHandler;
         }
 
         [AutomaticRetry(Attempts = 0)]
@@ -160,7 +163,7 @@ namespace Hangfire.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Report job {JobId} failed", payload.JobId);
+                _ = _exceptionHandler.Handle(ex, payload, payload.RequestedBy);
                 await NotifyClient(payload.JobId, "Failed", ex.Message, null);
                 throw;
             }
