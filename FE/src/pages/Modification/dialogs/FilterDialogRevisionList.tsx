@@ -4,6 +4,15 @@ import { Button } from '../../../components/tailwindui/button';
 import type { RevisionEnums, RevisionFilter } from '../Model';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 
+// Friendly display labels for the real CurrentStage values the backend returns
+// (RevisionEnums.CurrentStages). Anything not listed here (e.g. other tGroups
+// names like DPC, AUC) is shown as-is — only RPC/PS Admin have office-style names.
+const CURRENT_STAGE_LABELS: Record<string, string> = {
+    RPC: 'Regional Office',
+    'PS Admin': 'Central Office',
+};
+const getCurrentStageLabel = (value: string) => CURRENT_STAGE_LABELS[value] ?? value;
+
 interface FilterDialogRevisionListProps {
     isOpen: boolean;
     onClose: () => void;
@@ -126,15 +135,19 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Current Processing Office
                             </label>
-                            {/* make this dropdown */}
-                            <input
-                                type="text"
+                            <select
                                 name="CurrentStage"
                                 value={localFilters.CurrentStage || ''}
                                 onChange={(e) => handleFilterChange('CurrentStage', e.target.value)}
-                                placeholder="e.g. RPC, PS Admin"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                            />
+                            >
+                                <option value="">All Offices</option>
+                                {revisionEnums?.CurrentStages?.map(stage => (
+                                    <option key={stage} value={stage}>
+                                        {getCurrentStageLabel(stage)}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         {/* Revision Type Filter */}
@@ -216,8 +229,8 @@ export const FilterDialogRevisionList: React.FC<FilterDialogRevisionListProps> =
 
                                     {localFilters.CurrentStage && (
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm text-blue-800 ring-1 ring-blue-200">
-                                            <span className="font-medium">Stage:</span>
-                                            {localFilters.CurrentStage}
+                                            <span className="font-medium">Office:</span>
+                                            {getCurrentStageLabel(localFilters.CurrentStage)}
                                         </span>
                                     )}
                                 </div>
