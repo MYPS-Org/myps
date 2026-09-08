@@ -25,6 +25,7 @@ import type {
   ReportStatusEvent,
 } from './Model';
 import type { AIPReportDropdowns } from '../Program/Model';
+import ExtractPcmiowFields from './components/ExtractPcmiowFields';
 
 // Report keys are grouped into families because each backing SQL object wants a
 // different request shape (see WebAPI.Controllers.CrystalReport.ReportRequestMapper) --
@@ -66,6 +67,11 @@ const Reports: React.FC = () => {
   const [options, setOptions] = useState<ReportOptions | null>(null);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
 
+  // Report Type options are split into PDF (Crystal Reports) vs Excel
+  // (direct-to-xlsx) tabs, kept as a dropdown per tab rather than a single
+  // fixed field since more Excel report types (beyond Extract PCMIOW) are
+  // expected to be added to ReportCatalog later.
+  const [activeFormatTab, setActiveFormatTab] = useState<'pdf' | 'xlsx'>('pdf');
   const [reportType, setReportType] = useState('');
   const [yearStart, setYearStart] = useState<number | ''>('');
   const [programStage, setProgramStage] = useState('');
@@ -139,25 +145,20 @@ const Reports: React.FC = () => {
       .finally(() => setIsLoadingDropdowns(false));
   }, [reportFamily, dropdowns, isLoadingDropdowns]);
 
-  // Region → DEO → Implementing Office cascade, same filtering rule
-  // AIPReportDialog.tsx already uses (ParticipantId-keyed, not name-keyed, since
-  // this pipeline's SQL params want codes, not display names).
-  const selectedDeo = deoCode ? dropdowns?.DEOs.find((d) => d.ParticipantId === deoCode) ?? null : null;
+  const pdfReportTypes = options?.ReportTypes.filter((rt) => rt.OutputFormat.toLowerCase() === 'pdf') ?? [];
+  const xlsxReportTypes = options?.ReportTypes.filter((rt) => rt.OutputFormat.toLowerCase() === 'xlsx') ?? [];
+  const visibleReportTypes = activeFormatTab === 'pdf' ? pdfReportTypes : xlsxReportTypes;
 
-  const filteredDEOs = regionCode
-    ? dropdowns?.DEOs.filter((d) => d.RegionParticipantId === regionCode) ?? []
-    : [];
-
-  const filteredImplementingOffices = !regionCode
-    ? []
-    : selectedDeo
-    ? dropdowns?.ImplementingOffices.filter(
-        (io) =>
-          (io.RegionParticipantId === selectedDeo.RegionParticipantId && io.OrgType === 'R') ||
-          io.OrgType === 'UPMO' ||
-          io.ParticipantId === selectedDeo.ParticipantId
-      ) ?? []
-    : dropdowns?.ImplementingOffices.filter((io) => io.RegionParticipantId === regionCode) ?? [];
+  const handleFormatTabChange = (tab: 'pdf' | 'xlsx') => {
+    if (tab === activeFormatTab) return;
+    setActiveFormatTab(tab);
+    setReportType('');
+    setAipReportType('');
+    setAipReportTypeTitle('');
+    setCategoryId('');
+    setDeoCode('');
+    setIoCode('');
+  };
 
   const handleReportTypeChange = (value: string) => {
     setReportType(value);
@@ -412,10 +413,37 @@ const Reports: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
           <p className="mt-1 text-sm text-gray-500">Generate and download reports</p>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleFormatTabChange('pdf')}
+            disabled={isLoadingOptions}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              activeFormatTab === 'pdf'
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            PDF Reports
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFormatTabChange('xlsx')}
+            disabled={isLoadingOptions}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              activeFormatTab === 'xlsx'
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Excel Reports
+          </button>
         </div>
       </div>
 
@@ -437,9 +465,9 @@ const Reports: React.FC = () => {
                 disabled={isLoadingOptions}
               >
                 <option value="">Select a report type</option>
-                {options?.ReportTypes.map((rt) => (
+                {visibleReportTypes.map((rt) => (
                   <option key={rt.Id} value={rt.Id}>
-                    {rt.Label} ({rt.OutputFormat.toUpperCase()})
+                    {rt.Label}
                   </option>
                 ))}
               </select>
@@ -568,64 +596,17 @@ const Reports: React.FC = () => {
             )}
 
             {reportFamily === 'extract-pcmiow' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className={selectClass}
-                    disabled={isLoadingDropdowns}
-                  >
-                    <option value="">Select a category</option>
-                    {dropdowns?.Categories.map((cat) => (
-                      <option key={cat.Id} value={cat.CategoryId}>
-                        {cat.CategoryName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    District Engineering Office <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={deoCode}
-                    onChange={(e) => handleDeoChange(e.target.value)}
-                    className={selectClass}
-                    disabled={!regionCode || isLoadingDropdowns}
-                  >
-                    <option value="">{!regionCode ? 'Select a regional office first' : 'Select a DEO'}</option>
-                    {filteredDEOs.map((deo) => (
-                      <option key={deo.ParticipantId} value={deo.ParticipantId}>
-                        {deo.Name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Implementing Office <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={ioCode}
-                    onChange={(e) => setIoCode(e.target.value)}
-                    className={selectClass}
-                    disabled={!deoCode || isLoadingDropdowns}
-                  >
-                    <option value="">{!deoCode ? 'Select a DEO first' : 'Select an implementing office'}</option>
-                    {filteredImplementingOffices.map((io) => (
-                      <option key={io.ParticipantId} value={io.ParticipantId}>
-                        {io.Name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
+              <ExtractPcmiowFields
+                dropdowns={dropdowns}
+                isLoadingDropdowns={isLoadingDropdowns}
+                regionCode={regionCode}
+                categoryId={categoryId}
+                onCategoryChange={setCategoryId}
+                deoCode={deoCode}
+                onDeoChange={handleDeoChange}
+                ioCode={ioCode}
+                onIoChange={setIoCode}
+              />
             )}
           </div>
 
