@@ -149,6 +149,9 @@
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="Controllers\ReportsController.cs" />
+    <Compile Include="Diagnostics\ReportDiagnosticContext.cs" />
+    <Compile Include="Diagnostics\ReportDiagnosticLogger.cs" />
+    <Compile Include="Diagnostics\ReportExceptionLogger.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
