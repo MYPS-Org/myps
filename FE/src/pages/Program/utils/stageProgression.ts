@@ -2,6 +2,13 @@ import type { TableEnum } from '../Model';
 
 const TRUST_FUND_PROGRAM_TYPE = 3;
 
+// RBP/RDIP/PIP are standalone stages, not a chain a program "proceeds" through —
+// a program at any of these (e.g. created directly at RBP) never offers a "Proceed
+// to next stage" button, and a Main-track program at GAA-R never offers "Proceed to
+// RBP" either. They're excluded from the main track entirely so GAA-R stays terminal,
+// and treated as individually terminal (no next stage) when reached themselves.
+const STANDALONE_STAGE_IDS = [8, 9, 11]; // RBP, RDIP, PIP
+
 export interface StageProgression {
   nextStage: TableEnum | undefined;
   skipStage: TableEnum | undefined;
@@ -9,7 +16,7 @@ export interface StageProgression {
 }
 
 // Trust Fund programs (programType === 3) run on their own TF/TF-R stage track,
-// separate from the main BP...RDIP/PIP track — see AddProgramDialog's Type===3 handling.
+// separate from the main BP...GAA-R track — see AddProgramDialog's Type===3 handling.
 const isTrustFundStage = (stage: TableEnum) => stage.Name.startsWith('TF');
 
 export function getStageProgression(
@@ -22,8 +29,13 @@ export function getStageProgression(
   currentStageNameId: number,
   programType: number
 ): StageProgression {
+  if (STANDALONE_STAGE_IDS.includes(currentStageNameId)) {
+    return { nextStage: undefined, skipStage: undefined, isTerminalStage: true };
+  }
+
   const isTrustFundProgram = programType === TRUST_FUND_PROGRAM_TYPE;
   const track = stages
+    .filter(stage => !STANDALONE_STAGE_IDS.includes(stage.NameId))
     .filter(stage => isTrustFundStage(stage) === isTrustFundProgram)
     .sort((a, b) => a.NameId - b.NameId);
 

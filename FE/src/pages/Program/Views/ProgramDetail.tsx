@@ -21,9 +21,10 @@ import { PaginationBar } from '@/components/tailwindui/PaginationBar';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
-// NameIds (matching DBHelper's EnumProgramStage) excluded from the main BP→GAAR
-// progression track so GAAR is treated as terminal by "Proceed to Next Stage".
-const MAIN_PROGRESSION_EXCLUDED_STAGE_IDS = [8, 9, 11]; // RBP, RDIP, PIP
+// RBP (NameId 8) is its own standalone stage — isTerminalStage is (correctly) always
+// true there so Proceed never shows, but Add Project should still be available, so
+// it's allow-listed explicitly instead of relying on isTerminalStage.
+const RBP_STAGE_ID = 8;
 
 // Mock projects data for the table
 const ProgramDetail: React.FC = () => {
@@ -185,24 +186,12 @@ const ProgramDetail: React.FC = () => {
       setProgramEnums(normalizedData);
       setDefaultProgramEnums(normalizedData); // Store the original data for comparison
 
-      // "Proceed to Next Stage" only walks the main BP→GAAR track, so RBP/RDIP/PIP
-      // are excluded here to make GAAR its terminal stage. TF/TFR are left in —
-      // getStageProgression already segregates them onto their own track for Trust
-      // Fund programs (see isTrustFundStage in stageProgression.ts), and removing
-      // them here would empty that track and make TF programs terminal immediately.
-      const mainProgressionStages = response.Data.Dropdowns.Stages.filter(
-        stage => !MAIN_PROGRESSION_EXCLUDED_STAGE_IDS.includes(stage.NameId)
-      );
-      const { nextStage, isTerminalStage: reachedTerminalStage } = getStageProgression(
-        mainProgressionStages,
-        response.Data.Details.StageId,
-        response.Data.Details.Type
-      );
-      // Skip stays on the full, unfiltered list — it's a separate flow (HGABI→GAAR)
-      // gated by its own StageId check further down, not by isTerminalStage. GAAR(7)
-      // is intentionally excluded from that check: it's the terminal stage of the main
-      // track, so nothing (proceed or skip) should offer a path out of it anymore.
-      const { skipStage } = getStageProgression(
+      // getStageProgression partitions the full stage list into TF / RBP / main tracks
+      // based on where the program's *current* stage sits (see stageProgression.ts).
+      // RBP/RDIP/PIP are their own separate track — not reached by "Proceed" from the
+      // main BP→GAA-R track — so GAA-R stays terminal there, while a program already
+      // on the RBP track proceeds normally through RBP→RDIP→PIP.
+      const { nextStage, skipStage, isTerminalStage: reachedTerminalStage } = getStageProgression(
         response.Data.Dropdowns.Stages,
         response.Data.Details.StageId,
         response.Data.Details.Type
@@ -662,12 +651,16 @@ const ProgramDetail: React.FC = () => {
                 Publish Program
               </Button>
             )}
-            {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 && !isTerminalStage && (
+            {programEnums.IsActive &&
+              defaultProgramEnums.Details.Status === 3 &&
+              (!isTerminalStage || programEnums?.Details?.StageId === RBP_STAGE_ID) && (
               <Button color="blue" onClick={handleAddProject}>
                 Add Project
               </Button>
             )}
-            {/* {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 &&  !isTerminalStage && (
+            {/* {programEnums.IsActive &&
+              defaultProgramEnums.Details.Status === 3 &&
+              (!isTerminalStage || programEnums?.Details?.StageId === RBP_STAGE_ID) && (
               <Button color="blue" onClick={handleAddExistingProject}>
                 Add Existing Project
               </Button>

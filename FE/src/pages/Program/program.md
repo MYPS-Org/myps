@@ -375,9 +375,9 @@ Programs run on one of two independent stage tracks, split by `Details.Type`:
 | Main | BP → NEP → NEP-E → HGAB → HGAB-I → GAA → GAA-R | Any program where `Type !== 3` |
 | Trust Fund | TF → TF-R | Programs where `Type === 3` (see `AddProgramDialog`'s Type=3 handling) |
 
-RBP, RDIP, and PIP (NameId 8, 9, 11) are excluded from the "Proceed to next stage" progression entirely (`MAIN_PROGRESSION_EXCLUDED_STAGE_IDS` in `ProgramDetail.tsx`), so **GAA-R (NameId 7) is the terminal stage of the Main track** — reaching it shows the Publish/Add Project buttons, not another Proceed button.
+RBP, RDIP, and PIP (NameId 8, 9, 11) are **standalone stages**, not chained to each other or to the Main track — `getStageProgression()` (`STANDALONE_STAGE_IDS` in `stageProgression.ts`) excludes them from the Main track (so **GAA-R (NameId 7) is the terminal stage of the Main track**, never offering "Proceed to RBP") and treats each of them as individually terminal when a program is actually on one — e.g. a program at RBP (`StageId=8`, created directly there as its own separate program) never shows a "Proceed to next stage" button.
 
-Within a program's track, `isTerminalStage` is true when its `StageId` is the last stage of that track (no further stage exists to proceed to) — this is what gates the Publish/Add Project/Add Existing Project buttons instead of a hardcoded StageId.
+Within a program's track, `isTerminalStage` is true when its `StageId` is the last stage of that track, or one of the standalone RBP/RDIP/PIP stages (no next stage exists to proceed to) — this is what gates the Publish/Add Project/Add Existing Project buttons instead of a hardcoded StageId. **Exception:** "Add Project"/"Add Existing Project" are additionally allow-listed at RBP specifically (`RBP_STAGE_ID` in `ProgramDetail.tsx`) — RBP programs are terminal for Proceed purposes but still need to accept new projects.
 
 The skip button (`StageId === 5`, i.e. HGAB-I → GAA-R) is a separate, curated business rule — not derived positionally — and is unrelated to `isTerminalStage`. It intentionally does **not** fire at GAA-R(7) anymore, since GAA-R is terminal and must not offer any further proceed/skip path.
 
