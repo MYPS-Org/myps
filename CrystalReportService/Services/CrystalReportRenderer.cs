@@ -5,9 +5,11 @@ using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Web.Hosting;
 using CrystalDecisions.CrystalReports.Engine;
 using CrystalDecisions.Shared;
+using CrystalReportService.Diagnostics;
 
 namespace CrystalReportService.Services
 {
@@ -49,6 +51,18 @@ namespace CrystalReportService.Services
         public DataSourceType SourceType { get; set; }
         public string DbObjectName { get; set; }
         public List<SqlParamDefinition> Parameters { get; set; } = new List<SqlParamDefinition>();
+
+        /// <summary>
+        /// Opt-out for CorrectStoredProcedureTableLocation, scoped per-report so it can never
+        /// affect any other StoredProcedure-backed report. Needed for reports whose .rpt has
+        /// already been correctly rebound in Designer to a real connection (not the stale ODBC
+        /// DSN this correction step exists to work around) -- Crystal's own Location for a
+        /// stored-proc table is "{name};{n}" (e.g. "sp_RBPSummary;1"), and the bare-name
+        /// equality check in that method would otherwise treat the correct, Designer-set value
+        /// as stale and strip the ";1" suffix, breaking ExportToStream. Default false so every
+        /// other report keeps today's behavior unchanged.
+        /// </summary>
+        public bool SkipLocationCorrection { get; set; } = false;
     }
 
     /// <summary>
@@ -97,17 +111,71 @@ namespace CrystalReportService.Services
                 },
                 ["rbp-summary-report"] = new ReportDefinition
                 {
-                    //RptFileName = "RBPSummaryReport.rpt",
-                    //SourceType = DataSourceType.StoredProcedure,
-                    //DbObjectName = "sp_RBPSummary"
-
+                    // Switched back to StoredProcedure 2026-09-07 (operator decision). The View
+                    // path (MYPS_vw_rptRBPSummary) kept failing at ExportToStream: the .rpt's own
+                    // saved Table.Location is the bare name "sp_RBPSummaryTier" -- a stale
+                    // reference from before this report was pointed at the view, and setting
+                    // Location to the correct value at runtime hit a separate Crystal SDK
+                    // connection-validation failure in Table.set_Location. Reverting to
+                    // StoredProcedure sidesteps ApplyDatabaseLogon/Location entirely -- it's only
+                    // invoked for View-backed reports (see RenderToPdf) -- matching the 6 other
+                    // SP-backed reports that already work without it.
+                    //
+                    // sp_RBPSummary confirmed live on myps_db_dev (2026-09-07): exists, executes,
+                    // returns real rows. Its current signature is NOT the legacy 3-parameter
+                    // version (@yearstart/@programid/@region) -- it has been independently
+                    // rewritten against the current schema (tProjectRevisions/tProjectComponentCost
+                    // etc.) with only @programid, and is documented in this file's own
+                    // CRYSTAL_REPORT_GENERATION.md as a separate, still-in-progress object (a
+                    // commented-out @StageName parameter and validation block). @yearstart/@region
+                    // are NOT SQL parameters here -- they stay report-level Crystal parameters
+                    // only (letterhead), same as before.
+                    //
+                    // Diagnostic swap to RBPSummaryReport.rpt (2026-09-08) confirmed the
+                    // Table.set_Location "Logon failed" COMException is systemic, not specific
+                    // to this report's own saved metadata -- an unrelated, empty 64KB .rpt hit
+                    // the identical error at the identical stack location. Reverted here.
+                    //
+                    // .rpt rebound in Crystal Designer 2026-09-08 (real Designer access, not the
+                    // stale ODBC DSN): Set Datasource Location -> OLE DB (ADO) -> SQL Server
+                    // (SQLOLEDB) -> 192.168.50.200/myps_db_dev -> Stored Procedures. Confirmed
+                    // live via DumpConnectionMetadata: ConnectionInfo now genuinely SQLOLEDB/ADO,
+                    // not CRQE/ODBC-RDO. SkipLocationCorrection=true because the bare-name
+                    // equality check in CorrectStoredProcedureTableLocation doesn't know
+                    // "{name};1" is Crystal's own correct form for a stored-proc Location -- it
+                    // was stripping the ";1" and breaking the working export. Scoped to this
+                    // report only; the other 6 StoredProcedure reports still get the correction.
+                    //
+                    // DbObjectName switched to sp_RBPSummaryTier same day (operator decision --
+                    // share one proc between this report and rbp-summary-report-with-tier
+                    // instead of maintaining sp_RBPSummary separately). sp_RBPSummaryTier
+                    // mirrors MYPS_vw_rptRBPSummaryTier's already-validated logic plus
+                    // TotalNo/TotalAmount added to match this report's existing field bindings
+                    // (backups: Main/Resources/Internal/SQLScripts/
+                    // sp_RBPSummaryTier_backup_pre_totals_20260908.sql). The now-unused
+                    // sp_RBPSummary was deliberately left in place rather than dropped (backed
+                    // up as sp_RBPSummary_backup_20260908 and
+                    // sp_RBPSummary_backup_pre_tier_alignment_20260908.sql) -- orphaned-but-
+                    // harmless beats a one-way deletion. .rpt needs its OWN Designer rebind to
+                    // sp_RBPSummaryTier to match -- this C# change alone is not sufficient.
                     RptFileName = "RBP Summary Report.rpt",
-                    SourceType = DataSourceType.View,
-                    DbObjectName = "MYPS_vw_rptRBPSummary"
-
-                    //RptFileName = "RBPSummaryReport.rpt",
-                    //SourceType = DataSourceType.View,
-                    //DbObjectName = "MYPS_vw_rptRBPSummary"
+                    SourceType = DataSourceType.StoredProcedure,
+                    DbObjectName = "sp_RBPSummaryTier",
+                    SkipLocationCorrection = true,
+                    // yearstart/region added here 2026-09-08 alongside the sp_RBPSummaryTier
+                    // switch -- its parameter signature was matched to the legacy proc
+                    // (@yearstart INT required, @programid/@region optional) per operator
+                    // instruction, and @yearstart has no SQL default, so LoadData must actually
+                    // supply it or the call fails with "Procedure expects parameter '@yearstart',
+                    // which was not supplied." The request already carries both values (visible
+                    // in every diagnostic capture's PARAMETERS section) -- they just weren't
+                    // wired into this report's SQL parameter list before now.
+                    Parameters = new List<SqlParamDefinition>
+                    {
+                        new SqlParamDefinition { Name = "yearstart", DbType = SqlDbType.Int, IsRequired = true },
+                        new SqlParamDefinition { Name = "programid", DbType = SqlDbType.NVarChar, IsRequired = false },
+                        new SqlParamDefinition { Name = "region", DbType = SqlDbType.NVarChar, IsRequired = false }
+                    }
                 },
                 ["rbp-summary-report-with-tier"] = new ReportDefinition
                 {
@@ -167,14 +235,37 @@ namespace CrystalReportService.Services
 
         private readonly string _reportsFolder;
         private readonly string _connectionString;
+        private readonly IReportDiagnosticLogger _diagnosticLogger;
 
-        public CrystalReportRenderer()
+        public CrystalReportRenderer() : this(new ReportDiagnosticLogger())
+        {
+        }
+
+        public CrystalReportRenderer(IReportDiagnosticLogger diagnosticLogger)
         {
             // .rpt files live in the project's own /Reports folder and deploy
             // with the app, so this is resolved relative to the app root
             // rather than read from an absolute path in Web.config.
             _reportsFolder = HostingEnvironment.MapPath("~/Reports");
             _connectionString = ConfigurationManager.ConnectionStrings["MypsDb"].ConnectionString;
+            _diagnosticLogger = diagnosticLogger;
+        }
+
+        /// <summary>Builds the diagnostic context shared by every LogRenderFailure-equivalent call site below.</summary>
+        private static ReportDiagnosticContext BuildDiagnosticContext(
+            string reportName, string failureLocation, ReportDefinition definition,
+            IDictionary<string, object> parameters, string locationDiagnostics = null)
+        {
+            return new ReportDiagnosticContext
+            {
+                ReportName = reportName,
+                FailureLocation = failureLocation,
+                RptFileName = definition == null ? null : definition.RptFileName,
+                SourceType = definition == null ? null : definition.SourceType.ToString(),
+                DbObjectName = definition == null ? null : definition.DbObjectName,
+                Parameters = parameters,
+                TableLocationDiagnostics = locationDiagnostics
+            };
         }
 
         public byte[] RenderToPdf(string reportName, IDictionary<string, object> parameters)
@@ -184,9 +275,13 @@ namespace CrystalReportService.Services
 
             var rptPath = Path.Combine(_reportsFolder, definition.RptFileName);
             if (!File.Exists(rptPath))
-                throw new FileNotFoundException($"Report file not found: {rptPath}");
+            {
+                var missingFileEx = new FileNotFoundException($"Report file not found: {rptPath}");
+                _diagnosticLogger.Log(missingFileEx, BuildDiagnosticContext(reportName, "Report file missing on disk", definition, parameters));
+                throw missingFileEx;
+            }
 
-            var dataTable = LoadData(definition, parameters);
+            var dataTable = LoadData(reportName, definition, parameters);
 
             using (var report = new ReportDocument())
             {
@@ -196,8 +291,17 @@ namespace CrystalReportService.Services
                 }
                 catch (Exception ex)
                 {
+                    _diagnosticLogger.Log(ex, BuildDiagnosticContext(reportName, $"report.Load('{rptPath}')", definition, parameters));
                     throw new Exception($"Failed at report.Load('{rptPath}'): {ex.Message}", ex);
                 }
+
+                // Temporary instrumentation (2026-09-07): captures each table's saved connection
+                // Type/Attributes exactly as Crystal loaded them from disk, before ApplyLogOnInfo
+                // or Location are touched by anything below -- comparing this between
+                // "RBP Summary Report.rpt" (fails at ExportToStream regardless of SourceType/
+                // Location handling) and a known-working report should show what's structurally
+                // different. Never throws; not gated to View, unlike the Location-rewrite logic.
+                ReportDiagnosticLogger.LogInformational(reportName, DumpConnectionMetadata(report));
 
                 // We're supplying live data directly below, so this just
                 // makes sure Crystal doesn't try to fall back to whatever
@@ -215,15 +319,59 @@ namespace CrystalReportService.Services
                 // parameters, since those are handled entirely via our own
                 // ADO.NET call above) - which broke the 6 SP-backed reports
                 // that worked fine without this call.
+                // Temporary instrumentation (2026-09-07): captures every table's original and
+                // rewritten Location regardless of outcome, carried into whichever catch block
+                // below actually ends up logging -- ExportToStream can fail even after this step
+                // succeeds cleanly, since Crystal re-resolves Location independently at export
+                // time. Remove once the real cause of the still-failing View-backed exports is
+                // found and fixed.
+                var locationDiagnostics = new StringBuilder();
+
                 if (definition.SourceType == DataSourceType.View)
                 {
                     try
                     {
-                        ApplyDatabaseLogon(report);
+                        ApplyDatabaseLogon(report, locationDiagnostics, definition.DbObjectName);
                     }
                     catch (Exception ex)
                     {
+                        _diagnosticLogger.Log(ex, BuildDiagnosticContext(reportName, "ApplyDatabaseLogon", definition, parameters, locationDiagnostics.ToString()));
                         throw new Exception($"Failed at ApplyDatabaseLogon: {ex.Message}", ex);
+                    }
+                }
+                else if (definition.SourceType == DataSourceType.StoredProcedure)
+                {
+                    // Mutually exclusive with the View branch above so this can never run
+                    // right before ApplyDatabaseLogon's own "Authoritative" Location rewrite
+                    // overwrites it. Confirmed root cause (2026-09-07): the .rpt's saved
+                    // Table.Location can be stale (e.g. "RBP Summary Report.rpt" still said
+                    // "sp_RBPSummaryTier", a defunct object) - Crystal re-resolves Location
+                    // independently at ExportToStream regardless of SetDataSource below, so a
+                    // stale value fails export outright. Proven fix shape via a live working
+                    // report (rbp / sp_RBP): Location must be the BARE object name equal to
+                    // DbObjectName, not a database-qualified string - ConnectionInfo/
+                    // ApplyLogOnInfo are already correct and don't need touching.
+                    //
+                    // SkipLocationCorrection (per-report, default false) opts a report out of
+                    // this entirely -- for a report whose .rpt was already correctly rebound in
+                    // Designer, Crystal's own Location value (e.g. "sp_RBPSummary;1") is correct
+                    // as-is, and this method's bare-name equality check would otherwise treat
+                    // that ";1" suffix as staleness and strip it, breaking a working export.
+                    if (!definition.SkipLocationCorrection)
+                    {
+                        try
+                        {
+                            CorrectStoredProcedureTableLocation(report, definition.DbObjectName, locationDiagnostics);
+                        }
+                        catch (Exception ex)
+                        {
+                            _diagnosticLogger.Log(ex, BuildDiagnosticContext(reportName, "CorrectStoredProcedureTableLocation", definition, parameters, locationDiagnostics.ToString()));
+                            throw new Exception($"Failed at CorrectStoredProcedureTableLocation: {ex.Message}", ex);
+                        }
+                    }
+                    else
+                    {
+                        locationDiagnostics.AppendLine("  [MainReport] SkipLocationCorrection=true -- leaving Crystal's own Location value untouched.");
                     }
                 }
 
@@ -233,6 +381,7 @@ namespace CrystalReportService.Services
                 }
                 catch (Exception ex)
                 {
+                    _diagnosticLogger.Log(ex, BuildDiagnosticContext(reportName, $"report.SetDataSource (rows: {dataTable.Rows.Count})", definition, parameters, locationDiagnostics.ToString()));
                     throw new Exception($"Failed at report.SetDataSource (rows: {dataTable.Rows.Count}): {ex.Message}", ex);
                 }
 
@@ -248,10 +397,11 @@ namespace CrystalReportService.Services
                 }
                 catch (ArgumentException)
                 {
-                    throw; // already has a clear message - don't wrap it
+                    throw; // already has a clear message - don't wrap it; caller-input error, not logged
                 }
                 catch (Exception ex)
                 {
+                    _diagnosticLogger.Log(ex, BuildDiagnosticContext(reportName, "ApplyReportLevelParameters", definition, parameters, locationDiagnostics.ToString()));
                     throw new Exception($"Failed at ApplyReportLevelParameters: {ex.Message}", ex);
                 }
 
@@ -276,9 +426,78 @@ namespace CrystalReportService.Services
                 }
                 catch (Exception ex)
                 {
+                    _diagnosticLogger.Log(ex, BuildDiagnosticContext(reportName, $"report.ExportToStream (rptPath='{rptPath}', exists: {File.Exists(rptPath)}, reportsFolder='{_reportsFolder}')", definition, parameters, locationDiagnostics.ToString()));
                     throw new Exception($"Failed at report.ExportToStream. rptPath='{rptPath}' (exists: {File.Exists(rptPath)}). reportsFolder='{_reportsFolder}'. Error: {ex.Message}", ex);
                 }
             }
+        }
+
+        /// <summary>
+        /// Temporary (2026-09-07): dumps each table's saved connection Type and Attributes exactly
+        /// as loaded from disk -- no rewriting, called before ApplyLogOnInfo/Location are touched
+        /// by anything. Purpose: compare "RBP Summary Report.rpt" (fails at ExportToStream no
+        /// matter what SourceType/Location handling we apply) against a known-working report's
+        /// table, to find what's structurally different instead of guessing at
+        /// ConnectionInfo.Attributes QE_* keys blind. Remove once the real fix is found.
+        /// </summary>
+        private static string DumpConnectionMetadata(ReportDocument report)
+        {
+            var sb = new StringBuilder();
+
+            try
+            {
+                sb.AppendLine("Table.Count: " + report.Database.Tables.Count);
+
+                foreach (Table table in report.Database.Tables)
+                {
+                    sb.AppendLine("Table='" + table.Name + "' Location=[" + table.Location + "]");
+
+                    try
+                    {
+                        var connectionInfo = table.LogOnInfo.ConnectionInfo;
+                        sb.AppendLine("  ConnectionInfo.Type: " + connectionInfo.Type);
+                        sb.AppendLine("  ConnectionInfo.ServerName: [" + connectionInfo.ServerName + "]");
+                        sb.AppendLine("  ConnectionInfo.DatabaseName: [" + connectionInfo.DatabaseName + "]");
+                        sb.AppendLine("  ConnectionInfo.IntegratedSecurity: " + connectionInfo.IntegratedSecurity);
+
+                        var collection = connectionInfo.Attributes.Collection;
+                        sb.AppendLine("  Attributes.Collection.Count: " + collection.Count);
+
+                        foreach (NameValuePair2 pair in collection)
+                        {
+                            // QE_LogonProperties is itself a nested DbConnectionAttributes -- the
+                            // provider-specific properties (e.g. Provider=SQLOLEDB, Data Source=...)
+                            // that actually route the connection live one level deeper than a plain
+                            // ToString() reaches.
+                            var nested = pair.Value as DbConnectionAttributes;
+
+                            if (nested != null)
+                            {
+                                sb.AppendLine("    " + pair.Name + " = (nested DbConnectionAttributes, " + nested.Collection.Count + " entries)");
+
+                                foreach (NameValuePair2 nestedPair in nested.Collection)
+                                {
+                                    sb.AppendLine("      " + nestedPair.Name + " = " + nestedPair.Value);
+                                }
+                            }
+                            else
+                            {
+                                sb.AppendLine("    " + pair.Name + " = " + pair.Value);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        sb.AppendLine("  (failed reading connection metadata: " + ex.Message + ")");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine("(failed reading Database.Tables: " + ex.Message + ")");
+            }
+
+            return sb.ToString();
         }
 
         /// <summary>
@@ -289,7 +508,19 @@ namespace CrystalReportService.Services
         /// stale/broken original connection metadata baked into the .rpt.
         /// Applies to the main report and any subreports.
         /// </summary>
-        private void ApplyDatabaseLogon(ReportDocument report)
+        /// <param name="authoritativeDbObjectName">
+        /// The view/proc this report's <see cref="ReportDefinition"/> says is authoritative --
+        /// what LoadData actually queried. Used to directly set the main report's table Location
+        /// rather than patch fragments of whatever Crystal saved at design time. Confirmed live
+        /// 2026-09-07: "RBP Summary Report.rpt"'s saved Location is the bare name
+        /// "sp_RBPSummaryTier" -- a stale reference to a stored procedure from before this report
+        /// was switched to be View-backed (see the commented-out history in the Reports
+        /// dictionary), not a database-name drift the old segment-rewrite logic could fix. Only
+        /// applied to the main report's own tables -- a subreport's data source isn't modeled by
+        /// ReportDefinition at all, so its Location still gets the older, more conservative
+        /// database-segment-only rewrite.
+        /// </param>
+        private void ApplyDatabaseLogon(ReportDocument report, StringBuilder diagnostics, string authoritativeDbObjectName)
         {
             var builder = new SqlConnectionStringBuilder(_connectionString);
 
@@ -302,16 +533,93 @@ namespace CrystalReportService.Services
                 IntegratedSecurity = builder.IntegratedSecurity
             };
 
-            ApplyLogOnToTables(report.Database.Tables, connectionInfo);
+            diagnostics.AppendLine("Target ConnectionInfo.DatabaseName: [" + connectionInfo.DatabaseName + "]");
+            diagnostics.AppendLine("Subreports.Count: " + report.Subreports.Count);
+
+            ApplyLogOnToTables(report.Database.Tables, connectionInfo, diagnostics, "MainReport", authoritativeDbObjectName);
 
             foreach (ReportDocument subreport in report.Subreports)
             {
-                ApplyLogOnToTables(subreport.Database.Tables, connectionInfo);
+                diagnostics.AppendLine("Subreport: " + subreport.Name);
+                ApplyLogOnToTables(subreport.Database.Tables, connectionInfo, diagnostics, "Subreport:" + subreport.Name, null);
             }
         }
 
-        private void ApplyLogOnToTables(Tables tables, ConnectionInfo connectionInfo)
+        /// <summary>
+        /// Deliberately narrower than <see cref="ApplyDatabaseLogon"/>: this StoredProcedure-typed
+        /// path never calls <c>ApplyLogOnInfo</c> -- confirmed live 2026-09-07 that calling it on
+        /// an SP-backed table risks the exact "Crystal tries to validate/execute the proc
+        /// internally with no parameters" problem that scoped ApplyDatabaseLogon to View-only in
+        /// the first place. It DOES set credentials directly on the table's existing ConnectionInfo
+        /// (without ApplyLogOnInfo) -- confirmed live 2026-09-08 that the underlying ODBC DSN
+        /// (MYPS_DB_DSN) is configured for "login ID and password entered by the user" auth, which
+        /// by design never persists the password into the DSN itself, so Table.set_Location's own
+        /// internal connection-validation call has no credential to use unless we supply one here.
+        /// Single-table guard: skips (and logs) rather than blindly overwriting every table's
+        /// Location with the same DbObjectName if a report ever turns out to have more than one
+        /// table -- no report is currently known to need that, but it was never asserted either.
+        /// </summary>
+        private void CorrectStoredProcedureTableLocation(ReportDocument report, string authoritativeDbObjectName, StringBuilder diagnostics)
         {
+            diagnostics.AppendLine("  [MainReport] Table.Count: " + report.Database.Tables.Count);
+            diagnostics.AppendLine("  [MainReport] Subreports.Count: " + report.Subreports.Count);
+
+            if (report.Database.Tables.Count != 1)
+            {
+                diagnostics.AppendLine("  [MainReport] Skipped Location correction: expected exactly 1 table, found " + report.Database.Tables.Count);
+                return;
+            }
+
+            var table = report.Database.Tables[0];
+
+            if (!string.Equals(table.Location, authoritativeDbObjectName, StringComparison.OrdinalIgnoreCase))
+            {
+                // Credentials are only committed here, inside the actual-correction branch --
+                // never in the no-op branch below -- so the reports whose Location already
+                // matches (everything except rbp-summary-report today) never execute this and
+                // stay completely unaffected by it. Confirmed live 2026-09-08: merely mutating
+                // table.LogOnInfo.ConnectionInfo's properties without ApplyLogOnInfo has no
+                // effect -- LogOnInfo appears to hand back a detached snapshot -- so
+                // ApplyLogOnInfo is required to actually commit the credentials, even though
+                // that's the same call documented as risky for SP-backed tables in general.
+                // ALSO confirmed live 2026-09-08 (diagnostic swap to an unrelated empty .rpt hit
+                // the identical failure): ConnectionInfo.UserID/.Password alone are not enough --
+                // this table's ConnectionInfo.Type is CRQE (Crystal's ODBC/RDO query-engine
+                // type), which reads credentials from the nested QE_LogonProperties attributes
+                // collection instead, using standard ODBC UID/PWD parameter names. Moderate, not
+                // certain, confidence -- if this doesn't resolve it, stop guessing at this API
+                // surface rather than trying a 3rd shape.
+                var logOnInfo = table.LogOnInfo;
+                var builder = new SqlConnectionStringBuilder(_connectionString);
+                logOnInfo.ConnectionInfo.UserID = builder.UserID;
+                logOnInfo.ConnectionInfo.Password = builder.Password;
+
+                if (logOnInfo.ConnectionInfo.Attributes?.Collection?.Lookup("QE_LogonProperties") is DbConnectionAttributes logonProperties)
+                {
+                    logonProperties.Collection.Set("UID", builder.UserID);
+                    logonProperties.Collection.Set("PWD", builder.Password);
+                    diagnostics.AppendLine("  [MainReport] Set QE_LogonProperties UID/PWD");
+                }
+                else
+                {
+                    diagnostics.AppendLine("  [MainReport] QE_LogonProperties not found -- credential set skipped for that path");
+                }
+
+                table.ApplyLogOnInfo(logOnInfo);
+
+                diagnostics.AppendLine($"  [MainReport] Table='{table.Name}' Location=[{table.Location}] -> Corrected=[{authoritativeDbObjectName}]");
+                table.Location = authoritativeDbObjectName;
+            }
+            else
+            {
+                diagnostics.AppendLine($"  [MainReport] Table='{table.Name}' Location=[{table.Location}] already correct, no change");
+            }
+        }
+
+        private void ApplyLogOnToTables(Tables tables, ConnectionInfo connectionInfo, StringBuilder diagnostics, string ownerLabel, string authoritativeDbObjectName)
+        {
+            diagnostics.AppendLine("  [" + ownerLabel + "] Table.Count: " + tables.Count);
+
             foreach (Table table in tables)
             {
                 var originalLocation = table.Location;
@@ -320,43 +628,71 @@ namespace CrystalReportService.Services
                 logOnInfo.ConnectionInfo = connectionInfo;
                 table.ApplyLogOnInfo(logOnInfo);
 
-                // ApplyLogOnInfo above reliably redirects a SERVER change, but Crystal's
-                // export pipeline separately resolves Location - the fully-qualified
-                // table/view reference (e.g. "<database>.dbo.MYPS_vw_rptRBPSummary") baked
-                // into the .rpt at design time - independently of ConnectionInfo when the
-                // DATABASE name itself changes, not just the server. This is a documented
-                // SAP Crystal Reports SDK gotcha for cross-database redirects specifically.
-                //
-                // Two earlier attempts here were wrong: (1) rebuilding Location entirely from
-                // Table.Name produced a malformed string and broke logon itself; (2) searching
-                // for the specific old database name as a literal string worked, but baked in
-                // an assumption about what that string used to be - fragile, and unnecessary.
-                // This version doesn't care what Location currently says: it unconditionally
-                // replaces the leading database-name segment (the part before the first '.')
-                // with whatever database we're actually connected to right now, so there is
-                // nothing here that names, checks for, or depends on any specific old value -
-                // it always ends up correct relative to the live connection, on any deployment.
                 try
                 {
-                    if (!string.IsNullOrEmpty(table.Location))
+                    string rewriteMode;
+
+                    if (!string.IsNullOrEmpty(authoritativeDbObjectName))
                     {
+                        // Primary path (main report table): don't try to patch fragments of
+                        // whatever Location Crystal saved -- it can be stale in ways a
+                        // database-segment substitution can't fix (a bare name, or a reference to
+                        // a completely different, defunct object from before this report's data
+                        // source was last changed). ReportDefinition.DbObjectName is what LoadData
+                        // actually queried and what this render is really backed by, so it's
+                        // always the correct answer regardless of what Crystal's own saved
+                        // metadata says. Shape confirmed live 2026-09-07 by comparing a working
+                        // report's own Location against its DbObjectName: a bare object name, NOT
+                        // database-qualified. An earlier attempt qualifying this as
+                        // "{database}.dbo.{object}" failed inside this very setter with a COM
+                        // "Failed to open the connection" error -- the qualified shape doesn't fit
+                        // what this ODBC/RDO-routed connection type expects for Location.
+                        table.Location = authoritativeDbObjectName;
+                        rewriteMode = "Authoritative";
+                    }
+                    else if (!string.IsNullOrEmpty(table.Location))
+                    {
+                        // Fallback path (subreports only, where no authoritative object name
+                        // exists): unconditionally replace the leading database-name segment,
+                        // preserving everything else Crystal saved -- the best available guess
+                        // when we don't independently know what the object should be.
                         var segments = table.Location.Split(new[] { '.' }, 2);
-                        // Only touch it when Location actually has a "database.rest" shape -
-                        // if it's just a bare name with no dot, we don't know which part (if
-                        // any) is a database segment, so leave it exactly as Crystal wrote it
-                        // rather than guess and risk discarding the table reference entirely.
+
                         if (segments.Length == 2)
                         {
                             table.Location = $"{connectionInfo.DatabaseName}.{segments[1]}";
+                            rewriteMode = "DatabaseSegmentOnly";
+                        }
+                        else
+                        {
+                            // Bare name, no dot -- we don't know which part (if any) is a
+                            // database segment, so leave it exactly as Crystal wrote it rather
+                            // than guess and risk discarding the table reference entirely.
+                            rewriteMode = "SkippedBareName";
                         }
                     }
+                    else
+                    {
+                        rewriteMode = "SkippedEmptyLocation";
+                    }
+
+                    diagnostics.AppendLine(
+                        "  [" + ownerLabel + "] Table='" + table.Name + "'" +
+                        " OriginalLocation=[" + originalLocation + "]" +
+                        " RewrittenLocation=[" + table.Location + "]" +
+                        " RewriteMode=" + rewriteMode);
                 }
                 catch (Exception ex)
                 {
+                    diagnostics.AppendLine(
+                        "  [" + ownerLabel + "] Table='" + table.Name + "' THREW: " +
+                        "OriginalLocation=[" + originalLocation + "] " +
+                        "AttemptedLocation=[" + table.Location + "] Error: " + ex.Message);
+
                     // If this still fails, the exception message below is deliberately
                     // verbose - table.Name and the ORIGINAL Location (before any of our
                     // changes) are the two things needed to diagnose this correctly next
-                    // time instead of guessing a third time blind.
+                    // time instead of guessing blind.
                     throw new Exception(
                         $"Failed setting Location for table '{table.Name}'. " +
                         $"OriginalLocation='{originalLocation}'. " +
@@ -370,7 +706,7 @@ namespace CrystalReportService.Services
         /// ADO.NET and returns the result as a DataTable ready to hand to
         /// Crystal via SetDataSource.
         /// </summary>
-        private DataTable LoadData(ReportDefinition definition, IDictionary<string, object> parameters)
+        private DataTable LoadData(string reportName, ReportDefinition definition, IDictionary<string, object> parameters)
         {
             parameters = parameters ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
@@ -450,10 +786,19 @@ namespace CrystalReportService.Services
                 }
                 catch (SqlException ex) when (ex.Number == -2 || ex.Message.Contains("Timeout"))
                 {
-                    throw new TimeoutException(
+                    var timeoutEx = new TimeoutException(
                         $"Query against '{definition.DbObjectName}' timed out after {command.CommandTimeout}s. " +
                         "This usually means the query itself is slow (check its execution plan / indexes in SSMS), " +
                         "not a code bug. If it's expected to take this long, raise CommandTimeout further.", ex);
+                    _diagnosticLogger.Log(timeoutEx, BuildDiagnosticContext(reportName, $"LoadData query timeout against '{definition.DbObjectName}'", definition, parameters));
+                    throw timeoutEx;
+                }
+                catch (Exception ex)
+                {
+                    // Any other data-load failure (bad connection, invalid object name, permission
+                    // denied, etc.) - not previously caught at all, propagated raw and unlogged.
+                    _diagnosticLogger.Log(ex, BuildDiagnosticContext(reportName, $"LoadData query against '{definition.DbObjectName}'", definition, parameters));
+                    throw new Exception($"Failed loading data for '{definition.DbObjectName}': {ex.Message}", ex);
                 }
                 return dataTable;
             }

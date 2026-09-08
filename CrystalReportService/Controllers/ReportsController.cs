@@ -1,4 +1,5 @@
-﻿using CrystalReportService.Services;
+﻿using CrystalReportService.Diagnostics;
+using CrystalReportService.Services;
 using System;
 using System.IO;
 using System.Linq;
@@ -7,7 +8,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Web.Http;
 
-namespace WebAPI.CrystalReportService.Controllers
+namespace CrystalReportService.Controllers
 {
     [RoutePrefix("api/reports")]
     public class ReportsController : ApiController
@@ -42,22 +43,25 @@ namespace WebAPI.CrystalReportService.Controllers
             }
             catch (FileNotFoundException ex)
             {
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, ex.Message);
+                return CreateErrorResponse(HttpStatusCode.NotFound, ex, ex.Message);
             }
             catch (ArgumentException ex)
             {
-                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, ex.Message);
+                // Caller-input error (unknown/missing/malformed parameter) -- CrystalReportRenderer
+                // deliberately does not log these as failures, so no error reference id exists.
+                return CreateErrorResponse(HttpStatusCode.BadRequest, ex, ex.Message);
             }
             catch (TimeoutException ex)
             {
-                return Request.CreateErrorResponse(HttpStatusCode.GatewayTimeout, ex.Message);
+                return CreateErrorResponse(HttpStatusCode.GatewayTimeout, ex, ex.Message);
             }
             catch (Exception ex)
             {
-                // Log ex here (this is exactly where a locked .rpt file or a
-                // DB connectivity issue will surface). Walk InnerException
-                // because wrapper exceptions like TypeInitializationException
-                // hide the real cause in ex.Message alone.
+                // CrystalReportRenderer's own catch blocks already log every genuine failure
+                // (locked .rpt file, DB connectivity, export failure) via IReportDiagnosticLogger
+                // before re-throwing, so this block only shapes the HTTP response -- logging again
+                // here would duplicate the same failure. Walk InnerException because wrapper
+                // exceptions like TypeInitializationException hide the real cause in ex.Message alone.
                 var detail = ex.Message;
                 var inner = ex.InnerException;
                 while (inner != null)
@@ -65,7 +69,7 @@ namespace WebAPI.CrystalReportService.Controllers
                     detail += " ---> " + inner.Message;
                     inner = inner.InnerException;
                 }
-                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, detail);
+                return CreateErrorResponse(HttpStatusCode.InternalServerError, ex, detail);
             }
 
             var response = Request.CreateResponse(HttpStatusCode.OK);
@@ -76,6 +80,27 @@ namespace WebAPI.CrystalReportService.Controllers
                 FileName = $"{reportName}.pdf"
             };
             return response;
+        }
+
+        /// <summary>
+        /// Builds the error response, including the error reference id when
+        /// <see cref="ReportDiagnosticLogger"/> recorded one for this exception -- lets a user
+        /// quoting the id in a support request be matched to one exact Event Log entry.
+        /// </summary>
+        private HttpResponseMessage CreateErrorResponse(HttpStatusCode statusCode, Exception ex, string message)
+        {
+            Guid errorReferenceId;
+
+            if (ReportDiagnosticLogger.TryGetErrorReferenceId(ex, out errorReferenceId))
+            {
+                return Request.CreateResponse(statusCode, new
+                {
+                    Message = message,
+                    ErrorId = errorReferenceId
+                });
+            }
+
+            return Request.CreateErrorResponse(statusCode, message);
         }
     }
 }

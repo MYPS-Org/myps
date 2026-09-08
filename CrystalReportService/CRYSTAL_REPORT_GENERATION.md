@@ -20,9 +20,10 @@
 1. [Overview](#overview)
 2. [Report Catalog](#report-catalog)
 3. [Controller Endpoints](#controller-endpoints)
-4. [Known Caveats](#known-caveats)
-5. [Stored Procedures / Views Used](#stored-procedures--views-used)
-6. [Dependencies](#dependencies)
+4. [Diagnostics & Logging](#diagnostics--logging)
+5. [Known Caveats](#known-caveats)
+6. [Stored Procedures / Views Used](#stored-procedures--views-used)
+7. [Dependencies](#dependencies)
 
 ---
 
@@ -80,8 +81,8 @@ dictionary (case-insensitive keys):
 |------------------------------------|-----------------------------------------|------------------------------|------|----------------------------------------------------------------------|--------|
 | `rbp`                              | `RBP.rpt`                                | `sp_RBP`                     | Proc | `yearstart` (req), `programid` (opt), `region` (opt)                 | pdf    |
 | `extract-pcmiow`                   | `ExtractPCMIOW.rpt`                      | `usp_extract_PC_MIOW_list`   | Proc | `programid`, `categoryid`, `rocode`, `deocode`, `io_code` (all req)   | xlsx (via `ExcelReportGenerator`, bypasses Crystal) |
-| `rbp-summary-report`               | `RBP Summary Report.rpt`                 | `MYPS_vw_rptRBPSummary`      | View | none — the view itself is unparameterized, **but see Report-Level Parameters below: this is not a zero-input report** | pdf |
-| `rbp-summary-report-with-tier`     | `RBP_Summary_Report_with_Tier.rpt`       | `MYPS_vw_rptRBPSummaryTier`  | View | none — same caveat as above                                          | pdf    |
+| `rbp-summary-report`               | `RBP Summary Report.rpt`                 | `sp_RBPSummary`              | Proc | `programid` (opt) — see Known Caveats: the View path was retired 2026-09-07 | pdf |
+| `rbp-summary-report-with-tier`     | `RBP_Summary_Report_with_Tier.rpt`       | `MYPS_vw_rptRBPSummaryTier`  | View | none — the view itself is unparameterized, **but see Report-Level Parameters below: this is not a zero-input report** | pdf    |
 | `aip-official`                     | `AIP_Official.rpt`                       | `a1_usp_AIP2`                | Proc | `yearstart` (req), `programid` (req), `region` (opt)                  | pdf    |
 | `aip-executive`                     | `AIP_Executive.rpt`                      | `a1_usp_AIP2`                | Proc | same as above                                                          | pdf    |
 | `aip-official-without-ld`          | `AIP_Official_without_LD.rpt`            | `a1_usp_AIP2`                | Proc | same as above                                                          | pdf    |
@@ -144,6 +145,56 @@ existing unit test coverage: `MYPS.UnitTests/ReportRequestMapperTests.cs`,
 
 ---
 
+## Diagnostics & Logging
+
+**Added 2026-09-07.** `CrystalReportService` had zero logging before this — `ReportsController.cs`'s
+catch block carried a `// Log ex here` comment nothing implemented. A file-based attempt the same
+day produced nothing on the live server: the IIS app pool identity cannot create a directory under
+the site root (`App_Data\Logs`), and the write was swallowed silently with no fallback. Replaced
+with a proper diagnostic logger writing to the **Windows Event Log**.
+
+**Files:** `CrystalReportService/Diagnostics/ReportDiagnosticLogger.cs` (the logger itself, plus the
+`IReportDiagnosticLogger` interface and its report-building/classification/redaction logic),
+`ReportDiagnosticContext.cs` (the input shape), `ReportExceptionLogger.cs` (a
+`System.Web.Http.ExceptionHandling.IExceptionLogger`, registered in `WebApiConfig.Register`, that
+catches whatever `CrystalReportRenderer`'s own 8 instrumented call sites don't — an unknown report
+name, or a genuinely unexpected failure outside the renderer entirely).
+
+**Where to look:** Windows Event Viewer → Windows Logs → **Application**, source
+**`CrystalReportService`**. Each entry is a structured report (error id, failure location, report
+context, SQL diagnostics when applicable, recommended fix, redacted parameters, full exception
+chain, stack trace) under a stable Event ID per failure category (1001–1009 for Crystal/SQL/timeout
+categories, 1900 for anything unclassified — see the `EventId*` constants in
+`ReportDiagnosticLogger.cs` for the full list). `ReportsController`'s error responses include the
+same `ErrorId` (a GUID) that identifies the matching Event Log entry, so a user-reported failure
+maps to one exact event.
+
+**One-time setup required on every host, elevated (this cannot be automated by the deploy — an IIS
+app pool identity cannot create an event source itself, that writes under HKLM):**
+
+```powershell
+New-EventLog -LogName Application -Source "CrystalReportService"
+```
+
+Until that's run, the logger degrades to a file — `App_Data\Logs\CrystalReportErrors_yyyyMMdd.log`
+if the app pool can write there, else `%TEMP%\CrystalReportServiceLogs\` — and the file itself
+states why it degraded and names the exact command above. `Application_Start`
+(`Global.asax.cs`) also probes this at startup and writes the same warning to the fallback file if
+the source isn't registered yet, so a missing registration is discoverable before the first real
+failure rather than only at it.
+
+**Redaction:** parameter keys matching `password`/`token`/`secret`/`apikey`/`connectionstring`/etc.
+(substring, case-insensitive) are replaced with `[REDACTED]`; free text (SQL exception messages,
+Crystal's own errors) is separately scrubbed for `Password=`/`User Id=`/`Pwd=`/`Uid=` fragments,
+since `Web.config`'s `MypsDb` connection string holds a plaintext `sa` password and the Application
+log has a far wider audience than a file under the site root ever did.
+
+**Size limit:** `EventLog.WriteEntry` throws past ~32KB. Reports are truncated to 30,000 characters
+as a final step, with an explicit `[REPORT TRUNCATED - ORIGINAL LENGTH: n CHARACTERS]` marker —
+never silently cut.
+
+---
+
 ## Known Caveats
 
 - **`rbp-summary-report` and `rbp-summary-report-with-tier` are reachable via direct API call only
@@ -185,11 +236,40 @@ existing unit test coverage: `MYPS.UnitTests/ReportRequestMapperTests.cs`,
   confirmed 2026-09-05. Not a bug in the proc; it reflects PCMA data genuinely not flowing into
   that table yet. Don't "fix" this without confirming PCMA data has actually started populating it.
 
-- **`sp_RBPSummary` (the stored procedure) is a different, unrelated object.** Its live signature
-  has diverged from both its own legacy original and this rendering path (which uses the *view*
-  `MYPS_vw_rptRBPSummary`, never this proc) — it shows active, separate, in-progress work
-  (commented-out `@StageName` parameter, a validation block referencing `dbo.tPrograms`). Do not
-  conflate the two, and do not "fix" `sp_RBPSummary` as part of touching this Crystal pipeline.
+- **`rbp-summary-report` switched from the `MYPS_vw_rptRBPSummary` view to `sp_RBPSummary`
+  (2026-09-07), operator decision.** The View path kept failing at `ExportToStream`:
+  `RBP Summary Report.rpt`'s own saved `Table.Location` is the bare name `sp_RBPSummaryTier` — a
+  stale reference from before this report was pointed at the view (see the removed commented-out
+  history in `CrystalReportRenderer.cs`'s `Reports` dictionary) — and rewriting `Location` at
+  runtime to the correct object hit a separate Crystal SDK connection-validation failure inside
+  `Table.set_Location` (`COMException: "Failed to open the connection."`, root cause not fully
+  chased down — switching data source made it moot). Reverting to `StoredProcedure` sidesteps
+  `ApplyDatabaseLogon`/`Location` entirely, since that path is only invoked for View-backed
+  reports — matching the 6 other proc-backed reports that already work without it.
+  **`sp_RBPSummaryTier` does not exist on `myps_db_dev` at all** (confirmed 2026-09-07) — so this
+  same move isn't available for `rbp-summary-report-with-tier`, which stays View-backed
+  (`MYPS_vw_rptRBPSummaryTier`) for now.
+  - `sp_RBPSummary`'s live signature was already known to have diverged from its own legacy
+    original (confirmed by the operator's own archived legacy copy, table names like `project`/
+    `activity`/`ro_deo`/`projecttier` vs. the live version's `tProjectRevisions`/
+    `tProjectComponentCost`/`tProgramStages`) — it takes only `@programid`, not the legacy
+    `@yearstart`/`@programid`/`@region`. `yearstart`/`region` stay report-level Crystal parameters
+    only (letterhead), same as before — they were never real SQL inputs to this report either way.
+    The proc still carries earlier in-progress markers (commented-out `@StageName` parameter, a
+    validation block referencing `dbo.tPrograms`) — used as-is per operator instruction, not
+    completed as part of this fix.
+  - **Known correctness issue in the live proc, not fixed (out of scope, flagged only):**
+    `Legislative_District` comes back as a raw numeric code (e.g. `503`) instead of a resolved
+    name for at least some rows — the proc's `LEFT JOIN dbo.tOptionAdminAreaCongressionalDistrict
+    ld ON ld.Id = pr.LegislativeDistrict` joins on `ld.Id`, while every other confirmed-correct
+    resolution in this codebase (`pGenerateAIP01`, `a1_usp_AIP2`) joins on `ld.Code` instead —
+    the mismatch silently falls through to the `ISNULL(ld.Name, pr.LegislativeDistrict)` fallback.
+
+- **Event Log source not registered = silent fallback to a file, not a crash.** If diagnostics
+  seem to be "missing" for a report failure on a host, check the fallback log first
+  (`App_Data\Logs\` or `%TEMP%\CrystalReportServiceLogs\`, see Diagnostics & Logging above) before
+  assuming logging is broken — it almost certainly means `New-EventLog -LogName Application -Source
+  "CrystalReportService"` was never run on that host, and the fallback file will say so explicitly.
 
 - **`ReportService:BaseUrl` config gap.** Only set in `Main/appsettings.Development.json` today.
   `Main/appsettings.Staging.json` and the base `Main/appsettings.json` (the Production fallback —
@@ -223,7 +303,8 @@ Full fix history and rationale: `Main/Resources/Internal/SQLScripts/Reports.Crys
 | .NET Framework 4.8 | `CrystalReportService` is a **separate build and deploy target** from the rest of this solution (.NET 8) — it does not ship inside the main `WebAPI` process. |
 | IIS hosting (confirmed 2026-09-05) | Host `192.168.50.200`, app pool `CrystalReportService`, bound to port `8090`. Reachable directly at `http://192.168.50.200:8090/api/reports/{reportName}` for diagnosing a failed job (see Known Caveats above). |
 | `MypsDb` connection string | `CrystalReportService`'s own `Web.config` `ConfigurationManager.ConnectionStrings["MypsDb"]` — separate from this repo's `appsettings.*.json` pattern; must point at `myps_db_dev` on `192.168.50.200` (the confirmed target as of 2026-09-05) — confirm it still does before assuming any schema/data fact in this document holds. |
+| Windows Event Log source (added 2026-09-07) | `New-EventLog -LogName Application -Source "CrystalReportService"` — one-time, elevated, per host. Not automated by the deploy (an IIS app pool identity cannot create an event source itself). See Diagnostics & Logging above. |
 
 ---
 
-*Last updated: 2026-09-05. See Git history for change log.*
+*Last updated: 2026-09-07. See Git history for change log.*
