@@ -212,9 +212,11 @@ export interface RevisionTypeOption {
 }
 
 // Backed by /Revision/RevisionEnums — options for the Revision List filter dialog.
-// No CurrentStage options: live CurrentStage values include a dynamic per-user group name
-// (see RevisionController.RevisionEnums), which doesn't fit a fixed dropdown.
+// CurrentStages are raw values (tGroups.GroupName + the hardcoded 'PS Admin' literal — see
+// RevisionController.RevisionEnums); FE applies friendly display labels via
+// getCurrentStageLabel in FilterDialogRevisionList.tsx.
 export interface RevisionEnums {
     RevisionTypes: RevisionTypeOption[];
     RevisionStatuses: string[];
+    CurrentStages: string[];
 }

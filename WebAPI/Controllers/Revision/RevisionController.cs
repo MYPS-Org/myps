@@ -254,10 +254,13 @@ namespace WebAPI.Controllers.Revision
         // Revision.Queue.sql had already drifted from live again by that point, so trust live over
         // the file if they disagree. Live values: Disapproved, For Correction, Approved,
         // For Endorsement (waiting on RO), For Approval of Central Office (RO done, waiting on CO).
-        // There is deliberately no CurrentStage option here: live CurrentStage is no longer the
-        // fixed RO/CO/OWNER/REJECTED/DONE set -- it's now 'RPC', 'PS Admin', 'UNKNOWN', or (for
-        // the returned-to-owner case) the creator's actual tGroups.GroupName, which is an open-ended
-        // per-user value unsuited to a fixed dropdown.
+        // CurrentStages: turns out bounded, not open-ended -- fRevisionQueue's CurrentStage column
+        // only ever produces a dbo.tGroups.GroupName (queried live below, 12 rows as of 2026-09-07:
+        // Admin, AUC, RPC, DPC, DPD Admin, SD, DPDC/PDC, PDA, PDC, PPC, RPO, UPC) plus the literal
+        // 'PS Admin' the CASE expression substitutes for AUC's own approval branch (no 'PS Admin'
+        // row exists in tGroups -- see Revision.Queue.sql header). 'UNKNOWN' (the CASE's fallback/
+        // error branch) is deliberately excluded here, same precedent as RevisionStatuses omitting
+        // "Status Unavailable" -- it's not a real office to filter by.
         [HttpPost]
         public async Task<IActionResult> RevisionEnums(CancellationToken cancellationToken)
         {
@@ -270,6 +273,18 @@ namespace WebAPI.Controllers.Revision
                     .Select(x => new { x.RevisionGroupId, x.RevisionName })
                     .ToListAsync(cancellationToken);
 
+                var groupNames = await _db.tGroups
+                    .AsNoTracking()
+                    .Where(x => x.GroupName != null)
+                    .Select(x => x.GroupName!)
+                    .ToListAsync(cancellationToken);
+
+                var CurrentStages = groupNames
+                    .Append("PS Admin")
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList();
+
                 return Ok(new
                 {
                     RevisionTypes,
@@ -280,7 +295,8 @@ namespace WebAPI.Controllers.Revision
                         "For Correction",
                         "Disapproved",
                         "Approved"
-                    }
+                    },
+                    CurrentStages
                 });
             }
             catch (Exception ex)
