@@ -5,6 +5,7 @@ using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Table.Lookups;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
@@ -129,6 +130,17 @@ namespace Helpers
             public int YearStart { get; set; }
             public int Count { get; set; } = 1;
         }
+
+        // RISK-072 follow-up (2026-09-08): raised when dbo.pReserveProjectIdBlock's Maximum check
+        // (added the same day) rejects a reservation because the category's ID range is fully used.
+        public sealed class ProjectIdRangeExhaustedException : InvalidOperationException
+        {
+            public int CategoryId { get; }
+            public ProjectIdRangeExhaustedException(int categoryId, string message) : base(message)
+            {
+                CategoryId = categoryId;
+            }
+        }
         // RISK-105/RISK-111 fix (2026-08-31): rewired off dbo.pGenerateThirdSegment (unlocked
         // check-then-act loop, and its own post-generation duplicate check had been deleted by
         // commit 446d6318) onto dbo.pReserveProjectIdBlock (ADR-043's atomic hi-lo block
@@ -189,6 +201,12 @@ namespace Helpers
                     cancellationToken: cancellationToken);
 
                 await connection.ExecuteAsync(command);
+            }
+            catch (SqlException ex) when (ex.Message.Contains("PROJECTID_RANGE_EXHAUSTED:"))
+            {
+                throw new ProjectIdRangeExhaustedException(
+                    request.CategoryId,
+                    $"Project ID generation failed: Category {request.CategoryId}'s ID range has been fully exhausted. Contact an administrator to expand the range.");
             }
             finally
             {
@@ -320,20 +338,37 @@ namespace Helpers
                 return response;
             }
 
-            var ValidateDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! && x.ParticipantId == p.DEO, cancellationToken);
+            // 2026-09-10 fix: these 3 checks used to require x.RegionParticipantId to exactly equal
+            // the project's own Region -- but DEO/ImplementingOffice/OperatingUnit include org-wide
+            // entities (Central Office and several central "Cluster"/Bureau-level Implementing
+            // Offices) whose RegionParticipantId is NULL by design, since they aren't scoped to any
+            // single region. A strict equality can never match NULL, so selecting one of these
+            // always failed here -- confirmed live on myps_db_dev: 41,496 of 118,438 project
+            // revisions (35%) already have OperatingUnit='Central Office' and could no longer be
+            // saved through UpdateProjectDetails for ANY reason (this check runs unconditionally on
+            // every save), plus 174 more via 6 org-wide Implementing Offices; AddProject was
+            // blocked too, since it calls this same method. ShowProjectDropdowns
+            // (WebAPI/Controllers/Projects/ProjectController.cs:48-51) already treats a null-region
+            // row as valid for everyone (`|| string.IsNullOrEmpty(x.RegionParticipantId)`), and the
+            // frontend's own OU filter (FE/src/pages/Project/filteringLocations/locationFilterUtils.ts)
+            // already always allows OrgType 'CO' -- this brings the save-time check in line with
+            // logic that was already correct on both other sides. DEO currently has zero
+            // null-region rows in live data (unlike IO/OU), so this is currently a no-op for DEO,
+            // fixed anyway for consistency across all 3 checks.
+            var ValidateDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => (RegionParticipantId == x.RegionParticipantId! || string.IsNullOrEmpty(x.RegionParticipantId)) && x.ParticipantId == p.DEO, cancellationToken);
             if (ValidateDEO == null)
             {
                 response.Message = $"Selected District Engineering Office '{p.DEO}' is not valid."; response.Title = "Invalid District Engineering Office";
                 return response;
             }
 
-            var ValidateIO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! && x.ParticipantId == p.ImplementingOffice, cancellationToken);
+            var ValidateIO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => (RegionParticipantId == x.RegionParticipantId! || string.IsNullOrEmpty(x.RegionParticipantId)) && x.ParticipantId == p.ImplementingOffice, cancellationToken);
             if (ValidateIO == null)
             {
                 response.Message = $"Selected Implementing Office '{p.ImplementingOffice}' is not valid."; response.Title = "Invalid Implementing Office";
                 return response;
             }
-            var ValidateOU = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => RegionParticipantId == x.RegionParticipantId! && x.ParticipantId == p.OperatingUnit, cancellationToken);
+            var ValidateOU = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => (RegionParticipantId == x.RegionParticipantId! || string.IsNullOrEmpty(x.RegionParticipantId)) && x.ParticipantId == p.OperatingUnit, cancellationToken);
             if (ValidateOU == null)
             {
                 response.Message = $"Selected Operating Unit '{p.OperatingUnit}' is not valid."; response.Title = "Invalid Operating Unit";

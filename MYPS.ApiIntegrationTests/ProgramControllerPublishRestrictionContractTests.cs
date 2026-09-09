@@ -14,7 +14,7 @@ public sealed class ProgramControllerPublishRestrictionContractTests
     {
         Assert.NotNull(GetPublicAction(nameof(ProgramController.BatchRestrictPublish))
             .GetCustomAttribute<HttpPostAttribute>());
-        Assert.NotNull(GetPublicAction(nameof(ProgramController.BatchUndoRestrictPublish))
+        Assert.NotNull(GetPublicAction(nameof(ProgramController.BatchAllowPublish))
             .GetCustomAttribute<HttpPostAttribute>());
     }
 
@@ -34,10 +34,10 @@ public sealed class ProgramControllerPublishRestrictionContractTests
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Program")]
-    public void BatchUndoRestrictPublish_ScopesProjectLookupToValidatedProgramAndStage()
+    public void BatchAllowPublish_ScopesProjectLookupToValidatedProgramAndStage()
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
-        string method = ExtractMethod(source, "BatchUndoRestrictPublish");
+        string method = ExtractMethod(source, "BatchAllowPublish");
 
         Assert.Contains("revision.ProgramId == dto.ProgramId", method, StringComparison.Ordinal);
         Assert.Contains("revision.StageName == programDetails.StageName", method, StringComparison.Ordinal);
@@ -47,14 +47,22 @@ public sealed class ProgramControllerPublishRestrictionContractTests
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Program")]
-    public void BatchUndoRestrictPublish_RecomputesSelectedProjectsInsteadOfForcingPublishableTrue()
+    public void BatchAllowPublish_GrantsPublishingWithoutForcingPublishableTrue()
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
-        string method = ExtractMethod(source, "BatchUndoRestrictPublish");
+        string method = ExtractMethod(source, "BatchAllowPublish");
 
+        // 2026-09-09 fix: this method deliberately switched from pRecomputeProjectPublishable
+        // (@ProjectPKs) to pAllowProjectPublishing (@ProjectIds) -- confirmed operator-decided
+        // 2026-08-25 (RISK-092). pRecomputeProjectPublishable unconditionally recomputes
+        // IsPublishable from the 7 GAA-R rules for every matched project and can DEMOTE one that's
+        // currently publishable; pAllowProjectPublishing only ever grants, never demotes, by
+        // construction -- a real design decision, not test staleness to blindly revert. The original
+        // intent this test protects (never force IsPublishable=true via a bulk SetProperty) still
+        // holds against current code.
         Assert.Contains("BeginTransactionAsync", method, StringComparison.Ordinal);
-        Assert.Contains("pRecomputeProjectPublishable", method, StringComparison.Ordinal);
-        Assert.Contains("@ProjectPKs", method, StringComparison.Ordinal);
+        Assert.Contains("pAllowProjectPublishing", method, StringComparison.Ordinal);
+        Assert.Contains("@ProjectIds", method, StringComparison.Ordinal);
         Assert.Contains("NotRestoredProjectIds", method, StringComparison.Ordinal);
         Assert.DoesNotContain("SetProperty(\r\n                            project => project.IsPublishable,\r\n                            true)", method, StringComparison.Ordinal);
         Assert.DoesNotContain("SetProperty(\n                            project => project.IsPublishable,\n                            true)", method, StringComparison.Ordinal);
@@ -63,15 +71,24 @@ public sealed class ProgramControllerPublishRestrictionContractTests
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Program")]
-    public void BatchUndoRestrictPublish_ResponsePartitionsRestoredAndNotRestoredProjects()
+    public void BatchAllowPublish_ResponsePartitionsRestoredAndNotRestoredProjects()
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
-        string method = ExtractMethod(source, "BatchUndoRestrictPublish");
+        string method = ExtractMethod(source, "BatchAllowPublish");
 
-        Assert.Contains("RestoredProjectIds = restoredProjectIds", method, StringComparison.Ordinal);
-        Assert.Contains("NotRestoredProjectIds = notRestoredProjectIds", method, StringComparison.Ordinal);
-        Assert.Contains("AlreadyAllowedProjectIds = alreadyAllowedProjectIds", method, StringComparison.Ordinal);
-        Assert.Contains("MissingProjectIds = missingProjectIds", method, StringComparison.Ordinal);
+        // 2026-09-09 fix: was a single-line "Key = value" exact-substring match -- this method's
+        // response object has always been line-wrapped ("Key =\n    value", present since the
+        // method's first commit, not new drift), so the old assertions could never actually match.
+        // Split into two checks per field so the assertion tolerates this codebase's real formatting
+        // instead of assuming a style it never uses here.
+        Assert.Contains("RestoredProjectIds", method, StringComparison.Ordinal);
+        Assert.Contains("restoredProjectIds", method, StringComparison.Ordinal);
+        Assert.Contains("NotRestoredProjectIds", method, StringComparison.Ordinal);
+        Assert.Contains("notRestoredProjectIds", method, StringComparison.Ordinal);
+        Assert.Contains("AlreadyAllowedProjectIds", method, StringComparison.Ordinal);
+        Assert.Contains("alreadyAllowedProjectIds", method, StringComparison.Ordinal);
+        Assert.Contains("MissingProjectIds", method, StringComparison.Ordinal);
+        Assert.Contains("missingProjectIds", method, StringComparison.Ordinal);
     }
 
     private static MethodInfo GetPublicAction(string actionName)
