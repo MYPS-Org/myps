@@ -28,12 +28,19 @@ public sealed class RevisionControllerContractTests
     [InlineData(nameof(RevisionController.RequestRevision))]
     [InlineData(nameof(RevisionController.ApproveRevision))]
     [InlineData(nameof(RevisionController.ResubmitRevision))]
-    public void RevisionWorkflowActions_RemainHttpPostAndAllowAnonymous(string actionName)
+    public void RevisionWorkflowActions_RemainHttpPostAndRequireAuthentication(string actionName)
     {
         var method = GetPublicAction(actionName);
 
         Assert.NotNull(method.GetCustomAttribute<HttpPostAttribute>());
-        Assert.NotNull(method.GetCustomAttribute<AllowAnonymousAttribute>());
+        // 2026-09-09 fix: [AllowAnonymous] was deliberately removed from all 4 of these actions
+        // (e4442fb9 "Enforce permission checks for revision actions", 2026-08-18) -- a caller
+        // hitting them anonymously used to short-circuit CoreController.OnActionExecuting's session
+        // population, breaking usergroup-based authorization for real users (re-confirmed by
+        // 7f027d4f, 2026-09-07, when AllowAnonymous was accidentally reintroduced on RequestRevision
+        // and had to be removed again for the same reason). The invariant is now the opposite of
+        // what this test used to assert.
+        Assert.Null(method.GetCustomAttribute<AllowAnonymousAttribute>());
     }
 
     /// <summary>
@@ -105,12 +112,18 @@ public sealed class RevisionControllerContractTests
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Revision")]
-    public void ApproveRevision_SavesLocalCoApprovalBeforePcmaAndCommitsAfterPcmaSuccess()
+    public void ApproveRevision_PublishesToPcmaBeforeFinalLocalSaveAndCommitsAfter()
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Revision", "RevisionController.cs");
 
+        // 2026-09-09 fix: CentralApproval was retired by the revision-schema normalization refactor
+        // (e24e0d20) -- current equivalent is Approval.Status = 1;. Separately, the live order is now
+        // PCMA-before-final-save (was save-before-PCMA when this test was written) -- confirmed
+        // intentional by the operator, not a regression; everything still lives inside one
+        // transaction so atomicity is unaffected either way, only the read-before-write sequencing
+        // this test encodes.
         int publishCall = source.IndexOf("PublishRevisionAsync", StringComparison.Ordinal);
-        int coStatusAssignment = source.IndexOf("CentralApproval.Status = dto.Status", StringComparison.Ordinal);
+        int coStatusAssignment = source.IndexOf("Approval.Status = 1;", StringComparison.Ordinal);
         int coDocumentInsert = source.IndexOf("IsApprovedDocument = true", StringComparison.Ordinal);
         int saveChanges = source.IndexOf("await _db.SaveChangesAsync(cancellationToken);", coDocumentInsert, StringComparison.Ordinal);
         int commit = source.IndexOf("await transaction.CommitAsync(cancellationToken);", publishCall, StringComparison.Ordinal);
@@ -122,8 +135,8 @@ public sealed class RevisionControllerContractTests
         Assert.True(commit > 0);
         Assert.True(coStatusAssignment < saveChanges);
         Assert.True(coDocumentInsert < saveChanges);
-        Assert.True(saveChanges < publishCall);
-        Assert.True(publishCall < commit);
+        Assert.True(publishCall < saveChanges);
+        Assert.True(saveChanges < commit);
     }
 
     [Fact]

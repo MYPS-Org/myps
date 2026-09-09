@@ -1,4 +1,7 @@
+using DBHelper.Data;
+using Helpers;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.Data;
 using Xunit;
 
@@ -76,6 +79,99 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
         int[] results = await Task.WhenAll(tasks);
         Assert.Equal(concurrentCallers, results.Distinct().Count());
         Assert.Equal(Enumerable.Range(1, concurrentCallers).OrderBy(x => x), results.OrderBy(x => x));
+    }
+
+    // RISK-072 follow-up (2026-09-08): pReserveProjectIdBlock previously checked only Minimum at
+    // bucket-seed time, never Maximum -- live-proven exhausted on myps_db_dev Category 34
+    // (Minimum=Maximum=5, already at CurrentSequence=5; the next reservation would have silently
+    // minted an out-of-range ID). This mirrors that exact single-value-range shape: the first
+    // reservation legitimately consumes the only slot in range, the second must raise.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task ReserveProjectIdBlock_RaisesWhenReservationWouldExceedCategoryMaximum()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tOptionProjectCategory (CategoryId, Minimum, Maximum) VALUES (2, 1, 1);");
+
+        (int start, int end) = await ReserveBlockAsync(connection, count: 1, categoryId: 2);
+        Assert.Equal(1, start);
+        Assert.Equal(1, end);
+
+        SqlException ex = await Assert.ThrowsAsync<SqlException>(
+            () => ReserveBlockAsync(connection, count: 1, categoryId: 2));
+        Assert.Contains("PROJECTID_RANGE_EXHAUSTED", ex.Message);
+    }
+
+    // No-false-positive check: a category with room to spare must never trip the new guard.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task ReserveProjectIdBlock_DoesNotRaiseWhenWithinCategoryMaximum()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tOptionProjectCategory (CategoryId, Minimum, Maximum) VALUES (3, 1, 100);");
+
+        (int start, int end) = await ReserveBlockAsync(connection, count: 1, categoryId: 3);
+        Assert.Equal(1, start);
+        Assert.Equal(1, end);
+    }
+
+    // Everything above proves dbo.pReserveProjectIdBlock's own SQL behavior via a raw SqlCommand --
+    // it never exercises Helpers/ProjectHelper.cs's GenerateProjectID itself, the actual C# code path
+    // that wraps the Dapper call and translates a PROJECTID_RANGE_EXHAUSTED SqlException into
+    // ProjectIdRangeExhaustedException. These two close that gap by calling the real method.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_ReturnsCorrectlyFormattedIdWithinRange()
+    {
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        string projectId = await db.GenerateProjectID(new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1,
+            StageName = "BP",
+            IslandCode = "LZ",
+            YearStart = 2026
+        }, CancellationToken.None);
+
+        // {Prefix}{YearOffset:D3}{Sequence:D5}{IslandCode} -- BP, (2026-2016)="010", first
+        // reservation="00001", island="LZ".
+        Assert.Equal("BP01000001LZ", projectId);
+    }
+
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_ThrowsProjectIdRangeExhaustedExceptionWhenRangeExhausted()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tOptionProjectCategory (CategoryId, Minimum, Maximum) VALUES (2, 1, 1);");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+
+        var request = new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 2,
+            StageName = "BP",
+            IslandCode = "LZ",
+            YearStart = 2026
+        };
+
+        // First call legitimately consumes the only slot in range (Minimum=Maximum=1).
+        await using (var db1 = new MYPSDbContext(options))
+        {
+            string firstId = await db1.GenerateProjectID(request, CancellationToken.None);
+            Assert.Equal("BP01000001LZ", firstId);
+        }
+
+        // Second call must be rejected via the real C# exception type, not a raw SqlException.
+        await using var db2 = new MYPSDbContext(options);
+        var ex = await Assert.ThrowsAsync<ProjectHelper.ProjectIdRangeExhaustedException>(
+            () => db2.GenerateProjectID(request, CancellationToken.None));
+        Assert.Equal(2, ex.CategoryId);
+        Assert.Contains("exhausted", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // The structural defect this pass found, live on myps_db_dev (ADR-134): a BP-form project's
@@ -187,14 +283,15 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
     }
 
     private const string SchemaSql = """
-        CREATE TABLE dbo.tOptionProjectCategory(CategoryId int NOT NULL PRIMARY KEY, Minimum int NOT NULL);
+        CREATE TABLE dbo.tOptionProjectCategory(CategoryId int NOT NULL PRIMARY KEY, Minimum int NOT NULL, Maximum int NULL);
         CREATE TABLE dbo.tProjectIdSequence(CategoryId int NOT NULL, Suffix nvarchar(2) NOT NULL, IslandCode nvarchar(2) NOT NULL, YearStart int NOT NULL, CurrentSequence int NOT NULL, UpdatedDate datetime NOT NULL, CONSTRAINT UQ_tProjectIdSequence UNIQUE (CategoryId, Suffix, IslandCode, YearStart));
         CREATE TABLE dbo.tProjects(ProjectPK nvarchar(200) NOT NULL PRIMARY KEY);
         CREATE TABLE dbo.tProjectRevisions(Id int IDENTITY PRIMARY KEY, ProjectFK nvarchar(200) NOT NULL, ProjectId nvarchar(200) NOT NULL, IsDeleted bit NOT NULL);
         """;
 
     // Byte-for-byte the live dbo.pReserveProjectIdBlock definition, pulled fresh from myps_db_dev
-    // via OBJECT_DEFINITION during this pass (2026-08-31) -- not paraphrased.
+    // via OBJECT_DEFINITION -- updated 2026-09-08 to include the Maximum-exhaustion guard added
+    // that day (RISK-072 follow-up; the prior 2026-08-31 snapshot predates it).
     private const string ProcedureSql = """
         CREATE PROCEDURE dbo.pReserveProjectIdBlock
             @CategoryId  INT,
@@ -238,6 +335,13 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
             WHERE CategoryId = @CategoryId AND Suffix = @Suffix AND IslandCode = @IslandCode AND YearStart = @YearStart;
 
             SELECT @RangeStart = OldSeq + 1, @RangeEnd = NewSeq FROM @Range;
+
+            DECLARE @Max INT = (SELECT Maximum FROM dbo.tOptionProjectCategory WHERE CategoryId = @CategoryId);
+            IF @Max IS NOT NULL AND @RangeEnd > @Max
+            BEGIN
+                RAISERROR('PROJECTID_RANGE_EXHAUSTED: CategoryId %d (Suffix=%s, IslandCode=%s, YearStart=%d) has exhausted its ID range. Maximum=%d, attempted RangeEnd=%d.', 16, 1, @CategoryId, @Suffix, @IslandCode, @YearStart, @Max, @RangeEnd);
+                RETURN;
+            END
         END;
         """;
 }

@@ -51,9 +51,22 @@ namespace WebAPI.Controllers.Projects
                 var operatingUnits = await _db.vAdminOperatingUnit.AsNoTracking().Where(x => RegionParticipantIds.Contains(x.RegionParticipantId!) || string.IsNullOrEmpty(x.RegionParticipantId)).ToListAsync(cancellationToken);
 
 
-                int CurrentYear = (int)Functions.CurrentDate().Year;
+                // 2026-09-09 fix: ShowProjectDropdowns is a generic, project-agnostic list-population
+                // endpoint -- it has no way to know which project is being edited, so filtering here
+                // by IsActive/ValidUntil silently hides an old project's own category from its own
+                // dropdown (SearchableDropdown only renders a label it can find in the options list
+                // it's given -- there's no "always show the current value" fallback in this
+                // component). Real availability enforcement belongs at the point that actually
+                // persists data: ValidateProjectDetailsLookups (Helpers/ProjectHelper.cs:295)
+                // already rejects a save that selects an inactive/expired category (same
+                // IsActive/ValidUntil expression that used to live here), unaffected by this query.
+                // The frontend's own inline ValidUntil filter (FE/src/pages/Project/components/
+                // ProjectDetailsForm.tsx and the Modification variant, filtering
+                // projectEnums.Categories on ValidUntil only) still narrows what's offered for NEW
+                // selections from this full list -- pre-existing, untouched by this change, and
+                // correctly requires the full list to do so.
                 var categories = await _db.tOptionProjectCategory.AsNoTracking()
-                    .Where(c => c.IsActive || (c.ValidUntil >= CurrentYear || c.ValidUntil == 0)).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
+                    .OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
                 var thrusts = await _db.tOptionProjectThrustList.AsNoTracking()
                     .Where(t => t.IsActive).OrderBy(x => x.ThrustDescription).ToListAsync(cancellationToken);
                 var origins = await _db.tOptionProjectOrigin.AsNoTracking()
@@ -581,6 +594,11 @@ namespace WebAPI.Controllers.Projects
                     Message = "Project added successfully",
                     Title = "Add Complete"
                 });
+            }
+            catch (ProjectIdRangeExhaustedException ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return new BadRequestObjectResult(new { Title = "Project ID Range Exhausted", Message = ex.Message });
             }
             catch (Exception ex)
             {

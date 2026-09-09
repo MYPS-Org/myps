@@ -816,10 +816,26 @@ namespace Hangfire.Services
                     var ProjectReference = new List<ImportProjectReference>();
                     var projects = new List<DBHelper.Models.Table.Project.Projects>();
                     var projectstages = new List<DBHelper.Models.Table.Project.ProjectStages>();
+                    // RISK-072 follow-up (2026-09-08): collected here, applied once via
+                    // DisregardProjectRows AFTER the loop below completes -- calling it mid-loop
+                    // would RemoveAll from the exact lists this foreach is still enumerating via
+                    // .Concat(), throwing InvalidOperationException: Collection was modified.
+                    // Dictionary (not a HashSet) because different rows can belong to different
+                    // exhausted categories and need their own message.
+                    var ExhaustedProjectIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                     foreach (var Item in ValidProjectDetails.Concat(WarningProjectDetails))
                     {
-                        var Projects = await _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, resolver, jobCancellationToken.ShutdownToken);
+                        ImportingHelper.SaveProjectResponse Projects;
+                        try
+                        {
+                            Projects = await _db.SaveProjectDetails(IsValidProgram.ProgramDetails, Item, ProjectReference, resolver, jobCancellationToken.ShutdownToken);
+                        }
+                        catch (ProjectHelper.ProjectIdRangeExhaustedException ex)
+                        {
+                            ExhaustedProjectIds[Item.ProjectId] = ex.Message;
+                            continue;
+                        }
 
                         // ── Reused project (found via AlternateId): entity is already tracked by EF,
                         // field updates made inside SaveProjectDetails persist on SaveChanges below —
@@ -867,6 +883,14 @@ namespace Hangfire.Services
                         projectstages.Add(Projects.ProjectStage);
                         _db.SaveChanges();
                     }
+
+                    // RISK-072 follow-up (2026-09-08): applied once, now that the loop above has
+                    // fully finished enumerating ValidProjectDetails/WarningProjectDetails -- rows
+                    // whose ProjectId range was exhausted are disregarded and reported the same way
+                    // every other row-level validation failure in this file already is.
+                    DisregardProjectRows(
+                        new HashSet<string>(ExhaustedProjectIds.Keys, StringComparer.OrdinalIgnoreCase),
+                        item => ExhaustedProjectIds.TryGetValue(item.ProjectId, out var msg) ? msg : "Import: Project ID's range was exhausted and the row was disregarded.");
 
                     jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Funding Profile ────────────────────────────────────────
