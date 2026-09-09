@@ -65,6 +65,45 @@ export interface DashboardSummary {
     Timestamp: string;
     User: string;
   }>;
+  Revisions: DashboardRevisionSummary;
+}
+
+/** One row of dbo.fRevisionQueue -- the same source the /revision page reads. */
+export interface DashboardRevisionItem {
+  Id: number;
+  TransactionId: string;
+  ProjectId: string;
+  RevisionType: string;
+  RevisionReason: string;
+  /** 'For Endorsement' | 'For Approval of Central Office' | 'For Correction' | 'Approved' | 'Disapproved' */
+  RevisionStatus: string;
+  /** Group holding the revision: 'RPC', 'PS Admin', or the creator's group. */
+  CurrentStage: string;
+  ImplementingOffice: string;
+  ImplementingOfficeId: string;
+  ProgramName: string;
+  RevisionDate: string;
+  Age: number;
+}
+
+export interface DashboardRevisionCount {
+  Name: string;
+  Count: number;
+}
+
+export interface DashboardRevisionSummary {
+  /** 'For Endorsement' -- awaiting the RO/RPC tier. */
+  ForReview: number;
+  /** 'For Approval of Central Office' -- awaiting the CO/AUC tier. */
+  ForApproval: number;
+  ForCorrection: number;
+  Approved: number;
+  Disapproved: number;
+  Total: number;
+  ByStatus: DashboardRevisionCount[];
+  ByImplementingOffice: DashboardRevisionCount[];
+  ByGroup: DashboardRevisionCount[];
+  Items: DashboardRevisionItem[];
 }
 
 const BENCHMARK_LS_PROJECTS: DashboardSummary['LsProjects'] = [
@@ -287,6 +326,69 @@ function getBenchmarkSummary(year: number): DashboardSummary {
         User: 'Planning Division (Central)',
       },
     ],
+    Revisions: getBenchmarkRevisions(),
+  };
+}
+
+// Benchmark counterpart of the live fRevisionQueue projection. Mirrors the five
+// statuses the live queue emits so the presentation mode exercises the same UI
+// paths; never merged into or substituted for live data.
+function getBenchmarkRevisions(): DashboardRevisionSummary {
+  const items: DashboardRevisionItem[] = [
+    ['BP01000001LZ-1', 'Modification', 'For Endorsement', 'RPC', 'Region II', 'OI236', 2],
+    ['BP01000002LZ-1', 'Adjustment', 'For Endorsement', 'RPC', 'Region I', 'OI235', 5],
+    ['BP01220001LZ-1', 'Mode of Implementation', 'For Endorsement', 'RPC', 'Zambales 1st District Engineering Office', 'OI49', 14],
+    ['BP01069001LZ-1', 'Modification', 'For Approval of Central Office', 'PS Admin', 'Ilocos Norte 1st District Engineering Office', 'OI24', 7],
+    ['BP01200001MN-1', 'Adjustment', 'For Approval of Central Office', 'PS Admin', 'Zamboanga del Norte 1st District Engineering Office', 'OI108', 3],
+    ['BP01000004LZ-1', 'Modification', 'For Correction', 'Admin', 'Region II', 'OI236', 20],
+    ['BP01030003LZ-1', 'Termination', 'Approved', 'PS Admin', 'Pangasinan 1st District Engineering Office', 'OI28', 26],
+    ['BP01091001LZ-1', 'Modification', 'Disapproved', 'RPC', 'Region II', 'OI236', 31],
+  ].map((row, index) => {
+    const [transactionId, revisionType, revisionStatus, currentStage, office, officeId, age] = row as
+      [string, string, string, string, string, string, number];
+    return {
+      Id: index + 1,
+      TransactionId: transactionId,
+      ProjectId: transactionId.split('-')[0],
+      RevisionType: revisionType,
+      RevisionReason: 'Benchmark sample reason',
+      RevisionStatus: revisionStatus,
+      CurrentStage: currentStage,
+      ImplementingOffice: office,
+      ImplementingOfficeId: officeId,
+      ProgramName: 'National Infrastructure Program',
+      RevisionDate: new Date(Date.now() - age * 86400000).toISOString(),
+      Age: age,
+    };
+  });
+
+  const tally = (source: DashboardRevisionItem[], pick: (item: DashboardRevisionItem) => string) =>
+    Object.entries(
+      source.reduce<Record<string, number>>((acc, item) => {
+        const key = pick(item);
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+      }, {})
+    )
+      .map(([Name, Count]) => ({ Name, Count }))
+      .sort((a, b) => b.Count - a.Count || a.Name.localeCompare(b.Name));
+
+  const countOf = (status: string) => items.filter((item) => item.RevisionStatus === status).length;
+  const pending = items.filter(
+    (item) => item.RevisionStatus === 'For Endorsement' || item.RevisionStatus === 'For Approval of Central Office'
+  );
+
+  return {
+    ForReview: countOf('For Endorsement'),
+    ForApproval: countOf('For Approval of Central Office'),
+    ForCorrection: countOf('For Correction'),
+    Approved: countOf('Approved'),
+    Disapproved: countOf('Disapproved'),
+    Total: items.length,
+    ByStatus: tally(items, (item) => item.RevisionStatus),
+    ByImplementingOffice: tally(pending, (item) => item.ImplementingOffice),
+    ByGroup: tally(pending, (item) => item.CurrentStage),
+    Items: items,
   };
 }
 

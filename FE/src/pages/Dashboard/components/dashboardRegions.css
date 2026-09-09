@@ -1,0 +1,11 @@
+.dashboard-region-shape { transition: fill-opacity .45s, fill .45s, stroke .45s, stroke-width .45s, filter .45s; cursor: pointer; }
+.dashboard-region-shape:hover, .dashboard-region-shape:focus { fill-opacity: .5; outline: none; stroke: #0f172a; stroke-width: 2; }
+.dashboard-region-shape.is-selected { filter: drop-shadow(0 5px 3px #0f172a88); animation: region-emphasis .65s ease-out; }
+.dashboard-region-popup { pointer-events: none; }
+.dashboard-region-card { background: #0f172a; color: white; border: 2px solid #38bdf8; border-radius: 16px; padding: 12px; text-align: center; box-shadow: 0 12px 24px #0f172a55; font: 12px/1.4 sans-serif; animation: region-card-enter .5s ease-out; }
+.dashboard-region-card strong { font-size: 14px; }
+.dashboard-region-figure { color: #67e8f9; font-size: 32px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.dashboard-region-detail { margin-top: 6px; color: #cbd5e1; }
+@keyframes region-emphasis { from { fill-opacity: .25; filter: drop-shadow(0 0 0 transparent); } to { fill-opacity: .8; filter: drop-shadow(0 5px 3px #0f172a88); } }
+@keyframes region-card-enter { from { opacity: 0; transform: translateY(12px) scale(.85); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .dashboard-region-shape, .dashboard-region-card { animation: none !important; transition: none; } }

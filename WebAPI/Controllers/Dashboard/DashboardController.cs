@@ -1,4 +1,4 @@
-using DBHelper.Data;
+﻿using DBHelper.Data;
 using DBHelper.Models.Views.Project;
 using Helpers;
 using Microsoft.AspNetCore.Mvc;
@@ -324,6 +324,113 @@ namespace WebAPI.Controllers.Dashboard
                     User = ActivityUserName(wallet.UpdatedBy ?? wallet.CreatedBy)
                 });
 
+                // ------------------------------------------------------------------
+                // Revision queue
+                // ------------------------------------------------------------------
+                // Reuses dbo.fRevisionQueue -- the exact source behind the /revision
+                // page -- so the dashboard can never disagree with that list. The TVF
+                // is already user-scoped: it returns rows the caller created, plus the
+                // RO tier when the caller is in RPC and the CO tier when in AUC, which
+                // is the "depends on user group" behaviour. @IsRO/@IsCO are derived the
+                // same way as RevisionController.RevisionRequests.
+                var dashboardUserGroups = _Session.UserGroupNames?.ToArray() ?? Array.Empty<string>();
+                var isRevisionRO = dashboardUserGroups.Contains("RPC", StringComparer.OrdinalIgnoreCase);
+                var isRevisionCO = dashboardUserGroups.Contains("AUC", StringComparer.OrdinalIgnoreCase);
+
+                var revisionQueue = await _db.fRevisionQueue
+                    .FromSqlInterpolated($"SELECT * FROM dbo.fRevisionQueue({_Session.UserId.ToString()}, {isRevisionRO}, {isRevisionCO})")
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
+
+                // fRevisionQueue does not carry ImplementingOffice, but it is on the
+                // vProjectLatest row the queue already joins. Resolve the office code to
+                // its display name through vAdminImplementingOffice -- the same view that
+                // populates the Implementing Office dropdown on the project details page.
+                var revisionProjectIds = revisionQueue
+                    .Select(revision => revision.ProjectId)
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Distinct()
+                    .ToArray();
+                var revisionOfficeByProject = await visibleProjects
+                    .Where(project => revisionProjectIds.Contains(project.ProjectId))
+                    .Select(project => new { project.ProjectId, project.ImplementingOffice })
+                    .ToDictionaryAsync(
+                        project => project.ProjectId,
+                        project => project.ImplementingOffice,
+                        cancellationToken);
+
+                var revisionOfficeIds = revisionOfficeByProject.Values
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Distinct()
+                    .ToArray();
+                var revisionOfficeNames = await _db.vAdminImplementingOffice.AsNoTracking()
+                    .Where(office => revisionOfficeIds.Contains(office.ParticipantId))
+                    .Select(office => new { office.ParticipantId, office.Name })
+                    .ToDictionaryAsync(office => office.ParticipantId, office => office.Name, cancellationToken);
+
+                var revisionRows = revisionQueue
+                    .Select(revision =>
+                    {
+                        revisionOfficeByProject.TryGetValue(revision.ProjectId, out var officeId);
+                        officeId ??= string.Empty;
+                        return new DashboardRevisionDTO
+                        {
+                            Id = revision.Id,
+                            TransactionId = revision.TransactionId,
+                            ProjectId = revision.ProjectId,
+                            RevisionType = revision.RevisionType,
+                            RevisionReason = revision.RevisionReason,
+                            RevisionStatus = revision.RevisionStatus,
+                            CurrentStage = string.IsNullOrWhiteSpace(revision.CurrentStage)
+                                ? "Unassigned"
+                                : revision.CurrentStage,
+                            ImplementingOfficeId = officeId,
+                            ImplementingOffice = revisionOfficeNames.TryGetValue(officeId, out var officeName)
+                                ? officeName
+                                : (string.IsNullOrWhiteSpace(officeId)
+                                    ? "Not recorded"
+                                    : $"Unrecognized office ({officeId})"),
+                            ProgramName = revision.ProgramName ?? "Not recorded",
+                            RevisionDate = revision.RevisionDate,
+                            Age = revision.Age ?? 0
+                        };
+                    })
+                    .OrderByDescending(revision => revision.RevisionDate)
+                    .ToList();
+
+                // "For Review" is the RO/RPC tier and "For Approval" the CO/AUC tier.
+                // These are the only two genuinely pending states in the queue; the
+                // remaining three are terminal or returned to the owner.
+                const string ForReviewStatus = "For Endorsement";
+                const string ForApprovalStatus = "For Approval of Central Office";
+                var pendingRevisions = revisionRows
+                    .Where(revision => revision.RevisionStatus == ForReviewStatus
+                        || revision.RevisionStatus == ForApprovalStatus)
+                    .ToList();
+
+                static List<DashboardStatusDTO> GroupRevisions(
+                    IEnumerable<DashboardRevisionDTO> source,
+                    Func<DashboardRevisionDTO, string> selector) =>
+                    source.GroupBy(selector)
+                        .Select(group => new DashboardStatusDTO { Name = group.Key, Count = group.Count() })
+                        .OrderByDescending(item => item.Count)
+                        .ThenBy(item => item.Name)
+                        .ToList();
+
+                var revisionSummary = new DashboardRevisionSummaryDTO
+                {
+                    ForReview = revisionRows.Count(revision => revision.RevisionStatus == ForReviewStatus),
+                    ForApproval = revisionRows.Count(revision => revision.RevisionStatus == ForApprovalStatus),
+                    ForCorrection = revisionRows.Count(revision => revision.RevisionStatus == "For Correction"),
+                    Approved = revisionRows.Count(revision => revision.RevisionStatus == "Approved"),
+                    Disapproved = revisionRows.Count(revision => revision.RevisionStatus == "Disapproved"),
+                    Total = revisionRows.Count,
+                    ByStatus = GroupRevisions(revisionRows, revision => revision.RevisionStatus),
+                    ByImplementingOffice = GroupRevisions(pendingRevisions, revision => revision.ImplementingOffice),
+                    ByGroup = GroupRevisions(pendingRevisions, revision => revision.CurrentStage),
+                    Items = revisionRows
+                };
+
                 var walletForYear = annualWallets.FirstOrDefault(item => item.Year == selectedYear);
                 var publishedCount = projects.Count(project => project.IsPublished);
                 var response = new DashboardSummaryDTO
@@ -372,6 +479,7 @@ namespace WebAPI.Controllers.Dashboard
                     //     Children = childrenByWallet.GetValueOrDefault(wallet.Id) ?? new()
                     // }).OrderByDescending(wallet => wallet.ItemizedAmount).ToList(),
                     LsProjects = new List<DashboardLsProjectDTO>(),
+                    Revisions = revisionSummary,
                     Activities = projectActivities.Concat(walletActivities)
                         .OrderByDescending(activity => activity.Timestamp)
                         .Take(12)

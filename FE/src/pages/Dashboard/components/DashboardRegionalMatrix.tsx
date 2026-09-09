@@ -1,14 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
+import type { MapArea } from './DashboardIslandMap';
+import { regionKey, regionGroup } from './dashboardRegions';
+const DashboardIslandMap = lazy(() => import('./DashboardIslandMap'));
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   MapIcon,
   ChartPieIcon,
-  ArrowsPointingOutIcon,
-  MagnifyingGlassPlusIcon,
-  MagnifyingGlassMinusIcon,
-  ArrowPathIcon,
   XMarkIcon,
-  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { useDashboardTheme } from '../DashboardTheme';
 import { type WatchlistProject } from './ProjectQuickDetailModal';
@@ -62,7 +60,6 @@ function getDonutPath(cx: number, cy: number, rInner: number, rOuter: number, st
 export const DashboardRegionalMatrix: React.FC<Props> = ({
   selectedYear = 2027,
   projects = [],
-  islands: _islands = [],
   onSelectIsland,
   activeIslandFilter,
 }) => {
@@ -71,9 +68,10 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
   const [selectedIslandTab, setSelectedIslandTab] = useState<'All' | 'Luzon' | 'Visayas' | 'Mindanao'>('All');
   
   // Interactive zoom and modal states
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [mapArea, setMapArea] = useState<MapArea>('All');
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [selectionVersion, setSelectionVersion] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [modalZoomLevel, setModalZoomLevel] = useState<number>(1);
 
   // Pie Analytics state
   const [pieSliceType, setPieSliceType] = useState<'island' | 'subgroup' | 'region'>('island');
@@ -86,8 +84,8 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
         setIsModalOpen(false);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isModalOpen]);
 
   // Derive data from projects
@@ -107,14 +105,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
 
   const regionRows: RegionRow[] = Array.from(regionMap.entries()).map(([regName, data]) => {
     const share = totalBudget > 0 ? (data.amount / totalBudget) * 100 : 0;
-    let subgroup = data.island;
-    if (regName.includes('Ilocos') || regName.includes('Cagayan') || regName.includes('Central Luzon') || regName.includes('CAR')) {
-      subgroup = 'Northern Luzon';
-    } else if (regName.includes('CALABARZON') || regName.includes('MIMAROPA') || regName.includes('Bicol') || regName.includes('Region IV-B') || regName.includes('Region V')) {
-      subgroup = 'Southern Luzon';
-    } else if (regName.includes('NCR')) {
-      subgroup = 'NCR';
-    }
+    const subgroup = regionGroup(regName) ?? data.island;
 
     const shortName = regName.split(' (')[0];
 
@@ -143,7 +134,11 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
 
   const northernLuzon = regionRows.filter((r) => r.subgroup === 'Northern Luzon');
   const southernLuzon = regionRows.filter((r) => r.subgroup === 'Southern Luzon');
-  const ncr = regionRows.find((r) => r.subgroup === 'NCR');
+  const ncr = regionRows.filter((r) => r.subgroup === 'NCR').reduce((sum, row) => ({
+    amount: sum.amount + row.amount,
+    sharePercent: sum.sharePercent + row.sharePercent,
+    count: sum.count + row.count,
+  }), { amount: 0, sharePercent: 0, count: 0 });
   const visayasList = regionRows.filter((r) => r.island === 'Visayas');
   const mindanaoList = regionRows.filter((r) => r.island === 'Mindanao');
 
@@ -151,21 +146,30 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
   const southernLuzonShare = southernLuzon.reduce((s, r) => s + r.sharePercent, 0);
   const ncrShare = ncr?.sharePercent ?? 0;
 
-  const handleIslandClick = (islandName: 'Luzon' | 'Visayas' | 'Mindanao') => {
+  const handleIslandClick = (islandName: string) => {
+    if (islandName !== 'Luzon' && islandName !== 'Visayas' && islandName !== 'Mindanao') return;
     const next = selectedIslandTab === islandName ? 'All' : islandName;
     setSelectedIslandTab(next);
+    setMapArea(next);
+    setSelectedRegion(null);
     onSelectIsland?.(next === 'All' ? null : next);
   };
 
-  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 2.5));
-  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.8));
-  const handleResetZoom = () => setZoomLevel(1);
+  const handleMapSelect = (area: MapArea) => {
+    setMapArea(area);
+    setSelectedRegion(area === 'NCR' ? 'NCR' : null);
+    setSelectionVersion(value => value + 1);
+    const island = area === 'NCR' || area === 'Northern Luzon' || area === 'Southern Luzon' ? 'Luzon' : area;
+    setSelectedIslandTab(island);
+    onSelectIsland?.(island === 'All' ? null : island);
+  };
 
-  const handleModalZoomIn = () => setModalZoomLevel((prev) => Math.min(prev + 0.25, 3));
-  const handleModalZoomOut = () => setModalZoomLevel((prev) => Math.max(prev - 0.25, 0.8));
-  const handleModalResetZoom = () => setModalZoomLevel(1);
-
-  const paletteColors = ['#f6cf4e', '#7bc8e9', '#62c5ae', '#7ccf4a', '#ff9d57', '#e7589a', '#9a8fc7', '#ff5b59'];
+  const handleRegionSelect = (name: string) => {
+    const group = regionGroup(name);
+    if (!group) return;
+    handleMapSelect(group);
+    setSelectedRegion(regionKey(name));
+  };
 
   const REGION_PALETTE = [
     '#0284c7', '#0ea5e9', '#38bdf8', '#06b6d4', '#14b8a6', '#10b981', '#059669',
@@ -277,7 +281,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
               }`}
             >
               <MapIcon className="w-3.5 h-3.5" />
-              <span>Infographic Map</span>
+              <span>Interactive Map</span>
             </button>
             <button
               onClick={() => setViewMode('pie')}
@@ -350,21 +354,20 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
               {/* Left Column (3 cols): NCR Badge + Southern Luzon + Visayas */}
               <div className="lg:col-span-3 xl:col-span-3 space-y-4">
                 {/* 1. NCR Badge */}
-                <div
-                  onClick={() => handleIslandClick('Luzon')}
-                  className="bg-[#00a3e0] text-white font-black py-2.5 px-4 rounded-xl shadow-lg flex items-center justify-between cursor-pointer hover:brightness-110 transition-all border border-white/20"
+                <button type="button" onClick={() => handleMapSelect('NCR')} aria-pressed={mapArea === 'NCR'}
+                  className="w-full text-left hover:brightness-110 focus-visible:outline-2 focus-visible:outline-amber-400 bg-[#00a3e0] text-white font-black py-2.5 px-4 rounded-xl shadow-lg flex items-center justify-between cursor-pointer hover:brightness-110 transition-all border border-white/20"
                 >
                   <span className="text-xs sm:text-sm tracking-wide font-black">NCR - {ncrShare.toFixed(2)}%</span>
                   <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-black/20">
                     ₱{((ncr?.amount ?? 0) / 1e9).toFixed(2)} B
                   </span>
-                </div>
+                </button>
 
                 {/* 2. Southern Luzon Table */}
                 <div className="rounded-xl overflow-hidden shadow-xl border border-sky-400/40 bg-white">
-                  <div className="bg-[#00a3e0] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between">
+                  <button type="button" onClick={() => handleMapSelect('Southern Luzon')} aria-pressed={mapArea === 'Southern Luzon'} className="w-full text-left hover:brightness-110 focus-visible:outline-2 focus-visible:outline-amber-400 bg-[#00a3e0] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between">
                     <span className="font-black text-xs tracking-wide">SOUTHERN LUZON - {southernLuzonShare.toFixed(2)}%</span>
-                  </div>
+                  </button>
                   <table className="w-full text-left text-xs bg-white text-slate-900 font-medium">
                     <thead className="bg-[#fbb040] text-slate-950 font-black text-[11px] uppercase tracking-wider">
                       <tr>
@@ -376,7 +379,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                       {southernLuzon.length > 0 ? (
                         southernLuzon.map((reg) => (
                           <tr key={reg.name} className="hover:bg-amber-50/80 transition-colors">
-                            <td className="px-3 py-1.5 text-slate-800 text-[11px] sm:text-xs">{reg.displayName}</td>
+                            <td className="px-3 py-1.5 text-slate-800 text-[11px] sm:text-xs"><button type="button" className="w-full text-left hover:underline focus-visible:outline-2 focus-visible:outline-sky-500" aria-pressed={selectedRegion === regionKey(reg.name)} onClick={() => handleRegionSelect(reg.name)}>{reg.displayName}</button></td>
                             <td className="px-3 py-1.5 text-right font-black text-blue-900">{reg.sharePercent.toFixed(2)}%</td>
                           </tr>
                         ))
@@ -389,15 +392,14 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
 
                 {/* 3. Visayas Table */}
                 <div className="rounded-xl overflow-hidden shadow-xl border border-emerald-500/40 bg-white">
-                  <div
-                    onClick={() => handleIslandClick('Visayas')}
-                    className={`bg-[#2e7d32] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between cursor-pointer hover:brightness-110 transition-all ${
+                  <button type="button" onClick={() => handleMapSelect('Visayas')} aria-pressed={mapArea === 'Visayas'}
+                    className={`w-full text-left focus-visible:outline-2 focus-visible:outline-amber-400 bg-[#2e7d32] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between cursor-pointer hover:brightness-110 transition-all ${
                       activeIslandFilter === 'Visayas' ? 'ring-2 ring-amber-400' : ''
                     }`}
                   >
-                    <span className="font-black text-xs tracking-wide">VISAYAS - {visayasShare.toFixed(2)}%</span>
+                    <span className="w-full text-left hover:brightness-110 focus-visible:outline-2 focus-visible:outline-amber-400 font-black text-xs tracking-wide">VISAYAS - {visayasShare.toFixed(2)}%</span>
                     <span className="text-[11px] font-bold opacity-90">₱{visayasTotal.toFixed(2)} B</span>
-                  </div>
+                  </button>
                   <table className="w-full text-left text-xs bg-white text-slate-900 font-medium">
                     <thead className="bg-[#fbb040] text-slate-950 font-black text-[11px] uppercase tracking-wider">
                       <tr>
@@ -409,7 +411,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                       {visayasList.length > 0 ? (
                         visayasList.map((reg) => (
                           <tr key={reg.name} className="hover:bg-emerald-50/80 transition-colors">
-                            <td className="px-3 py-1.5 text-slate-800 text-[11px] sm:text-xs">{reg.displayName}</td>
+                            <td className="px-3 py-1.5 text-slate-800 text-[11px] sm:text-xs"><button type="button" className="w-full text-left hover:underline focus-visible:outline-2 focus-visible:outline-sky-500" aria-pressed={selectedRegion === regionKey(reg.name)} onClick={() => handleRegionSelect(reg.name)}>{reg.displayName}</button></td>
                             <td className="px-3 py-1.5 text-right font-black text-emerald-900">{reg.sharePercent.toFixed(2)}%</td>
                           </tr>
                         ))
@@ -421,117 +423,20 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Center Column (6 cols): Enlarged DPWH-palette derivative of the Wikimedia map */}
-              <div className="lg:col-span-6 xl:col-span-6 flex flex-col items-center justify-center relative p-1 sm:p-2">
-                {/* Map Card Viewport */}
-                <div className="relative w-full max-w-[500px] min-h-[500px] sm:min-h-[540px] lg:min-h-[580px] rounded-2xl overflow-hidden shadow-2xl border border-cyan-300/40 bg-gradient-to-b from-[#c3e7f5] to-[#aedef0] flex flex-col items-center justify-center group transition-all duration-300">
-                  {/* Action Controls Toolbar (Zoom, Expand) */}
-                  <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10 bg-slate-900/80 backdrop-blur-md p-1 rounded-xl border border-white/30 shadow-lg">
-                    <button
-                      onClick={handleZoomIn}
-                      title="Zoom In"
-                      aria-label="Zoom In"
-                      className="p-1.5 text-white hover:text-cyan-300 hover:bg-white/10 rounded-lg transition-colors"
-                    >
-                      <MagnifyingGlassPlusIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={handleZoomOut}
-                      title="Zoom Out"
-                      aria-label="Zoom Out"
-                      className="p-1.5 text-white hover:text-cyan-300 hover:bg-white/10 rounded-lg transition-colors"
-                    >
-                      <MagnifyingGlassMinusIcon className="w-4 h-4" />
-                    </button>
-                    {zoomLevel !== 1 && (
-                      <button
-                        onClick={handleResetZoom}
-                        title="Reset Zoom"
-                        aria-label="Reset Zoom"
-                        className="p-1.5 text-amber-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                      >
-                        <ArrowPathIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                    <div className="w-[1px] h-4 bg-white/20 mx-0.5" />
-                    <button
-                      onClick={() => setIsModalOpen(true)}
-                      title="Enlarge Map Fullscreen"
-                      aria-label="Enlarge Map Fullscreen"
-                      className="p-1.5 text-cyan-300 hover:text-white hover:bg-cyan-500/30 rounded-lg transition-colors flex items-center gap-1 font-bold text-xs"
-                    >
-                      <ArrowsPointingOutIcon className="w-4 h-4" />
-                      <span className="hidden sm:inline text-[10px] font-bold">Enlarge</span>
-                    </button>
-                  </div>
-
-                  {/* Top Left Badge: Island Indicator */}
-                  {activeIslandFilter && (
-                    <div className="absolute top-3 left-3 z-10">
-                      <span className="px-3 py-1 rounded-lg text-xs font-black bg-amber-400 text-slate-950 shadow-md border border-amber-300 flex items-center gap-1.5">
-                        <SparklesIcon className="w-3.5 h-3.5" />
-                        Filtering: {activeIslandFilter}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Philippines Vector SVG Image */}
-                  <div
-                    className="w-full h-full flex items-center justify-center p-3 sm:p-4 overflow-hidden transition-transform duration-300 cursor-pointer"
-                    onClick={() => setIsModalOpen(true)}
-                    title="Click to view full-size enlarged map"
-                  >
-                    <img
-                      src="/assets/philippines_budget_map.svg"
-                      alt="Color-coded map of Philippine provinces for the regional budget allocation dashboard"
-                      style={{ transform: `scale(${zoomLevel})` }}
-                      className="w-full h-auto max-h-[540px] sm:max-h-[580px] object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.35)] transition-transform duration-200"
-                    />
-                  </div>
-                </div>
-
-                {/* Regional Palette Legend (Located OUTSIDE / BELOW the map to ensure Mindanao and Visayas are 100% visible) */}
-                <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2 rounded-xl border border-white/20 bg-slate-900/90 px-3.5 py-2 shadow-lg backdrop-blur-md">
-                  <div className="flex items-center gap-1.5">
-                    {['#f6cf4e', '#7bc8e9', '#62c5ae', '#7ccf4a', '#ff9d57', '#e7589a', '#9a8fc7', '#ff5b59'].map((color) => (
-                      <span
-                        key={color}
-                        className="h-3 w-3 rounded-sm border border-white/60 shadow-sm"
-                        style={{ backgroundColor: color }}
-                        aria-hidden="true"
-                      />
-                    ))}
-                  </div>
-                  <span className="text-[10px] sm:text-xs font-bold tracking-wider text-slate-200 uppercase ml-1">
-                    Regional Palette
-                  </span>
-                  <span className="text-[10px] text-cyan-300 font-semibold">
-                    (DPWH Standard)
-                  </span>
-                </div>
-
-                {/* Attribution Link */}
-                <div className="mt-2 text-center text-[10px] font-semibold leading-relaxed text-slate-300">
-                  <span>Province boundaries colorized in the DPWH presentation palette</span>
-                  <span className="mx-1.5 text-slate-500">·</span>
-                  <a
-                    href="https://commons.wikimedia.org/wiki/File:Philippines_location_map_(square).svg"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-cyan-300 underline decoration-cyan-300/40 underline-offset-2 hover:text-cyan-200"
-                  >
-                    Map by Hellerick, CC BY-SA 3.0
-                  </a>
-                </div>
+              {/* Interactive map shares its selected area with the enlarged view. */}
+              <div className="lg:col-span-6 xl:col-span-6 min-w-0">
+                <Suspense fallback={<div className="h-[640px] flex items-center justify-center text-slate-300">Loading map?</div>}>
+                  <DashboardIslandMap regions={regionRows} selectedRegion={selectedRegion} selectionVersion={selectionVersion} onRegionSelect={handleRegionSelect} area={mapArea} onSelect={handleMapSelect} onEnlarge={() => setIsModalOpen(true)} />
+                </Suspense>
               </div>
 
               {/* Right Column (3 cols): Northern Luzon Table + Mindanao Table */}
               <div className="lg:col-span-3 xl:col-span-3 space-y-4">
                 {/* 1. Northern Luzon Table */}
                 <div className="rounded-xl overflow-hidden shadow-xl border border-sky-400/40 bg-white">
-                  <div className="bg-[#00a3e0] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between">
+                  <button type="button" onClick={() => handleMapSelect('Northern Luzon')} aria-pressed={mapArea === 'Northern Luzon'} className="w-full text-left hover:brightness-110 focus-visible:outline-2 focus-visible:outline-amber-400 bg-[#00a3e0] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between">
                     <span className="font-black text-xs tracking-wide">NORTHERN LUZON - {northernLuzonShare.toFixed(2)}%</span>
-                  </div>
+                  </button>
                   <table className="w-full text-left text-xs bg-white text-slate-900 font-medium">
                     <thead className="bg-[#fbb040] text-slate-950 font-black text-[11px] uppercase tracking-wider">
                       <tr>
@@ -543,7 +448,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                       {northernLuzon.length > 0 ? (
                         northernLuzon.map((reg) => (
                           <tr key={reg.name} className="hover:bg-amber-50/80 transition-colors">
-                            <td className="px-3 py-1.5 text-slate-800 text-[11px] sm:text-xs">{reg.displayName}</td>
+                            <td className="px-3 py-1.5 text-slate-800 text-[11px] sm:text-xs"><button type="button" className="w-full text-left hover:underline focus-visible:outline-2 focus-visible:outline-sky-500" aria-pressed={selectedRegion === regionKey(reg.name)} onClick={() => handleRegionSelect(reg.name)}>{reg.displayName}</button></td>
                             <td className="px-3 py-1.5 text-right font-black text-blue-900">{reg.sharePercent.toFixed(2)}%</td>
                           </tr>
                         ))
@@ -556,15 +461,14 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
 
                 {/* 2. Mindanao Table */}
                 <div className="rounded-xl overflow-hidden shadow-xl border border-rose-500/40 bg-white">
-                  <div
-                    onClick={() => handleIslandClick('Mindanao')}
-                    className={`bg-[#d81b60] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between cursor-pointer hover:brightness-110 transition-all ${
+                  <button type="button" onClick={() => handleMapSelect('Mindanao')} aria-pressed={mapArea === 'Mindanao'}
+                    className={`w-full text-left focus-visible:outline-2 focus-visible:outline-amber-400 bg-[#d81b60] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between cursor-pointer hover:brightness-110 transition-all ${
                       activeIslandFilter === 'Mindanao' ? 'ring-2 ring-amber-400' : ''
                     }`}
                   >
-                    <span className="font-black text-xs tracking-wide">MINDANAO - {mindanaoShare.toFixed(2)}%</span>
+                    <span className="w-full text-left hover:brightness-110 focus-visible:outline-2 focus-visible:outline-amber-400 font-black text-xs tracking-wide">MINDANAO - {mindanaoShare.toFixed(2)}%</span>
                     <span className="text-[11px] font-bold opacity-90">₱{mindanaoTotal.toFixed(2)} B</span>
-                  </div>
+                  </button>
                   <table className="w-full text-left text-xs bg-white text-slate-900 font-medium">
                     <thead className="bg-[#fbb040] text-slate-950 font-black text-[11px] uppercase tracking-wider">
                       <tr>
@@ -576,7 +480,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                       {mindanaoList.length > 0 ? (
                         mindanaoList.map((reg) => (
                           <tr key={reg.name} className="hover:bg-rose-50/80 transition-colors">
-                            <td className="px-3 py-1.5 text-slate-800 text-[11px] sm:text-xs">{reg.displayName}</td>
+                            <td className="px-3 py-1.5 text-slate-800 text-[11px] sm:text-xs"><button type="button" className="w-full text-left hover:underline focus-visible:outline-2 focus-visible:outline-sky-500" aria-pressed={selectedRegion === regionKey(reg.name)} onClick={() => handleRegionSelect(reg.name)}>{reg.displayName}</button></td>
                             <td className="px-3 py-1.5 text-right font-black text-rose-900">{reg.sharePercent.toFixed(2)}%</td>
                           </tr>
                         ))
@@ -617,7 +521,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                   <motion.button
                     key={island.name}
                     whileHover={{ y: -2 }}
-                    onClick={() => handleIslandClick(island.name as any)}
+                    onClick={() => handleIslandClick(island.name)}
                     className={`p-4 rounded-xl text-left border transition-all ${
                       isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/80 border-slate-700'
                     } ${
@@ -718,7 +622,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                           }}
                           onMouseEnter={() => setHoveredPieSegment(slice)}
                           onMouseLeave={() => setHoveredPieSegment(null)}
-                          onClick={() => slice.island && handleIslandClick(slice.island as any)}
+                          onClick={() => slice.island && handleIslandClick(slice.island)}
                         />
                       );
                     })}
@@ -784,7 +688,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                       key={item.id}
                       onMouseEnter={() => setHoveredPieSegment(item)}
                       onMouseLeave={() => setHoveredPieSegment(null)}
-                      onClick={() => item.island && handleIslandClick(item.island as any)}
+                      onClick={() => item.island && handleIslandClick(item.island)}
                       className={`p-3 rounded-xl border transition-all cursor-pointer ${
                         isLight
                           ? isHovered
@@ -878,42 +782,12 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                         </span>
                       </h3>
                       <p className="text-xs text-slate-300">
-                        High-resolution visual breakdown of capital outlays across Philippine islands and administrative regions
+                        Explore island groups and zoom into their locations
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Modal Zoom Controls */}
-                    <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-700">
-                      <button
-                        onClick={handleModalZoomIn}
-                        title="Zoom In"
-                        aria-label="Zoom In"
-                        className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                      >
-                        <MagnifyingGlassPlusIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={handleModalZoomOut}
-                        title="Zoom Out"
-                        aria-label="Zoom Out"
-                        className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                      >
-                        <MagnifyingGlassMinusIcon className="w-4 h-4" />
-                      </button>
-                      {modalZoomLevel !== 1 && (
-                        <button
-                          onClick={handleModalResetZoom}
-                          title="Reset Zoom"
-                          aria-label="Reset Zoom"
-                          className="p-1.5 text-amber-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors text-xs font-bold"
-                        >
-                          <ArrowPathIcon className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-
                     <button
                       onClick={() => setIsModalOpen(false)}
                       aria-label="Close enlarged map"
@@ -952,30 +826,14 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                   </button>
                 </div>
 
-                {/* Modal Map Body */}
-                <div className="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center bg-gradient-to-b from-[#c3e7f5] via-[#b2e2f3] to-[#a0d9ee] min-h-[500px]">
-                  <div className="relative w-full flex items-center justify-center overflow-hidden">
-                    <img
-                      src="/assets/philippines_budget_map.svg"
-                      alt="Color-coded map of Philippine provinces for the regional budget allocation dashboard"
-                      style={{ transform: `scale(${modalZoomLevel})` }}
-                      className="w-auto h-auto max-h-[70vh] object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.4)] transition-transform duration-200"
-                    />
-                  </div>
+                <div className="overflow-auto p-3">
+                  <Suspense fallback={<div className="h-[60vh] flex items-center justify-center">Loading map?</div>}>
+                    <DashboardIslandMap regions={regionRows} selectedRegion={selectedRegion} selectionVersion={selectionVersion} onRegionSelect={handleRegionSelect} area={mapArea} onSelect={handleMapSelect} enlarged />
+                  </Suspense>
                 </div>
 
                 {/* Modal Footer */}
                 <div className="p-3.5 bg-slate-950/90 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      {paletteColors.map((c) => (
-                        <span key={c} className="w-2.5 h-2.5 rounded-sm border border-white/50" style={{ backgroundColor: c }} />
-                      ))}
-                    </div>
-                    <span className="text-[11px] text-slate-300 font-bold uppercase">
-                      DPWH Regional Palette
-                    </span>
-                  </div>
                   <div className="text-[11px] text-slate-400">
                     Total Regional Budget: <span className="font-bold text-amber-400">₱{totalBudgetBillion.toFixed(2)} Billion</span> ({projects.length} Total Line Items)
                   </div>

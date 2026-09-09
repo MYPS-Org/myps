@@ -3,11 +3,13 @@ import { motion } from 'framer-motion';
 import {
   BanknotesIcon,
   ChartBarIcon,
+  ClipboardDocumentCheckIcon,
   FolderIcon,
   WalletIcon,
 } from '@heroicons/react/24/outline';
 import { AnimatedCurrency, AnimatedNumber } from './AnimatedCounter';
 import { useDashboardTheme } from '../DashboardTheme';
+import type { DashboardRevisionSummary } from '../Service';
 
 export interface KpiData {
   totalBudget: number;
@@ -22,12 +24,19 @@ export interface KpiData {
 
 interface Props {
   data: KpiData;
+  /** Live projection of dbo.fRevisionQueue -- the same source as the /revision page. */
+  revisions?: DashboardRevisionSummary;
   isLoading: boolean;
   onCardClick?: (type: string) => void;
 }
 
-export const DashboardKpiCards: React.FC<Props> = ({ data, isLoading, onCardClick }) => {
+export const DashboardKpiCards: React.FC<Props> = ({ data, revisions, isLoading, onCardClick }) => {
   const { isLight } = useDashboardTheme();
+
+  const reviewCount = revisions?.ForReview ?? 0;
+  const approvalCount = revisions?.ForApproval ?? 0;
+  const pendingRevisions = reviewCount + approvalCount;
+  const revisionTotal = revisions?.Total ?? 0;
 
   const walletPercent =
     data.lsWalletTotal > 0
@@ -112,10 +121,28 @@ export const DashboardKpiCards: React.FC<Props> = ({ data, isLoading, onCardClic
       barColor: 'bg-emerald-500',
       barPercent: data.publicationRate,
     },
+    {
+      key: 'revisions',
+      title: 'Revision Queue',
+      subtitle: 'Pending by Group & Office',
+      renderValue: () => (
+        <div className={`text-2xl sm:text-3xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          <AnimatedNumber value={pendingRevisions} />
+        </div>
+      ),
+      detail: `${reviewCount.toLocaleString()} for review · ${approvalCount.toLocaleString()} for approval`,
+      badge: `${revisionTotal.toLocaleString()} in queue`,
+      badgeColor: isLight ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+      icon: ClipboardDocumentCheckIcon,
+      accentColor: 'from-purple-600 to-fuchsia-600',
+      iconBg: isLight ? 'bg-purple-50 text-purple-600 border-purple-200' : 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      barColor: 'bg-purple-600',
+      barPercent: revisionTotal > 0 ? Math.round((pendingRevisions / revisionTotal) * 100) : 0,
+    },
   ] as const;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5">
       {cards.map((card) => (
         <motion.button
           key={card.key}

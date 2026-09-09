@@ -12,7 +12,7 @@ import {
   CircleStackIcon,
 } from '@heroicons/react/24/outline';
 
-import { fetchDashboardSummary, type DashboardSummary } from './Service';
+import { fetchDashboardSummary, type DashboardRevisionSummary, type DashboardSummary } from './Service';
 import { DashboardThemeProvider, useDashboardTheme } from './DashboardTheme';
 import DashboardKpiCards, { type KpiData } from './components/DashboardKpiCards';
 import DashboardCharts, { type IslandAllocation, type MonthlyTrend, type StatusSegment } from './components/DashboardCharts';
@@ -44,6 +44,19 @@ const EMPTY_KPIS: KpiData = {
 };
 
 type ViewPerspective = 'overview' | 'nep_briefing' | 'live_portfolio';
+
+const EMPTY_REVISIONS: DashboardRevisionSummary = {
+  ForReview: 0,
+  ForApproval: 0,
+  ForCorrection: 0,
+  Approved: 0,
+  Disapproved: 0,
+  Total: 0,
+  ByStatus: [],
+  ByImplementingOffice: [],
+  ByGroup: [],
+  Items: [],
+};
 
 function mapSummary(summary: DashboardSummary) {
   const kpis: KpiData = {
@@ -139,8 +152,22 @@ function mapSummary(summary: DashboardSummary) {
     })),
   }));
 
+  const revisions: DashboardRevisionSummary = summary.Revisions ?? {
+    ForReview: 0,
+    ForApproval: 0,
+    ForCorrection: 0,
+    Approved: 0,
+    Disapproved: 0,
+    Total: 0,
+    ByStatus: [],
+    ByImplementingOffice: [],
+    ByGroup: [],
+    Items: [],
+  };
+
   return {
     kpis,
+    revisions,
     trends,
     trajectory,
     budgetBreakdown,
@@ -166,6 +193,7 @@ const DashboardContent: React.FC = () => {
   const [projects, setProjects] = useState<WatchlistProject[]>([]);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [lsProjects, setLsProjects] = useState<DashboardLsProject[]>([]);
+  const [revisions, setRevisions] = useState<DashboardRevisionSummary>(EMPTY_REVISIONS);
   const [trajectoryData, setTrajectoryData] = useState<Array<{ year: number; projects: number; budget: number }>>([]);
   const [budgetBreakdown, setBudgetBreakdown] = useState<Array<{ name: string; budget: number; projectCount: number }>>([]);
 
@@ -190,6 +218,7 @@ const DashboardContent: React.FC = () => {
     setProjects([]);
     setActivities([]);
     setLsProjects([]);
+    setRevisions(EMPTY_REVISIONS);
     setSelectedProject(null);
   }, []);
 
@@ -223,6 +252,7 @@ const DashboardContent: React.FC = () => {
         setProjects(mapped.projects);
         setActivities(mapped.activities);
         setLsProjects(mapped.lsProjects);
+        setRevisions(mapped.revisions);
       })
       .catch((err) => {
         console.error('Dashboard load issue:', err);
@@ -426,6 +456,7 @@ const DashboardContent: React.FC = () => {
       {/* 2. Key High-Impact Animated KPI Cards */}
       <DashboardKpiCards
         data={kpiData}
+        revisions={revisions}
         isLoading={isLoading}
         onCardClick={(type) => setSelectedKpi(type as DashboardKpiType)}
       />
@@ -584,6 +615,7 @@ const DashboardContent: React.FC = () => {
         kpiData={kpiData}
         projects={projects}
         lsProjects={lsProjects}
+        revisions={revisions}
         onClose={() => setSelectedKpi(null)}
         onOpenProject={() => {
           setSelectedKpi(null);
