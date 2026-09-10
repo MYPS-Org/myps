@@ -66,7 +66,19 @@ namespace Helpers
                 response.Message = $"'{dto.StageName}' is not a valid program stage.";
                 return response;
             }
-            var GetProgramPK = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId, cancellationToken);
+            // 2026-09-10 fix: every real caller of this method (Program List's View/View Details
+            // buttons, ProgramDetail.tsx's own re-fetch, Global Search) sends the program's stable
+            // ProgramPK in this field, not a per-revision ProgramId -- confirmed by tracing every
+            // FE call site, including an explicit prior-developer comment in ProgramDetail.tsx
+            // naming the URL segment "programPK". ProgramId and ProgramPK are only equal by
+            // coincidence for a program's very first revision (ProgramController.cs's AddProgram
+            // sets them equal at creation; every stage-advance mints a fresh ProgramId while
+            // ProgramPK stays fixed) -- so this lookup only succeeded for single-revision programs
+            // (23/29 live) and threw "Program Not Found" for every other program's View button
+            // (6/29 live, 21%), not just via Global Search. GetProgramPK is used only for its
+            // ProgramFK below, so accepting either shape here is safe -- it resolves to the same
+            // value either way.
+            var GetProgramPK = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId || x.ProgramFK == dto.ProgramId, cancellationToken);
             if (GetProgramPK == null)
             {
                 response.Title = "Program Not Found";
@@ -85,7 +97,16 @@ namespace Helpers
             }
             if (!dto.ViewOldStage)
             {
-                var currentVersion = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId, cancellationToken);
+                // 2026-09-10 fix: was `x.ProgramId == dto.ProgramId`, same ambiguity as the lookup
+                // above -- dto.ProgramId is a ProgramPK in real traffic, and vProgramLatest.ProgramId
+                // is a per-revision value, so this always failed for any ProgramPK-shaped caller
+                // (not just here: it would ALSO have been true for ANY valid ProgramPK regardless of
+                // which stage was requested, if simply OR'd in, since vProgramLatest has exactly one
+                // row per program -- silently defeating the outdated-stage check entirely). Comparing
+                // the already-resolved (Program, Stage) pair instead is correct for both input shapes
+                // and is a more precise statement of "is this actually the current stage" than
+                // matching on ProgramId ever was.
+                var currentVersion = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramPK == GetProgramPK.ProgramFK && x.StageId == CheckProgramStage.StageId, cancellationToken);
                 if (currentVersion == null)
                 {
                     response.Title = "Outdated Program Stage";
