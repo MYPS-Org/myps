@@ -1713,13 +1713,13 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected revision rule is currently in use and cannot be deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.PCMA_Status == data.PCMA_Status && x.Package_Status == data.Package_Status && x.Field == data.Field);
+                    var CheckNameIfExists = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId && x.PCMA_Status == data.PCMA_Status && x.Package_Status == data.Package_Status);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Revision Rule Already Exists",
-                            Message = $"The revision rule with PCMA Status {data.PCMA_Status}, Package Status {data.Package_Status} and Field {data.Field} already exists, please select another revision rule."
+                            Message = $"A revision rule for this Reason with PCMA Status {data.PCMA_Status} and Package Status {data.Package_Status} already exists, please select another revision rule."
                         });
                     }
                     var CheckUpdate = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
