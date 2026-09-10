@@ -31,6 +31,7 @@ public static class ReportRequestMapper
             ReportFamily.Rbp => MapRbp(body, out legacyParams, out error),
             ReportFamily.Aip => MapAip(body, out legacyParams, out error),
             ReportFamily.ExtractPcmiow => MapExtract(body, out legacyParams, out error),
+            ReportFamily.ExtractPc => MapExtract(body, out legacyParams, out error),
             ReportFamily.RbpSummary => MapRbpSummary(body, out legacyParams, out error),
             _ => Fail(out legacyParams, out error, "Unknown report family.")
         };
@@ -152,6 +153,9 @@ public static class ReportRequestMapper
         return true;
     }
 
+    // Shared by ExtractPcmiow and ExtractPc -- both usp_extract_PC_MIOW_list and
+    // usp_extract_PC_list take the identical (programid, categoryid, rocode, deocode,
+    // io_code) + 5 display-label parameter contract, so one DTO/mapper covers both.
     private static bool MapExtract(JsonElement body, out Dictionary<string, string> legacyParams, out string? error)
     {
         legacyParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

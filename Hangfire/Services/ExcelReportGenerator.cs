@@ -56,6 +56,16 @@ namespace Hangfire.Services
                         new() { Name = "rocode", DbType = SqlDbType.VarChar, IsRequired = true },
                         new() { Name = "deocode", DbType = SqlDbType.VarChar, IsRequired = true },
                         new() { Name = "io_code", DbType = SqlDbType.VarChar, IsRequired = true }
+                    }),
+                ["extract-pc"] = (
+                    "usp_extract_PC_list",
+                    new List<ExcelReportParam>
+                    {
+                        new() { Name = "programid", DbType = SqlDbType.VarChar, IsRequired = true },
+                        new() { Name = "categoryid", DbType = SqlDbType.Int, IsRequired = true },
+                        new() { Name = "rocode", DbType = SqlDbType.VarChar, IsRequired = true },
+                        new() { Name = "deocode", DbType = SqlDbType.VarChar, IsRequired = true },
+                        new() { Name = "io_code", DbType = SqlDbType.VarChar, IsRequired = true }
                     })
             };
 
