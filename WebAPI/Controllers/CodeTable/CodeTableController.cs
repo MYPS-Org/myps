@@ -1713,29 +1713,13 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected revision rule is currently in use and cannot be deleted."
                         });
                     }
-                    // 2026-09-10 fix: was comparing PCMA_Status + Package_Status + Field (the
-                    // rule's DATA/content), not the table's actual identity. tRevisionRules' real
-                    // natural key is (ReasonId, PCMA_Status, Package_Status) -- documented in
-                    // memory/clients/myps/myps-system/decisions.md as "unique in practice...
-                    // deliberately unconstrained" at the DB level, enforced only here at the app
-                    // layer. Comparing on Field meant ANY other ReasonId with an identically-
-                    // serialized Field for the same status pair blocked the save -- confirmed live
-                    // on myps_db_dev: only 45 distinct Field values across 347 rows, 97 (28%)
-                    // all-false (the single most common configuration), worst case 23 different
-                    // ReasonIds already sharing one identical all-false Field for
-                    // PCMA_Status='Completed'/Package_Status='Not Packaged' alone. Every one of
-                    // this controller's other 16 CheckNameIfExists branches correctly compares its
-                    // table's own name/identity column (tOptionProgramStage.Name,
-                    // tOptionRevisionReasons.Reason, etc.) -- this was the only one substituting a
-                    // data field for the identity field, since tRevisionRules has no single "Name"
-                    // column to naturally reach for.
                     var CheckNameIfExists = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId && x.PCMA_Status == data.PCMA_Status && x.Package_Status == data.Package_Status);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Revision Rule Already Exists",
-                            Message = $"A revision rule for ReasonId {data.ReasonId}, PCMA Status {data.PCMA_Status}, Package Status {data.Package_Status} already exists, please select another combination."
+                            Message = $"A revision rule for this Reason with PCMA Status {data.PCMA_Status} and Package Status {data.Package_Status} already exists, please select another revision rule."
                         });
                     }
                     var CheckUpdate = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
