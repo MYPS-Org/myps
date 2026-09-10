@@ -37,5 +37,16 @@ namespace DBHelper.Models.Table.Lookups.Project
         public string ThrustDescription { get; set; } = string.Empty;
         [Required]
         public bool IsActive { get; set; }
+
+        // 2026-09-10: single source of truth for "is this option valid for a NEW selection" --
+        // previously duplicated as hand-rolled date math in the frontend (3 call-sites, with its
+        // own ValidFromDate-not-started exclusion and a strict > that Category's equivalent rule
+        // didn't have). Aligned to Category's shape per operator decision: date-only, ValidToDate
+        // >= currentYear, no ValidFromDate check, no IsActive gate.
+        // Timezone logic duplicated (not called) from Helpers.Functions.CurrentDate() --
+        // DBHelper has no project reference to Helpers (Helpers references DBHelper, not the
+        // reverse), so this project can't call it directly. Keep in sync if that logic changes.
+        [NotMapped]
+        public bool IsCurrentlyValid => ValidToDate == 0 || ValidToDate >= TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila")).Year;
     }
 }

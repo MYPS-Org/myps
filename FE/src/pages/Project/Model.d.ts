@@ -442,6 +442,7 @@ export interface CategoryEnum {
 	Maximum: number;
 	ValidUntil: number;
 	IsActive?: boolean;
+	IsCurrentlyValid: boolean;
 }
 export interface ThrustEnum {
 	Id: number;
@@ -455,6 +456,7 @@ export interface ThrustEnum {
 	InfrastructureType?: string;
 	ThrustDescription: string;
 	IsActive?: boolean;
+	IsCurrentlyValid: boolean;
 }
 export interface TableEnum {
 	Id: number;

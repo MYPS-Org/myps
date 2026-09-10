@@ -65,10 +65,16 @@ namespace WebAPI.Controllers.Projects
                 // projectEnums.Categories on ValidUntil only) still narrows what's offered for NEW
                 // selections from this full list -- pre-existing, untouched by this change, and
                 // correctly requires the full list to do so.
+                // 2026-09-10 fix: same reasoning applied to Thrust -- it was still filtered by
+                // IsActive here (RevisionController.cs's two sibling dropdown endpoints already
+                // return this list unfiltered), so a project whose Thrust later went inactive/expired
+                // couldn't resolve its own selected value in SearchableDropdown. Existence enforcement
+                // for Thrust lives at save-time in ValidateProjectDetailsLookups (ProjectHelper.cs:325),
+                // now date/active-window aware to match.
                 var categories = await _db.tOptionProjectCategory.AsNoTracking()
                     .OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
                 var thrusts = await _db.tOptionProjectThrustList.AsNoTracking()
-                    .Where(t => t.IsActive).OrderBy(x => x.ThrustDescription).ToListAsync(cancellationToken);
+                    .OrderBy(x => x.ThrustDescription).ToListAsync(cancellationToken);
                 var origins = await _db.tOptionProjectOrigin.AsNoTracking()
                     .Where(o => o.IsActive).OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var agencies = await _db.tOptionProjectAgency.AsNoTracking()
@@ -488,6 +494,7 @@ namespace WebAPI.Controllers.Projects
                     FeasibilityDate  = dto.FeasibilityDate,
                     DetailedDesign  = dto.DetailedDesign,
                     DetailedDesignDate  = dto.DetailedDesignDate,
+                    Thrust = dto.Thrust,
                 };
                 var ValidateProjectLookUps = await _db.ValidateProjectDetailsLookups(pLookup, cancellationToken);
                 if (!ValidateProjectLookUps.IsValid)
@@ -816,6 +823,7 @@ namespace WebAPI.Controllers.Projects
                     FeasibilityDate = dto.ProjectDetails.FeasibilityDate,
                     DetailedDesign = dto.ProjectDetails.DetailedDesign,
                     DetailedDesignDate = dto.ProjectDetails.DetailedDesignDate,
+                    Thrust = dto.ProjectDetails.Thrust,
                 };
                 var ValidateProjectLookUps = await _db.ValidateProjectDetailsLookups(pLookup, cancellationToken);
                 if (!ValidateProjectLookUps.IsValid)

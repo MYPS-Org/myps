@@ -2,7 +2,7 @@ import React from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { ProgramLatest } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
-import { getDisabledClass, formatDropdownOptions, toDateInputValue } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, toDateInputValue } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { DateInput } from '../../../components/tailwindui/date-input';
 import { useLocationFilters } from '../filteringLocations';
@@ -368,9 +368,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <div className="w-2/3 min-w-0">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
-                                            projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil >= new Date().getFullYear()) || [], 
-                                            'CategoryId', 
-                                            'CategoryName', 
+                                            filterKeepingSelected(
+                                                projectEnums?.Categories,
+                                                x => x.IsCurrentlyValid,
+                                                'CategoryId',
+                                                projectDetails?.Category
+                                            ),
+                                            'CategoryId',
+                                            'CategoryName',
                                             'Id'
                                         )}
                                         value={projectDetails?.Category || ''}
@@ -391,7 +396,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <div className='w-2/3 min-w-0'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
-                                            projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0) || [],
+                                            filterKeepingSelected(
+                                                projectEnums?.Thrusts,
+                                                x => x.IsCurrentlyValid,
+                                                'PAPKey',
+                                                projectDetails?.Thrust
+                                            ),
                                             'PAPKey',
                                             'ThrustDescription',
                                             'Id'

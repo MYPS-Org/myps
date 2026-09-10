@@ -27,7 +27,7 @@ import React from 'react';
 import type { LSWallet } from '../Model.d';
 import type { ProjectEnums } from '../../Project/Model.d';
 import { useLocationFilters } from '../../Project/filteringLocations';
-import { getDisabledClass, formatDropdownOptions, toDateInputValue } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, toDateInputValue } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { DateInput } from '../../../components/tailwindui/date-input';
 
@@ -275,7 +275,12 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
               <div className="w-2/3 min-w-0">
                 <SearchableDropdown
                   options={formatDropdownOptions(
-                    projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil >= new Date().getFullYear()) || [],
+                    filterKeepingSelected(
+                      projectEnums?.Categories,
+                      x => x.IsCurrentlyValid,
+                      'Id',
+                      wallet.CategoryId
+                    ),
                     'Id',
                     'CategoryName'
                   )}
@@ -299,10 +304,12 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
               <div className="w-2/3 min-w-0">
                 <SearchableDropdown
                   options={formatDropdownOptions(
-                    projectEnums?.Thrusts?.filter(x =>
-                      (x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear()) ||
-                      x.ValidToDate === 0
-                    ) || [],
+                    filterKeepingSelected(
+                      projectEnums?.Thrusts,
+                      x => x.IsCurrentlyValid,
+                      'Id',
+                      wallet.SubCategoryId
+                    ),
                     'Id',
                     'SubProgramName'
                   )}
