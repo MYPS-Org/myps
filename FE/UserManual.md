@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.10
-**Date:** August 25, 2026
+**Version:** 3.11
+**Date:** September 10, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -34,6 +34,7 @@
 | 3.8 | June 10, 2026 | RP | RP | Gap analysis follow-up: Section 3.1 added "Username is required" / "Password is required" inline validation messages to Common Outcomes and Appendix B; Section 5.3.5 added Auto-generated ID Prefix reference table for all 16 work location infrastructure types; Section 5.4.6 added "Mode of Implementation — New Project Record" behavior (creates a new `-A` suffixed project record) and a note on the remaining revision types relying on standard field-editability rules; Section 5.5.3 added mention of the project group map view |
 | 3.9 | August 23, 2026 | RP | RP | Section 5.3.6 added: Component Targets — a new read-only panel on the project details page, below Major Items of Work, listing each project component and expanding to that component's physical target at every Program Stage the project has undergone (Source, Component ID, Component Description, Type of Work, Target, Target Unit), with pagination controls; component rows are labelled with the bare Component ID while the expanded rows show the project-qualified form; former Sections 5.3.6 Supporting Documents and 5.3.7 Project Location Map renumbered to 5.3.7 and 5.3.8 |
 | 3.10 | August 25, 2026 | RP | RP | Section 5.3.6 Component Targets updated: in the expanded per-component table the **Source** column was replaced by **Stage Name** (the stage's full display name, e.g. `NEP-Errata` rather than `NEP-E`) and the **Component ID** column was replaced by **Project Description** (the project's description as it stood at that stage); the Project Description, Component Description, Type of Work and Target Unit columns now wrap long text onto multiple lines instead of forcing the panel to scroll sideways |
+| 3.11 | September 10, 2026 | RP | RP | Synced against Deliverable 48 User Manual V5 (27 Aug 2026): added Section 5.6 Reports (5.6.1 Report Filters, 5.6.2 Programs Selection Panel) and Section 5.10 Lump Sum Projects (5.10.1–5.10.8), documenting the now-live Reports and Lump Sum Projects sidebar modules; former Sections 5.6–5.8 (Code Tables, User Management, Infra Management) renumbered to 5.7–5.9; Section 4.1 module map and Section 9 updated to reflect Reports/Lump Sum as active modules (only Multi-Year Management remains inactive); user-group terminology standardized throughout from DEO/RO/AUC to **DPC** (District Planning Coordinator) / **RPC** (Regional Planning Coordinator) / **PS Admin**, matching V5 — Section 5.4.9 retitled "RPC Endorsement Actions" and its action renamed Approve → Endorse to match the existing Section 5.4.1 terminology note; added a consolidated RPCStatus/PSStatus reference table after Workflow 5; added DPC/RPC to Appendix C. Section 5.3.6 Component Targets was retained even though V5 omits it — the docx appears to predate that feature's documentation despite its later date; flagged back to the manual's author. See `documents/UserManual_DocxDiff_V5.md` for the full diff. |
 
 ### Consultant
 
@@ -85,16 +86,28 @@
 | 5.4.6 | Specific Revision Type Behaviors |
 | 5.4.7 | Submitting the Revision |
 | 5.4.8 | Resubmitting After a Return for Correction |
-| 5.4.9 | RO Approval Actions |
+| 5.4.9 | RPC Endorsement Actions |
 | 5.4.10 | PS Admin Approval Actions |
 | 5.5 | Project Groups |
-| 5.6 | Code Tables |
-| 5.7 | User Management |
-| 5.8 | Infra Management |
-| 5.8.1 | Roads Tab |
-| 5.8.2 | Road Sections Tab |
-| 5.8.3 | Bridges Tab |
-| 5.8.4 | Import Dialog |
+| 5.6 | Reports |
+| 5.6.1 | Report Filters |
+| 5.6.2 | Programs Selection Panel |
+| 5.7 | Code Tables |
+| 5.8 | User Management |
+| 5.9 | Infra Management |
+| 5.9.1 | Roads Tab |
+| 5.9.2 | Road Sections Tab |
+| 5.9.3 | Bridges Tab |
+| 5.9.4 | Import Dialog |
+| 5.10 | Lump Sum Projects |
+| 5.10.1 | Finding a Lump Sum Project |
+| 5.10.2 | Add Lump Sum Project |
+| 5.10.3 | Lump Sum Overview |
+| 5.10.4 | Import Itemized Projects |
+| 5.10.5 | Viewing an Itemized Project |
+| 5.10.6 | Deleting a Lump Sum Project |
+| 5.10.7 | Deleting an Itemized Project |
+| 5.10.8 | Editing a Lump Sum Project |
 | 6 | Workflows |
 | 7 | Error Handling |
 | 8 | Frequently Asked Questions |
@@ -197,9 +210,9 @@ The Multi-Year Planning and Scheduling (MYPS) system is DPWH's core web applicat
 **Who It Is For:**
 MYPS is used by DPWH personnel organized into user groups with specific roles, including:
 
-* **DEO** — District Engineering Office users: project encoding and revision submission
-* **RO** — Regional Office users: revision review and approval
-* **PS Admin** — Planning Service Administration: final revision approval and program management
+* **DPC** — District Planning Coordinator: project encoding and creating revision requests
+* **RPC** — Regional Planning Coordinator: region-level management of projects and programs, revision review and endorsement
+* **PS Admin** — Planning Service Administration: nationwide-level management of projects and programs, publishing a program to PCMA, final revision approval
 
 Each user sees only the modules and actions permitted for their assigned user group.
 
@@ -223,7 +236,7 @@ Each user sees only the modules and actions permitted for their assigned user gr
 
 **Purpose:** The Login screen is the entry point to the MYPS system. Users enter their assigned DPWH credentials to authenticate and access the application.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:** Valid DPWH user account; system URL provided by the PS Admin.
 
@@ -311,11 +324,13 @@ The following table maps each active sidebar item to its route and source compon
 | 3 | Projects | /projects | ProjectList | pages/Project/Views/Project.tsx | 5.3 |
 | 4 | Revision | /revision | RevisionList | pages/Modification/views/ModifcationList.tsx | 5.4 |
 | 5 | Project Groups | /project-groups | ProjectGroupList | pages/ProjectGroups/Views/ProjectGroup.tsx | 5.5 |
-| 6 | Settings — Code Tables | /code-tables | CodeTables | pages/CodeTables/Views/CodeTables.tsx | 5.6 |
-| 7 | Settings — User Management | /user-management | UserManagement | pages/Rbac/Rbac.tsx | 5.7 |
-| 8 | Settings — Infra Management | /infrastructure-management | InfraManagement | pages/Rbia/Views/Rbia.tsx | 5.8 |
+| 6 | Reports | /reports | Reports | pages/Reports/Reports.tsx | 5.6 |
+| 7 | Settings — Code Tables | /code-tables | CodeTables | pages/CodeTables/Views/CodeTables.tsx | 5.7 |
+| 8 | Settings — User Management | /user-management | UserManagement | pages/Rbac/Rbac.tsx | 5.8 |
+| 9 | Settings — Infra Management | /infrastructure-management | InfraManagement | pages/Rbia/Views/Rbia.tsx | 5.9 |
+| 10 | Lump Sum Projects | /lumpsum | LumpSumList | pages/LSWallet/Views/LSWalletList.tsx | 5.10 |
 
-> Commented-out sidebar items (Lump Sum, Multi-Year Management, Reports) are not accessible to users and are not documented in Section 5.
+> Multi-Year Management remains commented out in the sidebar and is not accessible to users; it is not documented in Section 5.
 
 ---
 
@@ -323,7 +338,7 @@ The following table maps each active sidebar item to its route and source compon
 
 **Purpose:** The Global Search feature allows users to look up programs, projects, roads, and bridges from any screen in the application.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Field Reference:**
 
@@ -364,7 +379,7 @@ The following table maps each active sidebar item to its route and source compon
 
 **Purpose:** The Dashboard is the first screen displayed after login. It provides an overview of the logged-in user's account and system status.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:** Successful login (see Section 3.1).
 
@@ -393,7 +408,7 @@ The following table maps each active sidebar item to its route and source compon
 
 **Purpose:** The Programs module is the top-level container for infrastructure projects. A Program represents a budget year planning document (Budget Proposal, NEP, GAA, GAA-R) under which Projects are grouped. The module provides tools to search, filter, add, and manage programs, and to progress them through budget stages.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 ---
 
@@ -401,7 +416,7 @@ The following table maps each active sidebar item to its route and source compon
 
 **Purpose:** View, search, filter, expand, and manage all programs accessible to the user. Each row can be expanded to reveal the program's individual budget stages, and each stage can be opened directly in Program Details.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:** Successful login (see Section 3.1).
 
@@ -558,7 +573,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Purpose:** Create a new multi-year budget program under which projects will be organized.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Field Reference:**
 
@@ -606,7 +621,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Purpose:** View all information for a specific program and access program management actions.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Program Details Fields:**
 
@@ -642,7 +657,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Purpose:** Advance a program through its budget lifecycle stages.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Stage Progression:**
 
@@ -671,7 +686,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Purpose:** Restore one or more previously deleted projects back into the current program. Use this when projects were deleted and need to be recovered without re-encoding them from scratch.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:** The program must be active and below stage GAA-R (Stage ID < 10).
 
@@ -708,7 +723,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Purpose:** Perform bulk operations on multiple projects within a program.
 
-**Who uses this:** PS Admin (Allow/Restrict Publishing); DEO, RO, PS Admin (Batch Delete)
+**Who uses this:** PS Admin (Allow/Restrict Publishing); DPC, RPC, PS Admin (Batch Delete)
 
 ---
 
@@ -757,7 +772,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Purpose:** Access program-level operations: template download, bulk import/export, and AIP report generation.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 ---
 
@@ -813,7 +828,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Purpose:** Replace the existing set of projects for the program's current stage with the contents of a filled-in Excel template, in one background job. Use this to bulk-correct or refresh project data already in a program instead of re-importing duplicates.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Step-by-Step:**
 
@@ -871,7 +886,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Purpose:** Create and manage individual infrastructure projects. Each project captures detailed location, organizational, funding, cost, and scope information.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 ---
 
@@ -879,7 +894,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Purpose:** Create a new infrastructure project under an existing program, capturing all project details including location, organizational responsibilities, and implementation readiness.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:** A program must exist (see Section 5.2.2). Navigate to Program Details and click Add Project.
 
@@ -1005,7 +1020,7 @@ Identifies the island group or region associated with the project (e.g., `LZ` = 
 
 **Purpose:** Define the budget allocation for the project by specifying funding sources, agreements, and amounts. Must be completed before Component Cost is available.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:** Project Details must be saved first (see Section 5.3.1).
 
@@ -1045,7 +1060,7 @@ Identifies the island group or region associated with the project (e.g., `LZ` = 
 
 **Purpose:** Record the project budget breakdown by component, cost year, and amount. Component entries generate Component IDs (e.g., `DR1`, `ROW`, `FS`) that are later referenced by Major Items of Work.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:** Funding Profile must be populated (see Section 5.3.2).
 
@@ -1161,7 +1176,7 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 
 **Purpose:** Link each Component Cost entry to a specific infrastructure type and type of work. Each Major Item can hold one or more Work Location rows that describe the physical scope.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:** At least one Component Cost entry must exist (see Section 5.3.3).
 
@@ -1249,7 +1264,7 @@ The dialog title is **"Add Project Major Item of Works"** (add mode) or **"Edit 
 
 **Purpose:** Enter the physical location, scope, and targets for each Major Item of Work. Each Major Item can have multiple Work Location rows. Required fields and the Infrastructure ID mechanism vary by Infrastructure Type.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:** At least one Major Item of Work must exist (see Section 5.3.4). Work Locations are accessed by expanding a Major Item row.
 
@@ -1434,7 +1449,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 **Purpose:** Review the physical target recorded for each project component at every Program Stage the project has passed through — for example, how a component's target changed between NEP and GAA-R. This is a read-only history view; targets themselves are entered under Work Locations (Section 5.3.5).
 
-**Who uses this:** DEO, RO, PS Admin (read-only view)
+**Who uses this:** DPC, RPC, PS Admin (read-only view)
 
 **Prerequisites:** The project must have at least one Major Item of Work with work locations recorded in one or more stages. Users who cannot see the project cannot see its targets.
 
@@ -1483,7 +1498,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 **Purpose:** Attach PDF supporting documents (approvals, feasibility studies, design documents) to the project record.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Field Reference:**
 
@@ -1512,7 +1527,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 **Purpose:** Display an interactive geographic map showing all work locations entered for the project, plotted as colored line or point features on a basemap. Provides a spatial overview of where project activities will take place.
 
-**Who uses this:** DEO, RO, PS Admin (read-only view)
+**Who uses this:** DPC, RPC, PS Admin (read-only view)
 
 **Prerequisites:** At least one Work Location with valid coordinates or chainage data must be saved under a Major Item of Work (see Section 5.3.5).
 
@@ -1558,7 +1573,7 @@ The map panel appears at the top of the project form. Click the **Project Locati
 
 **Purpose:** Submit, track, and process revision requests for projects published to PCMA, following a structured multi-level approval workflow.
 
-**Who uses this:** DEO (submit), RO (first-level review), PS Admin (final approval)
+**Who uses this:** DPC (submit), RPC (first-level review), PS Admin (final approval)
 
 ---
 
@@ -1566,7 +1581,7 @@ The map panel appears at the top of the project form. Click the **Project Locati
 
 **Purpose:** View and act on all revision requests accessible to the logged-in user.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Revision List Table Columns:**
 
@@ -1631,7 +1646,7 @@ The map panel appears at the top of the project form. Click the **Project Locati
 
 **Purpose:** Start a revision request for a project that is published to PCMA. The user selects a revision type from the Revise Project dropdown, which opens the Revision Dialog for Category and Reason selection.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Prerequisites:**
 - The project must be at the **GAA-R** program stage.
@@ -1661,7 +1676,7 @@ The map panel appears at the top of the project form. Click the **Project Locati
 
 **Purpose:** Before navigating to the modification form, the user selects a Category (if applicable) and a mandatory Reason that classifies the purpose of the revision. The dialog title shows the selected revision type name.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Field Reference — Revision Dialog:**
 
@@ -1731,7 +1746,7 @@ Each revision type has one or more associated **Reasons**, selected in the Revis
 
 **Purpose:** After the Revision Dialog is submitted, the modification form opens pre-loaded with the project's current data. The user edits only the fields permitted by the selected revision type, category, reason, and the project's PCMA construction status.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Form Sections:**
 
@@ -1871,7 +1886,7 @@ In the modification form, major items can be copied to a different component usi
 
 **Purpose:** Finalize and submit the modification request with a supporting approval document.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Field Reference — Submit Revision Dialog:**
 
@@ -1881,7 +1896,7 @@ In the modification form, major items can be copied to a different component usi
 | SR-F02 | Reason | Read-only summary of the selected reason | Display only |
 | SR-F03 | Date of Approval | Official date on the supporting approval document | Date input; required |
 | SR-F04 | Approval Document | PDF file of the supporting approval document | File picker; PDF only; required |
-| SR-F05 | Certification Checkbox | Confirms that the document is accurate and aligned with the revisions | Checkbox; required for DPC, RPC, and AUC user groups |
+| SR-F05 | Certification Checkbox | Confirms that the document is accurate and aligned with the revisions | Checkbox; required for DPC, RPC, and PS Admin user groups |
 | SR-A01 | Submit | Validate and submit the revision request | Button; disabled while submitting |
 | SR-A02 | Cancel / ✕ | Close the dialog without submitting | Button |
 
@@ -1894,18 +1909,18 @@ In the modification form, major items can be copied to a different component usi
 3. Review the Revision Category and Reason (read-only).
 4. Enter the **Date of Approval**.
 5. Click the file picker and upload the **Approval Document** (PDF only).
-6. If required for your user group (DPC, RPC, AUC), check the **Certification** checkbox: *"I hereby certify that the attached approval document is accurate, complete, and aligned with the revisions being submitted for this project."*
+6. If required for your user group (DPC, RPC, PS Admin), check the **Certification** checkbox: *"I hereby certify that the attached approval document is accurate, complete, and aligned with the revisions being submitted for this project."*
 7. Click **Submit**.
 
 [Insert Screenshot: Submit Revision Dialog]
 
 **On Success:** A Transaction ID is generated and the revision request appears in the Revision List. Review routing:
 
-| Submitting Role | Reviewed By |
+| Role Submitting the Revision Request | Reviewed By |
 |---|---|
-| DPC / DEO | RO (Region Office) |
-| RPC / RO | CO / PS Admin |
-| AUC / PS Admin / CO | Automatically approved |
+| DPC | To be endorsed by RPC, then approved by PS Admin |
+| RPC | To be approved by PS Admin |
+| PS Admin | Automatically approved |
 
 **Common Outcomes & What to Do:**
 
@@ -1913,7 +1928,7 @@ In the modification form, major items can be copied to a different component usi
 |---|---|---|
 | *"Please select an approval date."* | The Date of Approval field was left blank. | Enter the date shown on the approval document. |
 | *"Please upload an approval document."* | No PDF was uploaded. | Upload a valid PDF approval document before submitting. |
-| *"Please certify that the attached document is accurate..."* | Certification checkbox was not checked (applies to DPC, RPC, AUC roles). | Check the certification checkbox before clicking Submit. |
+| *"Please certify that the attached document is accurate..."* | Certification checkbox was not checked (applies to DPC, RPC, PS Admin roles). | Check the certification checkbox before clicking Submit. |
 | *"Funding profile total (₱X) must equal component costs total (₱Y)."* | The funding and component cost totals do not match. | Adjust either the Funding Profile or Component Costs so the totals are equal. |
 
 ---
@@ -1922,7 +1937,7 @@ In the modification form, major items can be copied to a different component usi
 
 **Purpose:** If a revision request was returned by a reviewer with correction comments, the requester must address the comments and resubmit.
 
-**Who uses this:** DEO, RO
+**Who uses this:** DPC, RPC
 
 **Step-by-Step:**
 
@@ -1937,22 +1952,22 @@ In the modification form, major items can be copied to a different component usi
 
 ---
 
-#### 5.4.9 RO Approval Actions
+#### 5.4.9 RPC Endorsement Actions
 
-**Purpose:** Review revision requests submitted by DEO users and approve, reject, or return for correction.
+**Purpose:** Review revision requests submitted by DPC users and endorse, reject, or return for correction.
 
-**Who uses this:** RO
+**Who uses this:** RPC
 
-**Approve:**
+**Endorse:**
 
 **Step-by-Step:**
 
 1. Select **Revision** from the sidebar.
 2. Find and select the revision request.
 3. Click **View**.
-4. Proceed with **Approval**.
+4. Proceed with **Endorsement**.
 
-**On Success:** The project is approved and forwarded to the Central Office (PS Admin) for final review.
+**On Success:** The revision is endorsed and forwarded to the Central Office (PS Admin) for final review.
 
 ---
 
@@ -1984,7 +1999,7 @@ In the modification form, major items can be copied to a different component usi
 
 #### 5.4.10 PS Admin Approval Actions
 
-**Purpose:** Perform final review and approval of revision requests forwarded from the RO.
+**Purpose:** Perform final review and approval of revision requests forwarded from the RPC.
 
 **Who uses this:** PS Admin
 
@@ -2029,7 +2044,7 @@ In the modification form, major items can be copied to a different component usi
 
 **Purpose:** Organize multiple projects from different programs into named groups for cross-program tracking and reporting.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 ---
 
@@ -2037,7 +2052,7 @@ In the modification form, major items can be copied to a different component usi
 
 **Purpose:** View, search, and filter all project groups accessible to the user.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Step-by-Step:**
 
@@ -2057,7 +2072,7 @@ In the modification form, major items can be copied to a different component usi
 
 **Purpose:** Create a named project group with a description and user group assignment.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Field Reference:**
 
@@ -2087,7 +2102,7 @@ In the modification form, major items can be copied to a different component usi
 
 **Purpose:** View and update a project group's information, and manage the projects within it.
 
-**Who uses this:** DEO, RO, PS Admin
+**Who uses this:** DPC, RPC, PS Admin
 
 **Group fields:** Name, Description, User Group, Update button
 
@@ -2107,7 +2122,101 @@ In the modification form, major items can be copied to a different component usi
 
 ---
 
-### 5.6 Code Tables
+### 5.6 Reports
+
+**Purpose:** Generate official budget and planning documents from program data already encoded in MYPS. The user selects a report type, the budget year and program stage to be covered, the nationwide or regional scope, and the specific programs to include; the system compiles the matching records and downloads the result as a PDF. Reports are read-only outputs — generating a report does not alter any program or project record.
+
+**Who uses this:** RPC, PS Admin
+
+**Prerequisites:** Successful login (see Section 3.1); at least one program encoded at the selected Program Stage for the selected Year (see Sections 5.2.1 and 5.2.4); a PDF viewer installed on the workstation (see Section 2).
+
+**Access by Role:**
+
+| Role | Access | Typical Use |
+|------|--------|-------------|
+| RPC | Generate reports for programs within the assigned regional office | Produce the Regional Budget Proposal for review and signature |
+| PS Admin | Generate reports across all regions (All regions option) | Consolidate and validate regional submissions at central office level |
+
+---
+
+#### 5.6.1 Report Filters
+
+**Purpose:** Define the scope and signatories of the report before generating it. The screen opens with Report Type unset and every other filter at its widest default — All years, All stages, and All regions. All filters apply together: the report contains only the programs matching the selected Year, Program Stage, and Regional Office, restricted to the programs ticked in the Programs panel below.
+
+**Who uses this:** RPC, PS Admin
+
+**Field Reference:**
+
+| Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
+|---|---|---|---|
+| RPT-F01 | Report Type | Type of report to generate and its output format | Dropdown; required. Defaults to "Select a report type" — must be chosen before a report can be generated. Options are loaded dynamically from the server |
+| RPT-F02 | Year | Budget year covered by the report | Dropdown; optional. Defaults to All years |
+| RPT-F03 | Program Stage | Budget stage of the programs to include (see Section 5.2.4) | Dropdown; optional. Defaults to All stages |
+| RPT-F04 | Regional Office | Regional office scope of the report | Dropdown; optional. Defaults to All regions |
+| RPT-F05 | Planning Engineer | Name of the Planning Engineer generating the report | Text input; optional |
+| RPT-F06 | Approved By | Name of the person approving the report | Text input; optional |
+| RPT-F07 | Reviewed By | Name of the person reviewing the report | Text input; optional |
+| RPT-F08 | Programs | Panel listing the programs available for selection (see Section 5.6.2) | Populated only once a specific Year and Program Stage are chosen |
+| RPT-A01 | Generate Report | Generate and download the report using the selected filters | Button |
+
+> Report Type is the only required field. The Year and Program Stage selections drive the Programs panel — while either is left at its All default the panel stays empty, and changing either value reloads the program list and clears the current selection.
+
+**Step-by-Step:**
+
+1. Select **Reports** from the sidebar.
+2. Select the **Report Type** — this field is required.
+3. Select the **Year** covered by the report, or leave All years.
+4. Select the **Program Stage** of the programs to include, or leave All stages.
+5. Select the **Regional Office**, or leave All regions to include every region the user is permitted to view.
+6. Optionally enter **Planning Engineer**, **Reviewed By**, and **Approved By** — these print on the signature block of the generated report.
+7. Select the programs to include in the **Programs** panel (see Section 5.6.2).
+8. Click **Generate Report**.
+
+[Insert Screenshot: Report Filters Screen]
+
+**On Success:** The report is compiled from the selected programs and automatically downloaded as a PDF to the browser's download folder. The Report Filters screen remains open with the selections intact so another report can be generated without re-entering the filters.
+
+**Common Outcomes & What to Do:**
+
+| Message / Situation | What it Means | What You Should Do |
+|---|---|---|
+| "Select a year and program stage to load matching programs." | The Programs panel cannot load because Year or Program Stage is still at its All default. | Choose a specific Year and Program Stage; matching programs then appear in the panel. |
+| "No programs found for the selected year and stage." | No program records match the selected Year and Program Stage combination. | Change the Year or Program Stage, and confirm in Programs that programs exist at that stage (see Sections 5.2.1 and 5.2.4). |
+| Programs panel shows "None selected" and "Selected: 0 items" | No program has been ticked, so the report has no data scope. | Expand the Programs panel and select at least one program, or click Select All. |
+| "(Field Name) is required." | A required filter was left blank. | Complete Report Type and any other required filter before clicking Generate Report. |
+| No file appears after clicking Generate Report | The generated PDF was blocked or saved silently by the browser. | Check the browser download bar and download folder; confirm a PDF viewer is installed (see Section 2). |
+
+---
+
+#### 5.6.2 Programs Selection Panel
+
+**Purpose:** Choose which of the programs matching the Year and Program Stage filters are included in the report.
+
+**Who uses this:** RPC, PS Admin
+
+**Panel Behavior:**
+
+* On opening the screen, the panel is empty and displays: "Select a year and program stage to load matching programs." No programs can be selected in this state.
+* The list populates only once a specific Year and a specific Program Stage are chosen. Leaving either at All keeps the panel empty.
+* Once the list loads, the panel becomes collapsible and shows the current selection status — "None selected" when no program has been ticked.
+* If a specific Year and Program Stage are chosen but no program matches, the panel displays: "No programs found for the selected year and stage."
+* When populated, **Search programs…** filters the visible list by program name, **Select All** applies to the currently listed programs, and **Clear All** removes every selection.
+* The counter at the bottom of the panel (**Selected: X items**) reflects the total selected, including any hidden by the search filter.
+
+**Step-by-Step:**
+
+1. Choose a specific **Year** and **Program Stage** in the Report Filters. The Programs panel loads the matching programs.
+2. Click the chevron beside **Programs** to expand or collapse the panel.
+3. Enter part of a program name in **Search programs…** to narrow the list, if required.
+4. Tick the programs to include, or click **Select All**.
+5. Click **Clear All** to reset the selection if the wrong programs were ticked.
+6. Verify the count shown in **Selected: n items** before generating the report.
+
+**On Success:** The selected programs are counted in the panel footer and included in the generated report.
+
+---
+
+### 5.7 Code Tables
 
 **Purpose:** Manage all reference data used throughout MYPS. Changes take effect immediately system-wide. Organized into tabs by data domain.
 
@@ -2134,7 +2243,7 @@ To toggle a record's status:
 
 ---
 
-#### 5.6.1 Admin Areas
+#### 5.7.1 Admin Areas
 
 **Purpose:** Manage geographic reference data used in project Location Details.
 
@@ -2149,7 +2258,7 @@ To toggle a record's status:
 
 ---
 
-#### 5.6.2 Component Cost
+#### 5.7.2 Component Cost
 
 **Purpose:** Manage cost component type codes used in the project Component Cost section.
 
@@ -2163,7 +2272,7 @@ To toggle a record's status:
 
 ---
 
-#### 5.6.3 Funding Profile
+#### 5.7.3 Funding Profile
 
 **Purpose:** Manage funding source organizations and loan/grant agreements used in the project Funding Profile section.
 
@@ -2185,7 +2294,7 @@ To toggle a record's status:
 
 ---
 
-#### 5.6.4 Major Item
+#### 5.7.4 Major Item
 
 **Purpose:** Manage infrastructure types, work categories, and types of work used in Major Items of Work.
 
@@ -2214,7 +2323,7 @@ To toggle a record's status:
 
 ---
 
-#### 5.6.5 Program
+#### 5.7.5 Program
 
 **Purpose:** Manage program stage and program type codes used in the Add Program form.
 
@@ -2234,7 +2343,7 @@ To toggle a record's status:
 
 ---
 
-#### 5.6.6 Project Details
+#### 5.7.6 Project Details
 
 **Purpose:** Manage dropdown values (Agency, Category, Origin, Thrust) used in the Add Project form.
 
@@ -2268,7 +2377,7 @@ To toggle a record's status:
 
 ---
 
-#### 5.6.7 Revision Code Tables
+#### 5.7.7 Revision Code Tables
 
 **Purpose:** Manage all reference data that drives the revision workflow: categories, reasons, validation date windows, header/document types, statuses, and field-level permission rules.
 
@@ -2343,7 +2452,7 @@ When **Can Add** is off for a section, the Add button is hidden during the revis
 
 ---
 
-### 5.7 User Management
+### 5.8 User Management
 
 **Purpose:** The User Management module is the central administration screen for controlling who can access MYPS and what they can do. It organises all administration into three tabs: **App Modules**, **Users**, and **User Groups**. PS Admins use this screen to register system modules, create user accounts, assign users to groups, and define the API and route-level permissions each group holds.
 
@@ -2353,7 +2462,7 @@ When **Can Add** is off for a section, the Add button is hidden during the revis
 
 ---
 
-#### 5.7.1 App Modules
+#### 5.8.1 App Modules
 
 **Purpose:** Define the logical modules of the MYPS application and link each module to its backend API controllers and frontend routes. The App Modules tab is also used to synchronise controller and route definitions between the live application and the database.
 
@@ -2447,7 +2556,7 @@ When **Can Add** is off for a section, the Add button is hidden during the revis
 
 ---
 
-#### 5.7.2 Users
+#### 5.8.2 Users
 
 **Purpose:** View, search, add, update, and deactivate MYPS user accounts. Each user is linked to one or more User Groups which determine their access rights. User data is pulled from the Personnel Information System (PIS) using the employee's Employee ID.
 
@@ -2586,7 +2695,7 @@ The column headers **User**, **User Group**, **Region**, **Office**, and **Statu
 
 ---
 
-#### 5.7.3 User Groups
+#### 5.8.3 User Groups
 
 **Purpose:** Create and manage named user groups. Each group holds a set of permissions — both API-level actions (which backend controller endpoints the group can call) and route-level access (which frontend pages the group can navigate to). Assigning a user to a group automatically grants them all permissions in that group.
 
@@ -2755,7 +2864,7 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 
 ---
 
-### 5.8 Infra Management
+### 5.9 Infra Management
 
 **Purpose:** Manage the future road network inventory — roads, road sections, and bridges — used as reference data when encoding Work Locations in projects. The module is organized around a three-level hierarchy: Road → Road Section → Bridge.
 
@@ -2799,7 +2908,7 @@ Each tab shows a count badge with the current total number of records. The count
 
 ---
 
-#### 5.8.1 Roads Tab
+#### 5.9.1 Roads Tab
 
 **Purpose:** View, search, filter, add, edit, and delete future national roads. Also the only location where road sections can be created.
 
@@ -2949,7 +3058,7 @@ Each road row has a blue **+ Add Section** button. This is the only way to creat
 
 ---
 
-#### 5.8.2 Road Sections Tab
+#### 5.9.2 Road Sections Tab
 
 **Purpose:** View, search, filter, edit, and delete road sections. Also the only location where bridges can be created.
 
@@ -3090,7 +3199,7 @@ Each road section row has a blue **+ Add Bridge** button. This is the only way t
 
 ---
 
-#### 5.8.3 Bridges Tab
+#### 5.9.3 Bridges Tab
 
 **Purpose:** View, search, filter, edit, and delete future bridges.
 
@@ -3183,7 +3292,7 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 ---
 
-#### 5.8.4 Import Dialog
+#### 5.9.4 Import Dialog
 
 **Purpose:** Pull infrastructure data from external systems (the RBIA Geographic Information System and administrative reference tables) into the MYPS database in bulk.
 
@@ -3221,6 +3330,225 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 ---
 
+### 5.10 Lump Sum Projects
+
+**Purpose:** Record a funded allocation as a single consolidated amount and then break it down into individual itemized projects. The allocation behaves like a wallet: the amount captured when the Lump Sum Project is created becomes both its funding line and the cost of its Lump Sum component, so the component opens exactly on its budget ceiling. Every itemized project created underneath draws against that ceiling, and the module keeps a running total of what has been itemized and what remains available.
+
+**Who uses this:** PS Admin
+
+**Prerequisites:** The program that will carry the allocation must already exist at the correct stage (see Section 5.2), and the funding source and agreement to be charged must be available in Code Tables (see Section 5.7.3).
+
+> You do not encode a Lump Sum component through the Component Cost section of Project Details (Section 5.3.3). The **Add Lump Sum Project** form creates the Lump Sum Project record and its Lump Sum component together in a single save, with an amount equal to the entered allocation / Funding Profile — and that component amount is reduced automatically as itemized projects are added.
+
+**Where Lump Sum Sits:**
+
+| Step | Module | What Happens |
+|---|---|---|
+| 1 | Programs | The program that will fund the allocation exists at the required stage (e.g. GAA-R 2027) |
+| 2 | Add Lump Sum Project | Project details and the funded allocation are captured; the Lump Sum Project ID is generated and the Lump Sum component opens on its budget ceiling |
+| 3 | Lump Sum Projects (list) | The Lump Sum Project is located by description, program, stage, or year |
+| 4 | Lump Sum Overview | Original Allocation, Itemized, and Remaining are monitored as the Lump Sum Project is drawn down |
+| 5 | Import Itemized Projects | Itemized projects are loaded in bulk from the pre-filled workbook and validated against the remaining balance |
+| 6 | Project Details (itemized) | An individual itemized project is opened to complete Funding Profile, Component Cost, Major Items of Work, Work Locations, and Supporting Documents |
+| 7 | Delete | A Lump Sum Project or an itemized project is removed, subject to conditions validated by the server |
+
+---
+
+#### 5.10.1 Finding a Lump Sum Project
+
+**Purpose:** Locate a Lump Sum Project from the list, which shows each project's allocation alongside the balance still available for itemization.
+
+**Field Reference:**
+
+| Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
+|---|---|---|---|
+| LS-F01 | Search by description | Free-text filter on the Lump Sum Project description | Text input; partial match, not case sensitive; leave blank to return all |
+| LS-F02 | Program | Limits the list to one program | Dropdown; defaults to all programs |
+| LS-F03 | Program Stage | Limits the list to one program stage | Dropdown; defaults to all stages (e.g. NEP, GAA-R) |
+| LS-F04 | Year | Limits the list to one budget year | Dropdown; defaults to all years |
+| LS-A01 | Search | Applies the filters above | Button |
+| LS-A02 | Add Lump Sum Project | Opens the creation form (see Section 5.10.2) | Button |
+
+> **Allocation / Remaining column:** Shows the funded amount, and beneath it the balance not yet itemized. A Lump Sum Project showing the same figure twice has not been itemized at all.
+
+**Step-by-Step:**
+
+1. Select **Lump Sum Projects** from the sidebar.
+2. Type any part of the Lump Sum Project description in **Search by description**, or leave it blank.
+3. Narrow the list further using **Program**, **Program Stage**, and **Year** as needed.
+4. Click **Search**.
+5. Click **View** on the Lump Sum Project to open its overview (see Section 5.10.3).
+
+[Insert Screenshot: Lump Sum Projects List]
+
+---
+
+#### 5.10.2 Add Lump Sum Project
+
+**Purpose:** Create a new Lump Sum Project, capturing the program it belongs to, its project details, and its funding allocation, in one form.
+
+**Field Reference:**
+
+| Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
+|---|---|---|---|
+| LS-F10 | Program Name | The program that will fund the allocation | Dropdown; required. Selecting it fills the three fields below |
+| LS-F11 | Program Type / Start Year / Program Stage | Context of the selected program | Read-only; filled from the program |
+| LS-F12 | Category / Sub-Category | Classification of the allocation | Dropdowns; both required. Sub-Category options depend on Category |
+| LS-F13 | Description | Describes what the Lump Sum allocation covers | Text; required. Shown in the list and on the overview page |
+| LS-F14 | Regionwide | Whether the allocation is Regionwide or Non Regionwide | Dropdown; required |
+| LS-F15 | Origin / Originating Agency | Where the allocation came from | Dropdowns |
+| LS-F16 | Funding Source | Source of funds for the allocation | Dropdown; required |
+| LS-F17 | Funding Agreement | Agreement the allocation is charged to | Dropdown; required |
+| LS-F18 | Lump Sum Allocation | The funded amount | Numeric input; required. Becomes both the funding line and the cost of the Lump Sum component |
+| LS-A10 | Create Lump Sum Project | Validates and saves | Button |
+
+**Step-by-Step:**
+
+1. On the Lump Sum Projects list, click **Add Lump Sum Project**.
+2. Select the **Program Name**. Program Type, Start Year, and Program Stage fill automatically — check they are the ones expected.
+3. Select the **Category**, then the **Sub-Category**.
+4. Enter the **Description** of what the allocation covers.
+5. Set the **Regionwide** field.
+6. Select the **Funding Source** and **Funding Agreement**.
+7. Enter the **Lump Sum Allocation** amount.
+8. Click **Create Lump Sum Project**.
+
+[Insert Screenshot: Add Lump Sum Project Form]
+
+**On Success:** The Lump Sum Project appears in the list with its generated Lump Sum Project ID. Allocation and Remaining show the same figure, since nothing has been itemized yet.
+
+---
+
+#### 5.10.3 Lump Sum Overview
+
+**Purpose:** Monitor a Lump Sum Project's financial position and the itemized projects drawn against it.
+
+**Field Reference:**
+
+| Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
+|---|---|---|---|
+| LS-F20 | Program Status / Current Stage / Category | Context inherited from the parent program | Read-only |
+| LS-F21 | Itemized Projects | How many itemized projects exist under the Lump Sum Project | Read-only; View list link to the table further down the page |
+| LS-F22 | Original Allocation | The authorized funding ceiling — the amount entered when the Lump Sum Project was created | Read-only |
+| LS-F23 | Itemized | Total committed to itemized projects so far | Read-only |
+| LS-F24 | Remaining | Balance still available for itemization (Original Allocation less Itemized) | Read-only |
+| LS-F25 | Allocation Utilization | Drawdown shown as a progress bar with the itemized percentage as a badge | Read-only |
+| LS-A20 | Show more details / Hide details | Toggles the identification block (Lump Sum Project ID, Program ID, Budget Year, Operating Unit, and audit stamps) | Toggle |
+
+**Step-by-Step:**
+
+1. Open a Lump Sum Project from the list (see Section 5.10.1).
+2. Review the Financial Position panel — Original Allocation, Itemized, Remaining, and Allocation Utilization.
+3. Click **Show more details** to reveal identification fields, useful when quoting the record in correspondence or reconciling it against a program listing.
+4. Open the **Itemized Projects** tab to view everything drawing on the Lump Sum (see Section 5.10.5). The **Activity** tab alongside it holds the chronological history of the Lump Sum Project.
+
+[Insert Screenshot: Lump Sum Overview]
+
+> Funding and Component Cost should match on every itemized project line, and the Total row should reconcile with the Itemized figure in Financial Position. A red marker beside a Project ID flags a record with an outstanding condition — open it to see what is pending.
+
+---
+
+#### 5.10.4 Import Itemized Projects
+
+**Purpose:** Load itemized projects in bulk from an Excel spreadsheet, drawn against a Lump Sum Project's balance. Always start from the downloadable template — it arrives pre-filled with the dropdowns sourced from Code Tables, which removes most of the spelling and code errors that would otherwise be rejected on upload.
+
+**Field Reference:**
+
+| Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
+|---|---|---|---|
+| LS-IMP-F01 | Wallet banner | Confirms which Lump Sum Project is being imported into, and how much is left | Read-only; check the Available figure before starting |
+| LS-IMP-A01 | Download template | Downloads the pre-filled workbook | Button |
+| LS-IMP-F02 | Drop zone | Where the completed workbook is selected or dropped | Accepts `.xlsx` / `.xlsm`; four sheets required: Project Details, Funding Profile, Component Details, Major Items of Work |
+| LS-IMP-F03 | Result tabs | The parsed contents of the workbook, sheet by sheet | Summary, Projects, Funding, Components, Cost / Year, Major Items, Locations, Errors — each with a count |
+| LS-IMP-F04 | Balance Check | Compares the total being imported against the Lump Sum Project balance | Read-only; passes only when the import total is within the available amount |
+| LS-IMP-A02 | Import | Commits the parsed projects to the Lump Sum Project | Button; disabled until a workbook parses successfully |
+
+**Step-by-Step:**
+
+1. Open the Lump Sum Project and go to the **Itemized Projects** tab.
+2. Click **Import Itemized Projects**.
+3. Click **Download template** and save the workbook.
+4. Complete the four sheets, replacing the example row. Use the dropdowns wherever a column offers them.
+5. Return to the dialog and drop the completed workbook onto the drop zone, or click to browse for it.
+6. Review the **Summary** tab — the counts should match the number of rows encoded.
+7. Check that **Balance Check Passed** is shown, and that the total import amount is within the Lump Sum Project's available balance.
+8. Open the **Errors** tab and confirm it is empty.
+9. Click **Import**.
+
+[Insert Screenshot: Import Itemized Projects Dialog]
+
+**On Success:** The imported projects appear in the Itemized Projects table, and Itemized / Remaining in Financial Position are recalculated immediately.
+
+**Common Outcomes & What to Do:**
+
+| Message / Situation | What it Means | What You Should Do |
+|---|---|---|
+| Every result-tab count returns zero and Import stays disabled | A required sheet is missing from the workbook, which stops parsing altogether | Rebuild the workbook from a freshly downloaded template |
+| One sheet's row count is short compared to the others (e.g. Funding shows 2 rows where Projects shows 3) | A data row on that sheet is missing a required field — only the affected row is dropped, the rest still parses | Correct the row in the workbook and re-upload; do not import with the gap, since an itemized project whose Funding Profile does not reach 100% cannot be completed later without a revision |
+| Balance Check does not pass | The import total exceeds the Lump Sum Project's available (Remaining) balance | Reduce the amounts being imported, or increase the Lump Sum Allocation first |
+
+---
+
+#### 5.10.5 Viewing an Itemized Project
+
+**Purpose:** Review the identification, location, financial position, and work items of a single itemized project without leaving the Lump Sum Overview.
+
+**Step-by-Step:**
+
+1. On the **Itemized Projects** tab, click the eye icon on the row to view.
+2. A read-only summary opens: identification and location at the top; financial position and work items below.
+3. Click **Edit Project** to make changes (opens the standard Project Details page — see Section 5.3).
+
+[Insert Screenshot: Itemized Project Details]
+
+> Three figures are worth checking on every itemized project: **Funding Total** and **Component Cost Total** should agree, and **Current Draw Amount** is what the project is taking out of the Lump Sum Project's component cost.
+
+---
+
+#### 5.10.6 Deleting a Lump Sum Project
+
+**Purpose:** Remove a Lump Sum Project that is no longer needed.
+
+**Step-by-Step:**
+
+1. On the Lump Sum Projects list or overview, click **Delete**.
+2. The confirmation dialog states which outcome applies to this record: deletion may be blocked outright, allowed to remove the record cleanly, or the record may be retained for audit — depending on what history it already carries (e.g. whether it has itemized projects attached).
+3. Confirm to proceed, if allowed.
+
+[Insert Screenshot: Delete Lump Sum Project Dialog]
+
+**On Success:** The Lump Sum Project is removed (or retained for audit, per the outcome shown) and the list refreshes.
+
+---
+
+#### 5.10.7 Deleting an Itemized Project
+
+**Purpose:** Remove a single itemized project belonging to a Lump Sum Project.
+
+**Step-by-Step:**
+
+1. On the **Itemized Projects** tab, click **Delete** on the row to remove.
+2. The confirmation dialog states which outcome applies: deletion may be blocked outright, allowed to remove the record cleanly, or the record may be retained for audit — depending on what history it already carries.
+3. Confirm to proceed, if allowed.
+
+[Insert Screenshot: Delete Itemized Project Dialog]
+
+**On Success:** The itemized project is removed (or retained for audit, per the outcome shown), and Itemized / Remaining in Financial Position are recalculated.
+
+---
+
+#### 5.10.8 Editing a Lump Sum Project
+
+**Purpose:** Update a Lump Sum Project's own details after creation.
+
+An itemized project is edited through the standard Project Details page: from the Itemized Projects tab, click **Edit Project** on the row (see Section 5.10.5).
+
+To edit the Lump Sum Project record itself (its own allocation, category, funding, etc.), open it via the **Projects** module (see Section 5.3) — it displays like a normal project on the Project Details page.
+
+[Insert Screenshot: Lump Sum Project — Project Details View]
+
+---
+
 ## 6. Workflows
 
 ### Workflow 1: Create a Program and Encode a Project
@@ -3255,21 +3583,39 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 ---
 
-### Workflow 4: Review and Approve a Revision (RO Level)
+### Workflow 4: Review and Endorse a Revision (RPC Level)
 
 1. Select **Revision** from the sidebar.
-2. Find the revision request submitted by a DEO.
+2. Find the revision request submitted by a DPC.
 3. Click **View** → review the changes.
-4. Select **Approve**, **Reject**, or **For Correction**.
+4. Select **Endorse**, **Reject**, or **For Correction**.
 
 ---
 
 ### Workflow 5: Final Approval of a Revision (PS Admin Level)
 
 1. Select **Revision** from the sidebar.
-2. Find the revision request forwarded from the RO.
+2. Find the revision request forwarded from the RPC.
 3. Click **View** → review the changes.
 4. Select **Approve**, **Disapprove**, or **For Correction**.
+
+---
+
+### Status Tracking: RPCStatus / PSStatus
+
+The system tracks a revision's progress through two status fields, **RPCStatus** and **PSStatus**, referenced in the Revision List status badges (Section 5.4.1):
+
+| RPCStatus | PSStatus | Meaning |
+|---|---|---|
+| 0 | 0 | Pending RPC Endorsement |
+| 3 | 0 | Returned to the requester by the RPC (For Correction) |
+| 1 | 0 | Endorsed by RPC — Pending PS Admin Approval |
+| 1 | 3 | Returned to the requester by PS Admin (For Correction) |
+| 1 | 1 | Approved — the revision is complete and applied to the project |
+| 2 | any | Rejected by the RPC — terminal, cannot be corrected or resubmitted |
+| 1 | 2 | Disapproved by PS Admin — terminal, cannot be corrected or resubmitted |
+
+Whenever a revision comes back **For Correction** — from either the RPC or PS Admin — the requesting DPC (or RPC/PS Admin user, if they were the original submitter) edits it based on the comments, re-uploads the Revision Document, re-certifies, and resubmits (Section 5.4.8). Resubmission resets both statuses to **0**.
 
 ---
 
@@ -3318,7 +3664,7 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 ## 9. Notes & Limitations
 
-* **Inactive modules:** Lump Sum, Multi-Year Management, and Reports are currently disabled in the sidebar and are not accessible to users.
+* **Inactive modules:** Multi-Year Management is currently disabled in the sidebar and is not accessible to users. Reports (Section 5.6) and Lump Sum Projects (Section 5.10) are live modules.
 * **Code Tables dependency:** Program Types, Program Stages, Categories, Infrastructure Types, Funding Sources, and all other dropdown options are sourced from Code Tables. Ensure all required reference data is configured in Code Tables before users begin encoding.
 * **PCMA publishing prerequisite:** A project must be published to PCMA before revisions are possible. Publishing is controlled by PS Admin using the Allow Publishing batch action on a GAA-R program.
 * **Role-based visibility:** Features and modules visible to each user depend on their assigned User Group permissions. Contact your PS Admin if expected features are not visible.
@@ -3382,5 +3728,7 @@ When reporting an issue to support, include the following information:
 | Return for Correction | For Correction, Send Back, Request Correction |
 | HGAB | House-Approved General Appropriations Bill — do NOT use "High Government Assistance Budget" |
 | MYPS | Multi-Year Planning and Scheduling — always spell out on first use in each section |
-| DEO | District Engineering Office — spell out on first use in each section |
+| DEO | District Engineering Office — an administrative org unit (Code Tables → Admin Areas), not a user role. See DPC below for the equivalent user-group term |
+| DPC | District Planning Coordinator — spell out on first use in each section |
+| RPC | Regional Planning Coordinator — spell out on first use in each section |
 | PS Admin | Planning Service Administration — spell out on first use in each section |

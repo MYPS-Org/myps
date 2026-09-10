@@ -1,3 +1,109 @@
+# UserManual.md — Changelog v3.10 → v3.11 (FE/UserManual.md)
+
+**Date:** September 10, 2026
+**Branch:** dev-trunk (uncommitted manual edits, on top of `0f3d9bda`)
+**Source:** User-supplied reference document — `C:\Users\User\Downloads\Deliverable 48 User Manual (Web-based MYPS)_V5_27August2026.docx` (the consultant's own Deliverable #48, Revision 5, dated 27 Aug 2026) — converted via pandoc and diffed section-by-section against `FE/UserManual.md`. Full diff recorded at `documents/UserManual_DocxDiff_V5.md`. Two structural additions (Reports, Lump Sum Projects) were cross-checked against `FE/src/components/Routes.tsx` to confirm both are live, routed modules before writing them up as shipped, rather than trusting the docx wording alone.
+
+---
+
+## 1. Document Header
+
+| Field | v3.10 | v3.11 |
+|-------|-------|-------|
+| Version | 3.10 | 3.11 |
+| Date | August 25, 2026 | September 10, 2026 |
+
+---
+
+## 2. New Section 5.6 — Reports (5.6.1 Report Filters, 5.6.2 Programs Selection Panel)
+
+**New:** The Reports module (`/reports`, `RPT-*` field refs) was entirely undocumented in `FE/UserManual.md` despite being a live sidebar module. Added: Purpose/Who-uses-this/Prerequisites, an Access-by-Role table (RPC: own-region reports; PS Admin: all-region reports), and two subsections — Report Filters (Report Type, Year, Program Stage, Regional Office, Planning Engineer/Approved By/Reviewed By signature fields, Generate Report) and the Programs Selection Panel (search/select/select-all/clear-all, the "Selected: n items" counter, and empty/no-match states) — each with Field Reference, Step-by-Step, and Common Outcomes tables adapted from docx §5.6/§5.6.1/§5.6.2.
+
+> Source: docx §5.6. Verified live via `Routes.tsx` (`{ RouteName: 'Reports', path: '/reports', element: <Reports /> }`) and source commits `01950eb4` (Add AIP and Extract PCMIOW report support to the Reports page, #114), `a12cf443` (Fix region dropdown & major SQL deduplication in reports), `0f65fe51` (Refactor report UI for multiple families & validation), `80b39f3d` (Add ExtractPcmiowFields component for PCMIOW report filtering, merged via PR #180).
+
+---
+
+## 3. New Section 5.10 — Lump Sum Projects (5.10.1–5.10.8)
+
+**New:** The Lump Sum Projects module (`/lumpsum`, `LS-*` field refs) was entirely undocumented in `FE/UserManual.md`. Note: an unrelated, separate in-app help doc at `FE/src/pages/LSWallet/UserManual.md` still opens with a "demo and preview feature... not connected to real DPWH records" disclaimer — per user decision, the manual documents Lump Sum Projects as a shipped, production workflow (matching the docx and the live `/lumpsum` routes), not as a preview feature. Added the full 8-subsection workflow: Finding a Lump Sum Project, Add Lump Sum Project, Lump Sum Overview (Financial Position: Original Allocation / Itemized / Remaining / Allocation Utilization), Import Itemized Projects (template download, 4-sheet workbook, Balance Check, Errors tab), Viewing an Itemized Project, Deleting a Lump Sum Project, Deleting an Itemized Project, and Editing a Lump Sum Project — each with Field Reference and Step-by-Step tables adapted from docx §5.10–§5.10.8. Two docx source paragraphs (§5.10.6/§5.10.7 on deletion) were grammatically malformed in the source and were rewritten for clarity rather than copied verbatim; the underlying meaning (deletion may be blocked, allowed, or retained-for-audit depending on record history) was preserved.
+
+> Source: docx §5.10. Verified live via `Routes.tsx` (`LumpSumList` / `AddWallet` / `LumpSumDetails` routes under `/lumpsum`) and source commits `9777dc39` (Implement normalized LS Wallet schema with header, revision, funding, and component tables), `8a0cf355` (refactor(wallet): program selection logic to self-fetch program list in add mode), `8bab21ee` (refactor: WalletDetailsSection/ProjectDetailsForm enum consistency).
+
+---
+
+## 4. Section renumbering: former 5.6–5.8 → 5.7–5.9
+
+**Mechanical renumbering**, not a content change: inserting Reports as the new §5.6 pushed Code Tables (5.6 → **5.7**, subsections 5.6.1–5.6.7 → 5.7.1–5.7.7), User Management (5.7 → **5.8**, subsections 5.7.1–5.7.3 → 5.8.1–5.8.3), and Infra Management (5.8 → **5.9**, subsections 5.8.1–5.8.4 → 5.9.1–5.9.4) down by one; Lump Sum Projects was appended as the new §5.10. Table of Contents and the Section 4.1 module map's "Section 5 Ref" column were updated to match. Verified no other in-body cross-references to "Section 5.6/5.7/5.8" existed outside this renumbered range and the (untouched, historical) Revision History table.
+
+---
+
+## 5. Section 4.1 — Module & Feature Discovery table and stale "commented-out" note
+
+| # | Old | New | Reason |
+|---|-----|-----|--------|
+| 1 | Table listed 8 modules, ending at row 8 (Infra Management, ref 5.8) | Added row 6 (Reports, `/reports`, ref 5.6) and row 10 (Lump Sum Projects, `/lumpsum`, ref 5.10); existing rows renumbered #6–8 → #7–9 | Reports and Lump Sum are live routes in `Routes.tsx`, not placeholders |
+| 2 | "Commented-out sidebar items (Lump Sum, Multi-Year Management, Reports) are not accessible to users and are not documented in Section 5." | "Multi-Year Management remains commented out in the sidebar and is not accessible to users; it is not documented in Section 5." | Only Multi-Year Management is still inactive; the other two claims were stale |
+
+> Source: `Routes.tsx` inspection (see §2/§3 above).
+
+---
+
+## 6. Section 9 — Notes & Limitations, stale "Inactive modules" bullet
+
+| Old | New |
+|-----|-----|
+| "**Inactive modules:** Lump Sum, Multi-Year Management, and Reports are currently disabled in the sidebar and are not accessible to users." | "**Inactive modules:** Multi-Year Management is currently disabled in the sidebar and is not accessible to users. Reports (Section 5.6) and Lump Sum Projects (Section 5.10) are live modules." |
+
+---
+
+## 7. User-group terminology standardized: DEO / RO / AUC → DPC / RPC / PS Admin
+
+**Systemic rename**, not confined to one section. The docx V5 has fully standardized on **DPC** (District Planning Coordinator), **RPC** (Regional Planning Coordinator), and **PS Admin**, retiring **DEO**/**RO**/**AUC** as role names. `FE/UserManual.md` was mid-migration and inconsistent (mostly DEO/RO, with a few stray DPC/RPC/AUC mentions already present around Section 5.4). Checked the codebase first: role names are RBAC config/data, not hardcoded in `FE/src` (the only hardcoded "DEO" is the unrelated District Engineering Office admin-area concept in `DEOTable.tsx`), so nothing in code contradicts adopting the docx's terminology.
+
+| # | Old | New | Where |
+|---|-----|-----|-------|
+| 1 | `**Who uses this:** DEO, RO, PS Admin` (~30 occurrences) | `**Who uses this:** DPC, RPC, PS Admin` | Throughout Sections 3–5.9 |
+| 2 | `PS Admin (Allow/Restrict Publishing); DEO, RO, PS Admin (Batch Delete)` | `...; DPC, RPC, PS Admin (Batch Delete)` | 5.2.6 |
+| 3 | `DEO (submit), RO (first-level review), PS Admin (final approval)` | `DPC (submit), RPC (first-level review), PS Admin (final approval)` | 5.4 intro |
+| 4 | `**Who uses this:** DEO, RO` | `**Who uses this:** DPC, RPC` | 5.4.8 |
+| 5 | Section title "5.4.9 RO Approval Actions"; purpose "submitted by DEO users... approve..."; sub-heading "**Approve:**"; step "Proceed with **Approval**."; success text "approved and forwarded..." | Retitled "**5.4.9 RPC Endorsement Actions**"; "submitted by DPC users... endorse..."; "**Endorse:**"; "Proceed with **Endorsement**."; "The revision is endorsed and forwarded..." | 5.4.9 — action renamed Approve→Endorse to match the pre-existing Terminology note in 5.4.1 ("RPC's review is called an *Endorsement*, not an *Approval*"), which the section body had never actually been updated to match |
+| 6 | "...forwarded from the RO." | "...forwarded from the RPC." | 5.4.10 purpose |
+| 7 | `SR-F05` \| "...required for DPC, RPC, and AUC user groups" | "...required for DPC, RPC, and PS Admin user groups" | 5.4.7 field reference |
+| 8 | Step 6: "(DPC, RPC, AUC)" | "(DPC, RPC, PS Admin)" | 5.4.7 step-by-step |
+| 9 | Routing table: "DPC / DEO → RO (Region Office)", "RPC / RO → CO / PS Admin", "AUC / PS Admin / CO → Automatically approved" | Replaced with docx's cleaner routing table: DPC → endorsed by RPC then approved by PS Admin; RPC → approved by PS Admin; PS Admin → automatically approved | 5.4.7 On Success |
+| 10 | "(applies to DPC, RPC, AUC roles)" | "(applies to DPC, RPC, PS Admin roles)" | 5.4.7 Common Outcomes |
+| 11 | `* **DEO** — District Engineering Office users: project encoding and revision submission` / `* **RO** — Regional Office users: revision review and approval` | `* **DPC** — District Planning Coordinator: ...` / `* **RPC** — Regional Planning Coordinator: region-level management of projects and programs, revision review and endorsement` | Section 1, "Who It Is For" |
+| 12 | "Review and Approve a Revision (RO Level)" / "Find the revision request submitted by a DEO." / "Select **Approve**, **Reject**, or **For Correction**." | "Review and Endorse a Revision (RPC Level)" / "...submitted by a DPC." / "Select **Endorse**, **Reject**, or **For Correction**." | Workflow 4 |
+| 13 | "Find the revision request forwarded from the RO." | "...forwarded from the RPC." | Workflow 5 |
+| 14 | *(not present)* | **New:** "Status Tracking: RPCStatus / PSStatus" subsection after Workflow 5 — a 7-row status-pair reference table (0/0 = Pending RPC Endorsement, through 1/1 = Approved, 2/any and 1/2 = terminal rejections) | New, adapted from docx §6.3 |
+| 15 | Appendix C: only `DEO` and `PS Admin` rows | Added `DPC` and `RPC` rows; reworded the `DEO` row to clarify it is now an admin-area term only, not a user-group term | Appendix C |
+
+**Left unchanged (confirmed as legitimate "District Engineering Office" org-unit usages, not the role):** Admin Areas Code Table sub-tab lists, the Project Details / Add Project / Revision Rules field lists, Road Section "Engineering District" fields and filters, the Import Dialog's AAMS/IOMS description, and the two historical Revision-History rows (3.2, 3.5) describing past work — these were deliberately left untouched since they describe DEO-the-org-unit or are a historical record of what was true at the time they were written.
+
+> Note: this rename does **not** touch the underlying `RPCStatus`/`PSStatus` API field names (see docx §6.3) — those are unaffected by the role-label rename. (The docx itself contained a stray, chat-response-like sentence at this point — "Note that the underlying field names remain RPCStatus and PSStatus — I've left those as-is... say the word and I'll adjust them throughout" — which was not carried into the manual; flagged to the user as likely leftover content from whoever produced the docx.)
+
+---
+
+## 8. Section 5.3.6 Component Targets — retained, not removed
+
+**No change to manual content.** Flagged only: docx V5 (dated 27 Aug 2026) omits Section 5.3.6 Component Targets, which `FE/UserManual.md` has carried since v3.9 (23 Aug 2026, updated in v3.10). Since the feature is live and predates the docx's own date, this reads as an omission on the docx author's side rather than an intentional removal — the manual keeps the section as-is. Recommend flagging to whoever produces the next docx revision.
+
+---
+
+## 9. Commits Covered
+
+| Commit | Message | Impact |
+|--------|---------|--------|
+| `01950eb4` | Add AIP and Extract PCMIOW report support to the Reports page (#114) | Confirms Reports module existence — Section 5.6 |
+| `a12cf443` | Fix region dropdown & major SQL deduplication in reports | Section 5.6.1 Regional Office filter behavior |
+| `0f65fe51` | Refactor report UI for multiple families & validation | Section 5.6.1 field behavior |
+| `80b39f3d` | Add ExtractPcmiowFields component for PCMIOW report filtering (PR #180) | Confirms Reports module is current/live as of this branch |
+| `9777dc39` | feat: Implement normalized LS Wallet schema with header, revision, funding, and component tables | Confirms Lump Sum Projects module existence — Section 5.10 |
+| `8a0cf355` | feat(wallet): refactor program selection logic to self-fetch program list in add mode | Section 5.10.2 Add Lump Sum Project |
+| `8bab21ee` | refactor: update projectEnums to use 'Code' instead of 'GdbId'... in WalletDetailsSection and ProjectDetailsForm | Section 5.10.3 Lump Sum Overview field naming |
+
+---
+
 # UserManual.md — Changelog v3.8 → v3.10 (FE/UserManual.md)
 
 **Date:** August 24, 2026
