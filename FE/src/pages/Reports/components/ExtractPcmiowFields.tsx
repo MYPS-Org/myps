@@ -16,10 +16,11 @@ interface ExtractPcmiowFieldsProps {
   onIoChange: (value: string) => void;
 }
 
-// Category/DEO/Implementing Office fields for the Extract PCMIOW report family
-// (the only Excel/xlsx report today — split out of Reports.tsx so the PDF vs
-// Excel filter sections stay independently readable as more Excel reports
-// are added to ReportCatalog).
+// Category/DEO/Implementing Office fields for the Extract PCMIOW and Extract PC
+// report families — both take the identical parameter contract on the backend
+// (see ReportRequestMapper.MapExtract), so they share this same fields block.
+// Split out of Reports.tsx so the PDF vs Excel filter sections stay
+// independently readable as more Excel reports are added to ReportCatalog.
 const ExtractPcmiowFields: React.FC<ExtractPcmiowFieldsProps> = ({
   dropdowns,
   isLoadingDropdowns,

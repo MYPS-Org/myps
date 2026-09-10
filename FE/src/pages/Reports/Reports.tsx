@@ -38,7 +38,10 @@ function getReportFamily(reportKey: string): ReportFamily | null {
   if (!reportKey) return null;
   const key = reportKey.toLowerCase();
   if (key === 'rbp') return 'rbp';
-  if (key === 'extract-pcmiow') return 'extract-pcmiow';
+  // extract-pc reuses the extract-pcmiow family: same (programid, categoryid,
+  // rocode, deocode, io_code) request shape, same ReportRequestMapper.MapExtract
+  // on the backend (see ReportRequestMapper.cs), just a different report key.
+  if (key === 'extract-pcmiow' || key === 'extract-pc') return 'extract-pcmiow';
   if (AIP_REPORT_KEYS.has(key)) return 'aip';
   if (RBP_SUMMARY_REPORT_KEYS.has(key)) return 'rbp-summary';
   return null;
@@ -88,8 +91,9 @@ const Reports: React.FC = () => {
   const [aipReportType, setAipReportType] = useState('');
   const [aipReportTypeTitle, setAipReportTypeTitle] = useState('');
 
-  // Extract PCMIOW family only — reuses the same dropdown data source and
-  // Region→DEO→Implementing Office cascade AIPReportDialog.tsx already uses.
+  // Extract PCMIOW / Extract PC families only — both reuse the same dropdown
+  // data source and Region→DEO→Implementing Office cascade AIPReportDialog.tsx
+  // already uses.
   const [categoryId, setCategoryId] = useState('');
   const [deoCode, setDeoCode] = useState('');
   const [ioCode, setIoCode] = useState('');
