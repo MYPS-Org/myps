@@ -96,24 +96,10 @@ namespace Hangfire.Services
                 var expected = expectedHeaders[col - 1];
                 if (!string.Equals(actual, expected, StringComparison.Ordinal))
                 {
-                    mismatches.Add($"{sheetName} column {ColumnLetter(col)}: expected \"{expected}\", found \"{actual}\"");
+                    mismatches.Add($"{sheetName} column {ImportErrorWorkbookBuilder.ColumnLetter(col)}: expected \"{expected}\", found \"{actual}\"");
                 }
             }
             return mismatches;
-        }
-
-        // 1-based column index -> Excel column letter (1 -> A, 27 -> AA). All the sheets this
-        // validates against top out well under 27 columns, but the loop handles any width.
-        private static string ColumnLetter(int col)
-        {
-            var letters = string.Empty;
-            while (col > 0)
-            {
-                int rem = (col - 1) % 26;
-                letters = (char)('A' + rem) + letters;
-                col = (col - 1) / 26;
-            }
-            return letters;
         }
 
         // Sanitizes a value for use as a filename component — same treatment every generated

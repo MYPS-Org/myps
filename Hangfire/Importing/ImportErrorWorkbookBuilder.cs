@@ -17,17 +17,22 @@ namespace Hangfire.Importing
     // the reference DPWH template this cascading technique is adapted from, whose lookup
     // sheets are frozen at whatever point the template was last exported.
     //
-    // Six PROJECT DETAILS fields (City, Legislative District, Region, DEO, Implementing
-    // Office, Operating Unit), FUNDING PROFILE's Agreement, and COMPONENT DETAILS' Type of
-    // Work are filtered by a parent column (Province / Source / Infrastructure Type
-    // respectively). The *initial* filtered dropdown for each row is set directly at
-    // generation time (we already know the row's parent value then); a small VBA
-    // Worksheet_Change handler per sheet re-points the dependent cell's validation and clears
-    // its value whenever the parent cell is edited after the file is opened — this mirrors
-    // the mechanism (not the data) of the reference template's cascade macro: a VBA-driven
-    // Validation.Formula1 rewrite against pre-built static named ranges, rather than an
-    // INDIRECT formula. That means the cascade only updates live with macros enabled; the
-    // dropdown a row opens with is always correct regardless, since it was set at build time.
+    // PROJECT DETAILS' City/Legislative District/Region/DEO (parented by Province) and
+    // Implementing Office/Operating Unit (parented by DEO) are whole-column, formula-driven
+    // cascades: IFERROR(INDIRECT(prefix & VLOOKUP(parent cell, key map, 2, 0)), EmptyList).
+    // Because the formula — not generation-time knowledge of the row's parent value — resolves
+    // the dropdown, every row (blank template rows and hand-added rows included) filters
+    // correctly with no macros required; a VBA Worksheet_Change only clears a dependent cell's
+    // stale value when its parent changes, it never needs to re-point the validation itself.
+    //
+    // Category→Thrust (PROJECT DETAILS), FUNDING PROFILE's Agreement, and COMPONENT DETAILS'
+    // Type of Work are still filtered the older way: the initial dropdown for each row is set
+    // directly at generation time (we already know the row's parent value then), and a VBA
+    // Worksheet_Change handler re-points the dependent cell's validation itself (not just its
+    // value) when the parent is edited later — this mirrors the mechanism (not the data) of the
+    // reference template's cascade macro. These only update live with macros enabled; the
+    // dropdown a row opens with is still always correct regardless, since it was set at build
+    // time.
     public static class ImportErrorWorkbookBuilder
     {
         // Matches the reference template's Amount/Cost number format exactly (literal peso
@@ -142,9 +147,13 @@ namespace Hangfire.Importing
             foreach (var pair in new[] { (" ", "_"), ("-", "_"), ("/", "_"), (".", "_"), ("(", "_"), (")", "_"), ("&", "_"), (",", "_"), ("'", "") })
                 t = t.Replace(pair.Item1, pair.Item2);
 
+            // ASCII-only on purpose (matches VBA's Like "[A-Za-z0-9_]" exactly) — char.IsLetterOrDigit
+            // would keep e.g. 'ñ' here but VBA's pattern wouldn't, and the two sanitizers must
+            // produce byte-identical keys or a cell edited after the file is open (VBA-side) could
+            // resolve a different named range than the one this method built at generation time.
             var sb = new StringBuilder();
             foreach (var ch in t)
-                if (char.IsLetterOrDigit(ch) || ch == '_') sb.Append(ch);
+                if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_') sb.Append(ch);
 
             var result = sb.ToString();
             if (result.Length == 0) result = "X";
@@ -200,6 +209,30 @@ namespace Hangfire.Importing
                 pkg.Workbook.Names.Add(namePrefix, ws.Cells[1, col, distinctValues.Count, col]);
                 col++;
                 return namePrefix;
+            }
+
+            // Writes a two-column (Name -> Key) table as one defined Name spanning both columns,
+            // so a cascade formula can VLOOKUP(parentCellValue, rangeName, 2, 0) to recover the
+            // sanitized key for that parent's own per-value named ranges (City_<key>, and so on).
+            string WritePairTable(string rangeName, IEnumerable<(string Name, string Key)> pairs)
+            {
+                var distinctPairs = pairs
+                    .Where(p => !string.IsNullOrWhiteSpace(p.Name))
+                    .GroupBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
+                    .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (distinctPairs.Count == 0) distinctPairs.Add(("", ""));
+
+                int nameCol = col++;
+                int keyCol = col++;
+                for (int i = 0; i < distinctPairs.Count; i++)
+                {
+                    ws.Cells[i + 1, nameCol].Value = distinctPairs[i].Name;
+                    ws.Cells[i + 1, keyCol].Value = distinctPairs[i].Key;
+                }
+                pkg.Workbook.Names.Add(rangeName, ws.Cells[1, nameCol, distinctPairs.Count, keyCol]);
+                return rangeName;
             }
 
             var names = new LookupNames
@@ -308,18 +341,32 @@ namespace Hangfire.Importing
                 pkg.Workbook.Names.Add("ScopeOfWorkMeasures", ws.Cells[1, measureCol, scopeRowCount, measureCol]);
             }
 
+            // ── Province/DEO -> sanitized-key maps, and a safe empty fallback ──────────
+            // These back the whole-column INDIRECT/VLOOKUP cascade formulas on PROJECT DETAILS
+            // (BuildProjectDetailsSheet/AddColumnCascadeValidation): given a row's own parent
+            // cell text (Province, or DEO), VLOOKUP recovers the same sanitized key SanitizeKey
+            // would produce, without the formula needing to replicate SanitizeKey's character
+            // substitutions itself.
+            WritePairTable("ProvinceKeyMap", cache.Provinces.Select(p => (p.Name, SanitizeKey(p.Name))));
+            WritePairTable("DeoKeyMap", cache.DEOs.Select(d => (d.Name, SanitizeKey(d.Name))));
+            {
+                int emptyCol = col++;
+                ws.Cells[1, emptyCol].Value = "";
+                pkg.Workbook.Names.Add("EmptyList", ws.Cells[1, emptyCol, 1, emptyCol]);
+            }
+
             // ── Per-province grouped lists, mirroring ValidateProjectDetails' own scoping ──
             // Accumulated into buckets keyed by the sanitized name — if two distinct province
             // names ever sanitize to the same key, both provinces' entries get unioned into
             // that one dropdown list instead of the second one silently losing its ranges.
-            var grouped = new Dictionary<string, (List<string?> Cities, List<string?> Districts, List<string?> Regions, List<string?> Deos, List<string?> ImplOffices, List<string?> OpUnits)>(StringComparer.OrdinalIgnoreCase);
+            var grouped = new Dictionary<string, (List<string?> Cities, List<string?> Districts, List<string?> Regions, List<string?> Deos)>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var province in cache.Provinces)
             {
                 var key = SanitizeKey(province.Name);
                 if (!grouped.TryGetValue(key, out var bucket))
                 {
-                    bucket = (new List<string?>(), new List<string?>(), new List<string?>(), new List<string?>(), new List<string?>(), new List<string?>());
+                    bucket = (new List<string?>(), new List<string?>(), new List<string?>(), new List<string?>());
                     grouped[key] = bucket;
                 }
 
@@ -330,25 +377,7 @@ namespace Hangfire.Importing
                 bucket.Districts.AddRange(cache.Districts.Where(d => d.ProvinceCode == province.Code).Select(d => d.Name));
                 if (region != null) bucket.Regions.Add(region.Name);
                 bucket.Deos.AddRange(deoNames);
-
-                // Implementing Office / Operating Unit candidates: any office scoped to this
-                // province's Region whose name matches either the Region itself or one of this
-                // province's DEOs — the same OR-condition ValidateProjectDetails checks per row.
-                bucket.ImplOffices.AddRange(cache.ImplementingOffices
-                    .Where(o => o.RegionParticipantId == province.RegionParticipantId
-                             && (region != null && ImportingHelper.NamesMatch(o.Name, region.Name)
-                                 || deoNames.Any(d => ImportingHelper.NamesMatch(o.Name, d))))
-                    .Select(o => o.Name));
-
-                bucket.OpUnits.AddRange(cache.OperatingUnits
-                    .Where(o => o.RegionParticipantId == province.RegionParticipantId
-                             && (region != null && ImportingHelper.NamesMatch(o.Name, region.Name)
-                                 || deoNames.Any(d => ImportingHelper.NamesMatch(o.Name, d))))
-                    .Select(o => o.Name));
             }
-
-            // "Central Office" is always a valid Operating Unit choice, regardless of province.
-            var centralOffice = cache.OperatingUnits.Where(o => ImportingHelper.NamesMatch(o.Name, "Central Office")).Select(o => o.Name).ToList();
 
             foreach (var (key, bucket) in grouped)
             {
@@ -356,8 +385,48 @@ namespace Hangfire.Importing
                 WriteFlatList($"Dist_{key}", bucket.Districts);
                 WriteFlatList($"Reg_{key}", bucket.Regions);
                 WriteFlatList($"Deo_{key}", bucket.Deos);
-                WriteFlatList($"ImplOff_{key}", bucket.ImplOffices);
-                WriteFlatList($"OpUnit_{key}", bucket.OpUnits.Concat(centralOffice));
+            }
+
+            // "Central Office" is always a valid Operating Unit choice, regardless of DEO.
+            var centralOffice = cache.OperatingUnits.Where(o => ImportingHelper.NamesMatch(o.Name, "Central Office")).Select(o => o.Name).ToList();
+
+            // ── Per-DEO grouped Implementing Office / Operating Unit lists, mirroring
+            // ImportingHelper's own per-row match exactly (ImportingHelper.cs:417,425): scoped to
+            // the DEO's own province's RegionParticipantId, and matching either that province's
+            // Region name or this specific DEO's name — not "any DEO in the province", which is
+            // what the old per-province grouping did and could offer an office that's valid for a
+            // different DEO in the same province (and would then fail re-validation).
+            var deoGrouped = new Dictionary<string, (List<string?> ImplOffices, List<string?> OpUnits)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var deo in cache.DEOs)
+            {
+                var deoKey = SanitizeKey(deo.Name);
+                if (!deoGrouped.TryGetValue(deoKey, out var deoBucket))
+                {
+                    deoBucket = (new List<string?>(), new List<string?>());
+                    deoGrouped[deoKey] = deoBucket;
+                }
+
+                var deoProvince = cache.Provinces.FirstOrDefault(p => p.Code == deo.ProvinceCode);
+                if (deoProvince == null) continue;
+                var deoRegion = cache.Regions.FirstOrDefault(r => r.ParticipantId == deoProvince.RegionParticipantId);
+
+                deoBucket.ImplOffices.AddRange(cache.ImplementingOffices
+                    .Where(o => o.RegionParticipantId == deoProvince.RegionParticipantId
+                             && (deoRegion != null && ImportingHelper.NamesMatch(o.Name, deoRegion.Name)
+                                 || ImportingHelper.NamesMatch(o.Name, deo.Name)))
+                    .Select(o => o.Name));
+
+                deoBucket.OpUnits.AddRange(cache.OperatingUnits
+                    .Where(o => o.RegionParticipantId == deoProvince.RegionParticipantId
+                             && (deoRegion != null && ImportingHelper.NamesMatch(o.Name, deoRegion.Name)
+                                 || ImportingHelper.NamesMatch(o.Name, deo.Name)))
+                    .Select(o => o.Name));
+            }
+
+            foreach (var (deoKey, deoBucket) in deoGrouped)
+            {
+                WriteFlatList($"ImplOff_{deoKey}", deoBucket.ImplOffices);
+                WriteFlatList($"OpUnit_{deoKey}", deoBucket.OpUnits.Concat(centralOffice));
             }
 
             // ── Per-Category grouped Thrust lists, mirroring ValidateProjectDetails' own
@@ -519,33 +588,34 @@ namespace Hangfire.Importing
                 ws.Cells[row, ColMessage].Value = item.ErrorMessage;
 
                 // Category-dependent dropdown: correct for THIS row's Category value set now, at
-                // generation time — same reasoning as the Province-dependent dropdowns below.
+                // generation time — same reasoning as the flat/cascade dropdowns wired below.
                 var categoryKey = SanitizeKey(item.Category ?? string.Empty);
                 AddListValidation(ws, row, ColThrust, $"Thrust_{categoryKey}");
-
-                // Province-dependent dropdowns: correct for THIS row's Province value set now,
-                // at generation time — the macro (AuthorCascadeMacros) only needs to re-point
-                // these if the user edits Province after opening the file, including on a row
-                // added later (Worksheet_Change fires regardless of when the row was created).
-                var provinceKey = SanitizeKey(item.Province ?? string.Empty);
-                AddListValidation(ws, row, ColCity, $"City_{provinceKey}");
-                AddListValidation(ws, row, ColDistrict, $"Dist_{provinceKey}");
-                AddListValidation(ws, row, ColRegion, $"Reg_{provinceKey}");
-                AddListValidation(ws, row, ColDeo, $"Deo_{provinceKey}");
-                AddListValidation(ws, row, ColImplOffice, $"ImplOff_{provinceKey}");
-                AddListValidation(ws, row, ColOpUnit, $"OpUnit_{provinceKey}");
             }
 
             // Flat dropdowns — independent of any other cell in the row. Applied to the whole
             // column (row 2 through Excel's last row), not just the rows written above, so a
             // row added later by hand still gets the dropdown — matching the reference
             // template's own approach (e.g. its Province column is validated J2:J1048576).
-            // Sub-Category (Thrust) is NOT here — it's a Category-dependent column now, same as
-            // City/District/etc. are Province-dependent: only the per-row cascade above plus the
-            // VBA Worksheet_Change re-cascade (on Category edit) set its validation.
+            // Sub-Category (Thrust) is NOT here — it's a Category-dependent column, wired per-row
+            // above plus the VBA Worksheet_Change re-cascade (on Category edit).
             AddColumnListValidation(ws, 5, lookups.Tier);
             AddColumnListValidation(ws, ColCategory, lookups.Category);
             AddColumnListValidation(ws, ColProvince, lookups.Province);
+
+            // City/Legislative District/Region/DEO are whole-column, formula-driven cascades off
+            // the row's own Province cell; Implementing Office/Operating Unit off the row's own
+            // DEO cell (matching ImportingHelper.cs:417,425's per-DEO — not per-province — scoping).
+            // Unlike the Category->Thrust cascade above, no per-row generation-time call is needed:
+            // the formula itself resolves correctly for every row, blank or filled, with or
+            // without macros enabled.
+            AddColumnCascadeValidation(ws, ColCity, ColProvince, "ProvinceKeyMap", "City_");
+            AddColumnCascadeValidation(ws, ColDistrict, ColProvince, "ProvinceKeyMap", "Dist_");
+            AddColumnCascadeValidation(ws, ColRegion, ColProvince, "ProvinceKeyMap", "Reg_");
+            AddColumnCascadeValidation(ws, ColDeo, ColProvince, "ProvinceKeyMap", "Deo_");
+            AddColumnCascadeValidation(ws, ColImplOffice, ColDeo, "DeoKeyMap", "ImplOff_");
+            AddColumnCascadeValidation(ws, ColOpUnit, ColDeo, "DeoKeyMap", "OpUnit_");
+
             AddColumnListValidation(ws, 17, lookups.RegionWide);
             AddColumnListValidation(ws, 18, lookups.Origin);
             AddColumnListValidation(ws, 19, lookups.Agency);
@@ -582,6 +652,48 @@ namespace Hangfire.Importing
             {
                 cell.Value = rawValue;
             }
+        }
+
+        // Whole-column cascade: the dropdown for `col` is resolved by a live formula off each
+        // row's own `keyColumn` cell, via VLOOKUP into `keyMapName` (ProvinceKeyMap/DeoKeyMap) to
+        // recover the sanitized key, then INDIRECT("<prefix><key>") to reach that key's named
+        // range. Excel resolves the row-relative reference (e.g. $J2) per cell when a Data
+        // Validation formula is applied across a multi-row range, the same way conditional
+        // formatting does — so one rule here covers every row, including ones added by hand.
+        //
+        // Deliberately IF(ISERROR(...), ...) rather than IFERROR(...): Excel only lets a small
+        // whitelist of functions (IF, CHOOSE, INDEX, INDIRECT, OFFSET) return a genuine Reference
+        // usable as a Data Validation list source — IFERROR isn't on that list, and wrapping
+        // INDIRECT in it silently degrades the result to a plain array of values instead of a
+        // walkable range, so the dropdown shows no items at all (no error, nothing). IF *is* on
+        // the whitelist, so it preserves INDIRECT's reference-ness through the wrapper. Confirmed
+        // against a real downloaded template: the IFERROR version evaluated correctly as a normal
+        // cell formula (it "spilled" the right city list) but produced an empty dropdown when used
+        // as the validation source — this IF/ISERROR form is the standard, documented workaround.
+        private static void AddColumnCascadeValidation(ExcelWorksheet ws, int col, int keyColumn, string keyMapName, string prefix)
+        {
+            var keyCellRef = $"${ColumnLetter(keyColumn)}2";
+            var lookup = $"VLOOKUP({keyCellRef},{keyMapName},2,0)";
+            var formula = $"IF(ISERROR({lookup}),EmptyList,INDIRECT(\"{prefix}\"&{lookup}))";
+            var validation = ws.DataValidations.AddListValidation(ws.Cells[2, col, ExcelPackage.MaxRows, col].Address);
+            validation.Formula.ExcelFormula = formula;
+            validation.ShowErrorMessage = true;
+            validation.ErrorStyle = OfficeOpenXml.DataValidation.ExcelDataValidationWarningStyle.stop;
+        }
+
+        // 1-based column index -> Excel column letter (1 -> A, 27 -> AA). Internal (not private)
+        // so ImportProjectJobService's header-mismatch messages can reuse it instead of keeping a
+        // second copy.
+        internal static string ColumnLetter(int col)
+        {
+            var letters = string.Empty;
+            while (col > 0)
+            {
+                int rem = (col - 1) % 26;
+                letters = (char)('A' + rem) + letters;
+                col = (col - 1) / 26;
+            }
+            return letters;
         }
 
         private static void AddColumnListValidation(ExcelWorksheet ws, int col, string definedName)
@@ -840,6 +952,37 @@ Public Sub ApplyCascadeCell(ByVal targetCell As Range, ByVal rangeName As String
         .IgnoreBlank = True
         .InCellDropdown = True
     End With
+End Sub
+
+' For a dependent cell whose validation is already a live formula (whole-column
+' INDIRECT/VLOOKUP cascade, set once at generation time) — clears the cell's own value if it's
+' no longer found in the parent-scoped named range, without touching .Validation itself, since
+' the formula already re-resolves the correct range on its own once the parent cell changes.
+Public Sub ClearIfInvalidCell(ByVal targetCell As Range, ByVal rangeName As String)
+    Dim rng As Range
+    On Error Resume Next
+    Set rng = ThisWorkbook.Names(rangeName).RefersToRange
+    On Error GoTo 0
+
+    If rng Is Nothing Then
+        targetCell.ClearContents
+        Exit Sub
+    End If
+
+    If Len(CStr(targetCell.Value)) = 0 Then Exit Sub
+
+    Dim m As Variant
+    m = Application.Match(targetCell.Value, rng, 0)
+    If IsError(m) Then targetCell.ClearContents
+End Sub
+
+' Shared by PROJECT DETAILS' Worksheet_Change Province and DEO branches: Implementing
+' Office/Operating Unit cascade off DEO, so both a direct DEO edit and a Province edit that
+' clears/changes DEO need this same pair of clear-checks against the row's current DEO key.
+Public Sub ClearImplOfficeAndOpUnit(ByVal ws As Worksheet, ByVal targetRow As Long, ByVal deoKey As String, _
+                                     ByVal implOfficeCol As Long, ByVal opUnitCol As Long)
+    ClearIfInvalidCell ws.Cells(targetRow, implOfficeCol), ""ImplOff_"" & deoKey
+    ClearIfInvalidCell ws.Cells(targetRow, opUnitCol), ""OpUnit_"" & deoKey
 End Sub
 
 Public Sub ReplaceName(ByVal nm As String, ByVal refersTo As String)
@@ -1402,6 +1545,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     Application.EnableEvents = False
 
     Dim key As String
+    Dim deoKey As String
 
     If Target.Column = 1 Then
         ModuleShared.CheckDuplicateProjectId Me, Target, 1
@@ -1414,12 +1558,21 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     ElseIf Target.Column = {ColProvince} Then
         key = ModuleShared.MakeValidName(CStr(Target.Value))
 
-        ModuleShared.ApplyCascadeCell Me.Cells(Target.Row, {ColCity}), ""City_"" & key
-        ModuleShared.ApplyCascadeCell Me.Cells(Target.Row, {ColDistrict}), ""Dist_"" & key
-        ModuleShared.ApplyCascadeCell Me.Cells(Target.Row, {ColRegion}), ""Reg_"" & key
-        ModuleShared.ApplyCascadeCell Me.Cells(Target.Row, {ColDeo}), ""Deo_"" & key
-        ModuleShared.ApplyCascadeCell Me.Cells(Target.Row, {ColImplOffice}), ""ImplOff_"" & key
-        ModuleShared.ApplyCascadeCell Me.Cells(Target.Row, {ColOpUnit}), ""OpUnit_"" & key
+        ModuleShared.ClearIfInvalidCell Me.Cells(Target.Row, {ColCity}), ""City_"" & key
+        ModuleShared.ClearIfInvalidCell Me.Cells(Target.Row, {ColDistrict}), ""Dist_"" & key
+        ModuleShared.ClearIfInvalidCell Me.Cells(Target.Row, {ColRegion}), ""Reg_"" & key
+        ModuleShared.ClearIfInvalidCell Me.Cells(Target.Row, {ColDeo}), ""Deo_"" & key
+
+        ' DEO may have just been cleared above because it no longer belongs to the new
+        ' Province — re-derive its (possibly now blank) key so ImplOffice/OpUnit, which cascade
+        ' off DEO rather than Province, get re-checked against wherever DEO actually landed.
+        deoKey = ModuleShared.MakeValidName(CStr(Me.Cells(Target.Row, {ColDeo}).Value))
+        ModuleShared.ClearImplOfficeAndOpUnit Me, Target.Row, deoKey, {ColImplOffice}, {ColOpUnit}
+
+    ElseIf Target.Column = {ColDeo} Then
+        key = ModuleShared.MakeValidName(CStr(Target.Value))
+
+        ModuleShared.ClearImplOfficeAndOpUnit Me, Target.Row, key, {ColImplOffice}, {ColOpUnit}
     End If
 
 CleanUp:
