@@ -5,6 +5,7 @@ public enum ReportFamily
     Rbp,
     Aip,
     ExtractPcmiow,
+    ExtractPc,
     RbpSummary
 }
 
@@ -22,6 +23,12 @@ public static class ReportCatalog
         {
             Id = "extract-pcmiow",
             Label = "Extract PCMIOW",
+            OutputFormat = "xlsx"
+        },
+        new ReportTypeOptionDTO
+        {
+            Id = "extract-pc",
+            Label = "Extract PC",
             OutputFormat = "xlsx"
         },
         new ReportTypeOptionDTO
@@ -80,6 +87,12 @@ public static class ReportCatalog
         if (reportName.Equals("extract-pcmiow", StringComparison.OrdinalIgnoreCase))
         {
             family = ReportFamily.ExtractPcmiow;
+            return true;
+        }
+
+        if (reportName.Equals("extract-pc", StringComparison.OrdinalIgnoreCase))
+        {
+            family = ReportFamily.ExtractPc;
             return true;
         }
 

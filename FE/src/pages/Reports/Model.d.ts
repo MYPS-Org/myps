@@ -67,7 +67,10 @@ export interface GenerateRbpSummaryRequest {
     ApprovedBy?: string;
 }
 
-// Matches WebAPI.Controllers.CrystalReport.GenerateExtractPcmiowRequestDTO
+// Matches WebAPI.Controllers.CrystalReport.GenerateExtractPcmiowRequestDTO --
+// also used as the request shape for the 'extract-pc' report key, since the
+// backend's ReportRequestMapper.MapExtract deserializes both report families
+// into this same DTO.
 export interface GenerateExtractPcmiowRequest {
     ProgramIds?: string[];
     CategoryId?: number;
