@@ -2834,6 +2834,16 @@ namespace WebAPI.Controllers.Revision
                     }
                     if (ExistingRevisionProject.Category != RevisionProject.Category)
                     {
+                        // 2026-09-10 fix: ResubmitRevision previously persisted a changed Category with
+                        // no existence/date-window check at all, unlike AddProject/UpdateProjectDetails
+                        // (ValidateProjectDetailsLookups, Helpers/ProjectHelper.cs:296). Mirrors that
+                        // same check inline rather than calling the shared helper, since this endpoint
+                        // doesn't touch the rest of that helper's fields.
+                        var ValidateNewCategory = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == RevisionProject.Category && (x.IsActive || (x.ValidUntil == 0 || x.ValidUntil >= CurrentDate.Year)), cancellationToken);
+                        if (ValidateNewCategory == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = $"Selected Category '{RevisionProject.Category}' is not valid.", Title = "Invalid Category" });
+                        }
                         Logs.Add(new RevisionTransactionLog
                         {
                             TransactionId = RevisionTransactionId,
@@ -2850,6 +2860,27 @@ namespace WebAPI.Controllers.Revision
                     }
                     if (ExistingRevisionProject.Thrust != RevisionProject.Thrust)
                     {
+                        // 2026-09-10 fix: same gap as Category above -- mirrors
+                        // ValidateProjectDetailsLookups' Thrust check (ProjectHelper.cs:323-338)
+                        // exactly, including the Thrust=0 "none selected" convention and the
+                        // Category-to-PAPKey mapping check.
+                        if (RevisionProject.Thrust.HasValue && RevisionProject.Thrust.Value != 0)
+                        {
+                            var ValidateNewThrust = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == RevisionProject.Thrust.Value && (x.IsActive || (x.ValidToDate == 0 || x.ValidToDate >= CurrentDate.Year)), cancellationToken);
+                            if (ValidateNewThrust == null)
+                            {
+                                return new BadRequestObjectResult(new { Message = $"Selected Sub-Category '{RevisionProject.Thrust}' is not valid.", Title = "Invalid Sub-Category" });
+                            }
+                            var ValidateNewThrustForCategory = await _db.vProjectThrustByCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == RevisionProject.Category && x.PAPKey == RevisionProject.Thrust.Value, cancellationToken);
+                            if (ValidateNewThrustForCategory == null)
+                            {
+                                bool CategoryHasRestrictions = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking().AnyAsync(x => x.CategoryId == RevisionProject.Category && x.PAPKey != -1, cancellationToken);
+                                if (CategoryHasRestrictions)
+                                {
+                                    return new BadRequestObjectResult(new { Message = $"Selected Sub-Category '{RevisionProject.Thrust}' is not valid for the selected Category.", Title = "Invalid Sub-Category" });
+                                }
+                            }
+                        }
                         Logs.Add(new RevisionTransactionLog
                         {
                             TransactionId = RevisionTransactionId,

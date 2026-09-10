@@ -168,16 +168,33 @@ export const getDisabledClass = (disabled: boolean): string =>
 
 // Helper function to format dropdown options
 export const formatDropdownOptions = (
-  items: any[], 
-  valueField: any, 
-  labelField: any, 
+  items: any[],
+  valueField: any,
+  labelField: any,
   keyField?: any
 ) => {
   if (!items || !Array.isArray(items)) return [];
-  
+
   return items.map(item => ({
     value: item[valueField],
     label: item[labelField],
     key: keyField ? item[keyField] : item[valueField]
   }));
+};
+
+// Keeps the currently-selected item visible even if it fails the availability filter --
+// SearchableDropdown resolves its label purely via options.find(value), no fallback, so a
+// filtered-out selected value renders as the placeholder instead of its real label.
+export const filterKeepingSelected = (
+  items: any[] | undefined | null,
+  predicate: (item: any) => boolean,
+  valueField: any,
+  selectedValue: string | number | undefined | null
+) => {
+  if (!items || !Array.isArray(items)) return [];
+  const filtered = items.filter(predicate);
+  if (selectedValue === undefined || selectedValue === null || selectedValue === '') return filtered;
+  if (filtered.some(item => item[valueField] == selectedValue)) return filtered;
+  const selectedItem = items.find(item => item[valueField] == selectedValue);
+  return selectedItem ? [...filtered, selectedItem] : filtered;
 };

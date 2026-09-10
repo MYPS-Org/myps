@@ -41,6 +41,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.AdminAreas.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
         public DbSet<Models.Views.AdminAreas.AdminOfficeRegion> vAdminOfficeRegion { get; set; }
         public DbSet<Models.Views.AdminAreas.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
+        public DbSet<Models.Views.Project.ProjectThrustByCategory> vProjectThrustByCategory { get; set; }
         public DbSet<Models.Views.AdminAreas.AdminPMOCluster> vAdminPMOCluster { get; set; }
         public DbSet<Models.Views.AdminAreas.AdminService> vAdminService { get; set; }
         public DbSet<Models.Views.AdminAreas.AdminSubDEO> vAdminSubDEO { get; set; }
@@ -314,6 +315,7 @@ namespace DBHelper.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Models.Views.AdminAreas.AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
+            modelBuilder.Entity<Models.Views.Project.ProjectThrustByCategory>().HasNoKey().ToView("vProjectThrustByCategory");
             modelBuilder.Entity<Models.Views.AdminAreas.AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<Models.Views.AdminAreas.AdminOfficeRegion>().HasNoKey().ToView("vAdminOfficeRegion");
             modelBuilder.Entity<Models.Views.Infra.InfraRoadSectionOption>().HasNoKey().ToView("vInfraRoadSectionOptions");

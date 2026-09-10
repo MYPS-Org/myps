@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../../../Project/Model.d";
 import type { FormValidationError } from "../../../../utils/FormValidation";
 import type { FieldRules } from '../../Model';
-import { getDisabledClass, formatDropdownOptions, toDateInputValue } from '../../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, toDateInputValue } from '../../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../../components/ui/SearchableDropdown';
 import { EditableField } from '../../../../components/ui/EditableField';
 import { DateInput } from '../../../../components/tailwindui/date-input';
@@ -352,9 +352,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         {(editable) => (
                                         <SearchableDropdown
                                             options={formatDropdownOptions(
-                                                projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil >= new Date().getFullYear()) || [], 
-                                                'CategoryId', 
-                                                'CategoryName', 
+                                                filterKeepingSelected(
+                                                    projectEnums?.Categories,
+                                                    x => x.IsCurrentlyValid,
+                                                    'CategoryId',
+                                                    projectDetails?.Category
+                                                ),
+                                                'CategoryId',
+                                                'CategoryName',
                                                 'Id'
                                             )}
                                             value={projectDetails?.Category || ''}
@@ -379,7 +384,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         {(editable) => (
                                         <SearchableDropdown
                                             options={formatDropdownOptions(
-                                                projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0) || [],
+                                                filterKeepingSelected(
+                                                    projectEnums?.Thrusts,
+                                                    x => x.IsCurrentlyValid,
+                                                    'PAPKey',
+                                                    projectDetails?.Thrust
+                                                ),
                                                 'PAPKey',
                                                 'ThrustDescription',
                                                 'Id'

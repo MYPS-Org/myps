@@ -280,6 +280,7 @@ namespace Helpers
             public DateTime? FeasibilityDate { get; set; }
             public int? DetailedDesign { get; set; }
             public DateTime? DetailedDesignDate { get; set; }
+            public int? Thrust { get; set; }
         }
         public static async Task<ProjectHelperResponse<string>> ValidateProjectDetailsLookups(this MYPSDbContext _db, ValidateProjectDetailsLookupsParams p, CancellationToken cancellationToken)
         {
@@ -299,12 +300,45 @@ namespace Helpers
                 return response;
             }
 
-            //var ValidateThrust = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == p.Thrust, cancellationToken);
-            //if (ValidateThrust == null)
-            //{
-            //    response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid."; response.Title = "Invalid Sub-Category";
-            //    return response;
-            //}
+            // 2026-09-10 fix: was dead code -- referenced p.Thrust, a property that didn't exist
+            // on this params class, so it couldn't have compiled if ever uncommented. Thrust had
+            // ZERO server-side validation (AddProject relied solely on this now-real check;
+            // UpdateProjectDetails has its own separate existence-only inline check,
+            // ProjectController.cs:1459, kept for its audit-logging role -- becomes a harmless
+            // redundant recheck now that this runs first).
+            //
+            // Mirrors Hangfire/Importing/ImportingHelper.cs:248-269's already-proven Category<->
+            // Thrust rule (that pipeline validates imports; this validates normal Add/Update saves,
+            // which never went through it) -- a Category is "unrestricted" (any active thrust
+            // allowed) when tOptionProjectCategoryToPAPMap has no rows for it, or only a PAPKey=-1
+            // wildcard row. Uses the new vProjectThrustByCategory view for the fast "is this exact
+            // (Category, Thrust) pair explicitly allowed" check; the view's plain INNER JOIN can
+            // never represent the wildcard/no-row "unrestricted" cases (no real thrust has
+            // PAPKey=-1), so that fallback queries the raw map table directly, same as the import
+            // pipeline does.
+            // Thrust=0 (not just null) is this schema's existing "none selected" convention --
+            // confirmed live: 62 real projects carry Thrust=0, and PAPKey=0 doesn't exist as a real
+            // thrust row, so treating 0 as "must validate" would newly reject those projects on
+            // their next save even if Thrust itself was never touched.
+            if (p.Thrust.HasValue && p.Thrust.Value != 0)
+            {
+                var ValidateThrust = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == p.Thrust.Value && (x.IsActive || (x.ValidToDate == 0 || x.ValidToDate >= CurrentDate.Year)), cancellationToken);
+                if (ValidateThrust == null)
+                {
+                    response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid."; response.Title = "Invalid Sub-Category";
+                    return response;
+                }
+                var ValidateThrustForCategory = await _db.vProjectThrustByCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == p.Category && x.PAPKey == p.Thrust.Value, cancellationToken);
+                if (ValidateThrustForCategory == null)
+                {
+                    bool CategoryHasRestrictions = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking().AnyAsync(x => x.CategoryId == p.Category && x.PAPKey != -1, cancellationToken);
+                    if (CategoryHasRestrictions)
+                    {
+                        response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid for the selected Category."; response.Title = "Invalid Sub-Category";
+                        return response;
+                    }
+                }
+            }
             string UserId = p._Session.UserId;
             var ValidateRegion = await _db.fUserVisibleRegions
                 .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleRegions({UserId})")
