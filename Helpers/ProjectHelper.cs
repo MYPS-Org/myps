@@ -281,6 +281,17 @@ namespace Helpers
             public int? DetailedDesign { get; set; }
             public DateTime? DetailedDesignDate { get; set; }
             public int? Thrust { get; set; }
+            // RISK-072-adjacent fix (2026-09-11, Option A per
+            // documents/docs/engineering/MYPS_PROJECT_THRUST_CATEGORY_VALIDATION_RCA_AND_DECISION.md
+            // Section 9): the project's currently-stored Thrust, so the Category-mapping check below
+            // can tell "resubmitted unchanged because the frontend posts the whole form every save"
+            // apart from "the user is actually picking a new Thrust". Left null by AddProject (no
+            // prior state -- new projects are always fully validated); UpdateProjectDetails supplies
+            // it from the already-loaded ProjectRevision entity. Mirrors the diff-gate
+            // RevisionController.ResubmitRevision already has for the same check (its
+            // `if (ExistingRevisionProject.Thrust != RevisionProject.Thrust)` guard), just applied
+            // here instead of being an accidental side effect of that method's own diff pattern.
+            public int? PreviousThrust { get; set; }
         }
         public static async Task<ProjectHelperResponse<string>> ValidateProjectDetailsLookups(this MYPSDbContext _db, ValidateProjectDetailsLookupsParams p, CancellationToken cancellationToken)
         {
@@ -322,20 +333,40 @@ namespace Helpers
             // their next save even if Thrust itself was never touched.
             if (p.Thrust.HasValue && p.Thrust.Value != 0)
             {
-                var ValidateThrust = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == p.Thrust.Value && (x.IsActive || (x.ValidToDate == 0 || x.ValidToDate >= CurrentDate.Year)), cancellationToken);
-                if (ValidateThrust == null)
+                // 2026-09-11 fix (RCA Section 9, Option A): only re-validate the Category<->Thrust
+                // relationship when Thrust is actually changing. UpdateProjectDetails posts the whole
+                // form on every save, so an untouched Thrust arrives identically whether the user
+                // edited it or not -- without this gate, any of the 556 pre-existing, already-live
+                // projects whose stored Category/Thrust pair predates this validation (confirmed via
+                // category_to_pap_many2many_map.xlsx, see the RCA doc) would fail its next save for
+                // ANY reason, including edits that never touch Thrust. A genuinely new Thrust
+                // selection is still fully validated below, same as today.
+                bool ThrustIsChanging = !p.PreviousThrust.HasValue || p.PreviousThrust.Value != p.Thrust.Value;
+                if (ThrustIsChanging)
                 {
-                    response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid."; response.Title = "Invalid Sub-Category";
-                    return response;
-                }
-                var ValidateThrustForCategory = await _db.vProjectThrustByCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == p.Category && x.PAPKey == p.Thrust.Value, cancellationToken);
-                if (ValidateThrustForCategory == null)
-                {
-                    bool CategoryHasRestrictions = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking().AnyAsync(x => x.CategoryId == p.Category && x.PAPKey != -1, cancellationToken);
-                    if (CategoryHasRestrictions)
+                    var ValidateThrust = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == p.Thrust.Value && (x.IsActive || (x.ValidToDate == 0 || x.ValidToDate >= CurrentDate.Year)), cancellationToken);
+                    if (ValidateThrust == null)
                     {
-                        response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid for the selected Category."; response.Title = "Invalid Sub-Category";
+                        response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid."; response.Title = "Invalid Sub-Category";
                         return response;
+                    }
+                    var ValidateThrustForCategory = await _db.vProjectThrustByCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == p.Category && x.PAPKey == p.Thrust.Value, cancellationToken);
+                    if (ValidateThrustForCategory == null)
+                    {
+                        // 2026-09-11 fix (F2): a mapping row with PAPKey != -1 only counts as a real
+                        // restriction if it actually resolves to a Thrust that exists -- otherwise a
+                        // Category whose only non-wildcard rows are orphaned/dangling references would
+                        // be "restricted" to a set of PAPKeys nothing can ever match, silently locking
+                        // out every real Thrust. Mirrors the dangling-reference safety valve
+                        // Hangfire/Importing/ImportingHelper.cs already has; this path was missing it.
+                        bool CategoryHasRestrictions = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking()
+                            .AnyAsync(x => x.CategoryId == p.Category && x.PAPKey != -1
+                                && _db.tOptionProjectThrustList.Any(t => t.PAPKey == x.PAPKey), cancellationToken);
+                        if (CategoryHasRestrictions)
+                        {
+                            response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid for the selected Category."; response.Title = "Invalid Sub-Category";
+                            return response;
+                        }
                     }
                 }
             }

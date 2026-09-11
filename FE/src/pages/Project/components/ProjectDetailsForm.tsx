@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { ProgramLatest } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
@@ -27,6 +27,15 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     disabled = false,
 }) => {
     const isLumpSum = projectDetails?.IslandCode === 'LS';
+
+    // 2026-09-11 fix (F2): isThrustAllowedForCategory needs the set of real Thrust PAPKeys so a
+    // dangling tOptionProjectCategoryToPAPMap row (pointing at a Thrust that doesn't exist) can't
+    // count as a real restriction. Computed once per Thrusts-list change, reused at both call sites
+    // below rather than rebuilt on every option the dropdown filter evaluates.
+    const validThrustPAPKeys = useMemo(
+        () => new Set((projectEnums?.Thrusts ?? []).map(t => t.PAPKey)),
+        [projectEnums?.Thrusts]
+    );
 
     const {
         cities: filteredCities,
@@ -199,7 +208,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             onChange(field, value);
             // Clear the selected Sub-Category if it's no longer valid for the newly-picked
             // Category -- only fires on an actual user change, never on initial data load.
-            if (projectDetails?.Thrust && !isThrustAllowedForCategory(projectDetails.Thrust, value as number, projectEnums?.CategoryThrustMap)) {
+            if (projectDetails?.Thrust && !isThrustAllowedForCategory(projectDetails.Thrust, value as number, projectEnums?.CategoryThrustMap, validThrustPAPKeys)) {
                 onChange('Thrust', undefined);
             }
         }
@@ -406,7 +415,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         options={formatDropdownOptions(
                                             filterKeepingSelected(
                                                 projectEnums?.Thrusts,
-                                                x => x.IsCurrentlyValid && isThrustAllowedForCategory(x.PAPKey, projectDetails?.Category, projectEnums?.CategoryThrustMap),
+                                                x => x.IsCurrentlyValid && isThrustAllowedForCategory(x.PAPKey, projectDetails?.Category, projectEnums?.CategoryThrustMap, validThrustPAPKeys),
                                                 'PAPKey',
                                                 projectDetails?.Thrust
                                             ),

@@ -3,8 +3,17 @@
 **Date:** 2026-09-10
 **Scope:** `Helpers/ProjectHelper.cs` (`ValidateProjectDetailsLookups`), new `dbo.vProjectThrustByCategory`
 view, `tOptionProjectCategoryToPAPMap`, `tProjectRevisions.Category`/`.Thrust`
-**Status:** View and validation logic built and verified against live data; **shipping is blocked on
-one operator decision** — see "Open decision" below. Nothing in this document has been committed.
+**Status:** View and validation logic built and verified against live data. **2026-09-11: operator
+decided Section 9's Option A.** Implemented in `Helpers/ProjectHelper.cs` (`PreviousThrust` +
+`ThrustIsChanging` gate on `ValidateProjectDetailsLookups`) and wired in `ProjectController.cs`'s
+`UpdateProjectDetails`; `AddProject` deliberately unchanged (no prior state, always fully validated,
+per this section's own design); `RevisionController.cs`'s `ResubmitRevision` needed no change — its
+own pre-existing per-field diff pattern already gated the same check on Thrust actually changing.
+Build-verified (Helpers/WebAPI/MYPS.ApiIntegrationTests, 0 errors), 3 new characterization tests
+added (30/30 suite passing), and hand-traced against real currently-mismatched rows (Category
+29/Thrust 1139, e.g. revision Id 94440) confirming the grandfather gate is reached exactly as
+designed. Live count re-confirmed unchanged at 556 mismatched revisions as of this pass. **Not yet
+committed** — pending the operator's own commit.
 
 ---
 
