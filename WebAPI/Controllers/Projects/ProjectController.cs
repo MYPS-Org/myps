@@ -1394,21 +1394,41 @@ namespace WebAPI.Controllers.Projects
                 }
 
 
-                if (ProjectRevision.MYId != dto.ProjectDetails?.MYId)
+                // 2026-09-11 fix: previously compared/assigned MYId against ProjectRevision, which
+                // is an AsNoTracking() result from a raw-SQL fProjectDetails() call
+                // (ValidateProjectId -> Helpers/ProjectHelper.cs:102) -- mutating it has zero
+                // effect on SaveChangesAsync, so an MYId edit silently never persisted. Unlike
+                // AlternateId (which genuinely lives on tProjectRevisions, hence the tracked
+                // `Project` entity below it works), MYId actually lives on the PARENT tProjects
+                // table (DBHelper/Models/Table/Project/Projects.cs) -- confirmed by build error
+                // when this fix first tried `Project.MYId` (tProjectRevisions has no such column).
+                // ValidateProjectId's own ProjectParent (Helpers/ProjectHelper.cs:94) is ALSO
+                // AsNoTracking(), so it can't be reused here either -- a fresh tracked query is
+                // required, matching the same pattern used for `Project` just above.
+                var ProjectHeader = await _db.tProjects.FirstOrDefaultAsync(x => x.ProjectPK == ProjectParent.ProjectPK, cancellationToken);
+                if (ProjectHeader == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Project details could not be found for '{ProjectId}'. Please refresh the page and try again.",
+                        Title = "Project Not Found"
+                    });
+                }
+                if (ProjectHeader.MYId != dto.ProjectDetails?.MYId)
                 {
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
                         ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tProjectRevisions",
+                        AffectedTable = "tProjects",
                         AffectedColumn = "MYId",
                         NewValue = $"Stage: {StageName} Value: {dto.ProjectDetails?.MYId!}",
-                        OldValue = $"Stage: {StageName} Value: {ProjectRevision.MYId!}",
+                        OldValue = $"Stage: {StageName} Value: {ProjectHeader.MYId!}",
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    ProjectRevision.MYId = dto.ProjectDetails!.MYId;
+                    ProjectHeader.MYId = dto.ProjectDetails!.MYId;
                 }
                 if (Project.AlternateId != dto.ProjectDetails?.AlternateId)
                 {
@@ -4341,7 +4361,10 @@ namespace WebAPI.Controllers.Projects
                     return new BadRequestObjectResult(new { Message = "No file uploaded.", Title = "File Upload Error" });
                 }
                 string SupportingDocsDir = Path.Combine(Appsetting.Resources.SupportingDocs, ProjectRevision.ProjectId!);
-                string FilePath = Path.Combine(SupportingDocsDir, dto.File.Name);
+                // 2026-09-11 fix: dto.File.Name is client-supplied and was used directly in
+                // Path.Combine -- a crafted filename (e.g. containing "..\") could resolve
+                // outside SupportingDocsDir. Path.GetFileName strips any directory component.
+                string FilePath = Path.Combine(SupportingDocsDir, Path.GetFileName(dto.File.Name));
 
                 if (!dto.File.ValidateFileSize(50))
                 {
@@ -4417,7 +4440,12 @@ namespace WebAPI.Controllers.Projects
 
                 int ProjectRevisionFK = ProjectRevision.Id;
                 string ProjectId = ProjectRevision.ProjectId;
-                var Note = await _db.tProjectSupportingDocs.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                // 2026-09-11 fix: previously looked up by Id alone -- any caller authorized for
+                // ANY project (to pass ValidateProjectId above) could delete a completely
+                // different, unrelated project's supporting doc and its physical file (IDOR).
+                // Scoped to the caller's own authorized revision, matching every other write in
+                // this method.
+                var Note = await _db.tProjectSupportingDocs.FirstOrDefaultAsync(x => x.Id == dto.Id && x.ProjectRevisionFK == ProjectRevisionFK);
                 if(Note == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Supporting Doc not found.", Title = "Project Not Found" });

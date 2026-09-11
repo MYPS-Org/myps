@@ -451,12 +451,12 @@ namespace Helpers
                 response.Message = "The Feasibility Date is required when Feasibility Study is selected."; response.Title = "Feasibility Date Required";
                 return response;
             }
-            if (p.Feasibility == 1 &&
-                p.FeasibilityDate!.Value.Date < CurrentDate.Date)
-            {
-                response.Message = "The Feasibility Date cannot be earlier than the current date."; response.Title = "Invalid Feasibility Date";
-                return response;
-            }
+            // 2026-09-11 fix: removed the "cannot be earlier than the current date" check --
+            // it compared against today, never against the field's own previous value, so it
+            // was really a "must always be today or later" rule that blocked entering a
+            // genuinely past date (the normal case for a field recording when a feasibility
+            // study actually happened). Live data confirmed this: 100% of the 37 live
+            // Feasibility=1 revisions had a today-or-future date, zero had a past date.
             var ValidateDetailedDesign = await _db.tOptionProjectDetailedDesign.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.DetailedDesign && x.IsActive, cancellationToken);
             if (ValidateDetailedDesign == null)
             {
@@ -468,12 +468,9 @@ namespace Helpers
                 response.Message = "The Detailed Design Date is required when Detailed Design is selected."; response.Title = "Detailed Design Date Required";
                 return response;
             }
-            if (p.DetailedDesign == 1 &&
-                p.DetailedDesignDate!.Value.Date < CurrentDate.Date)
-            {
-                response.Message = "The Detailed Design Date cannot be earlier than the current date."; response.Title = "Invalid Detailed Design Date";
-                return response;
-            }
+            // 2026-09-11 fix: same "must always be today or later" bug as FeasibilityDate above,
+            // same function -- removed for consistency (0 live rows currently use
+            // DetailedDesign=1, so no live blast-radius evidence, but identical shape).
             response.IsValid = true;
             response.Data = p.Region;//ValidateRegion.IslandCode;
             return response;

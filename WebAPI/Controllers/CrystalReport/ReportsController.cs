@@ -5,18 +5,26 @@ using Hangfire.Hubs;
 using Hangfire.Models;
 using Hangfire.Services;
 using Helpers;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace WebAPI.Controllers.CrystalReport
 {
+    // 2026-09-11 fix: this controller inherits ControllerBase, not the app's CoreController,
+    // so it never got the app's own [PermissionFilter] session/authorization gate -- it had
+    // no authentication requirement of any kind. [Authorize] here relies on the standard
+    // ASP.NET Core cookie-auth pipeline (UseAuthentication/UseAuthorization in Program.cs),
+    // which every request already carries via the session cookie once logged in.
     [ApiController]
     [Route("api/reports")]
+    [Authorize]
     public class ReportsController : ControllerBase
     {
         private readonly IHttpClientFactory _httpClientFactory;
@@ -221,6 +229,16 @@ namespace WebAPI.Controllers.CrystalReport
             CancellationToken ct)
         {
             var safeName = Path.GetFileName(fileName);
+
+            // 2026-09-11 fix: previously served/deleted purely by filename, with no check that
+            // the requester was the one who generated this report -- any caller who obtained or
+            // guessed a fileName could download and delete another user's report (IDOR). Same
+            // not-found message for "doesn't exist" and "not yours" -- don't leak which case it is.
+            var job = await _db.tReportJobResult.AsNoTracking().FirstOrDefaultAsync(x => x.FileName == safeName, ct);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (job == null || job.RequestedBy != userId)
+                return NotFound(new { Message = "Report file not found or already downloaded." });
+
             var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Reports");
             var filePath = Path.Combine(tempFolder, safeName);
 

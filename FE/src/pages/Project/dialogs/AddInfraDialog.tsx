@@ -99,6 +99,7 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
                 <TableHeader justify="center" className="w-16">Select</TableHeader>
                 <TableHeader>Section ID</TableHeader>
                 <TableHeader>Road Name</TableHeader>
+                <TableHeader justify="end">Length (m)</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -116,6 +117,7 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
                   </TableCell>
                   <TableCell className="font-medium">{road.RoadSectionId}</TableCell>
                   <TableCell>{road.RoadName || road.RoadId}</TableCell>
+                  <TableCell className="text-right">{road.LengthM}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
