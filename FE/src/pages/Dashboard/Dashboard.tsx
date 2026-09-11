@@ -183,7 +183,7 @@ const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const { setTheme, isLight } = useDashboardTheme();
 
-  const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('real');
+  const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('benchmark');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [kpiData, setKpiData] = useState<KpiData>(EMPTY_KPIS);
@@ -286,7 +286,7 @@ const DashboardContent: React.FC = () => {
             : 'bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 text-white border-slate-800'
         }`}
       >
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20">
@@ -415,13 +415,13 @@ const DashboardContent: React.FC = () => {
         </div>
 
         {dataSourceMode === 'benchmark' && (
-          <div className="relative z-10 mt-4 rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-100">
+          <div className="relative mt-4 rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-100">
             Demo data is for demonstration only and does not come from the live database.
           </div>
         )}
 
         {/* Perspective View Switcher Tabs */}
-        <div className="relative z-10 flex items-center gap-2 mt-6 pt-5 border-t border-slate-800/80 overflow-x-auto">
+        <div className="relative flex items-center gap-2 mt-6 pt-5 border-t border-slate-800/80 overflow-x-auto">
           {[
             { id: 'overview', label: 'Executive Overview & Analytics', icon: SparklesIcon },
             { id: 'nep_briefing', label: `FY ${displayYear} DPWH Budget Allocation`, icon: ChartPieIcon },
