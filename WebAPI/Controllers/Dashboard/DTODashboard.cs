@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace WebAPI.Controllers.Dashboard
 {
@@ -20,6 +20,7 @@ namespace WebAPI.Controllers.Dashboard
         public List<DashboardProjectDTO> Projects { get; set; } = new();
         public List<DashboardLsProjectDTO> LsProjects { get; set; } = new();
         public List<DashboardActivityDTO> Activities { get; set; } = new();
+        public DashboardRevisionSummaryDTO Revisions { get; set; } = new();
     }
 
     public class DashboardKpiDTO
@@ -117,5 +118,47 @@ namespace WebAPI.Controllers.Dashboard
         public decimal FundingTotal { get; set; }
         public decimal ComponentCostTotal { get; set; }
         public bool IsPublished { get; set; }
+    }
+
+    /// <summary>
+    /// One row of dbo.fRevisionQueue, enriched with the Implementing Office name
+    /// resolved through vAdminImplementingOffice (the same source that feeds the
+    /// Implementing Office dropdown on the project details page).
+    /// </summary>
+    public class DashboardRevisionDTO
+    {
+        public int Id { get; set; }
+        public string TransactionId { get; set; } = string.Empty;
+        public string ProjectId { get; set; } = string.Empty;
+        public string RevisionType { get; set; } = string.Empty;
+        public string RevisionReason { get; set; } = string.Empty;
+        /// <summary>One of the five labels emitted by fRevisionQueue.</summary>
+        public string RevisionStatus { get; set; } = string.Empty;
+        /// <summary>Group currently holding the revision: RPC, PS Admin, or the creator's group.</summary>
+        public string CurrentStage { get; set; } = string.Empty;
+        public string ImplementingOffice { get; set; } = string.Empty;
+        public string ImplementingOfficeId { get; set; } = string.Empty;
+        public string ProgramName { get; set; } = string.Empty;
+        public DateTime RevisionDate { get; set; }
+        public int Age { get; set; }
+    }
+
+    public class DashboardRevisionSummaryDTO
+    {
+        /// <summary>fRevisionQueue "For Endorsement" - awaiting the RO/RPC tier.</summary>
+        public int ForReview { get; set; }
+        /// <summary>fRevisionQueue "For Approval of Central Office" - awaiting the CO/AUC tier.</summary>
+        public int ForApproval { get; set; }
+        public int ForCorrection { get; set; }
+        public int Approved { get; set; }
+        public int Disapproved { get; set; }
+        public int Total { get; set; }
+        /// <summary>Every status the queue returned, including any unmapped label.</summary>
+        public List<DashboardStatusDTO> ByStatus { get; set; } = new();
+        /// <summary>Pending revisions only, grouped by Implementing Office.</summary>
+        public List<DashboardStatusDTO> ByImplementingOffice { get; set; } = new();
+        /// <summary>Pending revisions only, grouped by the holding group (CurrentStage).</summary>
+        public List<DashboardStatusDTO> ByGroup { get; set; } = new();
+        public List<DashboardRevisionDTO> Items { get; set; } = new();
     }
 }

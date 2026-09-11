@@ -8,8 +8,28 @@ import {
 } from '@heroicons/react/24/outline';
 import type { WatchlistProject } from './ProjectQuickDetailModal';
 import type { KpiData } from './DashboardKpiCards';
+import type { DashboardRevisionItem, DashboardRevisionSummary } from '../Service';
 
-export type DashboardKpiType = 'budget' | 'projects' | 'lswallet' | 'publication';
+export type DashboardKpiType = 'budget' | 'projects' | 'lswallet' | 'publication' | 'revisions';
+
+/** Status labels emitted verbatim by dbo.fRevisionQueue. */
+const FOR_REVIEW = 'For Endorsement';
+const FOR_APPROVAL = 'For Approval of Central Office';
+
+/**
+ * Pending buckets for the Active Portfolio modal.
+ *  - forpublish: projects cleared by the GAA-R publish rules but not yet published.
+ *  - review/approval: the two pending tiers of the revision queue.
+ */
+type ProjectsTab = 'all' | 'forpublish' | 'published' | 'review' | 'approval';
+
+const PROJECT_TABS: Array<{ key: ProjectsTab; label: string }> = [
+  { key: 'all', label: 'All Projects' },
+  { key: 'forpublish', label: 'For Publish' },
+  { key: 'published', label: 'Published' },
+  { key: 'review', label: 'For Review' },
+  { key: 'approval', label: 'For Approval' },
+];
 
 export interface DashboardLsProject {
   id: number;
@@ -40,10 +60,22 @@ interface Props {
   kpiData?: KpiData;
   projects: WatchlistProject[];
   lsProjects: DashboardLsProject[];
+  revisions?: DashboardRevisionSummary;
   onClose: () => void;
   onOpenProject: (project: WatchlistProject) => void;
   onOpenLsProject: (project: DashboardLsProject) => void;
 }
+
+// Same badge rules as the /revision list (ModifcationList.tsx) so a revision
+// carries one colour across both screens.
+const getRevisionStatusBadge = (statusName: string): string => {
+  const name = (statusName || '').toLowerCase();
+  if (name.includes('for correction')) return 'bg-red-100 text-red-800 border border-red-200';
+  if (name.includes('disapproved')) return 'bg-red-600 text-white';
+  if (name.includes('for approval') || name.includes('for endorsement')) return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+  if (name.includes('approved')) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+  return 'bg-slate-100 text-slate-700 border border-slate-200';
+};
 
 const money = (value: number) =>
   new Intl.NumberFormat('en-PH', {
@@ -58,11 +90,25 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
   kpiData,
   projects,
   lsProjects,
+  revisions,
   onClose,
   onOpenProject,
   onOpenLsProject,
 }) => {
   const [expandedLsIds, setExpandedLsIds] = useState<Set<number>>(new Set());
+  const [projectsTab, setProjectsTab] = useState<ProjectsTab>('all');
+  // Secondary drill-downs for the revision tabs. '' means "no narrowing".
+  const [officeFilter, setOfficeFilter] = useState<string>('');
+  const [groupFilter, setGroupFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+
+  // Reopening the modal on a different card must not inherit a stale drill-down.
+  useEffect(() => {
+    setProjectsTab('all');
+    setOfficeFilter('');
+    setGroupFilter('');
+    setStatusFilter('');
+  }, [type]);
 
   useEffect(() => {
     if (!type) return undefined;
@@ -84,6 +130,49 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
   const lsAllocation = kpiData?.lsWalletTotal ?? lsProjects.reduce((sum, p) => sum + p.totalAllocation, 0);
   const lsUtilization = lsAllocation ? (lsItemized / lsAllocation) * 100 : 0;
 
+  const revisionItems = revisions?.Items ?? [];
+  const reviewCount = revisions?.ForReview ?? 0;
+  const approvalCount = revisions?.ForApproval ?? 0;
+  const pendingCount = reviewCount + approvalCount;
+
+  // "For Publish" is the publish backlog: cleared by the GAA-R rules
+  // (ProgramController.BatchAllowPublish) but not yet actually published.
+  const forPublishProjects = projects.filter((project) => project.isPublishable && !project.isPublished);
+  const publishedProjects = projects.filter((project) => project.isPublished);
+
+  // Revision rows shown under the Active Portfolio tabs, narrowed by the
+  // optional Implementing Office / group drill-downs.
+  const revisionsForTab = (tab: ProjectsTab): DashboardRevisionItem[] => {
+    const byStatus = tab === 'review'
+      ? revisionItems.filter((item) => item.RevisionStatus === FOR_REVIEW)
+      : tab === 'approval'
+        ? revisionItems.filter((item) => item.RevisionStatus === FOR_APPROVAL)
+        : revisionItems;
+    return byStatus
+      .filter((item) => !officeFilter || item.ImplementingOffice === officeFilter)
+      .filter((item) => !groupFilter || item.CurrentStage === groupFilter)
+      .filter((item) => !statusFilter || item.RevisionStatus === statusFilter);
+  };
+
+  const isRevisionTab = type === 'revisions' || (type === 'projects' && (projectsTab === 'review' || projectsTab === 'approval'));
+  const visibleRevisions = isRevisionTab ? revisionsForTab(type === 'revisions' ? 'all' : projectsTab) : [];
+
+  const visibleProjects = type !== 'projects'
+    ? projects
+    : projectsTab === 'forpublish'
+      ? forPublishProjects
+      : projectsTab === 'published'
+        ? publishedProjects
+        : projects;
+
+  // Options are derived from the rows actually in scope so a drill-down can
+  // never offer a value that yields an empty table.
+  const officeOptions = Array.from(new Set(
+    (type === 'revisions' ? revisionItems : revisionsForTab(projectsTab === 'approval' ? 'approval' : 'review'))
+      .map((item) => item.ImplementingOffice)
+  )).sort();
+  const groupOptions = Array.from(new Set(revisionItems.map((item) => item.CurrentStage))).sort();
+
   const config = {
     budget: {
       title: `FY ${selectedYear} Infrastructure Budget`,
@@ -94,10 +183,38 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
     },
     projects: {
       title: `Active Projects in FY ${selectedYear}`,
-      tally: activeCount.toLocaleString(),
-      count: 'costed project records',
+      tally: projectsTab === 'forpublish'
+        ? forPublishProjects.length.toLocaleString()
+        : projectsTab === 'published'
+          ? publishedProjects.length.toLocaleString()
+          : projectsTab === 'review'
+            ? reviewCount.toLocaleString()
+            : projectsTab === 'approval'
+              ? approvalCount.toLocaleString()
+              : activeCount.toLocaleString(),
+      count: projectsTab === 'forpublish'
+        ? 'cleared to publish, not yet published'
+        : projectsTab === 'published'
+          ? 'already published'
+          : projectsTab === 'review'
+            ? 'awaiting Regional Office (RPC) endorsement'
+            : projectsTab === 'approval'
+              ? 'awaiting Central Office (AUC) approval'
+              : 'costed project records',
+      formula: projectsTab === 'forpublish'
+        ? 'Projects flagged IsPublishable by the GAA-R publish rules but still IsPublished = false. Both flags are read from the persisted project record.'
+        : projectsTab === 'published'
+          ? 'Projects whose persisted record has IsPublished = true for the selected fiscal year.'
+          : projectsTab === 'review' || projectsTab === 'approval'
+            ? 'Rows from dbo.fRevisionQueue, the same table-valued function behind the /revision page. The queue is already scoped to your user groups: it returns revisions you created, plus the RO tier if you belong to RPC and the CO tier if you belong to AUC.'
+            : 'Count of visible latest project revisions that have at least one non-deleted component-cost-per-year record in the selected fiscal year.',
+    },
+    revisions: {
+      title: `Revision Queue for FY ${selectedYear}`,
+      tally: pendingCount.toLocaleString(),
+      count: `${(revisions?.Total ?? 0).toLocaleString()} revision(s) visible to you`,
       formula:
-        'Count of visible latest project revisions that have at least one non-deleted component-cost-per-year record in the selected fiscal year.',
+        'The large number shows revisions still waiting for Regional Office review or Central Office approval. The badge shows all revisions you are allowed to see. This list matches the Revision page, and each Implementing Office is shown the same way as on the project details page.',
     },
     lswallet: {
       title: `FY ${selectedYear} LS Itemized Amount`,
@@ -161,9 +278,152 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
           </div>
         </div>
 
+        {/* Pending-list tabs (Active Portfolio Projects only) */}
+        {type === 'projects' && (
+          <div className="mx-6 mt-4 flex flex-wrap gap-1.5 border-b border-slate-200 pb-2">
+            {PROJECT_TABS.map((tab) => {
+              const tabCount =
+                tab.key === 'all' ? projects.length
+                : tab.key === 'forpublish' ? forPublishProjects.length
+                : tab.key === 'published' ? publishedProjects.length
+                : tab.key === 'review' ? reviewCount
+                : approvalCount;
+              const active = projectsTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => {
+                    setProjectsTab(tab.key);
+                    setOfficeFilter('');
+                    setGroupFilter('');
+                  }}
+                  aria-pressed={active}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                    active
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
+                    active ? 'bg-white/20 text-white' : 'bg-white text-slate-500'
+                  }`}>
+                    {tabCount.toLocaleString()}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Revision drill-downs: by Implementing Office and by user group */}
+        {isRevisionTab && (
+          <div className="mx-6 mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <label className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">
+              Implementing Office
+            </label>
+            <select
+              value={officeFilter}
+              onChange={(event) => setOfficeFilter(event.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700"
+            >
+              <option value="">All offices</option>
+              {officeOptions.map((office) => (
+                <option key={office} value={office}>{office}</option>
+              ))}
+            </select>
+
+            <label className="ml-2 font-bold text-slate-500 uppercase tracking-wide text-[10px]">
+              User Group
+            </label>
+            <select
+              value={groupFilter}
+              onChange={(event) => setGroupFilter(event.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700"
+            >
+              <option value="">All groups</option>
+              {groupOptions.map((group) => (
+                <option key={group} value={group}>{group}</option>
+              ))}
+            </select>
+
+            {type === 'revisions' && (
+              <>
+                <label className="ml-2 font-bold text-slate-500 uppercase tracking-wide text-[10px]">
+                  Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700"
+                >
+                  <option value="">All statuses</option>
+                  {(revisions?.ByStatus ?? []).map((status) => (
+                    <option key={status.Name} value={status.Name}>
+                      {status.Name} ({status.Count})
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            {(officeFilter || groupFilter || statusFilter) && (
+              <button
+                onClick={() => { setOfficeFilter(''); setGroupFilter(''); setStatusFilter(''); }}
+                className="ml-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                Clear
+              </button>
+            )}
+            <span className="ml-auto font-semibold text-slate-500">
+              {visibleRevisions.length.toLocaleString()} shown
+            </span>
+          </div>
+        )}
+
         {/* Content Table */}
         <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
-          {type === 'lswallet' ? (
+          {isRevisionTab ? (
+            <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 uppercase font-bold text-[10px]">
+                <tr>
+                  <th className="px-4 py-3">Transaction &amp; Project</th>
+                  <th className="px-4 py-3">Revision Type</th>
+                  <th className="px-4 py-3">Implementing Office</th>
+                  <th className="px-4 py-3">Holding Group</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 text-right">Age</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visibleRevisions.map((revision) => (
+                  <tr key={revision.Id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3.5">
+                      <div className="font-bold text-slate-900 font-mono">{revision.TransactionId}</div>
+                      <div className="max-w-md truncate text-slate-600 text-[11px]" title={revision.RevisionReason}>
+                        {revision.RevisionReason}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-slate-700">{revision.RevisionType}</td>
+                    <td className="px-4 py-3.5 text-slate-700">{revision.ImplementingOffice}</td>
+                    <td className="px-4 py-3.5">
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-800 border border-slate-200">
+                        {revision.CurrentStage}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-[10px] font-bold ${getRevisionStatusBadge(revision.RevisionStatus)}`}>
+                        {revision.RevisionStatus}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-semibold text-slate-700">
+                      {revision.Age} day{revision.Age === 1 ? '' : 's'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : type === 'lswallet' ? (
             <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
               <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 uppercase font-bold text-[10px]">
                 <tr>
@@ -318,7 +578,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {projects.map((project) => (
+                {visibleProjects.map((project) => (
                   <tr
                     key={project.id}
                     onClick={() => onOpenProject(project)}
@@ -364,10 +624,13 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
             </table>
           )}
 
-          {((type === 'lswallet' && lsProjects.length === 0) ||
-            (type !== 'lswallet' && projects.length === 0)) && (
+          {((isRevisionTab && visibleRevisions.length === 0) ||
+            (!isRevisionTab && type === 'lswallet' && lsProjects.length === 0) ||
+            (!isRevisionTab && type !== 'lswallet' && visibleProjects.length === 0)) && (
             <div className="py-12 text-center text-sm text-slate-400">
-              No contributing records exist for this fiscal year.
+              {isRevisionTab
+                ? 'No revisions match this filter. The revision queue only returns rows you created, plus the RO tier if you are in RPC and the CO tier if you are in AUC.'
+                : 'No contributing records exist for this fiscal year.'}
             </div>
           )}
         </div>
@@ -385,7 +648,8 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
               Close
             </button>
             <button
-              onClick={() => onOpenProject(projects[0])}
+              onClick={() => visibleProjects[0] && onOpenProject(visibleProjects[0])}
+              disabled={visibleProjects.length === 0}
               className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-md"
             >
               <span>Project Repository</span>
