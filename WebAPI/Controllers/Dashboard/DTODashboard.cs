@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using DBHelper.Models.Enums;
 
 namespace WebAPI.Controllers.Dashboard
 {
@@ -7,6 +8,57 @@ namespace WebAPI.Controllers.Dashboard
         [Range(2000, 2200)]
         public int? Year { get; set; }
     }
+
+    public class DashboardKpisResponseDTO
+    {
+        public int SelectedYear { get; set; }
+        public int[] AvailableYears { get; set; } = Array.Empty<int>();
+        public DashboardKpiDTO Kpis { get; set; } = new();
+    }
+
+    public class DashboardTrendResponseDTO
+    {
+        public List<DashboardTrendDTO> AnnualTrend { get; set; } = new();
+    }
+
+    public class DashboardBudgetBreakdownResponseDTO
+    {
+        public List<DashboardBudgetBreakdownDTO> BudgetBreakdown { get; set; } = new();
+    }
+
+    public class DashboardStatusesResponseDTO
+    {
+        public List<DashboardStatusDTO> Statuses { get; set; } = new();
+        public List<DashboardIslandDTO> Islands { get; set; } = new();
+    }
+
+    public class DashboardRegionalBreakdownDTO
+    {
+        public string Region { get; set; } = string.Empty;
+        public string Island { get; set; } = string.Empty;
+        public decimal Budget { get; set; }
+        public int ProjectCount { get; set; }
+    }
+
+    public class DashboardRegionalBreakdownResponseDTO
+    {
+        public List<DashboardRegionalBreakdownDTO> Regions { get; set; } = new();
+    }
+
+    public class DashboardActivitiesResponseDTO
+    {
+        public List<DashboardActivityDTO> Activities { get; set; } = new();
+    }
+
+    /// <summary>Pagination filters for the Projects endpoint (search + status/island narrowing).</summary>
+    public class ShowDashboardProjectsFilterDTO
+    {
+        public string? Search { get; set; }
+        public string? Island { get; set; }
+        public string? Status { get; set; }
+    }
+
+    public class ShowDashboardProjectsDTO : EnumPagination<ShowDashboardProjectsFilterDTO> { }
 
     public class DashboardSummaryDTO
     {

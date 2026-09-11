@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+using DBHelper.Data;
+using DBHelper.Models.Enums;
 using DBHelper.Models.Views.Project;
 using Helpers;
 using Microsoft.AspNetCore.Mvc;
@@ -21,256 +22,143 @@ namespace WebAPI.Controllers.Dashboard
         private const int MinimumFiscalYear = 2000;
         private const int MaximumFiscalYear = 2200;
 
+        // Temporary: the live database only has clean, complete data for FY2027 right
+        // now, so scope the dashboard down to that single year instead of scanning
+        // MinimumFiscalYear..MaximumFiscalYear. Every split endpoint below uses this
+        // rather than honoring an arbitrary client-requested year. Remove this and
+        // restore per-year selection once other fiscal years are ready.
+        private const int TemporaryDashboardYear = 2027;
+
         public DashboardController(
             MYPSDbContext db,
             IHubContext<SignalRHub> hub,
             PCMADbContext pcma,
             IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
+        // ------------------------------------------------------------------
+        // Kpis
+        // ------------------------------------------------------------------
         [HttpPost]
-        public async Task<IActionResult> Summary(
-            [FromBody] DashboardRequestDTO dto,
-            CancellationToken cancellationToken)
+        public async Task<IActionResult> Kpis(CancellationToken cancellationToken)
         {
             try
             {
-                IQueryable<ProjectLatest> visibleProjects = _db.vProjectLatest.AsNoTracking();
-                if (_Session.ApplyFilter)
+                var visibleProjects = GetVisibleProjects();
+                var scoped = await GetYearScopedProjectsAsync(visibleProjects, TemporaryDashboardYear, cancellationToken);
+                var projects = scoped.Projects;
+                var publishedCount = projects.Count(project => project.IsPublished);
+
+                var response = new DashboardKpisResponseDTO
                 {
-                    var allowedProjects = _db.fUserVisibleProjects
-                        .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleProjects({_Session.UserId})");
-                    visibleProjects = visibleProjects.Where(project =>
-                        allowedProjects.Any(allowed => allowed.ProjectPK == project.ProjectPK));
-                }
-
-                var annualProjectBudgets = await (
-                    from project in visibleProjects
-                    join component in _db.tProjectComponentCost.AsNoTracking()
-                        on project.RevisionId equals component.ProjectRevisionFK
-                    join cost in _db.tProjectComponentCostPerYear.AsNoTracking()
-                        on component.Id equals cost.ComponentCostFK
-                    where !component.IsDeleted
-                        && !cost.IsDeleted
-                        && cost.Year >= MinimumFiscalYear
-                        && cost.Year <= MaximumFiscalYear
-                    group new { project.ProjectPK, cost.Amount } by cost.Year into yearGroup
-                    orderby yearGroup.Key
-                    select new
+                    SelectedYear = TemporaryDashboardYear,
+                    AvailableYears = new[] { TemporaryDashboardYear },
+                    Kpis = new DashboardKpiDTO
                     {
-                        Year = yearGroup.Key,
-                        Amount = yearGroup.Sum(item => item.Amount),
-                        ProjectCount = yearGroup.Select(item => item.ProjectPK).Distinct().Count()
-                    }).ToListAsync(cancellationToken);
-
-                // The deployed databases currently span two LS schemas. Read
-                // only persisted wallet/view values while supporting both the
-                // legacy flat tLSWallets shape and normalized vLSWalletLatest.
-                // var walletRows = await LoadWalletRows(cancellationToken);
-                var walletRows = new List < DashboardWalletRow>();
-                var annualWallets = walletRows
-                    .GroupBy(wallet => wallet.Year)
-                    .Select(yearGroup => new
-                    {
-                        Year = yearGroup.Key,
-                        Total = yearGroup.Sum(wallet => wallet.Total),
-                        Itemized = yearGroup.Sum(wallet => wallet.Used)
-                    })
-                    .ToList();
-
-                var availableYears = annualProjectBudgets.Select(item => item.Year)
-                    .Concat(annualWallets.Select(item => item.Year))
-                    .Distinct()
-                    .OrderByDescending(year => year)
-                    .ToArray();
-                var selectedYear = dto.Year
-                    ?? availableYears.FirstOrDefault(DateTime.UtcNow.Year);
-
-                var projectBudgets = await (
-                    from project in visibleProjects
-                    join component in _db.tProjectComponentCost.AsNoTracking()
-                        on project.RevisionId equals component.ProjectRevisionFK
-                    join cost in _db.tProjectComponentCostPerYear.AsNoTracking()
-                        on component.Id equals cost.ComponentCostFK
-                    where !component.IsDeleted && !cost.IsDeleted && cost.Year == selectedYear
-                    group new { project, cost } by new
-                    {
-                        project.Id,
-                        project.ProjectPK,
-                        project.RevisionId,
-                        project.ProjectId,
-                        project.Description,
-                        project.ProgramName,
-                        project.Region,
-                        project.CategoryName,
-                        project.StageName,
-                        project.ImplementingOffice,
-                        project.LastUpdatedBy,
-                        project.LastUpdatedDate,
-                        project.RevisionCreatedBy,
-                        project.RevisionCreatedDate
-                    } into projectGroup
-                    select new
-                    {
-                        projectGroup.Key,
-                        Budget = projectGroup.Sum(item => item.cost.Amount)
-                    }).ToListAsync(cancellationToken);
-
-                var projectKeys = projectBudgets.Select(item => item.Key.ProjectPK).ToArray();
-                var projectFlags = await _db.tProjects.AsNoTracking()
-                    .Where(project => projectKeys.Contains(project.ProjectPK))
-                    .Select(project => new
-                    {
-                        project.Id,
-                        project.ProjectPK,
-                        project.IsPublished,
-                        project.IsPublishable,
-                        project.IsRevised
-                    })
-                    .ToDictionaryAsync(item => item.ProjectPK, cancellationToken);
-
-                var regionIds = projectBudgets.Select(item => item.Key.Region)
-                    .Where(value => !string.IsNullOrWhiteSpace(value))
-                    .Distinct()
-                    .ToArray();
-                var regionLookup = await _db.tOptionAdminAreaRegion.AsNoTracking()
-                    .Where(region => regionIds.Contains(region.ParticipantId))
-                    .Select(region => new { region.ParticipantId, region.Name, region.IslandCode })
-                    .ToDictionaryAsync(region => region.ParticipantId, cancellationToken);
-
-                var officeIds = projectBudgets.Select(item => item.Key.ImplementingOffice)
-                    .Where(value => !string.IsNullOrWhiteSpace(value))
-                    .Distinct()
-                    .ToArray();
-                var officeLookup = await _db.vAdminImplementingOffice.AsNoTracking()
-                    .Where(office => officeIds.Contains(office.ParticipantId))
-                    .Select(office => new { office.ParticipantId, office.Name })
-                    .ToDictionaryAsync(office => office.ParticipantId, cancellationToken);
-
-                var revisionIds = projectBudgets.Select(item => item.Key.RevisionId).Distinct().ToArray();
-                var fundingRows = await _db.tProjectFundingProfile.AsNoTracking()
-                    .Where(funding => revisionIds.Contains(funding.ProjectRevisionFK) && !funding.IsDeleted)
-                    .Select(funding => new { funding.ProjectRevisionFK, funding.SourceOrg })
-                    .ToListAsync(cancellationToken);
-                var sourceOrganizations = fundingRows.Select(funding => funding.SourceOrg)
-                    .Where(source => !string.IsNullOrWhiteSpace(source))
-                    .Distinct()
-                    .ToArray();
-                var sourceRows = await _db.tOptionFundingSource.AsNoTracking()
-                    .Where(source => sourceOrganizations.Contains(source.Organization))
-                    .Select(source => new { source.Organization, source.Name })
-                    .ToListAsync(cancellationToken);
-                var sourceLookup = sourceRows.GroupBy(source => source.Organization)
-                    .ToDictionary(group => group.Key, group => group.First().Name);
-                var fundingLookup = fundingRows
-                    .GroupBy(funding => funding.ProjectRevisionFK)
-                    .ToDictionary(
-                        group => group.Key,
-                        group => string.Join(", ", group.Select(funding =>
-                                sourceLookup.TryGetValue(funding.SourceOrg, out var sourceName)
-                                    ? sourceName
-                                    : funding.SourceOrg)
-                            .Where(source => !string.IsNullOrWhiteSpace(source))
-                            .Distinct(StringComparer.OrdinalIgnoreCase)
-                            .OrderBy(source => source)));
-
-                static string IslandName(string? islandCode) => islandCode switch
-                {
-                    "LZ" => "Luzon",
-                    "VS" => "Visayas",
-                    "MN" => "Mindanao",
-                    _ => "Unassigned"
+                        TotalBudget = projects.Sum(project => project.AllocatedBudget),
+                        ActiveProjects = projects.Count,
+                        PublishedProjects = publishedCount,
+                        PublishableProjects = projects.Count(project => project.IsPublishable),
+                        RevisedProjects = projects.Count(project => project.IsRevised),
+                        // LS Wallet integration is disabled pending schema normalization —
+                        // see the commented-out LoadWalletRows call this file used to make.
+                        LsWalletReleased = 0,
+                        LsWalletTotal = 0,
+                        PublicationRate = projects.Count == 0
+                            ? 0
+                            : Math.Round((decimal)publishedCount / projects.Count * 100, 1)
+                    }
                 };
 
-                var projectRows = projectBudgets
-                    .Select(item =>
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Trend
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> Trend(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var visibleProjects = GetVisibleProjects();
+                var scoped = await GetYearScopedProjectsAsync(visibleProjects, TemporaryDashboardYear, cancellationToken);
+                var projects = scoped.Projects;
+
+                // TemporaryDashboardYear pins the whole dashboard to one fiscal year, so this
+                // collapses to a single point until that scoping is lifted (see the constant's
+                // comment above) — intentional, not a bug in the split.
+                var response = new DashboardTrendResponseDTO
+                {
+                    AnnualTrend = new List<DashboardTrendDTO>
                     {
-                        projectFlags.TryGetValue(item.Key.ProjectPK, out var flags);
-                        regionLookup.TryGetValue(item.Key.Region, out var region);
-                        officeLookup.TryGetValue(item.Key.ImplementingOffice, out var office);
-                        fundingLookup.TryGetValue(item.Key.RevisionId, out var fundingSources);
-                        var project = new DashboardProjectDTO
+                        new()
                         {
-                            Id = flags?.Id ?? item.Key.Id,
-                            ProjectPK = item.Key.ProjectPK,
-                            ProjectId = item.Key.ProjectId,
-                            Description = item.Key.Description,
-                            ProgramName = item.Key.ProgramName ?? "Not recorded",
-                            Region = region?.Name
-                                ?? (string.IsNullOrWhiteSpace(item.Key.Region)
-                                    ? "Not recorded"
-                                    : $"Unrecognized region ({item.Key.Region})"),
-                            Island = IslandName(region?.IslandCode),
-                            Category = item.Key.CategoryName ?? "Uncategorized",
-                            StageName = item.Key.StageName ?? "Unstaged",
-                            ImplementingOffice = office?.Name
-                                ?? (string.IsNullOrWhiteSpace(item.Key.ImplementingOffice)
-                                    ? "Not recorded"
-                                    : $"Unrecognized office ({item.Key.ImplementingOffice})"),
-                            FundingSource = string.IsNullOrWhiteSpace(fundingSources)
-                                ? "Not recorded"
-                                : fundingSources,
-                            AllocatedBudget = item.Budget,
-                            IsPublished = flags?.IsPublished ?? false,
-                            IsPublishable = flags?.IsPublishable ?? false,
-                            IsRevised = flags?.IsRevised ?? false,
-                            UpdatedAt = item.Key.LastUpdatedDate ?? item.Key.RevisionCreatedDate
-                        };
-                        return new
-                        {
-                            Project = project,
-                            UpdatedBy = item.Key.LastUpdatedBy ?? item.Key.RevisionCreatedBy
-                        };
+                            Year = TemporaryDashboardYear,
+                            InfrastructureBudget = projects.Sum(project => project.AllocatedBudget),
+                            LsItemized = 0,
+                            ProjectCount = projects.Count
+                        }
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // BudgetBreakdown
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> BudgetBreakdown(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var visibleProjects = GetVisibleProjects();
+                var scoped = await GetYearScopedProjectsAsync(visibleProjects, TemporaryDashboardYear, cancellationToken);
+
+                // This is the live equivalent of the NEP presentation's macro allocation
+                // panel. Program names and amounts are taken from the selected
+                // projects/revisions; no presentation categories or values are inferred
+                // in Live DB mode.
+                var budgetBreakdown = scoped.Projects
+                    .GroupBy(project => project.ProgramName)
+                    .Select(group => new DashboardBudgetBreakdownDTO
+                    {
+                        Name = group.Key,
+                        Budget = group.Sum(project => project.AllocatedBudget),
+                        ProjectCount = group.Count()
                     })
-                    .OrderByDescending(item => item.Project.AllocatedBudget)
-                    .ToList();
-                var projects = projectRows.Select(item => item.Project).ToList();
-
-                var selectedWallets = walletRows
-                    .Where(wallet => wallet.Year == selectedYear)
+                    .OrderByDescending(item => item.Budget)
                     .ToList();
 
-                // var selectedWalletIds = selectedWallets
-                //     .Select(wallet => wallet.Id)
-                //     .ToArray();
-                // var selectedWalletChildren = await _db.vLSWalletProjectSet
-                //     .AsNoTracking()
-                //     .Where(project => selectedWalletIds.Contains(project.ParentWalletId))
-                //     .Select(project => new
-                //     {
-                //         project.ParentWalletId,
-                //         Child = new DashboardLsChildProjectDTO
-                //         {
-                //             Id = project.Id,
-                //             ProjectPK = project.ProjectPK,
-                //             ProjectId = project.ProjectId,
-                //             Description = project.Description ?? "Not recorded",
-                //             StageName = project.StageName ?? "Unstaged",
-                //             FundingTotal = project.EffectiveDraw,
-                //             ComponentCostTotal = project.CurrentDrawAmount,
-                //             IsPublished = project.IsPublished
-                //         }
-                //     })
-                //     .ToListAsync(cancellationToken);
-                // var childrenByWallet = selectedWalletChildren
-                //     .GroupBy(project => project.ParentWalletId)
-                //     .ToDictionary(
-                //         group => group.Key,
-                //         group => group.Select(project => project.Child)
-                //             .OrderByDescending(project => project.ComponentCostTotal)
-                //             .ToList());
+                return Ok(new DashboardBudgetBreakdownResponseDTO { BudgetBreakdown = budgetBreakdown });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId);
+            }
+        }
 
-                var activityUserIds = projectRows.Select(item => item.UpdatedBy)
-                    .Concat(selectedWallets.Select(wallet => wallet.UpdatedBy ?? wallet.CreatedBy))
-                    .Where(userId => !string.IsNullOrWhiteSpace(userId))
-                    .Distinct()
-                    .ToArray();
-                var activityUsers = await _db.vUsers.AsNoTracking()
-                    .Where(user => activityUserIds.Contains(user.UserId))
-                    .Select(user => new { user.UserId, user.Name })
-                    .ToDictionaryAsync(user => user.UserId, cancellationToken);
-
-                string ActivityUserName(string userId) =>
-                    activityUsers.TryGetValue(userId, out var user) ? user.Name : userId;
+        // ------------------------------------------------------------------
+        // Statuses (stage statuses + island totals — both feed DashboardCharts)
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> Statuses(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var visibleProjects = GetVisibleProjects();
+                var scoped = await GetYearScopedProjectsAsync(visibleProjects, TemporaryDashboardYear, cancellationToken);
+                var projects = scoped.Projects;
 
                 var statuses = projects
                     .GroupBy(project => project.StageName)
@@ -289,10 +177,146 @@ namespace WebAPI.Controllers.Dashboard
                     .OrderByDescending(item => item.Budget)
                     .ToList();
 
-                // This is the live equivalent of the NEP presentation's macro
-                // allocation panel. Program names and amounts are taken from
-                // the selected projects/revisions; no presentation categories
-                // or values are inferred in Live DB mode.
+                return Ok(new DashboardStatusesResponseDTO { Statuses = statuses, Islands = islands });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // RegionalBreakdown
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> RegionalBreakdown(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var visibleProjects = GetVisibleProjects();
+                var scoped = await GetYearScopedProjectsAsync(visibleProjects, TemporaryDashboardYear, cancellationToken);
+
+                // Server-side equivalent of the regional groupby DashboardRegionalMatrix used
+                // to do client-side over the full project array — only the aggregated rows go
+                // over the wire now. The component's own regionGroup()-based subgroup
+                // bucketing (Northern/Southern Luzon, NCR) stays client-side; it only needs
+                // {region, island, budget, count}, not raw projects.
+                var regions = scoped.Projects
+                    .GroupBy(project => project.Region)
+                    .Select(group => new DashboardRegionalBreakdownDTO
+                    {
+                        Region = group.Key,
+                        Island = group.First().Island,
+                        Budget = group.Sum(project => project.AllocatedBudget),
+                        ProjectCount = group.Count()
+                    })
+                    .OrderByDescending(item => item.Budget)
+                    .ToList();
+
+                return Ok(new DashboardRegionalBreakdownResponseDTO { Regions = regions });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Projects (paginated — feeds DashboardProjectWatchlist)
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> Projects(
+            [FromBody] ShowDashboardProjectsDTO dto,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var visibleProjects = GetVisibleProjects();
+                var scoped = await GetYearScopedProjectsAsync(visibleProjects, TemporaryDashboardYear, cancellationToken);
+                var result = PaginateProjects(scoped.Projects, dto.Filters, dto.limit, dto.page, dto.Navigation);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Activities
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> Activities(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var visibleProjects = GetVisibleProjects();
+                var scoped = await GetYearScopedProjectsAsync(visibleProjects, TemporaryDashboardYear, cancellationToken);
+                var activities = await GetActivitiesAsync(scoped, cancellationToken);
+                return Ok(new DashboardActivitiesResponseDTO { Activities = activities });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Revisions
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> Revisions(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var visibleProjects = GetVisibleProjects();
+                var revisionSummary = await GetRevisionSummaryAsync(visibleProjects, cancellationToken);
+                return Ok(revisionSummary);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Summary — kept for backward compatibility. The prior "dashboard-live-data-
+        // integrity" plan made this endpoint's existence and contract an acceptance
+        // criterion (see documents/plans/dashboard-live-data-integrity.md) with its own
+        // e2e regression spec. Dashboard.tsx no longer calls this — it uses the split
+        // endpoints above — but this composes the same shared helpers so the combined
+        // contract keeps holding for any other caller (and for that integrity spec,
+        // once it's pointed at the split endpoints alongside this one).
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> Summary(
+            [FromBody] DashboardRequestDTO dto,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var visibleProjects = GetVisibleProjects();
+                var scoped = await GetYearScopedProjectsAsync(visibleProjects, TemporaryDashboardYear, cancellationToken);
+                var projects = scoped.Projects;
+                var publishedCount = projects.Count(project => project.IsPublished);
+
+                var statuses = projects
+                    .GroupBy(project => project.StageName)
+                    .OrderByDescending(group => group.Count())
+                    .Select(group => new DashboardStatusDTO { Name = group.Key, Count = group.Count() })
+                    .ToList();
+
+                var islands = projects
+                    .GroupBy(project => project.Island)
+                    .Select(group => new DashboardIslandDTO
+                    {
+                        Name = group.Key,
+                        Budget = group.Sum(project => project.AllocatedBudget),
+                        ProjectCount = group.Count()
+                    })
+                    .OrderByDescending(item => item.Budget)
+                    .ToList();
+
                 var budgetBreakdown = projects
                     .GroupBy(project => project.ProgramName)
                     .Select(group => new DashboardBudgetBreakdownDTO
@@ -304,30 +328,91 @@ namespace WebAPI.Controllers.Dashboard
                     .OrderByDescending(item => item.Budget)
                     .ToList();
 
-                var projectActivities = projectRows.Select(item => new DashboardActivityDTO
-                {
-                    Id = $"project-{item.Project.Id}-{item.Project.UpdatedAt.Ticks}",
-                    Type = item.Project.IsRevised ? "revision" : "project",
-                    Title = item.Project.IsRevised ? $"Project {item.Project.ProjectId} revised" : $"Project {item.Project.ProjectId} updated",
-                    Description = item.Project.Description,
-                    Timestamp = item.Project.UpdatedAt,
-                    User = ActivityUserName(item.UpdatedBy)
-                });
+                var activities = await GetActivitiesAsync(scoped, cancellationToken);
+                var revisionSummary = await GetRevisionSummaryAsync(visibleProjects, cancellationToken);
 
-                var walletActivities = selectedWallets.Select(wallet => new DashboardActivityDTO
+                var response = new DashboardSummaryDTO
                 {
-                    Id = $"wallet-{wallet.Id}-{(wallet.UpdatedDate ?? wallet.CreatedDate).Ticks}",
-                    Type = "lswallet",
-                    Title = $"LS Wallet for {wallet.ProjectId} updated",
-                    Description = wallet.Description ?? wallet.ProgramName ?? "Lump Sum Wallet",
-                    Timestamp = wallet.UpdatedDate ?? wallet.CreatedDate,
-                    User = ActivityUserName(wallet.UpdatedBy ?? wallet.CreatedBy)
-                });
+                    SelectedYear = TemporaryDashboardYear,
+                    AvailableYears = new[] { TemporaryDashboardYear },
+                    Kpis = new DashboardKpiDTO
+                    {
+                        TotalBudget = projects.Sum(project => project.AllocatedBudget),
+                        ActiveProjects = projects.Count,
+                        PublishedProjects = publishedCount,
+                        PublishableProjects = projects.Count(project => project.IsPublishable),
+                        RevisedProjects = projects.Count(project => project.IsRevised),
+                        LsWalletReleased = 0,
+                        LsWalletTotal = 0,
+                        PublicationRate = projects.Count == 0
+                            ? 0
+                            : Math.Round((decimal)publishedCount / projects.Count * 100, 1)
+                    },
+                    AnnualTrend = new List<DashboardTrendDTO>
+                    {
+                        new()
+                        {
+                            Year = TemporaryDashboardYear,
+                            InfrastructureBudget = projects.Sum(project => project.AllocatedBudget),
+                            LsItemized = 0,
+                            ProjectCount = projects.Count
+                        }
+                    },
+                    BudgetBreakdown = budgetBreakdown,
+                    Statuses = statuses,
+                    Islands = islands,
+                    Projects = projects,
+                    LsProjects = new List<DashboardLsProjectDTO>(),
+                    Revisions = revisionSummary,
+                    Activities = activities
+                };
 
-                // ------------------------------------------------------------------
-                // Revision queue
-                // ------------------------------------------------------------------
-                // Reuses dbo.fRevisionQueue -- the exact source behind the /revision
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId);
+            }
+        }
+
+        private async Task<List<DashboardActivityDTO>> GetActivitiesAsync(
+            YearScopedProjects scoped,
+            CancellationToken cancellationToken)
+        {
+            var activityUserIds = scoped.Rows.Select(row => row.UpdatedBy)
+                .Where(userId => !string.IsNullOrWhiteSpace(userId))
+                .Distinct()
+                .ToArray();
+            var activityUsers = await _db.vUsers.AsNoTracking()
+                .Where(user => activityUserIds.Contains(user.UserId))
+                .Select(user => new { user.UserId, user.Name })
+                .ToDictionaryAsync(user => user.UserId, cancellationToken);
+
+            string ActivityUserName(string userId) =>
+                activityUsers.TryGetValue(userId, out var user) ? user.Name : userId;
+
+            return scoped.Rows
+                .Select(row => new DashboardActivityDTO
+                {
+                    Id = $"project-{row.Project.Id}-{row.Project.UpdatedAt.Ticks}",
+                    Type = row.Project.IsRevised ? "revision" : "project",
+                    Title = row.Project.IsRevised
+                        ? $"Project {row.Project.ProjectId} revised"
+                        : $"Project {row.Project.ProjectId} updated",
+                    Description = row.Project.Description,
+                    Timestamp = row.Project.UpdatedAt,
+                    User = ActivityUserName(row.UpdatedBy)
+                })
+                .OrderByDescending(activity => activity.Timestamp)
+                .Take(12)
+                .ToList();
+        }
+
+        private async Task<DashboardRevisionSummaryDTO> GetRevisionSummaryAsync(
+            IQueryable<ProjectLatest> visibleProjects,
+            CancellationToken cancellationToken)
+        {
+            // Reuses dbo.fRevisionQueue -- the exact source behind the /revision
                 // page -- so the dashboard can never disagree with that list. The TVF
                 // is already user-scoped: it returns rows the caller created, plus the
                 // RO tier when the caller is in RPC and the CO tier when in AUC, which
@@ -408,15 +493,6 @@ namespace WebAPI.Controllers.Dashboard
                         || revision.RevisionStatus == ForApprovalStatus)
                     .ToList();
 
-                static List<DashboardStatusDTO> GroupRevisions(
-                    IEnumerable<DashboardRevisionDTO> source,
-                    Func<DashboardRevisionDTO, string> selector) =>
-                    source.GroupBy(selector)
-                        .Select(group => new DashboardStatusDTO { Name = group.Key, Count = group.Count() })
-                        .OrderByDescending(item => item.Count)
-                        .ThenBy(item => item.Name)
-                        .ToList();
-
                 var revisionSummary = new DashboardRevisionSummaryDTO
                 {
                     ForReview = revisionRows.Count(revision => revision.RevisionStatus == ForReviewStatus),
@@ -431,68 +507,265 @@ namespace WebAPI.Controllers.Dashboard
                     Items = revisionRows
                 };
 
-                var walletForYear = annualWallets.FirstOrDefault(item => item.Year == selectedYear);
-                var publishedCount = projects.Count(project => project.IsPublished);
-                var response = new DashboardSummaryDTO
-                {
-                    SelectedYear = selectedYear,
-                    AvailableYears = availableYears,
-                    Kpis = new DashboardKpiDTO
-                    {
-                        TotalBudget = projects.Sum(project => project.AllocatedBudget),
-                        ActiveProjects = projects.Count,
-                        PublishedProjects = publishedCount,
-                        PublishableProjects = projects.Count(project => project.IsPublishable),
-                        RevisedProjects = projects.Count(project => project.IsRevised),
-                        LsWalletReleased = walletForYear?.Itemized ?? 0,
-                        LsWalletTotal = walletForYear?.Total ?? 0,
-                        PublicationRate = projects.Count == 0
-                            ? 0
-                            : Math.Round((decimal)publishedCount / projects.Count * 100, 1)
-                    },
-                    AnnualTrend = availableYears
-                        .Select(year => new DashboardTrendDTO
-                        {
-                            Year = year,
-                            InfrastructureBudget = annualProjectBudgets.FirstOrDefault(item => item.Year == year)?.Amount ?? 0,
-                            LsItemized = annualWallets.FirstOrDefault(wallet => wallet.Year == year)?.Itemized ?? 0,
-                            ProjectCount = annualProjectBudgets.FirstOrDefault(item => item.Year == year)?.ProjectCount ?? 0
-                        })
-                        .OrderBy(item => item.Year)
-                        .ToList(),
-                    BudgetBreakdown = budgetBreakdown,
-                    Statuses = statuses,
-                    Islands = islands,
-                    Projects = projects,
-                    // LsProjects = selectedWallets.Select(wallet => new DashboardLsProjectDTO
-                    // {
-                    //     Id = wallet.Id,
-                    //     ProjectPK = wallet.ProjectPK,
-                    //     ProjectId = wallet.ProjectId,
-                    //     Description = wallet.Description ?? "Not recorded",
-                    //     ProgramName = wallet.ProgramName ?? "Not recorded",
-                    //     StageName = wallet.StageName ?? "Unstaged",
-                    //     TotalAllocation = wallet.OriginalAllocation,
-                    //     ItemizedAmount = wallet.ItemizedTotal,
-                    //     RemainingAmount = wallet.Remaining,
-                    //     ItemizedCount = checked((int)wallet.ItemizedCount),
-                    //     Children = childrenByWallet.GetValueOrDefault(wallet.Id) ?? new()
-                    // }).OrderByDescending(wallet => wallet.ItemizedAmount).ToList(),
-                    LsProjects = new List<DashboardLsProjectDTO>(),
-                    Revisions = revisionSummary,
-                    Activities = projectActivities.Concat(walletActivities)
-                        .OrderByDescending(activity => activity.Timestamp)
-                        .Take(12)
-                        .ToList()
-                };
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                return _exceptionHandler.Handle(ex, dto, _Session.UserId);
-            }
+                return revisionSummary;
         }
+
+        private static List<DashboardStatusDTO> GroupRevisions(
+            IEnumerable<DashboardRevisionDTO> source,
+            Func<DashboardRevisionDTO, string> selector) =>
+            source.GroupBy(selector)
+                .Select(group => new DashboardStatusDTO { Name = group.Key, Count = group.Count() })
+                .OrderByDescending(item => item.Count)
+                .ThenBy(item => item.Name)
+                .ToList();
+
+        // ------------------------------------------------------------------
+        // Shared helpers
+        // ------------------------------------------------------------------
+
+        private IQueryable<ProjectLatest> GetVisibleProjects()
+        {
+            IQueryable<ProjectLatest> visibleProjects = _db.vProjectLatest.AsNoTracking();
+            if (_Session.ApplyFilter)
+            {
+                var allowedProjects = _db.fUserVisibleProjects
+                    .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleProjects({_Session.UserId})");
+                visibleProjects = visibleProjects.Where(project =>
+                    allowedProjects.Any(allowed => allowed.ProjectPK == project.ProjectPK));
+            }
+            return visibleProjects;
+        }
+
+        private static string IslandName(string? islandCode) => islandCode switch
+        {
+            "LZ" => "Luzon",
+            "VS" => "Visayas",
+            "MN" => "Mindanao",
+            _ => "Unassigned"
+        };
+
+        /// <summary>
+        /// The join+enrich pipeline every split endpoint needs: visible projects joined to
+        /// their component cost for <paramref name="year"/>, enriched with resolved
+        /// region/office names, joined funding sources, and publish/publishable/revised
+        /// flags. Each endpoint re-runs this rather than sharing one cached result across
+        /// requests, trading a little query duplication (cheap now that it's pinned to one
+        /// fiscal year) for independently callable, independently lazy-loadable endpoints.
+        /// </summary>
+        private async Task<YearScopedProjects> GetYearScopedProjectsAsync(
+            IQueryable<ProjectLatest> visibleProjects,
+            int year,
+            CancellationToken cancellationToken)
+        {
+            var projectBudgets = await (
+                from project in visibleProjects
+                join component in _db.tProjectComponentCost.AsNoTracking()
+                    on project.RevisionId equals component.ProjectRevisionFK
+                join cost in _db.tProjectComponentCostPerYear.AsNoTracking()
+                    on component.Id equals cost.ComponentCostFK
+                where !component.IsDeleted && !cost.IsDeleted && cost.Year == year
+                group new { project, cost } by new
+                {
+                    project.Id,
+                    project.ProjectPK,
+                    project.RevisionId,
+                    project.ProjectId,
+                    project.Description,
+                    project.ProgramName,
+                    project.Region,
+                    project.CategoryName,
+                    project.StageName,
+                    project.ImplementingOffice,
+                    project.LastUpdatedBy,
+                    project.LastUpdatedDate,
+                    project.RevisionCreatedBy,
+                    project.RevisionCreatedDate
+                } into projectGroup
+                select new
+                {
+                    projectGroup.Key,
+                    Budget = projectGroup.Sum(item => item.cost.Amount)
+                }).ToListAsync(cancellationToken);
+
+            var projectKeys = projectBudgets.Select(item => item.Key.ProjectPK).ToArray();
+            var projectFlags = await _db.tProjects.AsNoTracking()
+                .Where(project => projectKeys.Contains(project.ProjectPK))
+                .Select(project => new
+                {
+                    project.Id,
+                    project.ProjectPK,
+                    project.IsPublished,
+                    project.IsPublishable,
+                    project.IsRevised
+                })
+                .ToDictionaryAsync(item => item.ProjectPK, cancellationToken);
+
+            var regionIds = projectBudgets.Select(item => item.Key.Region)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct()
+                .ToArray();
+            var regionLookup = await _db.tOptionAdminAreaRegion.AsNoTracking()
+                .Where(region => regionIds.Contains(region.ParticipantId))
+                .Select(region => new { region.ParticipantId, region.Name, region.IslandCode })
+                .ToDictionaryAsync(region => region.ParticipantId, cancellationToken);
+
+            var officeIds = projectBudgets.Select(item => item.Key.ImplementingOffice)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct()
+                .ToArray();
+            var officeLookup = await _db.vAdminImplementingOffice.AsNoTracking()
+                .Where(office => officeIds.Contains(office.ParticipantId))
+                .Select(office => new { office.ParticipantId, office.Name })
+                .ToDictionaryAsync(office => office.ParticipantId, cancellationToken);
+
+            var revisionIds = projectBudgets.Select(item => item.Key.RevisionId).Distinct().ToArray();
+            var fundingRows = await _db.tProjectFundingProfile.AsNoTracking()
+                .Where(funding => revisionIds.Contains(funding.ProjectRevisionFK) && !funding.IsDeleted)
+                .Select(funding => new { funding.ProjectRevisionFK, funding.SourceOrg })
+                .ToListAsync(cancellationToken);
+            var sourceOrganizations = fundingRows.Select(funding => funding.SourceOrg)
+                .Where(source => !string.IsNullOrWhiteSpace(source))
+                .Distinct()
+                .ToArray();
+            var sourceRows = await _db.tOptionFundingSource.AsNoTracking()
+                .Where(source => sourceOrganizations.Contains(source.Organization))
+                .Select(source => new { source.Organization, source.Name })
+                .ToListAsync(cancellationToken);
+            var sourceLookup = sourceRows.GroupBy(source => source.Organization)
+                .ToDictionary(group => group.Key, group => group.First().Name);
+            var fundingLookup = fundingRows
+                .GroupBy(funding => funding.ProjectRevisionFK)
+                .ToDictionary(
+                    group => group.Key,
+                    group => string.Join(", ", group.Select(funding =>
+                            sourceLookup.TryGetValue(funding.SourceOrg, out var sourceName)
+                                ? sourceName
+                                : funding.SourceOrg)
+                        .Where(source => !string.IsNullOrWhiteSpace(source))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(source => source)));
+
+            var projectRows = projectBudgets
+                .Select(item =>
+                {
+                    projectFlags.TryGetValue(item.Key.ProjectPK, out var flags);
+                    regionLookup.TryGetValue(item.Key.Region, out var region);
+                    officeLookup.TryGetValue(item.Key.ImplementingOffice, out var office);
+                    fundingLookup.TryGetValue(item.Key.RevisionId, out var fundingSources);
+                    var project = new DashboardProjectDTO
+                    {
+                        Id = flags?.Id ?? item.Key.Id,
+                        ProjectPK = item.Key.ProjectPK,
+                        ProjectId = item.Key.ProjectId,
+                        Description = item.Key.Description,
+                        ProgramName = item.Key.ProgramName ?? "Not recorded",
+                        Region = region?.Name
+                            ?? (string.IsNullOrWhiteSpace(item.Key.Region)
+                                ? "Not recorded"
+                                : $"Unrecognized region ({item.Key.Region})"),
+                        Island = IslandName(region?.IslandCode),
+                        Category = item.Key.CategoryName ?? "Uncategorized",
+                        StageName = item.Key.StageName ?? "Unstaged",
+                        ImplementingOffice = office?.Name
+                            ?? (string.IsNullOrWhiteSpace(item.Key.ImplementingOffice)
+                                ? "Not recorded"
+                                : $"Unrecognized office ({item.Key.ImplementingOffice})"),
+                        FundingSource = string.IsNullOrWhiteSpace(fundingSources)
+                            ? "Not recorded"
+                            : fundingSources,
+                        AllocatedBudget = item.Budget,
+                        IsPublished = flags?.IsPublished ?? false,
+                        IsPublishable = flags?.IsPublishable ?? false,
+                        IsRevised = flags?.IsRevised ?? false,
+                        UpdatedAt = item.Key.LastUpdatedDate ?? item.Key.RevisionCreatedDate
+                    };
+                    return (
+                        Project: project,
+                        UpdatedBy: item.Key.LastUpdatedBy ?? item.Key.RevisionCreatedBy);
+                })
+                .OrderByDescending(item => item.Project.AllocatedBudget)
+                .ToList();
+
+            return new YearScopedProjects(
+                projectRows.Select(row => row.Project).ToList(),
+                projectRows);
+        }
+
+        /// <summary>
+        /// Pages an already-materialized, year-scoped project list in memory. This is NOT
+        /// Helpers.QueryPaginationExtensions.FilterDataCursor's keyset SQL pagination —
+        /// that helper only pages a single SQL table/view/TVF directly, and this DTO is a
+        /// multi-table join with a computed per-year budget and resolved names with no
+        /// backing view. The list is already bounded to one fiscal year, so there's no
+        /// scale reason to reimplement keyset cursors: page numbers are honored directly,
+        /// and the cursor id fields below are just page numbers, so the shared FE
+        /// usePagination hook's contract (which treats cursors as opaque) still holds.
+        /// </summary>
+        private static FilteredResult<DashboardProjectDTO> PaginateProjects(
+            List<DashboardProjectDTO> allProjects,
+            ShowDashboardProjectsFilterDTO filters,
+            int limit,
+            int page,
+            PaginationNavigation navigation)
+        {
+            IEnumerable<DashboardProjectDTO> filtered = allProjects;
+
+            if (!string.IsNullOrWhiteSpace(filters.Search))
+            {
+                var search = filters.Search.Trim();
+                filtered = filtered.Where(project =>
+                    project.ProjectId.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || project.Description.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || project.Region.Contains(search, StringComparison.OrdinalIgnoreCase));
+            }
+            if (!string.IsNullOrWhiteSpace(filters.Island))
+            {
+                filtered = filtered.Where(project => project.Island == filters.Island);
+            }
+            if (!string.IsNullOrWhiteSpace(filters.Status))
+            {
+                filtered = filtered.Where(project => project.StageName == filters.Status);
+            }
+
+            var ordered = filtered.OrderByDescending(project => project.AllocatedBudget).ToList();
+
+            var safeLimit = limit < 1 ? 10 : Math.Min(limit, 200);
+            var total = ordered.Count;
+            var totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)safeLimit);
+
+            int requestedPage = navigation switch
+            {
+                PaginationNavigation.First => 1,
+                PaginationNavigation.Last => totalPages > 0 ? totalPages : 1,
+                _ => Math.Clamp(page < 1 ? 1 : page, 1, Math.Max(totalPages, 1))
+            };
+
+            var pageItems = ordered
+                .Skip((requestedPage - 1) * safeLimit)
+                .Take(safeLimit)
+                .ToList();
+
+            var hasPrevious = requestedPage > 1;
+            var hasNext = requestedPage < totalPages;
+
+            return new FilteredResult<DashboardProjectDTO>
+            {
+                lists = pageItems,
+                page = requestedPage,
+                limit = safeLimit,
+                total = total,
+                totalPages = totalPages,
+                HasPrevious = hasPrevious,
+                HasNext = hasNext,
+                PreviousFilteredId = hasPrevious ? requestedPage - 1 : null,
+                NextFilteredId = hasNext ? requestedPage + 1 : null,
+                PageCursorId = requestedPage
+            };
+        }
+
+        private sealed record YearScopedProjects(
+            List<DashboardProjectDTO> Projects,
+            List<(DashboardProjectDTO Project, string UpdatedBy)> Rows);
 
         private async Task<List<DashboardWalletRow>> LoadWalletRows(CancellationToken cancellationToken)
         {
