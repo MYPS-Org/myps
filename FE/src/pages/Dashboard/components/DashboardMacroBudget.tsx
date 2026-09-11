@@ -252,7 +252,7 @@ export const DashboardMacroBudget: React.FC<Props> = ({
       )}
 
       {/* Header */}
-      <div className={`relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+      <div className={`relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span
@@ -290,7 +290,7 @@ export const DashboardMacroBudget: React.FC<Props> = ({
       </div>
 
       {/* Main Grid: Interactive Donut on Left (4 cols), 2-Column Pillars Grid on Right (8 cols) */}
-      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
+      <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
         {/* Donut Chart & Active Pillar Card (4 cols) */}
         <div className="lg:col-span-4 flex flex-col items-center justify-center">
           {segments.length === 0 ? (
