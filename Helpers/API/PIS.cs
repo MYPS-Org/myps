@@ -94,11 +94,14 @@ namespace Helpers.API
             var xml = await responseContent.ReadAsStringAsync();
             var doc = XDocument.Parse(xml);
             var ns = "https://www.dpwh.gov.ph/";
-            string aa = doc.ToString();
             var result = doc.Descendants(XName.Get("ad_validate_loginResult", ns)).FirstOrDefault();
             if (result == null) return null;
 
-            return result.ToString();
+            // 2026-09-11 fix: .ToString() on an XElement serializes the whole element including
+            // its tag/namespace (e.g. "<ad_validate_loginResult xmlns=...>...</ad_validate_loginResult>"),
+            // which was leaking straight into the login error message shown to the user. .Value
+            // is just the inner text PIS actually returned.
+            return result.Value.Trim();
         }
     }
 }

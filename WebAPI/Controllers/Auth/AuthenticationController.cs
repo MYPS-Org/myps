@@ -80,6 +80,7 @@ namespace WebAPI.Controllers.Auth
                     return UnauthorizedUser($"{LoginLog.ValidationMessage}. Please contact your administrator. ");
                 }
                 bool bypassPIS = Appsetting.Environment == "Development" && Appsetting.PIS.BypassLogin;
+                bool pisUnreachable = false;
                 string employee;
                 if (bypassPIS)
                 {
@@ -94,7 +95,9 @@ namespace WebAPI.Controllers.Auth
                     // a response." fallback below, which is not XML, so parsing it threw an
                     // unhandled XmlException (GAP-12), defeating the whole point of the
                     // null-coalesce. The parsed value was never used afterward either.
-                    employee = await APIRequest.XML(request) ?? "PIS did not return a response.";
+                    var pisResponse = await APIRequest.XML(request);
+                    pisUnreachable = pisResponse == null;
+                    employee = pisResponse ?? "PIS did not return a response.";
                     LoginLog.ValidationMessage = employee;
                 }
                 if (employee.Contains("Valid Login"))
@@ -128,9 +131,18 @@ namespace WebAPI.Controllers.Auth
                     );
                 }
 
+                // 2026-09-11 fix: previously always echoed LoginLog.ValidationMessage (PIS's own
+                // response text) back to the user, which leaked the external system's raw wording
+                // (and, before the PIS.cs fix, its raw XML tag too). Wrong-credentials now gets our
+                // own controlled message, matching the sibling "Account not found"/"Account is
+                // inactive" messages above. The PIS-unreachable case keeps its existing message
+                // unchanged -- telling the user their password is wrong when the real problem is
+                // the auth service being unreachable would be misleading.
                 return LoginLog.IsValid ? Ok(new { Message = "Login successful",
                     Data = new { Authenticated = true, User = verifyAccount } }) :
-                    UnauthorizedUser($"{LoginLog.ValidationMessage}. Please check your user ID and password and try again. ");
+                    UnauthorizedUser(pisUnreachable
+                        ? $"{LoginLog.ValidationMessage}. Please check your user ID and password and try again. "
+                        : "Invalid username or password. Please check your user ID and password and try again. ");
             }
             catch (Exception ex)
             {
