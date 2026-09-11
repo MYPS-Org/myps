@@ -183,7 +183,7 @@ const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const { setTheme, isLight } = useDashboardTheme();
 
-  const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('real');
+  const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('benchmark');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [kpiData, setKpiData] = useState<KpiData>(EMPTY_KPIS);
