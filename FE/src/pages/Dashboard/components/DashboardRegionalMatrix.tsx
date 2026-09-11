@@ -9,13 +9,20 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useDashboardTheme } from '../DashboardTheme';
-import { type WatchlistProject } from './ProjectQuickDetailModal';
-import { type IslandAllocation } from './DashboardCharts';
+
+/** Server-aggregated region row (WebAPI Dashboard/RegionalBreakdown) — replaces client-side
+ *  aggregation over a full project array so this component only needs per-region totals. */
+export interface RegionalBreakdownRow {
+  region: string;
+  island: string;
+  budget: number;
+  projectCount: number;
+}
 
 interface Props {
   selectedYear?: number;
-  projects?: WatchlistProject[];
-  islands?: IslandAllocation[];
+  regions?: RegionalBreakdownRow[];
+  isLoading?: boolean;
   onSelectIsland?: (island: string | null) => void;
   activeIslandFilter?: string | null;
 }
@@ -59,7 +66,8 @@ function getDonutPath(cx: number, cy: number, rInner: number, rOuter: number, st
 
 export const DashboardRegionalMatrix: React.FC<Props> = ({
   selectedYear = 2027,
-  projects = [],
+  regions: regionsProp = [],
+  isLoading = false,
   onSelectIsland,
   activeIslandFilter,
 }) => {
@@ -88,45 +96,42 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isModalOpen]);
 
-  // Derive data from projects
-  const totalBudget = projects.reduce((sum, p) => sum + p.allocatedBudget, 0);
+  // Derive data from the server-aggregated region rows (Dashboard/RegionalBreakdown) —
+  // the group-by that used to happen client-side over the full project array now happens
+  // server-side; this only needs to bucket those aggregates into subgroups (Northern/Southern
+  // Luzon, NCR) via the existing regionGroup() lookup.
+  const totalBudget = regionsProp.reduce((sum, r) => sum + r.budget, 0);
   const totalBudgetBillion = totalBudget / 1e9;
+  const totalProjectCount = regionsProp.reduce((sum, r) => sum + r.projectCount, 0);
 
-  // Group projects by Region
-  const regionMap = new Map<string, { island: string; amount: number; count: number }>();
-  for (const p of projects) {
-    const regName = p.region || 'Unassigned';
-    const curr = regionMap.get(regName) || { island: p.island || 'Other', amount: 0, count: 0 };
-    curr.amount += p.allocatedBudget;
-    curr.count += 1;
-    curr.island = p.island || curr.island;
-    regionMap.set(regName, curr);
-  }
-
-  const regionRows: RegionRow[] = Array.from(regionMap.entries()).map(([regName, data]) => {
-    const share = totalBudget > 0 ? (data.amount / totalBudget) * 100 : 0;
-    const subgroup = regionGroup(regName) ?? data.island;
-
+  const regionRows: RegionRow[] = regionsProp.map((row) => {
+    const regName = row.region || 'Unassigned';
+    const share = totalBudget > 0 ? (row.budget / totalBudget) * 100 : 0;
+    const subgroup = regionGroup(regName) ?? row.island;
     const shortName = regName.split(' (')[0];
 
     return {
       name: regName,
       displayName: shortName,
-      island: data.island,
+      island: row.island || 'Other',
       subgroup,
-      amount: data.amount,
+      amount: row.budget,
       sharePercent: share,
-      count: data.count,
+      count: row.projectCount,
     };
   });
 
-  const luzonProjects = projects.filter((p) => p.island === 'Luzon');
-  const visayasProjects = projects.filter((p) => p.island === 'Visayas');
-  const mindanaoProjects = projects.filter((p) => p.island === 'Mindanao');
+  const luzonRegions = regionsProp.filter((r) => r.island === 'Luzon');
+  const visayasRegions = regionsProp.filter((r) => r.island === 'Visayas');
+  const mindanaoRegions = regionsProp.filter((r) => r.island === 'Mindanao');
 
-  const luzonTotal = luzonProjects.reduce((sum, p) => sum + p.allocatedBudget, 0) / 1e9;
-  const visayasTotal = visayasProjects.reduce((sum, p) => sum + p.allocatedBudget, 0) / 1e9;
-  const mindanaoTotal = mindanaoProjects.reduce((sum, p) => sum + p.allocatedBudget, 0) / 1e9;
+  const luzonTotal = luzonRegions.reduce((sum, r) => sum + r.budget, 0) / 1e9;
+  const visayasTotal = visayasRegions.reduce((sum, r) => sum + r.budget, 0) / 1e9;
+  const mindanaoTotal = mindanaoRegions.reduce((sum, r) => sum + r.budget, 0) / 1e9;
+
+  const luzonProjectCount = luzonRegions.reduce((sum, r) => sum + r.projectCount, 0);
+  const visayasProjectCount = visayasRegions.reduce((sum, r) => sum + r.projectCount, 0);
+  const mindanaoProjectCount = mindanaoRegions.reduce((sum, r) => sum + r.projectCount, 0);
 
   const luzonShare = totalBudgetBillion > 0 ? (luzonTotal / totalBudgetBillion) * 100 : 0;
   const visayasShare = totalBudgetBillion > 0 ? (visayasTotal / totalBudgetBillion) * 100 : 0;
@@ -180,17 +185,17 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
   let pieSegments: PieSegment[] = [];
   if (pieSliceType === 'island') {
     pieSegments = [
-      { id: 'Luzon', name: 'Luzon', amount: luzonTotal, share: luzonShare, count: luzonProjects.length, color: '#00a3e0', island: 'Luzon' },
-      { id: 'Visayas', name: 'Visayas', amount: visayasTotal, share: visayasShare, count: visayasProjects.length, color: '#2e7d32', island: 'Visayas' },
-      { id: 'Mindanao', name: 'Mindanao', amount: mindanaoTotal, share: mindanaoShare, count: mindanaoProjects.length, color: '#d81b60', island: 'Mindanao' },
+      { id: 'Luzon', name: 'Luzon', amount: luzonTotal, share: luzonShare, count: luzonProjectCount, color: '#00a3e0', island: 'Luzon' },
+      { id: 'Visayas', name: 'Visayas', amount: visayasTotal, share: visayasShare, count: visayasProjectCount, color: '#2e7d32', island: 'Visayas' },
+      { id: 'Mindanao', name: 'Mindanao', amount: mindanaoTotal, share: mindanaoShare, count: mindanaoProjectCount, color: '#d81b60', island: 'Mindanao' },
     ];
   } else if (pieSliceType === 'subgroup') {
     pieSegments = [
       { id: 'Northern Luzon', name: 'Northern Luzon', amount: northernLuzon.reduce((s, r) => s + r.amount, 0) / 1e9, share: northernLuzonShare, count: northernLuzon.reduce((s, r) => s + r.count, 0), color: '#0284c7', island: 'Luzon' },
       { id: 'Southern Luzon', name: 'Southern Luzon', amount: southernLuzon.reduce((s, r) => s + r.amount, 0) / 1e9, share: southernLuzonShare, count: southernLuzon.reduce((s, r) => s + r.count, 0), color: '#38bdf8', island: 'Luzon' },
       { id: 'NCR', name: 'NCR (Metro Manila)', amount: (ncr?.amount ?? 0) / 1e9, share: ncrShare, count: ncr?.count ?? 0, color: '#0ea5e9', island: 'Luzon' },
-      { id: 'Visayas', name: 'Visayas Region', amount: visayasTotal, share: visayasShare, count: visayasProjects.length, color: '#10b981', island: 'Visayas' },
-      { id: 'Mindanao', name: 'Mindanao Region', amount: mindanaoTotal, share: mindanaoShare, count: mindanaoProjects.length, color: '#f43f5e', island: 'Mindanao' },
+      { id: 'Visayas', name: 'Visayas Region', amount: visayasTotal, share: visayasShare, count: visayasProjectCount, color: '#10b981', island: 'Visayas' },
+      { id: 'Mindanao', name: 'Mindanao Region', amount: mindanaoTotal, share: mindanaoShare, count: mindanaoProjectCount, color: '#f43f5e', island: 'Mindanao' },
     ];
   } else {
     const sorted = [...regionRows].sort((a, b) => b.amount - a.amount);
@@ -261,7 +266,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                 ₱{totalBudgetBillion.toFixed(2)} B
               </span>
               <span className={`text-xs sm:text-sm font-normal ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Regional Portfolio Sum ({projects.length} Records)
+                Regional Portfolio Sum ({totalProjectCount} Records)
               </span>
             </h2>
           </div>
@@ -301,6 +306,24 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
           </div>
         </div>
 
+        {isLoading ? (
+          <div className="mt-5 rounded-2xl p-6 border border-slate-800/60 bg-slate-900/40 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+            <div className="lg:col-span-3 space-y-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-20 rounded-xl bg-slate-800/60 animate-pulse" />
+              ))}
+            </div>
+            <div className="lg:col-span-6 flex items-center justify-center">
+              <div className="w-64 h-64 rounded-full bg-slate-800/60 animate-pulse" />
+            </div>
+            <div className="lg:col-span-3 space-y-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-20 rounded-xl bg-slate-800/60 animate-pulse" />
+              ))}
+            </div>
+          </div>
+        ) : (
+        <>
         {/* 1. Official Infographic Map View with True Philippines Map */}
         {viewMode === 'map' && (
           <div
@@ -499,7 +522,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                 PORTFOLIO SUM: ₱{totalBudgetBillion.toFixed(2)} B
               </span>
               <span className="text-slate-300 font-medium text-[11px]">
-                {projects.length} Regional Records Accounted
+                {totalProjectCount} Regional Records Accounted
               </span>
             </div>
           </div>
@@ -511,9 +534,9 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
             {/* Top Island Filter Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
-                { name: 'Luzon', amount: luzonTotal, share: luzonShare, count: luzonProjects.length, color: '#0284c7' },
-                { name: 'Mindanao', amount: mindanaoTotal, share: mindanaoShare, count: mindanaoProjects.length, color: '#e11d48' },
-                { name: 'Visayas', amount: visayasTotal, share: visayasShare, count: visayasProjects.length, color: '#059669' },
+                { name: 'Luzon', amount: luzonTotal, share: luzonShare, count: luzonProjectCount, color: '#0284c7' },
+                { name: 'Mindanao', amount: mindanaoTotal, share: mindanaoShare, count: mindanaoProjectCount, color: '#e11d48' },
+                { name: 'Visayas', amount: visayasTotal, share: visayasShare, count: visayasProjectCount, color: '#059669' },
               ].map((island) => {
                 const isSelected = selectedIslandTab === island.name || activeIslandFilter === island.name;
 
@@ -665,7 +688,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                           100.00% Allocated
                         </div>
                         <div className="text-[10px] text-slate-400">
-                          {projects.length} Line Items
+                          {totalProjectCount} Line Items
                         </div>
                       </div>
                     )}
@@ -745,6 +768,9 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
               </div>
             </div>
           </div>
+        )}
+
+        </>
         )}
 
         {/* 3. Fullscreen / High-Resolution Enlarge Map Modal */}
@@ -835,7 +861,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                 {/* Modal Footer */}
                 <div className="p-3.5 bg-slate-950/90 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs gap-3">
                   <div className="text-[11px] text-slate-400">
-                    Total Regional Budget: <span className="font-bold text-amber-400">₱{totalBudgetBillion.toFixed(2)} Billion</span> ({projects.length} Total Line Items)
+                    Total Regional Budget: <span className="font-bold text-amber-400">₱{totalBudgetBillion.toFixed(2)} Billion</span> ({totalProjectCount} Total Line Items)
                   </div>
                 </div>
               </motion.div>
