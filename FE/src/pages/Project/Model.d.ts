@@ -19,7 +19,7 @@ export interface ProjectFormPayload {
   MajorItemOfWorks: MajorItemOfWork[];
   MajorItemLocations: MajorItemLocations[];
   ProjectNotes: ProjectNote[];
-  Docs: Docs[];
+  Docs: ProjectSupportingDocs[];
   FundingProfile: FundingProfile[];
   /** @deprecated Not returned by ShowProjectDetails. Use getComponentsEnums()/ShowProjectComponentDropdowns instead. Kept optional for the Modification/Revision module. */
   Dropdowns?: Dropdowns;
@@ -382,6 +382,7 @@ export interface ProjectSupportingDocs {
 	Code: string;
 	Name: string;
 	DocTypeFK: string;
+	DocTypeName: string;
 	ProjectId: string;
 	StageName?: string;
 	FileName: string;

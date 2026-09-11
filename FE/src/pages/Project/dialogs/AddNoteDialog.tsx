@@ -122,6 +122,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
             Code: doc.DocTypeFK || '',
             Name: doc.DocTypeName || '',
             DocTypeFK: doc.DocTypeFK || '',
+            DocTypeName: doc.DocTypeName || '',
             Description: doc.Description,
             FileName: doc.FileName,
             FileExtension: doc.FileExtension,
