@@ -214,7 +214,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
       tally: pendingCount.toLocaleString(),
       count: `${(revisions?.Total ?? 0).toLocaleString()} revision(s) visible to you`,
       formula:
-        'Rows from dbo.fRevisionQueue -- the exact source behind the /revision page -- so this box can never disagree with that list. Implementing Office is resolved through vAdminImplementingOffice, the same view that fills the Implementing Office dropdown on project details.',
+        'The large number shows revisions still waiting for Regional Office review or Central Office approval. The badge shows all revisions you are allowed to see. This list matches the Revision page, and each Implementing Office is shown the same way as on the project details page.',
     },
     lswallet: {
       title: `FY ${selectedYear} LS Itemized Amount`,
