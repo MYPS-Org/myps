@@ -33,6 +33,10 @@ interface Props {
   monthlyData: MonthlyTrend[];
   statusData: StatusSegment[];
   islandData: IslandAllocation[];
+  /** Trend comes from a separate fetch (useDashboardTrend) than statuses/islands, so it gets its own flag. */
+  isTrendLoading?: boolean;
+  /** Statuses and islands share one fetch (useDashboardStatuses). */
+  isStatusesLoading?: boolean;
   onStatusSelect?: (name: string | null) => void;
   activeStatusFilter?: string | null;
   onSelectIsland?: (island: string | null) => void;
@@ -54,6 +58,8 @@ export const DashboardCharts: React.FC<Props> = ({
   monthlyData,
   statusData,
   islandData,
+  isTrendLoading = false,
+  isStatusesLoading = false,
   onStatusSelect,
   activeStatusFilter,
   onSelectIsland,
@@ -110,7 +116,22 @@ export const DashboardCharts: React.FC<Props> = ({
             </div>
           </div>
 
-          {monthlyData.length === 0 ? (
+          {isTrendLoading ? (
+            <div className="mt-6 h-64 flex items-end gap-3 sm:gap-6 px-3 pb-1">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="relative flex-1 h-full flex items-end gap-1.5 justify-center">
+                  <div
+                    className={`w-4 sm:w-6 rounded-t-md animate-pulse ${isLight ? 'bg-slate-200' : 'bg-slate-800'}`}
+                    style={{ height: `${30 + (index % 3) * 20}%` }}
+                  />
+                  <div
+                    className={`w-4 sm:w-6 rounded-t-md animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`}
+                    style={{ height: `${20 + (index % 4) * 15}%` }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : monthlyData.length === 0 ? (
             <div className={`h-64 grid place-items-center text-sm ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               No historical budget records available in database.
             </div>
@@ -226,7 +247,11 @@ export const DashboardCharts: React.FC<Props> = ({
           </div>
 
           <div className="mt-4 space-y-2">
-            {displayStatuses.length === 0 ? (
+            {isStatusesLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className={`h-14 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
+              ))
+            ) : displayStatuses.length === 0 ? (
               <div className={`py-12 text-center text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 No staged projects recorded for FY {selectedYear}.
               </div>
@@ -336,7 +361,11 @@ export const DashboardCharts: React.FC<Props> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
-          {islandData.length === 0 ? (
+          {isStatusesLoading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className={`h-28 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
+            ))
+          ) : islandData.length === 0 ? (
             <p className={`text-xs py-6 text-center col-span-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               No geographic allocation data recorded for this year.
             </p>

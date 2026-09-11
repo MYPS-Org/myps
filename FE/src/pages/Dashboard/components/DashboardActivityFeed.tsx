@@ -19,9 +19,10 @@ export interface ActivityLog {
 
 interface Props {
   activities: ActivityLog[];
+  isLoading?: boolean;
 }
 
-export const DashboardActivityFeed: React.FC<Props> = ({ activities }) => {
+export const DashboardActivityFeed: React.FC<Props> = ({ activities, isLoading = false }) => {
   const { isLight } = useDashboardTheme();
   const [filter, setFilter] = useState<'all' | 'project' | 'revision' | 'lswallet'>('all');
 
@@ -114,7 +115,11 @@ export const DashboardActivityFeed: React.FC<Props> = ({ activities }) => {
 
         {/* Activity Stream List */}
         <div className="flex-1 min-h-[280px] overflow-y-auto space-y-2.5 pr-1">
-          {shown.length === 0 ? (
+          {isLoading ? (
+            Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className={`h-16 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
+            ))
+          ) : shown.length === 0 ? (
             <div className={`h-full flex items-center justify-center text-center text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               No activity logs found for this filter.
             </div>

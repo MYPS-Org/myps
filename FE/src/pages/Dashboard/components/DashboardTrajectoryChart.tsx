@@ -31,6 +31,8 @@ interface Props {
   onSelectYear?: (year: number) => void;
   isBenchmark?: boolean;
   liveData?: Array<{ year: number; projects: number; budget: number }>;
+  /** Only meaningful in Live DB mode — Demo Data renders from BENCHMARK_TRAJECTORY_DATA instantly. */
+  isLoading?: boolean;
 }
 
 export const DashboardTrajectoryChart: React.FC<Props> = ({
@@ -38,6 +40,7 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
   onSelectYear,
   isBenchmark = false,
   liveData = [],
+  isLoading = false,
 }) => {
   const { isLight } = useDashboardTheme();
   const trajectoryData: TrajectoryYear[] = isBenchmark
@@ -108,7 +111,13 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
         </div>
 
         {/* Trajectory Cards Grid */}
-        {trajectoryData.length === 0 ? (
+        {isLoading && !isBenchmark ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className={`h-24 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
+            ))}
+          </div>
+        ) : trajectoryData.length === 0 ? (
           <div className={`mt-6 py-16 text-center text-sm ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
             No project trajectory records are available in the database.
           </div>
@@ -202,7 +211,16 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
         </div>
 
         <div className={`h-28 flex items-end gap-3 sm:gap-6 px-2 pt-2 border-b ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
-          {trajectoryData.map((item) => {
+          {isLoading && !isBenchmark
+            ? Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
+                  <div
+                    className={`w-full max-w-[40px] rounded-t-lg animate-pulse ${isLight ? 'bg-slate-200' : 'bg-slate-800'}`}
+                    style={{ height: `${30 + (index % 3) * 20}%` }}
+                  />
+                </div>
+              ))
+            : trajectoryData.map((item) => {
             const heightPercent = (item.projects / maxProjects) * 100;
             const isSelected = selectedYear === item.year;
 
