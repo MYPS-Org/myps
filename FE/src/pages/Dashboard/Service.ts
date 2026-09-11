@@ -1,4 +1,5 @@
 import { httpClient } from '../../services/httpClient';
+import type { WatchlistProject } from './components/ProjectQuickDetailModal';
 
 export interface DashboardSummary {
   SelectedYear: number;
@@ -392,23 +393,228 @@ function getBenchmarkRevisions(): DashboardRevisionSummary {
   };
 }
 
-export async function fetchDashboardSummary(year?: number, useBenchmark = false): Promise<DashboardSummary> {
-  const validYear = year !== undefined && Number.isInteger(year) && year >= 2000 && year <= 2200
-    ? year
-    : undefined;
+function resolveYear(year?: number): number {
+  return year !== undefined && Number.isInteger(year) && year >= 2000 && year <= 2200 ? year : 2027;
+}
 
-  // If user switched to Benchmark NEP mode
+// ---------------------------------------------------------------------------
+// Split endpoints — one per dashboard section, replacing the old single
+// /Dashboard/Summary call so each section can load (and lazy-load) independently.
+// Every real-mode call is pinned to TemporaryDashboardYear (2027) server-side
+// regardless of what year is passed here; benchmark mode still supports any
+// year in REGIONAL_TOTAL_BY_YEAR for the Demo Data experience. (/Dashboard/Summary
+// itself still exists on the backend for the dashboard-live-data-integrity e2e
+// contract, but nothing on the frontend calls it anymore.)
+// ---------------------------------------------------------------------------
+
+export interface DashboardTrendRow {
+  Year: number;
+  InfrastructureBudget: number;
+  LsItemized: number;
+  ProjectCount: number;
+}
+
+export interface DashboardRegionRow {
+  Region: string;
+  Island: string;
+  Budget: number;
+  ProjectCount: number;
+}
+
+export interface DashboardProjectsFilter {
+  Search?: string;
+  Island?: string;
+  Status?: string;
+}
+
+export async function fetchDashboardKpis(year: number | undefined, useBenchmark: boolean) {
   if (useBenchmark) {
-    return getBenchmarkSummary(validYear ?? 2027);
+    const summary = getBenchmarkSummary(resolveYear(year));
+    return { SelectedYear: summary.SelectedYear, AvailableYears: summary.AvailableYears, Kpis: summary.Kpis };
   }
-
-  // Live mode never substitutes benchmark or generated values. Let the
-  // shared HTTP error handler surface failures so a broken API cannot look
-  // like a valid all-zero database result.
-  const response = await httpClient.post<DashboardSummary>(
-    '/Dashboard/Summary',
-    { Year: validYear },
-    { preloaderMessage: 'Loading live database data...' }
+  const response = await httpClient.post<{ SelectedYear: number; AvailableYears: number[]; Kpis: DashboardSummary['Kpis'] }>(
+    '/Dashboard/Kpis',
+    null,
+    { preloaderMessage: 'Loading KPIs...' }
   );
   return response.Data;
+}
+
+export async function fetchDashboardTrend(year: number | undefined, useBenchmark: boolean) {
+  if (useBenchmark) {
+    return { AnnualTrend: getBenchmarkSummary(resolveYear(year)).AnnualTrend };
+  }
+  const response = await httpClient.post<{ AnnualTrend: DashboardTrendRow[] }>(
+    '/Dashboard/Trend',
+    null,
+    { preloaderMessage: 'Loading trend...' }
+  );
+  return response.Data;
+}
+
+export async function fetchDashboardBudgetBreakdown(year: number | undefined, useBenchmark: boolean) {
+  if (useBenchmark) {
+    return { BudgetBreakdown: getBenchmarkSummary(resolveYear(year)).BudgetBreakdown };
+  }
+  const response = await httpClient.post<{ BudgetBreakdown: DashboardSummary['BudgetBreakdown'] }>(
+    '/Dashboard/BudgetBreakdown',
+    null,
+    { preloaderMessage: 'Loading budget breakdown...' }
+  );
+  return response.Data;
+}
+
+export async function fetchDashboardStatuses(year: number | undefined, useBenchmark: boolean) {
+  if (useBenchmark) {
+    const summary = getBenchmarkSummary(resolveYear(year));
+    return { Statuses: summary.Statuses, Islands: summary.Islands };
+  }
+  const response = await httpClient.post<{ Statuses: DashboardSummary['Statuses']; Islands: DashboardSummary['Islands'] }>(
+    '/Dashboard/Statuses',
+    null,
+    { preloaderMessage: 'Loading status breakdown...' }
+  );
+  return response.Data;
+}
+
+function getBenchmarkRegionalBreakdown(year: number): DashboardRegionRow[] {
+  const summary = getBenchmarkSummary(year);
+  const byRegion = new Map<string, { island: string; budget: number; count: number }>();
+  for (const project of summary.Projects) {
+    const current = byRegion.get(project.Region) ?? { island: project.Island, budget: 0, count: 0 };
+    current.budget += project.AllocatedBudget;
+    current.count += 1;
+    byRegion.set(project.Region, current);
+  }
+  return Array.from(byRegion.entries())
+    .map(([region, data]) => ({ Region: region, Island: data.island, Budget: data.budget, ProjectCount: data.count }))
+    .sort((a, b) => b.Budget - a.Budget);
+}
+
+export async function fetchDashboardRegionalBreakdown(year: number | undefined, useBenchmark: boolean) {
+  if (useBenchmark) {
+    return { Regions: getBenchmarkRegionalBreakdown(resolveYear(year)) };
+  }
+  const response = await httpClient.post<{ Regions: DashboardRegionRow[] }>(
+    '/Dashboard/RegionalBreakdown',
+    null,
+    { preloaderMessage: 'Loading regional breakdown...' }
+  );
+  return response.Data;
+}
+
+export async function fetchDashboardActivities(year: number | undefined, useBenchmark: boolean) {
+  if (useBenchmark) {
+    return { Activities: getBenchmarkSummary(resolveYear(year)).Activities };
+  }
+  const response = await httpClient.post<{ Activities: DashboardSummary['Activities'] }>(
+    '/Dashboard/Activities',
+    null,
+    { preloaderMessage: 'Loading activity feed...' }
+  );
+  return response.Data;
+}
+
+export async function fetchDashboardRevisions(year: number | undefined, useBenchmark: boolean): Promise<DashboardRevisionSummary> {
+  if (useBenchmark) {
+    return getBenchmarkSummary(resolveYear(year)).Revisions;
+  }
+  const response = await httpClient.post<DashboardRevisionSummary>(
+    '/Dashboard/Revisions',
+    null,
+    { preloaderMessage: 'Loading revisions...' }
+  );
+  return response.Data;
+}
+
+function mapProjectDtoToWatchlist(project: DashboardSummary['Projects'][number]): WatchlistProject {
+  return {
+    id: project.Id.toString(),
+    projectPK: project.ProjectPK,
+    projectId: project.ProjectId,
+    description: project.Description,
+    programName: project.ProgramName,
+    region: project.Region,
+    island: project.Island,
+    category: project.Category,
+    stageName: project.StageName,
+    implementingOffice: project.ImplementingOffice,
+    fundingSource: project.FundingSource,
+    allocatedBudget: project.AllocatedBudget,
+    updatedAt: project.UpdatedAt,
+    isPublished: project.IsPublished,
+    isPublishable: project.IsPublishable,
+    isRevised: project.IsRevised,
+  };
+}
+
+// Mirrors WebAPI/Controllers/Dashboard/DashboardController.cs's PaginateProjects so
+// Demo Data paging behaves identically to Live DB paging (search/island/status filter,
+// sort by budget descending, page-number-as-cursor).
+function paginateBenchmarkProjects(
+  projects: WatchlistProject[],
+  filters: DashboardProjectsFilter | undefined,
+  limit: number,
+  page: number,
+  navigation: PaginationNavigationValue | undefined
+): PaginationResponse<WatchlistProject> {
+  let filtered = projects;
+  const search = filters?.Search?.trim().toLowerCase();
+  if (search) {
+    filtered = filtered.filter((project) =>
+      project.projectId.toLowerCase().includes(search)
+      || project.description.toLowerCase().includes(search)
+      || project.region.toLowerCase().includes(search));
+  }
+  if (filters?.Island) {
+    filtered = filtered.filter((project) => project.island === filters.Island);
+  }
+  if (filters?.Status) {
+    filtered = filtered.filter((project) => project.stageName === filters.Status);
+  }
+
+  const ordered = [...filtered].sort((a, b) => b.allocatedBudget - a.allocatedBudget);
+  const safeLimit = limit < 1 ? 10 : Math.min(limit, 200);
+  const total = ordered.length;
+  const totalPages = total === 0 ? 0 : Math.ceil(total / safeLimit);
+
+  let requestedPage: number;
+  if (navigation === 0) requestedPage = 1; // First
+  else if (navigation === 3) requestedPage = totalPages > 0 ? totalPages : 1; // Last
+  else requestedPage = Math.min(Math.max(page < 1 ? 1 : page, 1), Math.max(totalPages, 1));
+
+  const start = (requestedPage - 1) * safeLimit;
+  const lists = ordered.slice(start, start + safeLimit);
+  const hasPrevious = requestedPage > 1;
+  const hasNext = requestedPage < totalPages;
+
+  return {
+    lists,
+    page: requestedPage,
+    limit: safeLimit,
+    total,
+    totalPages,
+    HasPrevious: hasPrevious,
+    HasNext: hasNext,
+    PreviousFilteredId: hasPrevious ? requestedPage - 1 : null,
+    NextFilteredId: hasNext ? requestedPage + 1 : null,
+    PageCursorId: requestedPage,
+  };
+}
+
+export async function fetchDashboardProjects(
+  request: PaginatedRequest<DashboardProjectsFilter>,
+  year: number | undefined,
+  useBenchmark: boolean
+): Promise<{ Data: PaginationResponse<WatchlistProject> }> {
+  if (useBenchmark) {
+    const projects = getBenchmarkSummary(resolveYear(year)).Projects.map(mapProjectDtoToWatchlist);
+    return { Data: paginateBenchmarkProjects(projects, request.Filters, request.limit, request.page, request.Navigation) };
+  }
+  const response = await httpClient.post<PaginationResponse<DashboardSummary['Projects'][number]>>(
+    '/Dashboard/Projects',
+    request,
+    { preloaderMessage: 'Loading projects...' }
+  );
+  return { Data: { ...response.Data, lists: response.Data.lists.map(mapProjectDtoToWatchlist) } };
 }
