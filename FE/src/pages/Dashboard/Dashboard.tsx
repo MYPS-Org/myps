@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSetAtom } from 'jotai';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowPathIcon,
@@ -12,265 +13,154 @@ import {
   CircleStackIcon,
 } from '@heroicons/react/24/outline';
 
-import { fetchDashboardSummary, type DashboardRevisionSummary, type DashboardSummary } from './Service';
 import { DashboardThemeProvider, useDashboardTheme } from './DashboardTheme';
-import DashboardKpiCards, { type KpiData } from './components/DashboardKpiCards';
-import DashboardCharts, { type IslandAllocation, type MonthlyTrend, type StatusSegment } from './components/DashboardCharts';
-import DashboardMacroBudget from './components/DashboardMacroBudget';
+import { useInViewport } from '../../hooks/useInViewport';
+import LazySection from './components/LazySection';
+
+import DashboardKpiCards from './components/DashboardKpiCards';
+const DashboardCharts = lazy(() => import('./components/DashboardCharts'));
+const DashboardMacroBudget = lazy(() => import('./components/DashboardMacroBudget'));
 import DashboardTrajectoryChart from './components/DashboardTrajectoryChart';
-import DashboardRegionalMatrix from './components/DashboardRegionalMatrix';
-import DashboardProjectWatchlist from './components/DashboardProjectWatchlist';
-import { type WatchlistProject } from './components/DashboardProjectWatchlist';
-import DashboardActivityFeed, { type ActivityLog } from './components/DashboardActivityFeed';
+const DashboardRegionalMatrix = lazy(() => import('./components/DashboardRegionalMatrix'));
+import DashboardProjectWatchlist, { type WatchlistProject } from './components/DashboardProjectWatchlist';
+import DashboardActivityFeed from './components/DashboardActivityFeed';
 import DashboardKpiDetailModal, { type DashboardKpiType, type DashboardLsProject } from './components/DashboardKpiDetailModal';
 import ProjectQuickDetailModal from './components/ProjectQuickDetailModal';
 
-const MINIMUM_FISCAL_YEAR = 2000;
-const MAXIMUM_FISCAL_YEAR = 2200;
+import { useDashboardKpis } from './hooks/useDashboardKpis';
+import { useDashboardTrend } from './hooks/useDashboardTrend';
+import { useDashboardBudgetBreakdown } from './hooks/useDashboardBudgetBreakdown';
+import { useDashboardStatuses } from './hooks/useDashboardStatuses';
+import { useDashboardRegionalBreakdown } from './hooks/useDashboardRegionalBreakdown';
+import { useDashboardActivities } from './hooks/useDashboardActivities';
+import { useDashboardRevisions } from './hooks/useDashboardRevisions';
+import {
+  kpisCacheAtom,
+  trendCacheAtom,
+  budgetBreakdownCacheAtom,
+  statusesCacheAtom,
+  regionalBreakdownCacheAtom,
+  activitiesCacheAtom,
+  revisionsCacheAtom,
+  emptySectionCache,
+} from './atoms/dashboardSectionCache.atom';
 
-function isValidFiscalYear(year: number): boolean {
-  return Number.isInteger(year) && year >= MINIMUM_FISCAL_YEAR && year <= MAXIMUM_FISCAL_YEAR;
-}
-
-const EMPTY_KPIS: KpiData = {
-  totalBudget: 0,
-  activeProjects: 0,
-  publishedProjects: 0,
-  publishableProjects: 0,
-  revisedProjects: 0,
-  lsWalletReleased: 0,
-  lsWalletTotal: 0,
-  publicationRate: 0,
-};
+// Live DB is currently pinned to FY2027 only, server-side (WebAPI/Controllers/Dashboard/
+// DashboardController.cs's TemporaryDashboardYear stopgap) -- Demo Data still supports the full
+// presentation year range. Both lists are static, so there's no fetch needed just to know them.
+const LIVE_AVAILABLE_YEARS = [2027];
+const BENCHMARK_AVAILABLE_YEARS = [2027, 2026, 2025, 2024, 2023];
 
 type ViewPerspective = 'overview' | 'nep_briefing' | 'live_portfolio';
-
-const EMPTY_REVISIONS: DashboardRevisionSummary = {
-  ForReview: 0,
-  ForApproval: 0,
-  ForCorrection: 0,
-  Approved: 0,
-  Disapproved: 0,
-  Total: 0,
-  ByStatus: [],
-  ByImplementingOffice: [],
-  ByGroup: [],
-  Items: [],
-};
-
-function mapSummary(summary: DashboardSummary) {
-  const kpis: KpiData = {
-    totalBudget: summary.Kpis?.TotalBudget ?? 0,
-    activeProjects: summary.Kpis?.ActiveProjects ?? 0,
-    publishedProjects: summary.Kpis?.PublishedProjects ?? 0,
-    publishableProjects: summary.Kpis?.PublishableProjects ?? 0,
-    revisedProjects: summary.Kpis?.RevisedProjects ?? 0,
-    lsWalletReleased: summary.Kpis?.LsWalletReleased ?? 0,
-    lsWalletTotal: summary.Kpis?.LsWalletTotal ?? 0,
-    publicationRate: summary.Kpis?.PublicationRate ?? 0,
-  };
-
-  const trends: MonthlyTrend[] = (summary.AnnualTrend ?? []).map((item) => ({
-    month: item.Year.toString(),
-    budget: item.InfrastructureBudget ?? 0,
-    actual: item.LsItemized ?? 0,
-  }));
-
-  const trajectory = (summary.AnnualTrend ?? []).map((item) => ({
-    year: item.Year,
-    projects: item.ProjectCount ?? 0,
-    budget: item.InfrastructureBudget ?? 0,
-  }));
-
-  const budgetBreakdown = (summary.BudgetBreakdown ?? []).map((item) => ({
-    name: item.Name,
-    budget: item.Budget ?? 0,
-    projectCount: item.ProjectCount ?? 0,
-  }));
-
-  const statuses: StatusSegment[] = (summary.Statuses ?? []).map((item) => ({
-    name: item.Name,
-    count: item.Count,
-    color: '#3b82f6',
-    hoverColor: '#2563eb',
-  }));
-
-  const islands: IslandAllocation[] = (summary.Islands ?? []).map((item) => ({
-    name: item.Name,
-    budget: item.Budget ?? 0,
-    projectCount: item.ProjectCount ?? 0,
-  }));
-
-  const projects: WatchlistProject[] = (summary.Projects ?? []).map((item) => ({
-    id: item.Id.toString(),
-    projectPK: item.ProjectPK,
-    projectId: item.ProjectId,
-    description: item.Description,
-    programName: item.ProgramName,
-    region: item.Region,
-    island: item.Island,
-    category: item.Category,
-    stageName: item.StageName,
-    implementingOffice: item.ImplementingOffice,
-    fundingSource: item.FundingSource,
-    allocatedBudget: item.AllocatedBudget,
-    updatedAt: item.UpdatedAt,
-    isPublished: item.IsPublished,
-    isPublishable: item.IsPublishable,
-    isRevised: item.IsRevised,
-  }));
-
-  const activities: ActivityLog[] = (summary.Activities ?? []).map((item) => ({
-    id: item.Id,
-    type: item.Type,
-    title: item.Title,
-    description: item.Description,
-    timestamp: item.Timestamp,
-    user: item.User,
-  }));
-
-  const lsProjects: DashboardLsProject[] = (summary.LsProjects ?? []).map((item) => ({
-    id: item.Id,
-    projectPK: item.ProjectPK,
-    projectId: item.ProjectId,
-    description: item.Description,
-    programName: item.ProgramName,
-    stageName: item.StageName,
-    totalAllocation: item.TotalAllocation,
-    itemizedAmount: item.ItemizedAmount,
-    remainingAmount: item.RemainingAmount,
-    itemizedCount: item.ItemizedCount,
-    children: (item.Children ?? []).map((child) => ({
-      id: child.Id,
-      projectPK: child.ProjectPK,
-      projectId: child.ProjectId,
-      description: child.Description,
-      stageName: child.StageName,
-      fundingTotal: child.FundingTotal,
-      componentCostTotal: child.ComponentCostTotal,
-      isPublished: child.IsPublished,
-    })),
-  }));
-
-  const revisions: DashboardRevisionSummary = summary.Revisions ?? {
-    ForReview: 0,
-    ForApproval: 0,
-    ForCorrection: 0,
-    Approved: 0,
-    Disapproved: 0,
-    Total: 0,
-    ByStatus: [],
-    ByImplementingOffice: [],
-    ByGroup: [],
-    Items: [],
-  };
-
-  return {
-    kpis,
-    revisions,
-    trends,
-    trajectory,
-    budgetBreakdown,
-    statuses,
-    islands,
-    projects,
-    activities,
-    lsProjects,
-  };
-}
 
 const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const { setTheme, isLight } = useDashboardTheme();
 
   const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('benchmark');
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [kpiData, setKpiData] = useState<KpiData>(EMPTY_KPIS);
-  const [trendData, setTrendData] = useState<MonthlyTrend[]>([]);
-  const [statusSegments, setStatusSegments] = useState<StatusSegment[]>([]);
-  const [islands, setIslands] = useState<IslandAllocation[]>([]);
-  const [projects, setProjects] = useState<WatchlistProject[]>([]);
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
-  const [lsProjects, setLsProjects] = useState<DashboardLsProject[]>([]);
-  const [revisions, setRevisions] = useState<DashboardRevisionSummary>(EMPTY_REVISIONS);
-  const [trajectoryData, setTrajectoryData] = useState<Array<{ year: number; projects: number; budget: number }>>([]);
-  const [budgetBreakdown, setBudgetBreakdown] = useState<Array<{ name: string; budget: number; projectCount: number }>>([]);
-
+  const [selectedYear, setSelectedYear] = useState<number>(2027);
   const [selectedKpi, setSelectedKpi] = useState<DashboardKpiType | null>(null);
   const [activeStatusFilter, setActiveStatusFilter] = useState<string | null>(null);
   const [activeIslandFilter, setActiveIslandFilter] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<WatchlistProject | null>(null);
-
   const [viewPerspective, setViewPerspective] = useState<ViewPerspective>('overview');
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const skipResolvedYearFetch = useRef(false);
-  const displayYear = selectedYear ?? new Date().getFullYear();
-  const clearFigures = useCallback(() => {
-    setKpiData(EMPTY_KPIS);
-    setTrendData([]);
-    setTrajectoryData([]);
-    setBudgetBreakdown([]);
-    setStatusSegments([]);
-    setIslands([]);
-    setProjects([]);
-    setActivities([]);
-    setLsProjects([]);
-    setRevisions(EMPTY_REVISIONS);
-    setSelectedProject(null);
-  }, []);
+  const [refreshSignal, setRefreshSignal] = useState(0);
 
-  useEffect(() => {
-    if (skipResolvedYearFetch.current) {
-      skipResolvedYearFetch.current = false;
-      return;
-    }
+  const availableYears = dataSourceMode === 'benchmark' ? BENCHMARK_AVAILABLE_YEARS : LIVE_AVAILABLE_YEARS;
+  // LS Wallet integration is disabled server-side (see DashboardController.cs) -- always empty
+  // until that ships, so there's no section hook for it.
+  const lsProjects: DashboardLsProject[] = [];
 
-    let active = true;
-    setIsLoading(true);
-    setLoadError(null);
-    clearFigures();
+  // Tier 1 -- eager on mount. Always-visible KPI row; two independent requests (the revision
+  // tile resolves on its own without blocking the rest of the cards).
+  const kpis = useDashboardKpis(selectedYear, dataSourceMode, true);
+  const revisions = useDashboardRevisions(selectedYear, dataSourceMode, true);
 
-    fetchDashboardSummary(selectedYear ?? undefined, dataSourceMode === 'benchmark')
-      .then((summary) => {
-        if (!active) return;
-        const mapped = mapSummary(summary);
-        const validYears = summary.AvailableYears.filter(isValidFiscalYear);
-        setAvailableYears(validYears);
-        if (selectedYear === null) {
-          skipResolvedYearFetch.current = true;
-          setSelectedYear(summary.SelectedYear);
-        }
-        setKpiData(mapped.kpis);
-        setTrendData(mapped.trends);
-        setTrajectoryData(mapped.trajectory);
-        setBudgetBreakdown(mapped.budgetBreakdown);
-        setStatusSegments(mapped.statuses);
-        setIslands(mapped.islands);
-        setProjects(mapped.projects);
-        setActivities(mapped.activities);
-        setLsProjects(mapped.lsProjects);
-        setRevisions(mapped.revisions);
-      })
-      .catch((err) => {
-        console.error('Dashboard load issue:', err);
-        if (!active) return;
-        setLoadError(dataSourceMode === 'real'
-          ? 'Live dashboard data could not be loaded. No presentation or fallback figures have been substituted.'
-          : 'The demo data could not be loaded.');
-        setAvailableYears([]);
-        clearFigures();
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
+  // Tier 2 -- lazy on visible. One viewport observer per section, shared across tabs: a section
+  // that renders in more than one tab (e.g. MacroBudget in both Overview and NEP Briefing) only
+  // needs to be "seen" once for its data hook to fetch -- see useInViewport for why sharing one
+  // instance across tab remounts is safe (callback ref, not useRef).
+  const macroBudgetViewport = useInViewport<HTMLDivElement>();
+  const trajectoryViewport = useInViewport<HTMLDivElement>();
+  const regionalMatrixViewport = useInViewport<HTMLDivElement>();
+  const chartsViewport = useInViewport<HTMLDivElement>();
+  const watchlistViewport = useInViewport<HTMLDivElement>();
 
-    return () => {
-      active = false;
-    };
-  }, [selectedYear, refreshKey, dataSourceMode, clearFigures]);
+  // Trend feeds both the Trajectory chart and the Charts panel's trend bars -- one shared fetch,
+  // enabled by whichever of the two sections is reached first.
+  const trend = useDashboardTrend(selectedYear, dataSourceMode, trajectoryViewport.isVisible || chartsViewport.isVisible);
+  const budgetBreakdown = useDashboardBudgetBreakdown(selectedYear, dataSourceMode, macroBudgetViewport.isVisible);
+  const statuses = useDashboardStatuses(selectedYear, dataSourceMode, chartsViewport.isVisible);
+  const regionalBreakdown = useDashboardRegionalBreakdown(selectedYear, dataSourceMode, regionalMatrixViewport.isVisible);
+  const activities = useDashboardActivities(selectedYear, dataSourceMode, watchlistViewport.isVisible);
+
+  const monthlyData = (trend.data ?? []).map((row) => ({
+    month: String(row.year),
+    budget: row.infrastructureBudget,
+    actual: row.lsItemized,
+  }));
+  const trajectoryLiveData = (trend.data ?? []).map((row) => ({
+    year: row.year,
+    projects: row.projectCount,
+    budget: row.infrastructureBudget,
+  }));
+
+  const setKpisCache = useSetAtom(kpisCacheAtom);
+  const setTrendCache = useSetAtom(trendCacheAtom);
+  const setBudgetBreakdownCache = useSetAtom(budgetBreakdownCacheAtom);
+  const setStatusesCache = useSetAtom(statusesCacheAtom);
+  const setRegionalBreakdownCache = useSetAtom(regionalBreakdownCacheAtom);
+  const setActivitiesCache = useSetAtom(activitiesCacheAtom);
+  const setRevisionsCache = useSetAtom(revisionsCacheAtom);
+
+  // Clears every section's cache atom -- a currently-visible section's hook will see its cache
+  // key no longer matches and refetch immediately; an off-screen section just stays empty until
+  // it's scrolled to. The watchlist owns its own (non-atom) pagination state, so it's nudged via
+  // refreshSignal instead.
+  const handleRefresh = () => {
+    setKpisCache(emptySectionCache());
+    setTrendCache(emptySectionCache());
+    setBudgetBreakdownCache(emptySectionCache());
+    setStatusesCache(emptySectionCache());
+    setRegionalBreakdownCache(emptySectionCache());
+    setActivitiesCache(emptySectionCache());
+    setRevisionsCache(emptySectionCache());
+    setRefreshSignal((value) => value + 1);
+  };
+
+  const clearCrossFilters = () => {
+    setActiveIslandFilter(null);
+    setActiveStatusFilter(null);
+  };
+
+  const skeletonBlock = (heightClass: string) => (
+    <div
+      className={`rounded-2xl border animate-pulse ${heightClass} ${
+        isLight ? 'bg-white border-slate-200/90' : 'bg-slate-900/60 border-slate-800'
+      }`}
+    />
+  );
+
+  const watchlistAndActivity = (
+    <div id="watchlist-section" className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+      <div className="lg:col-span-2">
+        <DashboardProjectWatchlist
+          year={selectedYear}
+          dataSourceMode={dataSourceMode}
+          enabled={watchlistViewport.isVisible}
+          refreshSignal={refreshSignal}
+          activeIslandFilter={activeIslandFilter}
+          activeStatusFilter={activeStatusFilter}
+          onClearFilters={clearCrossFilters}
+          onSelectProject={setSelectedProject}
+          onViewAll={() => navigate('/projects')}
+        />
+      </div>
+      <div className="lg:col-span-1">
+        <DashboardActivityFeed activities={activities.data ?? []} isLoading={activities.isLoading} />
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -317,8 +207,7 @@ const DashboardContent: React.FC = () => {
               <button
                 onClick={() => {
                   setDataSourceMode('real');
-                  setSelectedYear(null);
-                  setAvailableYears([]);
+                  setSelectedYear(2027);
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   dataSourceMode === 'real'
@@ -396,12 +285,12 @@ const DashboardContent: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setRefreshKey((value) => value + 1)}
-              disabled={isLoading}
+              onClick={handleRefresh}
+              disabled={kpis.isLoading}
               className="p-2.5 text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 disabled:opacity-50 transition-all flex items-center justify-center shadow-sm"
               title="Refresh dashboard"
             >
-              <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`w-4 h-4 ${kpis.isLoading ? 'animate-spin' : ''}`} />
             </button>
 
             <button
@@ -424,7 +313,7 @@ const DashboardContent: React.FC = () => {
         <div className="relative flex items-center gap-2 mt-6 pt-5 border-t border-slate-800/80 overflow-x-auto">
           {[
             { id: 'overview', label: 'Executive Overview & Analytics', icon: SparklesIcon },
-            { id: 'nep_briefing', label: `FY ${displayYear} DPWH Budget Allocation`, icon: ChartPieIcon },
+            { id: 'nep_briefing', label: `FY ${selectedYear} DPWH Budget Allocation`, icon: ChartPieIcon },
             { id: 'live_portfolio', label: 'Live Database Portfolio & Watchlist', icon: AdjustmentsHorizontalIcon },
           ].map((tab) => {
             const active = viewPerspective === tab.id;
@@ -446,18 +335,20 @@ const DashboardContent: React.FC = () => {
         </div>
       </div>
 
-      {loadError && (
-        <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
-          {loadError}
-        </div>
-      )}
-
-      {!loadError && <>
       {/* 2. Key High-Impact Animated KPI Cards */}
       <DashboardKpiCards
-        data={kpiData}
-        revisions={revisions}
-        isLoading={isLoading}
+        data={kpis.data ?? {
+          totalBudget: 0,
+          activeProjects: 0,
+          publishedProjects: 0,
+          publishableProjects: 0,
+          revisedProjects: 0,
+          lsWalletReleased: 0,
+          lsWalletTotal: 0,
+          publicationRate: 0,
+        }}
+        revisions={revisions.data ?? undefined}
+        isLoading={kpis.isLoading || revisions.isLoading}
         onCardClick={(type) => setSelectedKpi(type as DashboardKpiType)}
       />
 
@@ -473,60 +364,57 @@ const DashboardContent: React.FC = () => {
             className="space-y-6"
           >
             {/* Macro Budget Summary */}
-            <DashboardMacroBudget
-              selectedYear={displayYear}
-              isBenchmark={dataSourceMode === 'benchmark'}
-              liveBreakdown={budgetBreakdown}
-            />
+            <LazySection isVisible={macroBudgetViewport.isVisible} sectionRef={macroBudgetViewport.ref} skeleton={skeletonBlock('h-96')}>
+              <DashboardMacroBudget
+                selectedYear={selectedYear}
+                isBenchmark={dataSourceMode === 'benchmark'}
+                liveBreakdown={budgetBreakdown.data ?? []}
+                isLoading={budgetBreakdown.isLoading}
+              />
+            </LazySection>
 
             {/* 5-Year Trajectory */}
-            <DashboardTrajectoryChart
-              selectedYear={displayYear}
-              onSelectYear={(yr) => setSelectedYear(yr)}
-              isBenchmark={dataSourceMode === 'benchmark'}
-              liveData={trajectoryData}
-            />
+            <LazySection isVisible={trajectoryViewport.isVisible} sectionRef={trajectoryViewport.ref} skeleton={skeletonBlock('h-80')}>
+              <DashboardTrajectoryChart
+                selectedYear={selectedYear}
+                onSelectYear={(yr) => setSelectedYear(yr)}
+                isBenchmark={dataSourceMode === 'benchmark'}
+                liveData={trajectoryLiveData}
+                isLoading={trend.isLoading}
+              />
+            </LazySection>
 
             {/* Regional Capital Outlays Infographic Matrix */}
-            <DashboardRegionalMatrix
-              selectedYear={displayYear}
-              projects={projects}
-              islands={islands}
-              onSelectIsland={(isl) => setActiveIslandFilter(isl)}
-              activeIslandFilter={activeIslandFilter}
-            />
+            <LazySection isVisible={regionalMatrixViewport.isVisible} sectionRef={regionalMatrixViewport.ref} skeleton={skeletonBlock('h-[500px]')}>
+              <DashboardRegionalMatrix
+                selectedYear={selectedYear}
+                regions={regionalBreakdown.data ?? []}
+                isLoading={regionalBreakdown.isLoading}
+                onSelectIsland={(isl) => setActiveIslandFilter(isl)}
+                activeIslandFilter={activeIslandFilter}
+              />
+            </LazySection>
 
             {/* Annual Trend & Project Stages */}
-            <DashboardCharts
-              selectedYear={displayYear}
-              monthlyData={trendData}
-              statusData={statusSegments}
-              islandData={islands}
-              onStatusSelect={setActiveStatusFilter}
-              activeStatusFilter={activeStatusFilter}
-              onSelectIsland={setActiveIslandFilter}
-              activeIslandFilter={activeIslandFilter}
-            />
+            <LazySection isVisible={chartsViewport.isVisible} sectionRef={chartsViewport.ref} skeleton={skeletonBlock('h-96')}>
+              <DashboardCharts
+                selectedYear={selectedYear}
+                monthlyData={monthlyData}
+                statusData={statuses.data?.statuses ?? []}
+                islandData={statuses.data?.islands ?? []}
+                isTrendLoading={trend.isLoading}
+                isStatusesLoading={statuses.isLoading}
+                onStatusSelect={setActiveStatusFilter}
+                activeStatusFilter={activeStatusFilter}
+                onSelectIsland={setActiveIslandFilter}
+                activeIslandFilter={activeIslandFilter}
+              />
+            </LazySection>
 
             {/* Project Watchlist & Activity Stream */}
-            <div id="watchlist-section" className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-              <div className="lg:col-span-2">
-                <DashboardProjectWatchlist
-                  projects={projects}
-                  onSelectProject={setSelectedProject}
-                  activeIslandFilter={activeIslandFilter}
-                  activeStatusFilter={activeStatusFilter}
-                  onClearFilters={() => {
-                    setActiveIslandFilter(null);
-                    setActiveStatusFilter(null);
-                  }}
-                  onViewAll={() => navigate('/projects')}
-                />
-              </div>
-              <div className="lg:col-span-1">
-                <DashboardActivityFeed activities={activities} />
-              </div>
-            </div>
+            <LazySection isVisible={watchlistViewport.isVisible} sectionRef={watchlistViewport.ref} skeleton={skeletonBlock('h-96')}>
+              {watchlistAndActivity}
+            </LazySection>
           </motion.div>
         )}
 
@@ -539,39 +427,50 @@ const DashboardContent: React.FC = () => {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            <DashboardMacroBudget
-              selectedYear={displayYear}
-              isBenchmark={dataSourceMode === 'benchmark'}
-              liveBreakdown={budgetBreakdown}
-            />
-            <DashboardRegionalMatrix
-              selectedYear={displayYear}
-              projects={projects}
-              islands={islands}
-              onSelectIsland={(isl) => setActiveIslandFilter(isl)}
-              activeIslandFilter={activeIslandFilter}
-            />
-            <DashboardCharts
-              selectedYear={displayYear}
-              monthlyData={trendData}
-              statusData={statusSegments}
-              islandData={islands}
-              onStatusSelect={setActiveStatusFilter}
-              activeStatusFilter={activeStatusFilter}
-              onSelectIsland={setActiveIslandFilter}
-              activeIslandFilter={activeIslandFilter}
-            />
-            <DashboardProjectWatchlist
-              projects={projects}
-              onSelectProject={setSelectedProject}
-              activeIslandFilter={activeIslandFilter}
-              activeStatusFilter={activeStatusFilter}
-              onClearFilters={() => {
-                setActiveIslandFilter(null);
-                setActiveStatusFilter(null);
-              }}
-              onViewAll={() => navigate('/projects')}
-            />
+            <LazySection isVisible={macroBudgetViewport.isVisible} sectionRef={macroBudgetViewport.ref} skeleton={skeletonBlock('h-96')}>
+              <DashboardMacroBudget
+                selectedYear={selectedYear}
+                isBenchmark={dataSourceMode === 'benchmark'}
+                liveBreakdown={budgetBreakdown.data ?? []}
+                isLoading={budgetBreakdown.isLoading}
+              />
+            </LazySection>
+            <LazySection isVisible={regionalMatrixViewport.isVisible} sectionRef={regionalMatrixViewport.ref} skeleton={skeletonBlock('h-[500px]')}>
+              <DashboardRegionalMatrix
+                selectedYear={selectedYear}
+                regions={regionalBreakdown.data ?? []}
+                isLoading={regionalBreakdown.isLoading}
+                onSelectIsland={(isl) => setActiveIslandFilter(isl)}
+                activeIslandFilter={activeIslandFilter}
+              />
+            </LazySection>
+            <LazySection isVisible={chartsViewport.isVisible} sectionRef={chartsViewport.ref} skeleton={skeletonBlock('h-96')}>
+              <DashboardCharts
+                selectedYear={selectedYear}
+                monthlyData={monthlyData}
+                statusData={statuses.data?.statuses ?? []}
+                islandData={statuses.data?.islands ?? []}
+                isTrendLoading={trend.isLoading}
+                isStatusesLoading={statuses.isLoading}
+                onStatusSelect={setActiveStatusFilter}
+                activeStatusFilter={activeStatusFilter}
+                onSelectIsland={setActiveIslandFilter}
+                activeIslandFilter={activeIslandFilter}
+              />
+            </LazySection>
+            <LazySection isVisible={watchlistViewport.isVisible} sectionRef={watchlistViewport.ref} skeleton={skeletonBlock('h-96')}>
+              <DashboardProjectWatchlist
+                year={selectedYear}
+                dataSourceMode={dataSourceMode}
+                enabled={watchlistViewport.isVisible}
+                refreshSignal={refreshSignal}
+                activeIslandFilter={activeIslandFilter}
+                activeStatusFilter={activeStatusFilter}
+                onClearFilters={clearCrossFilters}
+                onSelectProject={setSelectedProject}
+                onViewAll={() => navigate('/projects')}
+              />
+            </LazySection>
           </motion.div>
         )}
 
@@ -584,24 +483,9 @@ const DashboardContent: React.FC = () => {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <DashboardProjectWatchlist
-                  projects={projects}
-                  onSelectProject={setSelectedProject}
-                  activeIslandFilter={activeIslandFilter}
-                  activeStatusFilter={activeStatusFilter}
-                  onClearFilters={() => {
-                    setActiveIslandFilter(null);
-                    setActiveStatusFilter(null);
-                  }}
-                  onViewAll={() => navigate('/projects')}
-                />
-              </div>
-              <div className="lg:col-span-1">
-                <DashboardActivityFeed activities={activities} />
-              </div>
-            </div>
+            <LazySection isVisible={watchlistViewport.isVisible} sectionRef={watchlistViewport.ref} skeleton={skeletonBlock('h-96')}>
+              {watchlistAndActivity}
+            </LazySection>
           </motion.div>
         )}
       </AnimatePresence>
@@ -611,11 +495,11 @@ const DashboardContent: React.FC = () => {
 
       <DashboardKpiDetailModal
         type={selectedKpi}
-        selectedYear={displayYear}
-        kpiData={kpiData}
-        projects={projects}
+        selectedYear={selectedYear}
+        dataSourceMode={dataSourceMode}
+        kpiData={kpis.data ?? undefined}
         lsProjects={lsProjects}
-        revisions={revisions}
+        revisions={revisions.data ?? undefined}
         onClose={() => setSelectedKpi(null)}
         onOpenProject={() => {
           setSelectedKpi(null);
@@ -623,7 +507,6 @@ const DashboardContent: React.FC = () => {
         }}
         onOpenLsProject={(project) => navigate(`/lumpsum/${project.id}`)}
       />
-      </>}
     </div>
   );
 };
