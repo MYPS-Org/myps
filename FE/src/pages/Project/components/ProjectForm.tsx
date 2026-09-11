@@ -561,11 +561,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleEditFundingProfile = (index: number, updatedProfile: FundingProfile) => {
-    // Force Id to 0 for all funding profiles to treat as new records
-    const profileWithResetId = { ...updatedProfile, Id: 0 };
-    
-    setFundingProfiles(prev => 
-      prev.map((profile, i) => i === index ? profileWithResetId : profile)
+    // 2026-09-11 fix: previously forced Id to 0 on every edit, treating an existing row as new.
+    // FundingProfileForm's percentage-recalculation effect calls onEdit for every row whenever
+    // the collection's total changes (e.g. another row was deleted) -- that reset the Id of
+    // untouched rows too, so on save they were re-inserted as duplicates while the original
+    // row (no longer referenced by Id) was left behind untouched. Preserve Id like every
+    // sibling collection's edit handler already does (and like the Revision-side counterpart,
+    // Modification/projectmodification/components/ProjectForm.tsx:560-564).
+    setFundingProfiles(prev =>
+      prev.map((profile, i) => i === index ? { ...profile, ...updatedProfile } : profile)
     );
   };
 
