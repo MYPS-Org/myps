@@ -12,12 +12,17 @@ own pre-existing per-field diff pattern already gated the same check on Thrust a
 Build-verified (Helpers/WebAPI/MYPS.ApiIntegrationTests, 0 errors), 3 new characterization tests
 added (30/30 suite passing), and hand-traced against real currently-mismatched rows (Category
 29/Thrust 1139, e.g. revision Id 94440) confirming the grandfather gate is reached exactly as
-designed. Live count re-confirmed unchanged at 556 mismatched revisions as of this pass. **Committed**
-locally, commit `86025dd7` on `michael-security-fixes-and-project-audits` (not pushed). Branched out
-per fix group 2026-09-11: this same change also lives as commit `80a5533c` on its own
-`category-thrust-validation` branch (chained off `subcategory-dropdown-docs`, since this fix edits
-files that branch's own Sub-Category dropdown fix created) — both commits carry identical content,
-different hashes from the cherry-pick.
+designed. Live count re-confirmed unchanged at 556 mismatched revisions as of this pass.
+
+**Branch history note (2026-09-11):** this change exists as identical content across three commits,
+different hashes, from the branch-out/reconciliation work that day: `86025dd7` (original, on
+`michael-security-fixes-and-project-audits`, not pushed), `80a5533c` (an intermediate branch-out,
+`category-thrust-validation`, chained off `subcategory-dropdown-docs` — superseded, do not use), and
+`24979c89` (**current, correct version**, on `category-thrust-validation-clean`, branched directly off
+`origin/dev-trunk` after `security-fixes`/`58992919` merged into dev-trunk via PR #193 — this is the
+one intended for a future PR). The intermediate branch was needed only because, at the time, dev-trunk
+hadn't yet absorbed `58992919`'s changes to the same files this fix edits; once PR #193 merged that
+dependency, chaining was no longer necessary.
 
 **2026-09-11, later same session — Option C explicitly declined (operator decision).** The operator
 chose to leave the 556 mismatched revisions' underlying Category/Thrust data as-is: *"just leave as
