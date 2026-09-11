@@ -3153,7 +3153,58 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.FundingProfileRules.CRUD.CanAdd)
                 {
-                    var NewFundingProfile = dto.FundingProfile.Where(x => x.Id == 0);
+                    var NewFundingProfile = dto.FundingProfile.Where(x => x.Id == 0).ToList();
+
+                    // 2026-09-11: same backend safety net added to the Project side
+                    // (ProjectController.cs, UpdateProjectDetails) -- this table had no
+                    // duplicate-on-insert check on either side. Not currently reachable via the
+                    // Revision-side frontend (its handleEditFundingProfile preserves Id
+                    // correctly, unlike the Project-side bug this fixed), but added here too
+                    // for defense-in-depth against any future FE change or direct API call.
+                    var DuplicateFundingKeys =
+                        NewFundingProfile
+                            .GroupBy(x => new { x.SourceOrg, x.AgreementCode })
+                            .Where(g => g.Count() > 1)
+                            .Select(g => $"{g.Key.SourceOrg} / {g.Key.AgreementCode}")
+                            .ToList();
+
+                    if (DuplicateFundingKeys.Any())
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Duplicate Funding Profile",
+                            Message = $"Duplicate funding source/agreement combination(s) found: {string.Join(", ", DuplicateFundingKeys)}. Each Source/Agreement combination may only be added once."
+                        });
+                    }
+
+                    HashSet<string> ExistingActiveFundingKeys =
+                        ExistingFundingProfile
+                            .Where(x => !x.IsDeleted)
+                            .Select(x => $"{x.SourceOrg}|{x.AgreementCode}")
+                            .ToHashSet();
+
+                    HashSet<string> DeletedFundingKeysInRequest =
+                        dto.FundingProfile
+                            .Where(x => x.Id != 0 && x.IsDeleted)
+                            .Join(ExistingFundingProfile, x => x.Id, c => c.Id, (x, c) => $"{c.SourceOrg}|{c.AgreementCode}")
+                            .ToHashSet();
+
+                    var DuplicateExistingFundingKeys =
+                        NewFundingProfile
+                            .Select(x => $"{x.SourceOrg}|{x.AgreementCode}")
+                            .Where(key => ExistingActiveFundingKeys.Contains(key) && !DeletedFundingKeysInRequest.Contains(key))
+                            .Distinct()
+                            .ToList();
+
+                    if (DuplicateExistingFundingKeys.Any())
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Duplicate Funding Profile",
+                            Message = $"The following funding source/agreement combination(s) already exist in this Project Revision: {string.Join(", ", DuplicateExistingFundingKeys.Select(k => k.Replace("|", " / ")))}. Remove the existing entry before adding it again."
+                        });
+                    }
+
                     Logs.AddRange(NewFundingProfile.Select(x => new RevisionTransactionLog
                     {
                         TransactionId = dto.TransactionId,
