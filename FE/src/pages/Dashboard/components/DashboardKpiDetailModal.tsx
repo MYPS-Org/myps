@@ -8,7 +8,8 @@ import {
 } from '@heroicons/react/24/outline';
 import type { WatchlistProject } from './ProjectQuickDetailModal';
 import type { KpiData } from './DashboardKpiCards';
-import type { DashboardRevisionItem, DashboardRevisionSummary } from '../Service';
+import type { DashboardRevisionItem, DashboardRevisionSummary, DashboardProjectsFilter } from '../Service';
+import { fetchDashboardProjects } from '../Service';
 
 export type DashboardKpiType = 'budget' | 'projects' | 'lswallet' | 'publication' | 'revisions';
 
@@ -57,14 +58,20 @@ export interface DashboardLsProject {
 interface Props {
   type: DashboardKpiType | null;
   selectedYear: number;
+  dataSourceMode: 'real' | 'benchmark';
   kpiData?: KpiData;
-  projects: WatchlistProject[];
   lsProjects: DashboardLsProject[];
   revisions?: DashboardRevisionSummary;
   onClose: () => void;
   onOpenProject: (project: WatchlistProject) => void;
   onOpenLsProject: (project: DashboardLsProject) => void;
 }
+
+// Modal tables aren't paginated (no controls for it), so this just fetches one generously-sized
+// page on open — matches backend's FilterDataCursor MaxLimit, and this dataset is now bounded to
+// one fiscal year so it's a reasonable stand-in for "show everything" like the old unpaginated
+// array did.
+const MODAL_PROJECT_FETCH_LIMIT = 200;
 
 // Same badge rules as the /revision list (ModifcationList.tsx) so a revision
 // carries one colour across both screens.
@@ -87,8 +94,8 @@ const money = (value: number) =>
 const DashboardKpiDetailModal: React.FC<Props> = ({
   type,
   selectedYear,
+  dataSourceMode,
   kpiData,
-  projects,
   lsProjects,
   revisions,
   onClose,
@@ -101,6 +108,12 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
   const [officeFilter, setOfficeFilter] = useState<string>('');
   const [groupFilter, setGroupFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+
+  // Dashboard.tsx no longer holds a full project array (the watchlist is paginated), so this
+  // modal fetches its own project list on open, reusing the same paginated Projects endpoint
+  // with a filter matching the selected tab, instead of deriving from a full array prop.
+  const [fetchedProjects, setFetchedProjects] = useState<WatchlistProject[]>([]);
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
 
   // Reopening the modal on a different card must not inherit a stale drill-down.
   useEffect(() => {
@@ -119,12 +132,43 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose, type]);
 
+  useEffect(() => {
+    const needsProjects = type === 'projects' || type === 'budget' || type === 'publication';
+    if (!needsProjects) {
+      setFetchedProjects([]);
+      return;
+    }
+    let active = true;
+    setIsProjectsLoading(true);
+    const filters: DashboardProjectsFilter = {};
+    fetchDashboardProjects(
+      { Filters: filters, limit: MODAL_PROJECT_FETCH_LIMIT, page: 1, Navigation: 0 },
+      selectedYear,
+      dataSourceMode === 'benchmark'
+    )
+      .then((response) => {
+        if (active) setFetchedProjects(response.Data.lists);
+      })
+      .catch(() => {
+        if (active) setFetchedProjects([]);
+      })
+      .finally(() => {
+        if (active) setIsProjectsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [type, selectedYear, dataSourceMode]);
+
   if (!type) return null;
 
-  const totalBudget = kpiData?.totalBudget ?? projects.reduce((sum, p) => sum + p.allocatedBudget, 0);
-  const activeCount = kpiData?.activeProjects ?? projects.length;
-  const publishedCount = kpiData?.publishedProjects ?? projects.filter((p) => p.isPublished).length;
+  const totalBudget = kpiData?.totalBudget ?? 0;
+  const activeCount = kpiData?.activeProjects ?? 0;
+  const publishedCount = kpiData?.publishedProjects ?? 0;
   const publicationRate = kpiData?.publicationRate ?? (activeCount ? (publishedCount / activeCount) * 100 : 0);
+  // Approximation: exact "publishable but not yet published" would need its own server count;
+  // publishableProjects and publishedProjects are both already server-exact for the full year.
+  const forPublishCount = Math.max(0, (kpiData?.publishableProjects ?? 0) - publishedCount);
 
   const lsItemized = kpiData?.lsWalletReleased ?? lsProjects.reduce((sum, p) => sum + p.itemizedAmount, 0);
   const lsAllocation = kpiData?.lsWalletTotal ?? lsProjects.reduce((sum, p) => sum + p.totalAllocation, 0);
@@ -136,9 +180,10 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
   const pendingCount = reviewCount + approvalCount;
 
   // "For Publish" is the publish backlog: cleared by the GAA-R rules
-  // (ProgramController.BatchAllowPublish) but not yet actually published.
-  const forPublishProjects = projects.filter((project) => project.isPublishable && !project.isPublished);
-  const publishedProjects = projects.filter((project) => project.isPublished);
+  // (ProgramController.BatchAllowPublish) but not yet actually published. Filtered from this
+  // fetch's page rather than a separate server filter — see MODAL_PROJECT_FETCH_LIMIT.
+  const forPublishProjects = fetchedProjects.filter((project) => project.isPublishable && !project.isPublished);
+  const publishedProjects = fetchedProjects.filter((project) => project.isPublished);
 
   // Revision rows shown under the Active Portfolio tabs, narrowed by the
   // optional Implementing Office / group drill-downs.
@@ -158,12 +203,12 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
   const visibleRevisions = isRevisionTab ? revisionsForTab(type === 'revisions' ? 'all' : projectsTab) : [];
 
   const visibleProjects = type !== 'projects'
-    ? projects
+    ? fetchedProjects
     : projectsTab === 'forpublish'
       ? forPublishProjects
       : projectsTab === 'published'
         ? publishedProjects
-        : projects;
+        : fetchedProjects;
 
   // Options are derived from the rows actually in scope so a drill-down can
   // never offer a value that yields an empty table.
@@ -184,9 +229,9 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
     projects: {
       title: `Active Projects in FY ${selectedYear}`,
       tally: projectsTab === 'forpublish'
-        ? forPublishProjects.length.toLocaleString()
+        ? forPublishCount.toLocaleString()
         : projectsTab === 'published'
-          ? publishedProjects.length.toLocaleString()
+          ? publishedCount.toLocaleString()
           : projectsTab === 'review'
             ? reviewCount.toLocaleString()
             : projectsTab === 'approval'
@@ -283,9 +328,9 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
           <div className="mx-6 mt-4 flex flex-wrap gap-1.5 border-b border-slate-200 pb-2">
             {PROJECT_TABS.map((tab) => {
               const tabCount =
-                tab.key === 'all' ? projects.length
-                : tab.key === 'forpublish' ? forPublishProjects.length
-                : tab.key === 'published' ? publishedProjects.length
+                tab.key === 'all' ? activeCount
+                : tab.key === 'forpublish' ? forPublishCount
+                : tab.key === 'published' ? publishedCount
                 : tab.key === 'review' ? reviewCount
                 : approvalCount;
               const active = projectsTab === tab.key;
@@ -578,7 +623,15 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {visibleProjects.map((project) => (
+                {isProjectsLoading ? (
+                  Array.from({ length: 6 }).map((_, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-3.5" colSpan={5}>
+                        <div className="h-5 rounded bg-slate-100 animate-pulse" />
+                      </td>
+                    </tr>
+                  ))
+                ) : visibleProjects.map((project) => (
                   <tr
                     key={project.id}
                     onClick={() => onOpenProject(project)}
@@ -626,7 +679,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
 
           {((isRevisionTab && visibleRevisions.length === 0) ||
             (!isRevisionTab && type === 'lswallet' && lsProjects.length === 0) ||
-            (!isRevisionTab && type !== 'lswallet' && visibleProjects.length === 0)) && (
+            (!isRevisionTab && type !== 'lswallet' && !isProjectsLoading && visibleProjects.length === 0)) && (
             <div className="py-12 text-center text-sm text-slate-400">
               {isRevisionTab
                 ? 'No revisions match this filter. The revision queue only returns rows you created, plus the RO tier if you are in RPC and the CO tier if you are in AUC.'
