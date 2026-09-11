@@ -35,6 +35,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 }) => {
     const isLumpSum = projectDetails?.IslandCode === 'LS';
 
+    // 2026-09-11 fix (F2): see Project/components/ProjectDetailsForm.tsx's identical comment --
+    // isThrustAllowedForCategory needs the real Thrust PAPKey set so a dangling mapping row can't
+    // count as a real restriction.
+    const validThrustPAPKeys = useMemo(
+        () => new Set((projectEnums?.Thrusts ?? []).map(t => t.PAPKey)),
+        [projectEnums?.Thrusts]
+    );
+
     const {
         cities: filteredCities,
         legislativeDistricts: filteredLegislativeDistricts,
@@ -197,7 +205,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 onChange(field, value);
                 // Clear the selected Sub-Category if it's no longer valid for the newly-picked
                 // Category -- only fires on an actual user change, never on initial data load.
-                if (projectDetails?.Thrust && !isThrustAllowedForCategory(projectDetails.Thrust, value as number, projectEnums?.CategoryThrustMap)) {
+                if (projectDetails?.Thrust && !isThrustAllowedForCategory(projectDetails.Thrust, value as number, projectEnums?.CategoryThrustMap, validThrustPAPKeys)) {
                     onChange('Thrust', undefined);
                 }
             }
@@ -394,7 +402,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                             options={formatDropdownOptions(
                                                 filterKeepingSelected(
                                                     projectEnums?.Thrusts,
-                                                    x => x.IsCurrentlyValid && isThrustAllowedForCategory(x.PAPKey, projectDetails?.Category, projectEnums?.CategoryThrustMap),
+                                                    x => x.IsCurrentlyValid && isThrustAllowedForCategory(x.PAPKey, projectDetails?.Category, projectEnums?.CategoryThrustMap, validThrustPAPKeys),
                                                     'PAPKey',
                                                     projectDetails?.Thrust
                                                 ),

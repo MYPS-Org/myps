@@ -451,8 +451,12 @@ namespace Hangfire.Importing
                     .Where(x => x.CategoryId == category.CategoryId)
                     .Select(x => x.PAPKey)
                     .ToList();
+                // 2026-09-11 fix (F2): a lone -1 row no longer unrestricts a Category that also has
+                // specific (non-wildcard) rows -- only when EVERY mapped PAPKey is -1 does the
+                // wildcard apply, matching Helpers/ProjectHelper.cs's save-time validation. The
+                // dangling-reference clause below is unchanged, already correct.
                 bool unrestricted = mappedPAPKeys.Count == 0
-                    || mappedPAPKeys.Contains(-1)
+                    || mappedPAPKeys.All(k => k == -1)
                     || !mappedPAPKeys.Any(k => cache.Thrusts.Any(t => t.PAPKey == k));
 
                 bucket.AddRange((unrestricted ? validThrusts : validThrusts.Where(t => mappedPAPKeys.Contains(t.PAPKey)))

@@ -199,19 +199,25 @@ export const filterKeepingSelected = (
   return selectedItem ? [...filtered, selectedItem] : filtered;
 };
 
-// Same Category-to-Thrust mapping rule already proven correct server-side for save-time
-// validation (Helpers/ProjectHelper.cs's ValidateProjectDetailsLookups): PAPKey=-1 is a
-// wildcard ("any thrust allowed"), and a Category with zero mapping rows is also treated as
-// unrestricted (matches the precedent in Hangfire/Importing/ImportingHelper.cs). Used here to
-// filter what the Sub-Category dropdown OFFERS, not just what's accepted on save.
+// Same Category-to-Thrust mapping rule proven correct server-side for save-time validation
+// (Helpers/ProjectHelper.cs's ValidateProjectDetailsLookups): a Category is unrestricted (any
+// active thrust allowed) only when it has ZERO mapping rows that are both non-wildcard (PAPKey
+// != -1) AND resolve to a real, existing Thrust. A lone PAPKey=-1 row does NOT grant blanket
+// access if the same Category also has specific rows -- fixed 2026-09-11 (F2); this used to
+// treat ANY -1 row as unrestricting the whole Category even when specific rows coexisted,
+// diverging from the stricter, authoritative backend rule. validThrustPAPKeys excludes dangling
+// mapping rows (pointing at a Thrust that doesn't exist) from counting as real restrictions,
+// mirroring the dangling-reference safety valve Hangfire/Importing/ImportingHelper.cs already had.
 export const isThrustAllowedForCategory = (
   papKey: number,
   categoryId: number | undefined | null,
-  map: { CategoryId: number; PAPKey: number }[] | undefined | null
+  map: { CategoryId: number; PAPKey: number }[] | undefined | null,
+  validThrustPAPKeys: Set<number>
 ) => {
   if (!categoryId) return false; // no category chosen yet -- dropdown stays disabled in this state
   if (!map) return true; // defensive: don't hide everything if the map didn't load
   const rows = map.filter(m => m.CategoryId === categoryId);
-  if (rows.length === 0) return true; // no restriction rows -> unrestricted, matches the save-time rule
-  return rows.some(m => m.PAPKey === -1 || m.PAPKey === papKey);
+  const realRestrictions = rows.filter(m => m.PAPKey !== -1 && validThrustPAPKeys.has(m.PAPKey));
+  if (realRestrictions.length === 0) return true; // no real restriction rows -> unrestricted
+  return realRestrictions.some(m => m.PAPKey === papKey);
 };

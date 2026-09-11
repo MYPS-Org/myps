@@ -3,8 +3,35 @@
 **Date:** 2026-09-10
 **Scope:** `Helpers/ProjectHelper.cs` (`ValidateProjectDetailsLookups`), new `dbo.vProjectThrustByCategory`
 view, `tOptionProjectCategoryToPAPMap`, `tProjectRevisions.Category`/`.Thrust`
-**Status:** View and validation logic built and verified against live data; **shipping is blocked on
-one operator decision** — see "Open decision" below. Nothing in this document has been committed.
+**Status:** View and validation logic built and verified against live data. **2026-09-11: operator
+decided Section 9's Option A.** Implemented in `Helpers/ProjectHelper.cs` (`PreviousThrust` +
+`ThrustIsChanging` gate on `ValidateProjectDetailsLookups`) and wired in `ProjectController.cs`'s
+`UpdateProjectDetails`; `AddProject` deliberately unchanged (no prior state, always fully validated,
+per this section's own design); `RevisionController.cs`'s `ResubmitRevision` needed no change — its
+own pre-existing per-field diff pattern already gated the same check on Thrust actually changing.
+Build-verified (Helpers/WebAPI/MYPS.ApiIntegrationTests, 0 errors), 3 new characterization tests
+added (30/30 suite passing), and hand-traced against real currently-mismatched rows (Category
+29/Thrust 1139, e.g. revision Id 94440) confirming the grandfather gate is reached exactly as
+designed. Live count re-confirmed unchanged at 556 mismatched revisions as of this pass.
+
+**Branch history note (2026-09-11):** this change exists as identical content across three commits,
+different hashes, from the branch-out/reconciliation work that day: `86025dd7` (original, on
+`michael-security-fixes-and-project-audits`, not pushed), `80a5533c` (an intermediate branch-out,
+`category-thrust-validation`, chained off `subcategory-dropdown-docs` — superseded, do not use), and
+`24979c89` (**current, correct version**, on `category-thrust-validation-clean`, branched directly off
+`origin/dev-trunk` after `security-fixes`/`58992919` merged into dev-trunk via PR #193 — this is the
+one intended for a future PR). The intermediate branch was needed only because, at the time, dev-trunk
+hadn't yet absorbed `58992919`'s changes to the same files this fix edits; once PR #193 merged that
+dependency, chaining was no longer necessary.
+
+**2026-09-11, later same session — Option C explicitly declined (operator decision).** The operator
+chose to leave the 556 mismatched revisions' underlying Category/Thrust data as-is: *"just leave as
+is the old migrated data."* This is a final decision, not a deferral — Option C (correcting the 312
+clear-cut miscategorized rows + resolving the 244 orphaned-PAPKey-1157 rows) is closed as declined,
+not pending. The 556 rows stay permanently grandfathered under Option A: any of them can be edited
+and saved normally (per the fix above) as long as Thrust itself isn't the field being changed; if a
+user ever does try to change one of these projects' Thrust to something new, full validation applies
+and a genuinely invalid selection is still rejected. No further action is planned against this data.
 
 ---
 
@@ -202,26 +229,27 @@ historical edge cases (imports, early data entry, manual overrides) rather than 
 
 ## 9. Options considered
 
-| # | Option | Mechanics | Data touched | Risk |
-|---|---|---|---|---|
-| A | **Grandfather + ship** (recommended) | Validation only fires when Thrust is *changing* to a new value; compares against the project's currently-stored Thrust. Applies to `UpdateProjectDetails` only — `AddProject` has no prior state, so new projects are always fully validated. | None | Lowest — closes the gap for all future saves, doesn't touch or block any existing project |
-| B | Ship as-is, no exemption | Full validation on every save, no grandfather clause | None | Any of the 556 projects fails its *next* save for *any* reason, including unrelated field edits, with no advance warning |
-| C | Correct the 312 clear cases now | `UPDATE tProjectRevisions SET Category = <source-of-truth value>` for the 8 unambiguous pairs | 312 live rows | Real, live data mutation. Downstream Category-dependent logic (reports, budget rollups, region/user-group filters) **not yet audited** — needed before this is safe. `1157` (244 rows) has no correct target and isn't covered by this option at all. |
-| D | Hold off entirely | Don't ship validation; keep only the view | None | Gap stays open indefinitely; new miscategorizations can keep happening |
-
-Option A and Option C are not mutually exclusive — A can ship immediately as the safety net, with C
-pursued later as a separate, explicitly-scoped data-cleanup task once Category's downstream
-dependencies are mapped.
+| # | Option | Mechanics | Data touched | Risk | Final status |
+|---|---|---|---|---|---|
+| A | **Grandfather + ship** (recommended) | Validation only fires when Thrust is *changing* to a new value; compares against the project's currently-stored Thrust. Applies to `UpdateProjectDetails` only — `AddProject` has no prior state, so new projects are always fully validated. | None | Lowest — closes the gap for all future saves, doesn't touch or block any existing project | **DECIDED 2026-09-11 — implemented, commit `86025dd7`** |
+| B | Ship as-is, no exemption | Full validation on every save, no grandfather clause | None | Any of the 556 projects fails its *next* save for *any* reason, including unrelated field edits, with no advance warning | Not chosen |
+| C | Correct the 312 clear cases now | `UPDATE tProjectRevisions SET Category = <source-of-truth value>` for the 8 unambiguous pairs | 312 live rows | Real, live data mutation. Downstream Category-dependent logic (reports, budget rollups, region/user-group filters) **not yet audited** — needed before this is safe. `1157` (244 rows) has no correct target and isn't covered by this option at all. | **DECLINED 2026-09-11** — operator: *"just leave as is the old migrated data"*. Final, not deferred. |
+| D | Hold off entirely | Don't ship validation; keep only the view | None | Gap stays open indefinitely; new miscategorizations can keep happening | Not chosen |
 
 ---
 
-## 10. Recommendation
+## 10. Recommendation — SUPERSEDED BY THE 2026-09-11 DECISIONS ABOVE
 
-**Option A (grandfather + ship).** It closes the actual gap this task set out to close — no new
-miscategorization can happen from this point forward — without mutating a single existing project or
-risking a surprise save failure for anyone today. The 556-row cleanup is real work but is a distinct,
-separately-scoped decision that deserves its own investigation into Category's downstream
-dependencies before any live UPDATE runs against it.
+*(Original recommendation, kept for history below.)* **Option A (grandfather + ship).** It closes the
+actual gap this task set out to close — no new miscategorization can happen from this point forward —
+without mutating a single existing project or risking a surprise save failure for anyone today. The
+556-row cleanup is real work but is a distinct, separately-scoped decision that deserves its own
+investigation into Category's downstream dependencies before any live UPDATE runs against it.
+
+**Both halves are now decided, not just recommended: Option A shipped, Option C declined.** The 556
+rows' underlying Category/Thrust values are permanent, intentional as-is — they will never be
+corrected by this document's own logic. Any future work on this data would need a fresh decision from
+the operator, not a resumption of this one.
 
 ---
 
@@ -232,24 +260,28 @@ dependencies before any live UPDATE runs against it.
 - `CodeTableController.cs`'s Thrust admin CRUD screen — unrelated, no defect found.
 - No DB constraint added — matches this project's established convention (natural keys enforced at
   the app layer, not schema, per prior precedent for `tRevisionRules` and others).
-- The 556 pre-existing mismatches are **not** corrected by this document or by Option A — flagged for
-  an explicit, separate decision (Option C) if the operator wants that pursued.
+- The 556 pre-existing mismatches are **not** corrected by this document or by Option A — and per the
+  2026-09-11 decision, never will be under this investigation. Option C is closed, declined.
 
 ---
 
-## 12. Next concrete action
+## 12. Next concrete action — CLOSED
 
-**Awaiting operator decision on §9.** Once chosen:
+**§9's decision is resolved as of 2026-09-11: Option A implemented and committed (`86025dd7`), Option
+C explicitly declined by the operator.** No next action remains against this document's own scope.
+Everything below is a separate, already-completed thread that grew out of this investigation, not a
+resolution of §9 — kept for history, not a live TODO.
+
+*(Original next-action list, kept for history:)*
 - If A: implement the grandfather comparison in `ValidateProjectDetailsLookups`, re-verify against
   live data (confirm all 556 pass when Thrust is unchanged, confirm a genuinely new invalid Thrust
-  still correctly fails), add a characterization test, build-verify, commit.
-- If B: ship as currently built, no further code change.
+  still correctly fails), add a characterization test, build-verify, commit. — **Done.**
+- If B: ship as currently built, no further code change. — Not chosen.
 - If C: separate investigation into Category's downstream consumers before any UPDATE runs, then a
   dedicated data-correction pass with its own before/after verification — not bundled into this fix.
-- If D: no further action this pass; the view remains live but unconsumed by application code.
-
-**§9's decision (A/B/C/D) is still open as of this addendum — everything below is a separate,
-already-completed thread that grew out of this investigation, not a resolution of §9.**
+  — **Declined; will not happen.**
+- If D: no further action this pass; the view remains live but unconsumed by application code. — Not
+  chosen.
 
 ---
 

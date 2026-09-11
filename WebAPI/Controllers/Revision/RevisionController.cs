@@ -2881,7 +2881,12 @@ namespace WebAPI.Controllers.Revision
                             var ValidateNewThrustForCategory = await _db.vProjectThrustByCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == RevisionProject.Category && x.PAPKey == RevisionProject.Thrust.Value, cancellationToken);
                             if (ValidateNewThrustForCategory == null)
                             {
-                                bool CategoryHasRestrictions = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking().AnyAsync(x => x.CategoryId == RevisionProject.Category && x.PAPKey != -1, cancellationToken);
+                                // 2026-09-11 fix (F2): mirrors ProjectHelper.cs's dangling-reference
+                                // exclusion -- a mapping row only counts as a real restriction if it
+                                // resolves to a Thrust that actually exists.
+                                bool CategoryHasRestrictions = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking()
+                                    .AnyAsync(x => x.CategoryId == RevisionProject.Category && x.PAPKey != -1
+                                        && _db.tOptionProjectThrustList.Any(t => t.PAPKey == x.PAPKey), cancellationToken);
                                 if (CategoryHasRestrictions)
                                 {
                                     return new BadRequestObjectResult(new { Message = $"Selected Sub-Category '{RevisionProject.Thrust}' is not valid for the selected Category.", Title = "Invalid Sub-Category" });

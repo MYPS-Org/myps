@@ -832,6 +832,10 @@ namespace WebAPI.Controllers.Projects
                     DetailedDesign = dto.ProjectDetails.DetailedDesign,
                     DetailedDesignDate = dto.ProjectDetails.DetailedDesignDate,
                     Thrust = dto.ProjectDetails.Thrust,
+                    // 2026-09-11 fix: grandfathers an unchanged Thrust past the Category-mapping
+                    // check (see ProjectHelper.cs's ThrustIsChanging gate) -- ProjectRevision is
+                    // already loaded above (line ~773), no extra query.
+                    PreviousThrust = ProjectRevision.Thrust,
                 };
                 var ValidateProjectLookUps = await _db.ValidateProjectDetailsLookups(pLookup, cancellationToken);
                 if (!ValidateProjectLookUps.IsValid)
