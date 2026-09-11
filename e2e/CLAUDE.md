@@ -89,7 +89,7 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 |---|---|---|
 | ProjectList (`/projects`) | `tests/project-list.spec.ts` | Yes |
 | AddProject (`/projects/addproject`) | `tests/project-form.spec.ts` | Yes |
-| Dashboard | — | No |
+| Dashboard | `tests/dashboard-real-data.spec.ts` | Yes |
 | UserManagement | — | No |
 | InfraManagement | — | No |
 | ProgramList / ProgramDetails | — | No |
