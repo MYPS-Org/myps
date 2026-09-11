@@ -1612,7 +1612,11 @@ namespace WebAPI.Controllers.Revision
                 //}
                 #endregion
 
-                string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
+                // 2026-09-11 fix: Extension is client-supplied and was interpolated unsanitized --
+                // a crafted value (e.g. containing "..\") could break out of Folder via Path.Combine.
+                // A real extension is only ever letters/digits, so stripping everything else is safe.
+                string SafeExtension = new string(dto.RevisionDetails.ApprovedDocument.Extension.Where(char.IsLetterOrDigit).ToArray());
+                string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{SafeExtension}";
                 string Folder = Appsetting.Resources.Revision.ImplementingOffice;
                 string FilePath = Path.Combine(Folder, DocumentName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
@@ -2275,7 +2279,10 @@ namespace WebAPI.Controllers.Revision
                         }
                     }
 
-                    string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
+                    // 2026-09-11 fix: same sanitization as the other 2 upload sites in this file --
+                    // Extension is client-supplied and was interpolated unsanitized.
+                    string SafeExtension = new string(dto.Document.Extension.Where(char.IsLetterOrDigit).ToArray());
+                    string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{SafeExtension}";
                     string FilePath = Path.Combine(Appsetting.Resources.Revision.CentralOffice, DocumentName);
                     string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                     if (!dto.Document.UploadFile(ResourcePath))
@@ -4005,7 +4012,10 @@ namespace WebAPI.Controllers.Revision
                 //});
                 string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
                 var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.RevisionDetailFK == ExistingRevision.Id && x.DocumentName.StartsWith(DocumentName)).Count() + 1;
-                string NewDocName = $"{DocumentName}-{NewUploadedDocument}.{dto.RevisionDetails.ApprovedDocument.Extension}";
+                // 2026-09-11 fix: same sanitization as the other 2 upload sites in this file --
+                // Extension is client-supplied and was interpolated unsanitized.
+                string SafeExtension = new string(dto.RevisionDetails.ApprovedDocument.Extension.Where(char.IsLetterOrDigit).ToArray());
+                string NewDocName = $"{DocumentName}-{NewUploadedDocument}.{SafeExtension}";
                 string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, NewDocName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                 if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))

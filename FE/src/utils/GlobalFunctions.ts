@@ -198,3 +198,20 @@ export const filterKeepingSelected = (
   const selectedItem = items.find(item => item[valueField] == selectedValue);
   return selectedItem ? [...filtered, selectedItem] : filtered;
 };
+
+// Same Category-to-Thrust mapping rule already proven correct server-side for save-time
+// validation (Helpers/ProjectHelper.cs's ValidateProjectDetailsLookups): PAPKey=-1 is a
+// wildcard ("any thrust allowed"), and a Category with zero mapping rows is also treated as
+// unrestricted (matches the precedent in Hangfire/Importing/ImportingHelper.cs). Used here to
+// filter what the Sub-Category dropdown OFFERS, not just what's accepted on save.
+export const isThrustAllowedForCategory = (
+  papKey: number,
+  categoryId: number | undefined | null,
+  map: { CategoryId: number; PAPKey: number }[] | undefined | null
+) => {
+  if (!categoryId) return false; // no category chosen yet -- dropdown stays disabled in this state
+  if (!map) return true; // defensive: don't hide everything if the map didn't load
+  const rows = map.filter(m => m.CategoryId === categoryId);
+  if (rows.length === 0) return true; // no restriction rows -> unrestricted, matches the save-time rule
+  return rows.some(m => m.PAPKey === -1 || m.PAPKey === papKey);
+};

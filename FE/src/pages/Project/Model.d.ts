@@ -392,6 +392,20 @@ export interface ProjectSupportingDocs {
 	CreatedDate?: string;
 	IsDeleted?: boolean;
 }
+// The real persisted-row shape UploadSupportingDocs now returns (ProjectController.cs) --
+// used by AddNoteDialog.tsx to build the just-uploaded row from server truth instead of
+// fabricating one from client-only data.
+export interface UploadedDocData {
+	Id: number;
+	DocTypeFK: string;
+	DocTypeName: string;
+	FileName: string;
+	FileExtension: string;
+	FilePath: string;
+	Description: string;
+	CreatedBy: string;
+	CreatedDate: string;
+}
 
 // #region Additional interfaces for dropdowns and enums
 // Shape of the /Project/ShowProjectComponentDropdowns response — dropdown data
@@ -522,6 +536,7 @@ export interface ProjectEnums {
   Programs?: ProgramList[];
   Categories: CategoryEnum[];
   Thrusts: ThrustEnum[];
+  CategoryThrustMap: { CategoryId: number; PAPKey: number }[];
   Origins: TableEnum[];
   Cities: ProjectCityEnum[];
   Provinces: ProjectProvinceEnum[];
