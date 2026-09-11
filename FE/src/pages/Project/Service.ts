@@ -1,7 +1,7 @@
 import { httpClient, gisClient, type ApiResponse } from "../../services/httpClient";
 import type { ProgramList, ProgramLatest } from "../Program/Model";
 import { fetchProgram } from "../Program/Service";
-import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, Dropdowns, ProjectFormPayload, ProjectFilter, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO, SearchProgram, ProjectTargetComponent, ShowProjectStageTargetsRequest, ProjectStageTargetsPaginationResponse } from "./Model.d";
+import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, Dropdowns, ProjectFormPayload, ProjectFilter, AddNotes, InfraData, ProjectSupportingDocs, UploadedDocData, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO, SearchProgram, ProjectTargetComponent, ShowProjectStageTargetsRequest, ProjectStageTargetsPaginationResponse } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: PaginatedRequest<ProjectFilter>) => {
@@ -152,7 +152,10 @@ export const addNote = async (formData: AddNotes) => {
 };
 export const addDoc = async (formData: AddNotes) => {
   try {
-    const response = await httpClient.post<ApiResponse>(`/Project/UploadSupportingDocs/`, formData, {
+    // 2026-09-11 fix: typed with UploadedDocData (httpClient.post<T> already wraps the return
+    // as ApiResponse<T>) so callers can use the real persisted document (Id/FilePath/etc.) the
+    // backend now returns instead of fabricating one.
+    const response = await httpClient.post<UploadedDocData>(`/Project/UploadSupportingDocs/`, formData, {
       preloaderMessage: 'Adding document...',
     });
     return response;

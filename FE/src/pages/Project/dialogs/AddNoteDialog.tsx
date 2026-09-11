@@ -107,23 +107,27 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         const response = await addDoc(formData);
         console.log('Add document response:', response);
 
-        if (response) {
-            // Mirror the backend's split of "Code:Name" (ProjectController.UploadSupportingDocs)
-            // so the row displays correctly before the next refetch.
-            const [docTypeFK] = formData.DocumentType.split(':');
+        if (response?.Data) {
+            // 2026-09-11 fix: previously fabricated this row entirely from client-only data --
+            // FilePath was set to formData.File.DataUrl (the base64 preview URL), which worked
+            // as a link target by accident (data: is a valid absolute URI) but opened the raw
+            // upload blob instead of the real server file until a refresh replaced it with real
+            // data. UploadSupportingDocs now returns the actual persisted row -- use that instead
+            // of guessing, so the just-uploaded doc works immediately, not just after refresh.
+            const doc = response.Data;
             const newDoc: ProjectSupportingDocs = {
-            Id: 0, // Will be set by server
+            Id: doc.Id,
             ProjectId: projectId,
-            DocumentType: formData.DocTypeName || formData.DocumentType,
-            Code: docTypeFK || '',
-            Name: formData.DocTypeName || '',
-            DocTypeFK: docTypeFK || '',
-            Description: formData.Description,
-            FileName: formData.File?.Name || '',
-            FileExtension: formData.File?.Extension || '',
-            FilePath: formData.File?.DataUrl || '',
-            CreatedBy: '', // Adjust if needed
-            CreatedDate: toDateInputValue(new Date()), // Format as YYYY-MM-DD
+            DocumentType: doc.DocTypeName || formData.DocTypeName || formData.DocumentType,
+            Code: doc.DocTypeFK || '',
+            Name: doc.DocTypeName || '',
+            DocTypeFK: doc.DocTypeFK || '',
+            Description: doc.Description,
+            FileName: doc.FileName,
+            FileExtension: doc.FileExtension,
+            FilePath: doc.FilePath,
+            CreatedBy: doc.CreatedBy,
+            CreatedDate: doc.CreatedDate || toDateInputValue(new Date()),
             };
 
             console.log('Creating new document object:', newDoc);

@@ -87,12 +87,20 @@ namespace WebAPI.Controllers.Projects
                 var tiers = await _db.tOptionProjectTier.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var regionWides = await _db.tOptionRegionWide.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
+                // 2026-09-11: lets the FE filter the Thrust dropdown by the selected Category
+                // without a per-keystroke round trip. Same table already used server-side by
+                // ValidateProjectDetailsLookups (ProjectHelper.cs:331-338) -- PAPKey=-1 is a
+                // wildcard, and a Category with zero rows here is unrestricted (same convention).
+                var categoryThrustMap = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking()
+                    .Select(x => new { x.CategoryId, x.PAPKey }).ToListAsync(cancellationToken);
+
                 return Ok(new
                 {
                     Tiers = tiers,
 
                     Categories = categories,
                     Thrusts = thrusts,
+                    CategoryThrustMap = categoryThrustMap,
 
                     Provinces = provinces,
                     Cities = cities,
@@ -4400,7 +4408,29 @@ namespace WebAPI.Controllers.Projects
 
                 await transaction.CommitAsync();
 
-                return Ok(new { Message = "Supporting Docs added successfully.", Title = "Add Success." });
+                // 2026-09-11 fix: previously returned no document data at all, so the frontend
+                // fabricated a placeholder row (FilePath set to the file's base64 data: URL used
+                // for the upload preview) to show immediately -- clicking view/download on that
+                // row opened the raw base64 blob instead of the real server file, until a page
+                // refresh replaced it with the real data. Returning the actual persisted row lets
+                // the frontend use real values instead of guessing.
+                return Ok(new
+                {
+                    Message = "Supporting Docs added successfully.",
+                    Title = "Add Success.",
+                    Data = new
+                    {
+                        AddSupporting.Id,
+                        AddSupporting.DocTypeFK,
+                        AddSupporting.DocTypeName,
+                        AddSupporting.FileName,
+                        AddSupporting.FileExtension,
+                        AddSupporting.FilePath,
+                        AddSupporting.Description,
+                        AddSupporting.CreatedBy,
+                        AddSupporting.CreatedDate,
+                    }
+                });
             }
             catch (Exception ex)
             {

@@ -2,7 +2,7 @@ import React from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { ProgramLatest } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
-import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, toDateInputValue } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, isThrustAllowedForCategory, toDateInputValue } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { DateInput } from '../../../components/tailwindui/date-input';
 import { useLocationFilters } from '../filteringLocations';
@@ -193,6 +193,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             // Clear the date if Detailed Design is not "Yes"
             if (value !== 1) {
                 onChange('DetailedDesignDate', null);
+            }
+        }
+        else if (field === 'Category') {
+            onChange(field, value);
+            // Clear the selected Sub-Category if it's no longer valid for the newly-picked
+            // Category -- only fires on an actual user change, never on initial data load.
+            if (projectDetails?.Thrust && !isThrustAllowedForCategory(projectDetails.Thrust, value as number, projectEnums?.CategoryThrustMap)) {
+                onChange('Thrust', undefined);
             }
         }
         else {
@@ -398,7 +406,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         options={formatDropdownOptions(
                                             filterKeepingSelected(
                                                 projectEnums?.Thrusts,
-                                                x => x.IsCurrentlyValid,
+                                                x => x.IsCurrentlyValid && isThrustAllowedForCategory(x.PAPKey, projectDetails?.Category, projectEnums?.CategoryThrustMap),
                                                 'PAPKey',
                                                 projectDetails?.Thrust
                                             ),
@@ -409,7 +417,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.Thrust || ''}
                                         onChange={(value) => handleInputChange('Thrust', value === '' ? undefined : parseInt(value.toString()))}
                                         placeholder="Select Sub-Category"
-                                        disabled={disabled}
+                                        disabled={!projectDetails?.Category || disabled}
                                         error={!!errors.Thrust}
                                         allowClear={true}
                                         searchPlaceholder="Search sub-categories..."
