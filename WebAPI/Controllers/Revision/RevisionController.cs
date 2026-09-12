@@ -25,6 +25,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.AspNetCore.Authorization;
 using System.Transactions;
+using WebAPI.Controllers.Lumpsum;
 namespace WebAPI.Controllers.Revision
 {
     [ApiController]
@@ -576,6 +577,18 @@ namespace WebAPI.Controllers.Revision
         }
 
 
+        /// <summary>
+        /// Loads the tProjects row for a ProjectPK and reports whether it is a Lump
+        /// Sum PARENT. ReviseProject works from a revision rather than a validated
+        /// project, so it has no entity to hand to LumpSumGuard directly.
+        /// </summary>
+        private async Task<bool> IsLumpSumParentAsync(string projectPK, CancellationToken cancellationToken)
+        {
+            var Project = await _db.tProjects.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ProjectPK == projectPK, cancellationToken);
+            return LumpSumGuard.IsLumpSumParent(Project);
+        }
+
         [HttpPost]
         public async Task<IActionResult> ReviseProject([FromBody] ReviseProjectDTO dto, CancellationToken cancellationToken)
         {
@@ -593,6 +606,21 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
                 }
                 string ProjectFK = projectRevision.ProjectFK;
+
+                /*  A Lump Sum Project is not revisable. Its allocation moves through
+                    Replenish and itemization, both of which the Lump Sum module
+                    gates on the revision stages — putting the parent itself through
+                    a revision would let the Modification module's own copy of the
+                    project form edit it with none of those rules applied. */
+                if (await IsLumpSumParentAsync(ProjectFK, cancellationToken))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = LumpSumGuard.RefusalMessage(dto.ProjectId, "revised"),
+                        Title = LumpSumGuard.RefusalTitle
+                    });
+                }
+
                 var projectStage = await _db.tProjectStages.AsNoTracking()
                     .Where(x => x.ProjectFK == ProjectFK && x.RevisionId == projectRevision.Id && x.StageName == "GAA-R")
                     .OrderByDescending(x => x.Id)
@@ -905,6 +933,17 @@ namespace WebAPI.Controllers.Revision
                 var ProjectParent = ValidateProjectId.Data.Project;
                 var ProjectRevisions = ValidateProjectId.Data.ProjectRevision;
                 var ProjectStage = ValidateProjectId.Data.ProjectStage;
+
+                // A Lump Sum Project is not revisable — see the note in ReviseProject.
+                if (LumpSumGuard.IsLumpSumParent(ProjectParent))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = LumpSumGuard.RefusalMessage(ProjectParent.ProjectPK, "revised"),
+                        Title = LumpSumGuard.RefusalTitle
+                    });
+                }
+
                 if (!ProjectParent.IsPublished)
                 {
                     return new BadRequestObjectResult(new
@@ -2630,6 +2669,17 @@ namespace WebAPI.Controllers.Revision
                 var ProjectParent = ValidateProjectId.Data.Project;
                 var ProjectRevisions = ValidateProjectId.Data.ProjectRevision;
                 var ProjectStage = ValidateProjectId.Data.ProjectStage;
+
+                // A Lump Sum Project is not revisable — see the note in ReviseProject.
+                if (LumpSumGuard.IsLumpSumParent(ProjectParent))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = LumpSumGuard.RefusalMessage(ProjectParent.ProjectPK, "revised"),
+                        Title = LumpSumGuard.RefusalTitle
+                    });
+                }
+
                 if (!ProjectParent.IsPublished)
                 {
                     return new BadRequestObjectResult(new
@@ -2867,31 +2917,27 @@ namespace WebAPI.Controllers.Revision
                     }
                     if (ExistingRevisionProject.Thrust != RevisionProject.Thrust)
                     {
-                        // 2026-09-10 fix: same gap as Category above -- mirrors
-                        // ValidateProjectDetailsLookups' Thrust check (ProjectHelper.cs:323-338)
-                        // exactly, including the Thrust=0 "none selected" convention and the
-                        // Category-to-PAPKey mapping check.
-                        if (RevisionProject.Thrust.HasValue && RevisionProject.Thrust.Value != 0)
+                        // 2026-09-10 fix: same gap as Category above. 2026-09-11: the inline copy
+                        // of the rule was replaced by the shared
+                        // ProjectHelper.ValidateThrustForCategoryAsync -- it had been duplicated
+                        // verbatim here and in ValidateProjectDetailsLookups, while the Lump Sum
+                        // save carried a third, weaker variant with no mapping check at all.
+                        // No previous values on purpose: this branch already runs only when the
+                        // Thrust differs from the stored one (the enclosing diff guard), so the
+                        // pair is a new choice and gets full validation. Note this guard is
+                        // Sub-Category-only, unlike the two-field gate Project and Lump Sum use
+                        // since 2026-09-12 -- recorded as a follow-up, not widened here.
+                        var ValidateNewThrustPair = await _db.ValidateThrustForCategoryAsync(
+                            RevisionProject.Category, RevisionProject.Thrust,
+                            previousCategory: null, previousThrust: null, cancellationToken);
+                        // 2026-09-12: the Option A rebase had nested the OLD inline block inside
+                        // this failure branch, so a refusal from the shared validator was thrown
+                        // away and the branch re-ran the retired checks instead -- including a
+                        // query of vProjectThrustByCategory, which exists on neither localhost
+                        // database. The shared verdict is the verdict; return it.
+                        if (!ValidateNewThrustPair.IsValid)
                         {
-                            var ValidateNewThrust = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == RevisionProject.Thrust.Value && (x.IsActive || (x.ValidToDate == 0 || x.ValidToDate >= CurrentDate.Year)), cancellationToken);
-                            if (ValidateNewThrust == null)
-                            {
-                                return new BadRequestObjectResult(new { Message = $"Selected Sub-Category '{RevisionProject.Thrust}' is not valid.", Title = "Invalid Sub-Category" });
-                            }
-                            var ValidateNewThrustForCategory = await _db.vProjectThrustByCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == RevisionProject.Category && x.PAPKey == RevisionProject.Thrust.Value, cancellationToken);
-                            if (ValidateNewThrustForCategory == null)
-                            {
-                                // 2026-09-11 fix (F2): mirrors ProjectHelper.cs's dangling-reference
-                                // exclusion -- a mapping row only counts as a real restriction if it
-                                // resolves to a Thrust that actually exists.
-                                bool CategoryHasRestrictions = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking()
-                                    .AnyAsync(x => x.CategoryId == RevisionProject.Category && x.PAPKey != -1
-                                        && _db.tOptionProjectThrustList.Any(t => t.PAPKey == x.PAPKey), cancellationToken);
-                                if (CategoryHasRestrictions)
-                                {
-                                    return new BadRequestObjectResult(new { Message = $"Selected Sub-Category '{RevisionProject.Thrust}' is not valid for the selected Category.", Title = "Invalid Sub-Category" });
-                                }
-                            }
+                            return new BadRequestObjectResult(new { Message = ValidateNewThrustPair.Message, Title = ValidateNewThrustPair.Title });
                         }
                         Logs.Add(new RevisionTransactionLog
                         {

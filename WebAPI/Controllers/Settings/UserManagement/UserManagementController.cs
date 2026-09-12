@@ -1004,94 +1004,41 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
 
+        /// <summary>
+        /// Reconciles dbo.tApiControllers / dbo.tApiActions against the controllers actually
+        /// compiled into this assembly: registers what is new, and removes what no longer
+        /// exists along with any group grant pointing at it.
+        /// </summary>
+        /// <remarks>
+        /// REGISTRATION IS NOT A GRANT. A newly registered action 403s for everyone, admins
+        /// included, until its Id reaches dbo.tGroupRoles.ActionIds — which is UpdateUserGroup's
+        /// job. This endpoint only makes an action grantable; it never grants it.
+        ///
+        /// It is also not free of consequence: removing a stale action strips its Id out of
+        /// EVERY group's ActionIds, so this rewrites all groups' grants as a side effect.
+        /// That is correct housekeeping, but it belongs in a deliberate maintenance step.
+        ///
+        /// This method used to carry a SECOND, unreachable implementation of the same job —
+        /// ~76 lines of reflection after an early return that always fired. It was not a
+        /// stale copy but a worse one: it never removed anything, and its duplicate test
+        /// keyed on ActionName alone, so of two controllers sharing a method name only the
+        /// first could ever register. See
+        /// documents/docs/engineering/MYPS_SYNCAPIPERMISSIONS_DEAD_REFLECTION_PATH.md.
+        /// </remarks>
         [HttpPost]
         public async Task<IActionResult> SyncAPIPermissions(CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var remediatedResult = await SyncApiPermissionsValidated(transaction, cancellationToken);
-                if (remediatedResult != null) return remediatedResult;
-
-                // 1. Discover all controller Types via reflection
-                var controllerTypes = typeof(CoreController).Assembly
-                    .GetTypes()
-                    .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(CoreController)))
-                    .ToList()
-                    .OrderBy(x => x.Name);
-
-                // 2. Sync controllers to tApiControllers
-                var existingControllers = await _db.tApiControllers.ToListAsync(cancellationToken);
-                var existingNames = existingControllers
-                    .Select(x => x.ControllerName)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                var newControllers = controllerTypes
-                    .Where(t => !existingNames.Contains(t.Name))
-                    .Select(t => new ApiControllers
-                    {
-                        ControllerName = t.Name
-                    })
-                    .ToList();
-
-                if (newControllers.Count > 0)
-                {
-                    await _db.tApiControllers.AddRangeAsync(newControllers);
-                    await _db.SaveChangesAsync(cancellationToken);
-                }
-
-                // 3. Discover all action methods per controller
-                var discoveredActions = controllerTypes.SelectMany(type =>
-                    type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                        .Where(m => !m.IsSpecialName &&
-                            (m.ReturnType == typeof(IActionResult) || m.ReturnType == typeof(Task<IActionResult>)))
-                        .Select(m => new { ControllerName = type.Name, ActionName = m.Name })
-                ).ToList()
-                .OrderBy(x => x.ActionName);
-
-                // 4. Sync actions to tApiActions
-                var existingActions = await _db.tApiActions.ToListAsync(cancellationToken);
-                var existingActionKeys = existingActions
-                    .Select(x => x.ActionName)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                var newActions = discoveredActions
-                    .Where(a => !existingActionKeys.Contains(a.ActionName))
-                    .Select(a => new ApiActions
-                    {
-                        ControllerName = a.ControllerName,
-                        ActionName = a.ActionName,
-                        Description = null
-                    })
-                    .ToList();
-
-                if (newActions.Count > 0)
-                {
-                    await _db.tApiActions.AddRangeAsync(newActions);
-                }
-
-                await _db.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-
-                var allControllers = await _db.tApiControllers
-                    .OrderBy(x => x.ControllerName)
-                    .ToListAsync(cancellationToken);
-
-                var allActions = await _db.tApiActions
-                    .OrderBy(x => x.ControllerName)
-                    .ThenBy(x => x.ActionName)
-                    .ToListAsync(cancellationToken);
-
-                return Ok(new
-                {
-                    Message = $"Sync complete! Controllers added: {string.Join(", ", newControllers.Select(x => x.ControllerName))}, Actions added: {string.Join(", ", newActions.Select(x => x.ActionName))}",
-                    Title = "Sync Complete",
-                    Controllers = allControllers,
-                    Actions = allActions
-                });
+                return await ReconcileApiPermissionsAsync(transaction, cancellationToken);
             }
             catch (Exception ex)
             {
+                /*  Safe because the reconciler commits as its last act before returning: an
+                    exception can only arrive with the transaction still live. Should anything
+                    ever be added AFTER that commit, this rollback would throw "This
+                    SqlTransaction has completed" and replace the real exception with it. */
                 await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
@@ -1616,7 +1563,20 @@ namespace WebAPI.Controllers.Settings.UserManagement
             return Ok(new { Message = "Route reconciliation complete.", Title = "Sync Complete", Added = added, Updated = updated, Removed = stale.Count, Unchanged = unchanged });
         }
 
-        private async Task<IActionResult?> SyncApiPermissionsValidated(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, CancellationToken ct)
+        /// <summary>
+        /// The reconciliation itself. Always returns a result — never null; the name it used
+        /// to carry ("…Validated") and a nullable return type together suggested a
+        /// validation step that fell through on success, which is how a whole second
+        /// implementation came to sit unreachable behind it.
+        ///
+        /// Actions are keyed on CONTROLLER + ACTION, not on action name alone: two
+        /// controllers legitimately share a method name (AddProject, on ProjectController
+        /// and ProjectGroupController), and keying on the name would leave the second one
+        /// permanently unregistered and therefore ungrantable.
+        ///
+        /// Commits as its last act, so the caller's catch can roll back unconditionally.
+        /// </summary>
+        private async Task<IActionResult> ReconcileApiPermissionsAsync(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, CancellationToken ct)
         {
             var controllerTypes = typeof(CoreController).Assembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(CoreController))).OrderBy(x => x.Name).ToList();
             var discoveredControllers = controllerTypes.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);

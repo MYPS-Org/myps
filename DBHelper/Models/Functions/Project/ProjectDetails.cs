@@ -32,24 +32,34 @@ namespace DBHelper.Models.Functions.Project
         public string? MYId { get; set; }
         [Required]
         public string Description { get; set; } = string.Empty;
-        [Required]
+        /*  NULLABLE ON PURPOSE — see ProjectLatest.Region. A Lump Sum Project
+            covers a programme, not a site, so its whole location chain is
+            optional under the V2 field spec: Province, City and Legislative
+            District were already nullable here, and Region, DEO and
+            Implementing Office simply were not updated when the spec changed.
+
+            This model is materialised by ValidateProjectId (ProjectHelper.cs),
+            the choke point every project read and write path goes through, and
+            it feeds fProgramProjects. Declaring these non-nullable is why the
+            project detail page threw for a Lump Sum Project.
+
+            OperatingUnit stays non-null: it is required on a Lump Sum Project
+            and always written, so a NULL there is a real defect. */
         [MaxLength(20)]
-        public string Region { get; set; } = string.Empty;
+        public string? Region { get; set; }
         [MaxLength(20)]
         public string? Province { get; set; }
         [MaxLength(20)]
         public string? City { get; set; }
         [MaxLength(20)]
         public string? LegislativeDistrict { get; set; }
-        [Required]
         [MaxLength(20)]
-        public string DEO { get; set; } = string.Empty;
+        public string? DEO { get; set; }
         [Required]
         [MaxLength(20)]
         public string OperatingUnit { get; set; } = string.Empty;
-        [Required]
         [MaxLength(20)]
-        public string ImplementingOffice { get; set; } = string.Empty;
+        public string? ImplementingOffice { get; set; }
         [MaxLength(2)]
         public string? IslandCode { get; set; }
         [Required]

@@ -24,6 +24,25 @@ one intended for a future PR). The intermediate branch was needed only because, 
 hadn't yet absorbed `58992919`'s changes to the same files this fix edits; once PR #193 merged that
 dependency, chaining was no longer necessary.
 
+**2026-09-12 — converged, and the gate widened to both fields (operator decision).** The Option A
+rebase had left the rule in two places that disagreed (see the 2026-09-11 addendum in §13.6): the
+inline copy in `ValidateProjectDetailsLookups` queried `vProjectThrustByCategory` — a view that
+exists on **neither** localhost database and has no DDL in this repo, so every `AddProject` carrying a
+Sub-Category threw `Invalid object name` — and read a `-1` wildcard beside a specific row as a
+restriction; `ResubmitRevision` had the old block nested *inside* the shared validator's failure
+branch, discarding its verdict. All three callers now run **one** method,
+`ProjectHelper.ValidateThrustForCategoryAsync`, which takes the stored pair as `previousCategory` /
+`previousThrust`. The operator's rule: **old data is exempt only while untouched.** A save skips the
+pair check when *both* stored values equal the incoming ones; changing *either* field — including
+only the Category — re-validates, because an orphaned legacy Sub-Category must not be re-homed
+under a Category it does not fit and mappings drift over time. Create supplies neither value and is
+always validated. Lump Sum is grandfathered identically (`UpdateLumpSum` passes its stored row;
+`CreateLumpSum` passes nothing) — until this it was the one path that re-validated an untouched
+legacy pair. `ResubmitRevision` keeps its own Sub-Category-only diff guard (follow-up, not widened).
+Verified on `localhost/myps_db_dev` only: a seven-row SQL model of the gate, including the real
+legacy mismatch Category 29 / PAPKey 1139, passes; characterization tests re-pointed at the shared
+method. Still owed: the view's DDL, and the `DbSet` that now has no consumer.
+
 **2026-09-11, later same session — Option C explicitly declined (operator decision).** The operator
 chose to leave the 556 mismatched revisions' underlying Category/Thrust data as-is: *"just leave as
 is the old migrated data."* This is a final decision, not a deferral — Option C (correcting the 312
@@ -356,6 +375,61 @@ traced the full chain end-to-end with no functional defects. Minor, non-blocking
   alphabetically) — confirmed cosmetic only, zero functional impact.
 
 ### 13.6 New finding — put ON HOLD by explicit operator direction (2026-09-10)
+
+> **SUPERSEDED 2026-09-11. Every factual claim in this subsection is now false.** It is kept
+> because the decision it records was real, not because it still describes the code.
+>
+> The module was renamed `LSWallet` → `LumpSum` on disk and `FE/src/pages/LSWallet/` no longer
+> exists. The save path is not mocked: `CreateLumpSum` / `UpdateLumpSum` are real endpoints in
+> `WebAPI/Controllers/Lumpsum/LumpsumController.Writes.cs`. And the prediction that it would key
+> on the option tables' `Id` column is the opposite of what happened — keying on `Id` was the bug
+> (`b60a3a9a`, 2026-09-05); the form now sends `CategoryId` and `PAPKey`, the business keys, same
+> as Project.
+>
+> What the hold actually cost: when the save path was wired up it got an existence check but **no
+> Category→PAPKey mapping check at all**, plus a third validity window narrower than both this
+> document's `IsCurrentlyValid` and Project's save rule. Measured on localhost 2026-09-10 —
+> 19 restricted categories × 96 in-window Sub-Categories = 1,824 selectable pairs, 134 permitted,
+> so **1,690 invalid pairs were accepted by the Lump Sum form and refused by `AddProject`**, and
+> refused again by the module's own itemization import on the very next step.
+>
+> **Closed 2026-09-11.** The rule now has one implementation,
+> `ProjectHelper.ValidateThrustForCategoryAsync`, called by `ValidateProjectDetailsLookups`,
+> `ResubmitRevision` and the Lump Sum save; Lump Sum adopted Project's window rule; and the Lump
+> Sum form filters its Sub-Category dropdown by the selected Category. Three decisions were taken
+> that this document had left open or had settled differently:
+>
+> 1. **Enforcement is unconditional**, not grandfathered — §9 Option B in effect, which is what
+>    the Project code had already shipped regardless of this document's Option A recommendation.
+>    Safe here because it newly blocks nothing: of 135 Lump Sum projects on
+>    `localhost/myps_db_dev`, 74 hold a mapped in-window PAPKey and the other 61 hold `Thrust = 1`,
+>    a surrogate Id that already failed the existing check, so they were un-re-savable before this
+>    change too.
+> 2. **The Lump Sum dropdown IS filtered by Category**, departing from the "generic listing
+>    endpoints stay permissive" convention at lines 61-63. `ShowProjectDropdowns` gained an
+>    additive `ThrustsByCategory` field carrying the *resolved* restriction, so the browser never
+>    re-implements the unrestricted rule. Project and Modification are unchanged and still rely on
+>    save-time refusal — a deliberate inconsistency, and the obvious follow-up.
+> 3. **A `PAPKey = -1` row means every Sub-Category qualifies and WINS over specific rows beside
+>    it** (operator, 2026-09-11). The code this replaced asked whether the category had "any row
+>    with `PAPKey != -1`", which reads a wildcard-plus-specific mixture as restricted. No category
+>    carries that mix today (20, 24 and 31 hold a wildcard and nothing else), so the two agree on
+>    current data and would first diverge the day someone adds one.
+>
+> One thing this document could not have known: **`vProjectThrustByCategory` exists on neither
+> localhost database and no script in this repo creates it.** The validation shipped on
+> 2026-09-10 queries it through EF, so any save carrying a Thrust threw `Invalid object name` on a
+> database built from `Main/Resources/Internal/SQLScripts`. The shared helper no longer uses the
+> view — it asks the 137-row map table directly, which the preceding existence check makes
+> equivalent — so the dependency is gone, but **the missing DDL is still owed** and the
+> `MYPSDbContext` DbSet at line 44 now has no consumer.
+>
+> **2026-09-12.** The rebase that followed re-inlined the old block into
+> `ValidateProjectDetailsLookups` (with the view query and the inverted wildcard reading) and
+> nested it inside `ResubmitRevision`'s failure branch, so decisions 1 and 3 above briefly held
+> on the Lump Sum path only. Converged again the same day, and decision 1 was revised by the
+> operator: enforcement is **grandfathered on both fields**, not unconditional — see the status
+> header. Decisions 2 and 3 stand.
 
 `LSWallet`'s save path (`FE/src/pages/LSWallet/Service.ts:195-235`) is **entirely mocked** —
 `createWallet`/`updateWallet` hit a local mock store (`walletMockStore.ts`), not `httpClient`.

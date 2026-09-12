@@ -195,10 +195,10 @@ namespace Hangfire.Services
                 var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Imports");
                 Directory.CreateDirectory(tempFolder);
 
-                var safeProgramId = SanitizeForFileName(payload.ProgramId);
-                var safeStageName = SanitizeForFileName(payload.StageName);
+                var safeProgramId = ImportFileNaming.SanitizeForFileName(payload.ProgramId);
+                var safeStageName = ImportFileNaming.SanitizeForFileName(payload.StageName);
                 var completedAt = Functions.CurrentDate();
-                var excelFileName = $"{safeProgramId}_{safeStageName}_Projects_{BuildFileSuffix(payload.JobId, completedAt)}.xlsm";
+                var excelFileName = $"{safeProgramId}_{safeStageName}_Projects_{ImportFileNaming.BuildFileSuffix(payload.JobId, completedAt)}.xlsm";
 
                 await File.WriteAllBytesAsync(Path.Combine(tempFolder, excelFileName), bytes, jobCancellationToken.ShutdownToken);
 
@@ -387,24 +387,15 @@ namespace Hangfire.Services
                     // wasn't produced by this system: most likely hand-built from scratch, or
                     // edited with a tool that stripped worksheet-level metadata. Checked before
                     // the sheet/header checks below since it's the most fundamental signal.
-                    var markerSheet = package.Workbook.Worksheets[ImportErrorWorkbookBuilder.SystemMarkerSheetName];
-                    var markerValue = markerSheet?.Cells[1, 1].Text;
-                    if (!string.Equals(markerValue, ImportErrorWorkbookBuilder.SystemMarkerValue, StringComparison.Ordinal))
+                    if (!ImportWorkbookReader.HasSystemMarker(package))
                     {
-                        await FailJob(jobRecord, "The uploaded file does not appear to be a genuine MYPS import file. Please use the file from Download Template or a generated error report, without recreating it in another tool.", transaction, payload.JobId);
+                        await FailJob(jobRecord, ImportWorkbookReader.MissingMarkerMessage, transaction, payload.JobId);
                         return;
                     }
 
                     jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Validate sheets ────────────────────────────────────────
-                    var requiredSheets = new[]
-                    {
-                        "PROJECT DETAILS", "FUNDING PROFILE",
-                        "COMPONENT DETAILS", "MAJOR ITEMS OF WORK"
-                    };
-                    var missingSheets = requiredSheets
-                        .Where(s => package.Workbook.Worksheets[s] == null)
-                        .ToList();
+                    var missingSheets = ImportWorkbookReader.MissingSheets(package);
 
                     if (missingSheets.Any())
                     {
@@ -418,11 +409,7 @@ namespace Hangfire.Services
                     // rely on (they index by fixed column position) — a stale template version or
                     // a manually reordered/edited file would otherwise be misread silently instead
                     // of failing cleanly.
-                    var headerMismatches = new List<string>();
-                    headerMismatches.AddRange(ValidateSheetHeaders(package.Workbook.Worksheets["PROJECT DETAILS"], "PROJECT DETAILS", ProjectDetailsHeaders));
-                    headerMismatches.AddRange(ValidateSheetHeaders(package.Workbook.Worksheets["FUNDING PROFILE"], "FUNDING PROFILE", FundingProfileHeaders));
-                    headerMismatches.AddRange(ValidateSheetHeaders(package.Workbook.Worksheets["COMPONENT DETAILS"], "COMPONENT DETAILS", ComponentDetailsHeaders));
-                    headerMismatches.AddRange(ValidateSheetHeaders(package.Workbook.Worksheets["MAJOR ITEMS OF WORK"], "MAJOR ITEMS OF WORK", MajorItemsOfWorkHeaders));
+                    var headerMismatches = ImportWorkbookReader.ValidateAllHeaders(package);
 
                     if (headerMismatches.Any())
                     {
@@ -432,13 +419,7 @@ namespace Hangfire.Services
 
                     jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Read from Excel ────────────────────────────────────
-                    var importDto = new ImportProjectDTOExcel
-                    {
-                        ProjectDetails = ReadProjectDetails(package),
-                        FundingProfile = ReadFundingProfile(package),
-                        ComponentDetails = ReadComponentDetails(package),
-                        MajorItemsOfWork = ReadMajorItemsOfWork(package)
-                    };
+                    var importDto = ImportWorkbookReader.ReadAll(package);
 
                     // ── Validate and group ─────────────────────────────────
                     var ValidProjectDetails = new List<ImportProjectDetailsExcel>();
@@ -519,8 +500,8 @@ namespace Hangfire.Services
                     }
 
                     jobCancellationToken.ThrowIfCancellationRequested();
-                    // ── Finalize Error List ────────────────────────────────
-                    FinalizeErrors(
+                    // ── Finalize Error List — the cross-sheet rules, shared with the Lump Sum import ──
+                    ImportStructuralRules.Apply(
                         ValidProjectDetails, ValidFundingProfile, ValidComponentDetails, ValidMajorItemsOfWork,
                         WarningProjectDetails, WarningFundingProfile, WarningComponentDetails, WarningMajorItemsOfWork,
                         ErrorProjectDetails, ErrorFundingProfile, ErrorComponentDetails, ErrorMajorItemsOfWork);
@@ -1006,13 +987,13 @@ namespace Hangfire.Services
                     var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Imports");
                     Directory.CreateDirectory(tempFolder);
 
-                    var safeProgramId = SanitizeForFileName(payload.ProgramId);
-                    var safeStageName = SanitizeForFileName(payload.StageName);
+                    var safeProgramId = ImportFileNaming.SanitizeForFileName(payload.ProgramId);
+                    var safeStageName = ImportFileNaming.SanitizeForFileName(payload.StageName);
                     // Computed once here and reused as jobRecord.CompletedAt below (moved earlier
                     // than the post-commit point it was previously set at) so the filename and the
                     // job record agree on the same completion timestamp — same as ProcessExport.
                     var completedAt = Functions.CurrentDate();
-                    var fileSuffix = BuildFileSuffix(payload.JobId, completedAt);
+                    var fileSuffix = ImportFileNaming.BuildFileSuffix(payload.JobId, completedAt);
                     var textFileName = $"ImportReport_{safeProgramId}_{safeStageName}_{fileSuffix}.txt";
                     var excelFileName = $"ImportErrors_{safeProgramId}_{safeStageName}_{fileSuffix}.xlsm";
 
@@ -1239,157 +1220,6 @@ namespace Hangfire.Services
             }
         }
 
-        // ── Extract: Finalize Error List logic ────────────────────────────────
-        private void FinalizeErrors(
-            List<ImportProjectDetailsExcel> validP, List<ImportFundingProfileExcel> validF, List<ImportComponentDetailsExcel> validC, List<ImportMajorItemsOfWorkExcel> validM,
-            List<ImportProjectDetailsExcel> warnP, List<ImportFundingProfileExcel> warnF, List<ImportComponentDetailsExcel> warnC, List<ImportMajorItemsOfWorkExcel> warnM,
-            List<ImportProjectDetailsExcel> errP, List<ImportFundingProfileExcel> errF, List<ImportComponentDetailsExcel> errC, List<ImportMajorItemsOfWorkExcel> errM)
-        {
-            void AppendMessage<T>(T item, string message)
-            {
-                if (message == null) return;
-                var prop = item.GetType().GetProperty("ErrorMessage");
-                if (prop == null) return;
-                var existing = prop.GetValue(item)?.ToString();
-                var newMessage = string.IsNullOrWhiteSpace(existing) ? message : $"{existing.TrimEnd('.')}; {message}";
-                prop.SetValue(item, newMessage);
-            }
-
-            void PropagateErrors<T>(HashSet<string> ids, List<T> err, List<T> valid, List<T> warn, Func<T, string> getId, string msg = null)
-            {
-                var fv = valid.Where(x => ids.Contains(getId(x))).ToList();
-                fv.ForEach(x => AppendMessage(x, msg)); err.AddRange(fv); valid.RemoveAll(x => ids.Contains(getId(x)));
-                var fw = warn.Where(x => ids.Contains(getId(x))).ToList();
-                fw.ForEach(x => AppendMessage(x, msg)); err.AddRange(fw); warn.RemoveAll(x => ids.Contains(getId(x)));
-            }
-
-            void RunCascadeLoop()
-            {
-                var processedIds = new HashSet<string>();
-                bool hasNewErrors = true;
-                while (hasNewErrors)
-                {
-                    var fromP = new HashSet<string>(errP.Select(x => x.ProjectId));
-                    var fromF = new HashSet<string>(errF.Select(x => x.ProjectId));
-                    var fromC = new HashSet<string>(errC.Select(x => x.ProjectId));
-                    var fromM = new HashSet<string>(errM.Select(x => x.ProjectId));
-                    var newIds = new HashSet<string>(fromP.Concat(fromF).Concat(fromC).Concat(fromM).Except(processedIds));
-                    hasNewErrors = newIds.Count > 0;
-                    if (!hasNewErrors) break;
-
-                    void CascadeBySource(HashSet<string> ids, string sheet)
-                    {
-                        if (!ids.Any()) return;
-                        var msg = $"Cascaded error: A related record in [{sheet}] has errors.";
-                        PropagateErrors(ids, errP, validP, warnP, x => x.ProjectId, msg);
-                        PropagateErrors(ids, errF, validF, warnF, x => x.ProjectId, msg);
-                        PropagateErrors(ids, errC, validC, warnC, x => x.ProjectId, msg);
-                        PropagateErrors(ids, errM, validM, warnM, x => x.ProjectId, msg);
-                    }
-
-                    CascadeBySource(new HashSet<string>(newIds.Intersect(fromP)), "PROJECT DETAILS");
-                    CascadeBySource(new HashSet<string>(newIds.Intersect(fromF)), "FUNDING PROFILE");
-                    CascadeBySource(new HashSet<string>(newIds.Intersect(fromC)), "COMPONENT DETAILS");
-                    CascadeBySource(new HashSet<string>(newIds.Intersect(fromM)), "MAJOR ITEMS OF WORK");
-                    processedIds.UnionWith(newIds);
-                }
-            }
-
-            // Step 0 — Duplicate ProjectId within PROJECT DETAILS. SaveProjectDetails resolves
-            // identity by AlternateId, so two rows sharing the same ProjectId in one file would
-            // make the second row "reuse" the revision the first row just inserted moments
-            // earlier, leaving the first row's revision active and un-deleted (the scoped
-            // soft-delete only covers PRIOR data, not duplicates created mid-run). Demoted here
-            // — not thrown — so it flows through the same graceful error-list/cascade/report
-            // pipeline as every other validation failure: previously this threw a raw exception
-            // straight past report generation, leaving the job "Failed" with a message but no
-            // downloadable error workbook and no per-row breakdown, even if only one ProjectId
-            // out of hundreds was duplicated. Runs first so Steps 1+ correctly treat every row
-            // for a duplicated ProjectId as already erroring.
-            var duplicateProjectIds = new HashSet<string>(
-                validP.Concat(warnP)
-                    .GroupBy(x => x.ProjectId, StringComparer.OrdinalIgnoreCase)
-                    .Where(g => g.Count() > 1)
-                    .Select(g => g.Key),
-                StringComparer.OrdinalIgnoreCase);
-
-            PropagateErrors(duplicateProjectIds, errP, validP, warnP, x => x.ProjectId,
-                "Duplicate Project ID: this Project ID appears on more than one row in PROJECT DETAILS within the same import file. Each Project ID must appear only once per file.");
-
-            // Step 1 — Initial cascade
-            RunCascadeLoop();
-
-            // Step 1.5 — Component -> Major Item requirement. Ports the Excel workbook's own
-            // pre-save gate (ModuleMandatory.MandatoryFieldsMessage_All's "Component -> Major
-            // Item Validation") to the actual backend, so it can't be bypassed by re-uploading an
-            // unmodified file or disabling macros. Mirrors that gate's exemption list (component
-            // types that don't carry a trackable physical/location item) and its "any row for
-            // this pair" presence semantics. Only checks components that are still valid/warn at
-            // this point (errored components are already going away regardless); only counts
-            // Major Items that are themselves still valid/warn as satisfying the requirement,
-            // since an errored Major Item won't actually be imported either. Runs before Step 2
-            // so a component demoted here correctly feeds into the Project-level child check below.
-            var majorItemExemptComponentIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "EAO", "EAOS", "EXC", "SAV", "COS", "FS", "DED", "LS", "OTH2", "OTH3", "OTH4", "EXP", "CS"
-            };
-            var majorItemKeys = new HashSet<string>(
-                validM.Select(x => $"{x.ProjectId}|{x.ComponentId}")
-                .Concat(warnM.Select(x => $"{x.ProjectId}|{x.ComponentId}")));
-
-            void RequireMajorItem(List<ImportComponentDetailsExcel> list)
-            {
-                var missing = list.Where(c =>
-                    !majorItemExemptComponentIds.Contains(c.ComponentId ?? string.Empty) &&
-                    !majorItemKeys.Contains($"{c.ProjectId}|{c.ComponentId}")).ToList();
-
-                foreach (var c in missing)
-                {
-                    AppendMessage(c, $"Component '{c.ComponentId}' under Project '{c.ProjectId}' requires at least 1 Major Item.");
-                }
-                errC.AddRange(missing);
-                validC.RemoveAll(c => missing.Contains(c));
-                warnC.RemoveAll(c => missing.Contains(c));
-            }
-            RequireMajorItem(validC);
-            RequireMajorItem(warnC);
-
-            // Step 2 — Detect floating ProjectDetails. Requires BOTH a Funding Profile entry AND
-            // a Component Details entry (matching the Excel workbook's own stricter gate) rather
-            // than "any one of Funding/Component/MajorItems", which is what this used to check —
-            // a project with only a Major Item and nothing else used to slip through as non-floating.
-            var fundingProjectIds = new HashSet<string>(
-                validF.Select(x => x.ProjectId).Concat(warnF.Select(x => x.ProjectId)).Concat(errF.Select(x => x.ProjectId)));
-            var componentProjectIds = new HashSet<string>(
-                validC.Select(x => x.ProjectId).Concat(warnC.Select(x => x.ProjectId)).Concat(errC.Select(x => x.ProjectId)));
-            bool MissingRequiredChildren(ImportProjectDetailsExcel x) =>
-                !fundingProjectIds.Contains(x.ProjectId) || !componentProjectIds.Contains(x.ProjectId);
-            var floatP = new HashSet<string>(validP.Where(MissingRequiredChildren).Select(x => x.ProjectId)
-                .Concat(warnP.Where(MissingRequiredChildren).Select(x => x.ProjectId)));
-
-            // Step 3 — Detect floating child records
-            var allValidPIds = new HashSet<string>(validP.Select(x => x.ProjectId).Concat(warnP.Select(x => x.ProjectId)));
-            var floatF = new HashSet<string>(validF.Where(x => !allValidPIds.Contains(x.ProjectId)).Select(x => x.ProjectId)
-                .Concat(warnF.Where(x => !allValidPIds.Contains(x.ProjectId)).Select(x => x.ProjectId)));
-            var floatC = new HashSet<string>(validC.Where(x => !allValidPIds.Contains(x.ProjectId)).Select(x => x.ProjectId)
-                .Concat(warnC.Where(x => !allValidPIds.Contains(x.ProjectId)).Select(x => x.ProjectId)));
-            var allCompKeys = new HashSet<string>(
-                validC.Where(x => allValidPIds.Contains(x.ProjectId)).Select(x => $"{x.ProjectId}|{x.ComponentId}")
-                .Concat(warnC.Where(x => allValidPIds.Contains(x.ProjectId)).Select(x => $"{x.ProjectId}|{x.ComponentId}")));
-            var floatM = new HashSet<string>(
-                validM.Where(x => !allValidPIds.Contains(x.ProjectId) || !allCompKeys.Contains($"{x.ProjectId}|{x.ComponentId}")).Select(x => x.ProjectId)
-                .Concat(warnM.Where(x => !allValidPIds.Contains(x.ProjectId) || !allCompKeys.Contains($"{x.ProjectId}|{x.ComponentId}")).Select(x => x.ProjectId)));
-
-            // Step 4 — Move floating to Error
-            PropagateErrors(floatP, errP, validP, warnP, x => x.ProjectId, "Floating record: A project requires at least one Funding Profile entry and at least one Component Details entry.");
-            PropagateErrors(floatF, errF, validF, warnF, x => x.ProjectId, "Floating record: No matching parent found in Project Details.");
-            PropagateErrors(floatC, errC, validC, warnC, x => x.ProjectId, "Floating record: No matching parent found in Project Details.");
-            PropagateErrors(floatM, errM, validM, warnM, x => x.ProjectId, "Floating record: No matching parent found in Project Details or Component Details.");
-
-            // Step 5 — Final cascade
-            RunCascadeLoop();
-        }
-
         // ── Generate text report bytes ─────────────────────────────────────────
         private byte[] GenerateTextReport(
             List<ImportProjectDetailsExcel> validP, List<ImportFundingProfileExcel> validF, List<ImportComponentDetailsExcel> validC, List<ImportMajorItemsOfWorkExcel> validM,
@@ -1435,157 +1265,6 @@ namespace Hangfire.Services
             WriteSection(warnM, "--- WARNING: MAJOR ITEMS OF WORK ---", x => $"Project ID: {x.ProjectId} | Infrastructure ID: {x.InfrastructureId} | Warning: {x.ErrorMessage}");
 
             return Encoding.UTF8.GetBytes(sb.ToString());
-        }
-
-        // ── Read helpers ─────────────────────────────────────────────────────
-        private List<ImportProjectDetailsExcel> ReadProjectDetails(ExcelPackage package)
-        {
-            var result = new List<ImportProjectDetailsExcel>();
-            // Sheet name must match exactly what your Excel file uses
-            var ws = package.Workbook.Worksheets["PROJECT DETAILS"];
-            if (ws == null || ws.Dimension == null) return result;
-
-            // Row 1 = headers, data starts at row 2
-            for (int row = 2; row <= ws.Dimension.End.Row; row++)
-            {
-                // Skip completely empty rows
-                if (string.IsNullOrWhiteSpace(ws.Cells[row, 1].Text))
-                    continue;
-                string? mYId = string.IsNullOrWhiteSpace(ws.Cells[row, 2].Text) ? null : ws.Cells[row, 2].Text.Trim();
-                string? externalId = string.IsNullOrWhiteSpace(ws.Cells[row, 3].Text) ? null : ws.Cells[row, 3].Text.Trim();
-                string? uACS = string.IsNullOrWhiteSpace(ws.Cells[row, 4].Text) ? null : ws.Cells[row, 4].Text.Trim();
-                string? mYCAApprovalDate = string.IsNullOrWhiteSpace(ws.Cells[row, 8].Text) ? null : ws.Cells[row, 8].Text.Trim();
-                //string? description = string.IsNullOrWhiteSpace(ws.Cells[row, 9].Text) ? null : ws.Cells[row, 9].Text.Trim();
-                string? feasibilityDate = string.IsNullOrWhiteSpace(ws.Cells[row, 24].Text) ? null : ws.Cells[row, 24].Text.Trim();
-                string? detailedDesignDate = string.IsNullOrWhiteSpace(ws.Cells[row, 26].Text) ? null : ws.Cells[row, 26].Text.Trim();
-                string? rank = string.IsNullOrWhiteSpace(ws.Cells[row, 27].Text) ? null : ws.Cells[row, 27].Text.Trim();
-
-                result.Add(new ImportProjectDetailsExcel
-                {
-                    ProjectId = ws.Cells[row, 1].Text.Trim(),
-                    MYId = mYId, //ws.Cells[row, 2].Text.Trim(),
-                    ExternalId = externalId, //ws.Cells[row, 3].Text.Trim(),
-                    UACS = uACS, //ws.Cells[row, 4].Text.Trim(),
-                    Tier = ws.Cells[row, 5].Text.Trim(),
-                    Category = ws.Cells[row, 6].Text.Trim(),
-                    Thrust = ws.Cells[row, 7].Text.Trim(),
-                    MYCAApprovalDate = mYCAApprovalDate, //ws.Cells[row, 8].Text.Trim(),
-                    Description = ws.Cells[row, 9].Text.Trim(),
-                    Province = ws.Cells[row, 10].Text.Trim(),
-                    City = ws.Cells[row, 11].Text.Trim(),
-                    LegislativeDistrict = ws.Cells[row, 12].Text.Trim(),
-                    Region = ws.Cells[row, 13].Text.Trim(),
-                    DEO = ws.Cells[row, 14].Text.Trim(),
-                    ImplementingOffice = ws.Cells[row, 15].Text.Trim(),
-                    OperatingUnit = ws.Cells[row, 16].Text.Trim(),
-                    RegionWide = ws.Cells[row, 17].Text.Trim(),
-                    Origin = ws.Cells[row, 18].Text.Trim(),
-                    Agency = ws.Cells[row, 19].Text.Trim(),
-                    ImplementationMode = ws.Cells[row, 20].Text.Trim(),
-                    EmergencyMode = ws.Cells[row, 21].Text.Trim(),
-                    RowAvailable = ws.Cells[row, 22].Text.Trim(),
-                    Feasibility = ws.Cells[row, 23].Text.Trim(),
-                    FeasibilityDate = feasibilityDate, //ws.Cells[row, 24].Text.Trim(),
-                    DetailedDesign = ws.Cells[row, 25].Text.Trim(),
-                    DetailedDesignDate = detailedDesignDate, //ws.Cells[row, 26].Text.Trim(),
-                    Rank = rank //ws.Cells[row, 27].Text.Trim()
-                });
-            }
-            return result;
-        }
-        private List<ImportFundingProfileExcel> ReadFundingProfile(ExcelPackage package)
-        {
-            var result = new List<ImportFundingProfileExcel>();
-            var ws = package.Workbook.Worksheets["FUNDING PROFILE"];
-            if (ws == null || ws.Dimension == null) return result;
-
-            for (int row = 2; row <= ws.Dimension.End.Row; row++)
-            {
-                if (string.IsNullOrWhiteSpace(ws.Cells[row, 1].Text)) continue;
-
-                result.Add(new ImportFundingProfileExcel
-                {
-                    ProjectId = ws.Cells[row, 1].Text.Trim(),
-                    Source = ws.Cells[row, 2].Text.Trim(),
-                    Agreement = ws.Cells[row, 3].Text.Trim(),
-                    Amount = ws.Cells[row, 4].Text.Trim(),
-                    Percentage = 100
-                });
-            }
-            return result;
-        }
-        private List<ImportComponentDetailsExcel> ReadComponentDetails(ExcelPackage package)
-        {
-            var result = new List<ImportComponentDetailsExcel>();
-            var ws = package.Workbook.Worksheets["COMPONENT DETAILS"];
-            if (ws == null || ws.Dimension == null) return result;
-
-            for (int row = 2; row <= ws.Dimension.End.Row; row++)
-            {
-                if (string.IsNullOrWhiteSpace(ws.Cells[row, 1].Text)) continue;
-                string? startDate = string.IsNullOrWhiteSpace(ws.Cells[row, 6].Text) ? null : ws.Cells[row, 6].Text.Trim();
-                string? endDate = string.IsNullOrWhiteSpace(ws.Cells[row, 7].Text) ? null : ws.Cells[row, 7].Text.Trim();
-                string? description = string.IsNullOrEmpty(ws.Cells[row, 4].Text) ? null : ws.Cells[row, 4].Text.Trim();
-
-                result.Add(new ImportComponentDetailsExcel
-                {
-                    ProjectId = ws.Cells[row, 1].Text.Trim(),
-                    ComponentType = ws.Cells[row, 2].Text.Trim(),
-                    ComponentId = ws.Cells[row, 3].Text.Trim(),
-                    Description = description,
-                    Cost = ws.Cells[row, 5].Text.Trim(),
-                    StartDate = startDate, //ws.Cells[row, 6].Text.Trim(),
-                    EndDate = endDate, //ws.Cells[row, 7].Text.Trim(),
-                    InfraType = ws.Cells[row, 8].Text.Trim(),
-                    WorkTypeId = ws.Cells[row, 9].Text.Trim(),
-                    ActiveYear = ws.Cells[row, 10].Text.Trim()
-                });
-            }
-            return result;
-        }
-        private List<ImportMajorItemsOfWorkExcel> ReadMajorItemsOfWork(ExcelPackage package)
-        {
-            var result = new List<ImportMajorItemsOfWorkExcel>();
-            var ws = package.Workbook.Worksheets["MAJOR ITEMS OF WORK"];
-            if (ws == null || ws.Dimension == null) return result;
-
-            for (int row = 2; row <= ws.Dimension.End.Row; row++)
-            {
-                if (string.IsNullOrWhiteSpace(ws.Cells[row, 1].Text)) continue;
-                string? detailsScope = string.IsNullOrWhiteSpace(ws.Cells[row, 5].Text) ? null : ws.Cells[row, 5].Text.Trim();
-                string? startX = string.IsNullOrWhiteSpace(ws.Cells[row, 7].Text) ? null : ws.Cells[row, 7].Text.Trim();
-                string? startY = string.IsNullOrWhiteSpace(ws.Cells[row, 8].Text) ? null : ws.Cells[row, 8].Text.Trim();
-                string? endX = string.IsNullOrWhiteSpace(ws.Cells[row, 9].Text) ? null : ws.Cells[row, 9].Text.Trim();
-                string? endY = string.IsNullOrWhiteSpace(ws.Cells[row, 10].Text) ? null : ws.Cells[row, 10].Text.Trim();
-                string? physicalTarget = string.IsNullOrWhiteSpace(ws.Cells[row, 11].Text) ? null : ws.Cells[row, 11].Text.Trim();
-                string? startStation = string.IsNullOrWhiteSpace(ws.Cells[row, 12].Text) ? null : ws.Cells[row, 12].Text.Trim();
-                string? endStation = string.IsNullOrWhiteSpace(ws.Cells[row, 13].Text) ? null : ws.Cells[row, 13].Text.Trim();
-                string? startChainage = string.IsNullOrWhiteSpace(ws.Cells[row, 14].Text) ? null : ws.Cells[row, 14].Text.Trim();
-                string? endChainage = string.IsNullOrWhiteSpace(ws.Cells[row, 15].Text) ? null : ws.Cells[row, 15].Text.Trim();
-                string? length = string.IsNullOrWhiteSpace(ws.Cells[row, 16].Text) ? null : ws.Cells[row, 16].Text.Trim();
-
-                result.Add(new ImportMajorItemsOfWorkExcel
-                {
-                    ProjectId = ws.Cells[row, 1].Text.Trim(),
-                    ComponentId = ws.Cells[row, 2].Text.Trim(),
-                    ReferenceId = ws.Cells[row, 3].Text.Trim(),
-                    InfrastructureId = ws.Cells[row, 4].Text.Trim(),
-                    DetailsScope = detailsScope, //ws.Cells[row, 5].Text.Trim(),
-                    TargetUnit = ws.Cells[row, 6].Text.Trim(),
-                    StartX = startX,
-                    StartY = startY,
-                    EndX = endX,
-                    EndY = endY,
-                    PhysicalTarget = physicalTarget,
-                    StartStation = startStation,
-                    EndStation = endStation,
-                    StartChainage = startChainage,
-                    EndChainage = endChainage,
-                    Length = length,
-                    ActivityYear = ws.Cells[row, 17].Text.Trim() //activityYear
-                });
-            }
-            return result;
         }
     }
 }

@@ -92,8 +92,11 @@ namespace Hangfire.Importing
         // signal, not a tamper-proof security control — anyone who knows to look for it (Alt+F11,
         // or unzipping the .xlsm) could reproduce it, but it catches the realistic case of an
         // unrelated or accidentally-mangled file that happens to pass the sheet-name/header checks.
-        internal const string SystemMarkerSheetName = "_SysMeta";
-        internal const string SystemMarkerValue = "MYPS-IMPORT-WORKBOOK-V1";
+        // public, not internal: WebAPI's Lump Sum import checks the same marker on its own upload
+        // (ImportWorkbookReader.HasSystemMarker), and a second copy of the string in another
+        // assembly would drift the moment the marker versions.
+        public const string SystemMarkerSheetName = "_SysMeta";
+        public const string SystemMarkerValue = "MYPS-IMPORT-WORKBOOK-V1";
 
         private static void AddSystemMarker(ExcelPackage pkg)
         {

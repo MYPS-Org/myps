@@ -18,6 +18,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using static Helpers.ProjectHelper;
 
+using WebAPI.Controllers.Lumpsum;
 namespace WebAPI.Controllers.Projects
 {
     [ApiController]
@@ -87,6 +88,38 @@ namespace WebAPI.Controllers.Projects
                 var tiers = await _db.tOptionProjectTier.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var regionWides = await _db.tOptionRegionWide.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
+                // 2026-09-11: Category -> permitted Sub-Category (PAPKey) restrictions, so a form
+                // can offer only the Sub-Categories its selected Category actually allows. The Lump
+                // Sum details form consumes this; Project and Modification ignore it and keep their
+                // permissive dropdowns, per this codebase's save-time-enforcement convention.
+                //
+                // (Restored 2026-09-12: this hunk and its ProjectEnums type were lost when the
+                // Option A branch was rebased over this file, while the frontend consumer and the
+                // decision record in MYPS_PROJECT_THRUST_CATEGORY_VALIDATION_RCA_AND_DECISION.md
+                // both survived -- leaving the FE referencing a field the API no longer sent, which
+                // broke the type-check.)
+                //
+                // RESOLVED HERE, ON PURPOSE. "Is this Category restricted" is a three-part rule --
+                // no map rows, an explicit PAPKey = -1 wildcard, or every mapped PAPKey dangling
+                // with no thrust row behind it. Shipping the raw map rows would make the browser
+                // re-implement it in another language, where it would drift. So an UNRESTRICTED
+                // Category is simply omitted, and the frontend rule collapses to "no entry means no
+                // restriction".
+                //
+                // Note this does NOT filter the Thrusts list above -- that stays complete, because a
+                // form still needs the full list to render an already-selected value (RCA section 4).
+                var categoryToPap = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking().ToListAsync(cancellationToken);
+                var thrustsByCategory = categoryToPap
+                    .GroupBy(m => m.CategoryId)
+                    .Where(g => !g.Any(x => x.PAPKey == -1)
+                             && g.Any(x => thrusts.Any(t => t.PAPKey == x.PAPKey)))
+                    .Select(g => new
+                    {
+                        CategoryId = g.Key,
+                        PAPKeys = g.Select(x => x.PAPKey).Distinct().OrderBy(k => k).ToList()
+                    })
+                    .ToList();
+
                 // 2026-09-11: lets the FE filter the Thrust dropdown by the selected Category
                 // without a per-keystroke round trip. Same table already used server-side by
                 // ValidateProjectDetailsLookups (ProjectHelper.cs:331-338) -- PAPKey=-1 is a
@@ -100,6 +133,7 @@ namespace WebAPI.Controllers.Projects
 
                     Categories = categories,
                     Thrusts = thrusts,
+                    ThrustsByCategory = thrustsByCategory,
                     CategoryThrustMap = categoryThrustMap,
 
                     Provinces = provinces,
@@ -266,6 +300,32 @@ namespace WebAPI.Controllers.Projects
                                 result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
+                }
+
+                /*  MARK THE LUMP SUM PROJECTS ON THIS PAGE, so the list can send them to
+                    the Lump Sum module instead of the project form. One keyed IN query
+                    on tProjects for the page's ids — never per row, and never through
+                    vLumpSumSet, whose ROW_NUMBER CTE defeats predicate pushdown and has
+                    produced an 11 GB plan on a point lookup before (lump-sum-v2.md,
+                    known gap 5). A Lump Sum Project is ProjectType 'LS' with no parent;
+                    its itemized children are 'LS' with one, and remain ordinary projects.
+                    vProjectLatest.Id is tProjects.Id, the same key vLumpSumSet exposes,
+                    which is what makes the flag enough for the frontend to route on. */
+                if (result.Data.lists.Count > 0)
+                {
+                    var PageIds = result.Data.lists.Select(x => x.Id).ToList();
+                    var LumpSumIds = await _db.tProjects
+                        .AsNoTracking()
+                        .Where(p => PageIds.Contains(p.Id) && p.ProjectType == "LS" && p.ParentProjectId == null)
+                        .Select(p => p.Id)
+                        .ToListAsync(cancellationToken);
+
+                    if (LumpSumIds.Count > 0)
+                    {
+                        var LumpSumSet = LumpSumIds.ToHashSet();
+                        foreach (var Row in result.Data.lists)
+                            Row.IsLumpSum = LumpSumSet.Contains(Row.Id);
+                    }
                 }
 
                 return Ok(result.Data);
@@ -463,6 +523,20 @@ namespace WebAPI.Controllers.Projects
             {
                 DateTime CurrentDate = Functions.CurrentDate();
                 string UserId = _Session.UserId;
+
+                /*  Lump Sum Projects are created by CreateLumpSum, which sets up the
+                    allocation component and its funding line in one transaction.
+                    Reaching one through here would produce a project that the Lump
+                    Sum module lists and offers to itemize, but with nothing to
+                    itemize against. */
+                if (LumpSumGuard.WouldCreateLumpSum(dto.ProjectType, dto.IslandCode))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "A Lump Sum Project cannot be created here. Use the Lump Sum module.",
+                        Title = LumpSumGuard.RefusalTitle
+                    });
+                }
 
                 #region Validate Program
                 var ValidateProgram = await _db.ValidateProgramId(new ProgramHelperParams
@@ -754,6 +828,31 @@ namespace WebAPI.Controllers.Projects
                 string UserId = _Session.UserId;
                 string ProjectId = dto.ProjectDetails.ProjectId;
 
+                /*  A Lump Sum Project is edited in the Lump Sum module and nowhere
+                    else. It is an ordinary tProjects row, so without this it would
+                    save here like any other project — bypassing the stage gate, the
+                    allocation arithmetic and the identity rules that module owns.
+
+                    BEFORE ValidateProjectId, deliberately. That path reads
+                    fProjectDetails, which throws SqlNullValueException on a Lump Sum
+                    Project — its Region, Province and DEO are legitimately null. So
+                    a guard placed after it never runs: the request dies on the way
+                    in with an exception instead of a refusal.
+
+                    Itemized CHILDREN are not covered: they are ordinary projects and
+                    this is where they are edited. IsLumpSumParent tests
+                    ParentProjectId for exactly that reason. */
+                var LumpSumCandidate = await _db.tProjects.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ProjectPK == ProjectId, cancellationToken);
+                if (LumpSumGuard.IsLumpSumParent(LumpSumCandidate))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = LumpSumGuard.RefusalMessage(ProjectId, "edited"),
+                        Title = LumpSumGuard.RefusalTitle
+                    });
+                }
+
                 #region Project
                 var ValidateProjectId = await _db.ValidateProjectId(new ValidateProjectIdParams
                 {
@@ -836,6 +935,8 @@ namespace WebAPI.Controllers.Projects
                     // check (see ProjectHelper.cs's ThrustIsChanging gate) -- ProjectRevision is
                     // already loaded above (line ~773), no extra query.
                     PreviousThrust = ProjectRevision.Thrust,
+                    // 2026-09-12: the gate watches both fields -- see ValidateThrustForCategoryAsync.
+                    PreviousCategory = ProjectRevision.Category,
                 };
                 var ValidateProjectLookUps = await _db.ValidateProjectDetailsLookups(pLookup, cancellationToken);
                 if (!ValidateProjectLookUps.IsValid)
