@@ -31,7 +31,6 @@ FE/src/pages/Project/
     AddMajorItemDialog.tsx       # Add/edit major item of work
     AddInfraDialog.tsx           # Select infrastructure (road/bridge) for a work location
     AddNoteDialog.tsx            # Upload supporting document (PDF only)
-    ImportLumpsumDialog.tsx      # Import lump-sum data from Excel (.xlsx)
     RevisionDialog.tsx           # Create a revision (category + reason picker)
     SaveProjectConfirmDialog.tsx # Confirmation before save/update
     ProceedAddProject.tsx        # "Proceed anyway?" prompt when backend returns Type==='Prompt'
@@ -458,7 +457,6 @@ interface ProjectFormProps {
 | `isRevisionOpen` | `RevisionDialog` |
 | `isConfirmDialogOpen` | `SaveProjectConfirmDialog` |
 | `isProceedDialogOpen` | `ProceedAddProject` |
-| `isImportLumpsumOpen` | `ImportLumpsumDialog` |
 
 ### Add-Mode Save Flow
 
@@ -628,15 +626,6 @@ All dropdowns use `SearchableDropdown` component.
 - File read as base64 DataUrl (`FileReader.readAsDataURL`).
 - On submit: calls `addDoc(formData)` service, returns new `ProjectSupportingDocs`.
 
-### `ImportLumpsumDialog`
-
-- Accepts `.xlsx` file via drag-and-drop or file picker.
-- Parses via `parseImportFile(file)` (xlsx library, shared with Program module).
-- Transforms via `transformImportedProjects(parsed.projects, programId, stageName)`.
-- Multi-tab preview: Summary | Projects | Funding | Components | Cost Per Year | Major Items | Major Locations | Errors.
-- Switches to Errors tab automatically if parse errors exist.
-- Submit calls `onSubmit(projects)` → in `ProjectForm.handleImportLumpsumSubmit()` → calls `importProject(transformed)`.
-
 ### `RevisionDialog`
 
 - Shows RevisionType headers (from `Dropdowns.Revisions.Headers`).
@@ -744,16 +733,28 @@ Key entries:
 
 ---
 
-## Lump Sum Import Workflow
+## Lump Sum Projects in this module — display only
 
-1. User clicks **Itemized Lump Sum** button (visible when `ProjectId` ends with "LS" and StageId ≠ 10).
-2. `ImportLumpsumDialog` opens.
-3. User drops/selects `.xlsx` file.
-4. `parseImportFile(file)` (Program/utils) reads all worksheets via `xlsx`.
-5. `transformImportedProjects(parsed, programId, stageName)` builds `ImportProjectDTO` shape.
-6. Preview tabs shown (Summary, Projects, Funding, Components, etc.).
-7. User clicks Submit → `importProject(payload)` → `POST /Importing/ImportProject/`.
-8. On success, navigates back to edit route.
+**This module does not import, create or edit a Lump Sum Project.** It lists and
+displays one; everything else happens in the Lump Sum module.
+
+`ProjectForm` computes `isLumpSumProject` from `ProjectDetails.IslandCode === 'LS'`
+and feeds it into the existing `isDisabled`, so every field renders read-only, the
+Update and Revise controls are hidden, and a banner says why and links to
+`/lumpsum`. The Lump Sum checkbox in `ProjectDetailsForm` still shows an existing
+project's state but can no longer set it; Non Project is unaffected.
+
+This is a courtesy, not the rule — `ProjectController.AddProject` and
+`UpdateProjectDetails` refuse independently, via
+`WebAPI/Controllers/Lumpsum/LumpSumGuard.cs`. Note the guard tests
+`ParentProjectId IS NULL` as well as `ProjectType`: itemized **children** carry
+`ProjectType = 'LS'` too, and they are ordinary projects edited here as normal.
+
+The old **Itemized Lump Sum** button and `ImportLumpsumDialog` were deleted. They
+posted to `/Importing/ImportProject/`, which sets no `ParentProjectId` and deducts
+nothing from the parent's allocation — so the projects they created never appeared
+as children while the parent still reported its full allocation. Itemization is
+`Lumpsum/ImportItemizedProjects`, in the Lump Sum module, and nothing else.
 
 ---
 
@@ -768,7 +769,7 @@ Key entries:
 | `isRoadInfraType` | same | 'R' guard |
 | `isBridgeInfraType` | same | 'B' guard |
 | `parseImportFile` | `Program/utils/parseImportFile.ts` | xlsx parsing (shared) |
-| `transformImportedProjects` | `Program/utils/transformImportedProjects.ts` | Build import payload (shared) |
+| `transformImportedProjects` | `Project/utils/transformImportedProjects.ts` | Build import payload (shared; `Program/utils/` re-exports it) |
 | `getRevisionNavigationPath` | `Modification/utils/revisionNavigation.ts` | Navigate after revision |
 | `SearchableDropdown` | `components/ui/SearchableDropdown` | Searchable select (shared UI) |
 | `MapRenderer` | shared component | Renders GeoJSON on map |

@@ -157,11 +157,25 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             onChange(field, value);
         }
         else if (field === 'Region') {
-            // Auto-populate IslandCode/ProjectType from the selected region's real geographic island code.
-            // Mirrors handleBoxClick, which drives both fields together for the LS/NP override.
+            /*  Auto-populate IslandCode/ProjectType from the selected region's real geographic
+                island code. Mirrors handleBoxClick, which drives both fields together for the
+                LS/NP override.
+
+                NOT FOR A LUMP SUM PROJECT. Its IslandCode is the constant 'LS' — the marker
+                isLumpSum above reads, and the gate for every location and organizational
+                exemption on this form. Overwriting it with a geographic code changes what the
+                record IS, and setting ProjectType to the same value violates
+                CK_tProjects_ProjectType, so the save fails with a raw constraint error. Were
+                it ever to succeed, fProgramStages' guard (ProjectType <> 'LS') would stop
+                excluding the project and its cost would be counted TWICE in the program total.
+
+                Region itself is still written: a Lump Sum Project may legitimately have one,
+                and only the two derived fields are off limits. */
             const selectedRegion = projectEnums?.Regions?.find((region) => region.ParticipantId === value);
-            onChange('IslandCode', selectedRegion?.IslandCode);
-            onChange('ProjectType', selectedRegion?.IslandCode);
+            if (!isLumpSum) {
+                onChange('IslandCode', selectedRegion?.IslandCode);
+                onChange('ProjectType', selectedRegion?.IslandCode);
+            }
             onChange(field, value);
         }
         else if (field === 'ImplementingOffice') {
@@ -220,36 +234,43 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
     const handleBoxClick = (boxValue: string) => {
         if (mode === 'edit') return; // Prevent clicking in edit mode
-        
+        // Belt and braces: the LS checkbox is disabled, and the server refuses an
+        // LS payload anyway. This stops the handler being the weak link if either
+        // of those is ever relaxed.
+        if (boxValue === 'LS') return;
+
         const newValue = projectDetails?.IslandCode === boxValue ? null : boxValue;
         handleInputChange('IslandCode', newValue);
         // Clicking Lump Sum/Non Project overrides IslandCode regardless of the Region-derived value,
         // and drives ProjectType the same way.
         onChange('ProjectType', newValue);
 
-        // When switching to Lump Sum, clear geographic fields that are no longer required
-        if (newValue === 'LS') {
-            onChange('Province', undefined);
-            onChange('City', undefined);
-            onChange('LegislativeDistrict', undefined);
-            onChange('DEO', undefined);
-            onChange('Region', undefined);
-        }
+        /*  The old "switching to Lump Sum clears the geographic fields" branch lived
+            here. It is unreachable now that LS returns above, and the Lump Sum module
+            handles those fields itself for the projects it creates. */
     };
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className='w-full flex flex-row items-end justify-end mb-6'>
-                { [{ label: "Lump Sum", value: "LS"}, { label: "Non Project", value: "NP"}].map((item, index) => (
-                    <label key={index} className={`flex-row items-center ${mode === 'edit' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} mr-4`}>
+                {/*  Lump Sum is DISPLAY-ONLY here. A Lump Sum Project is created by the
+                     Lump Sum module — ProjectController.AddProject refuses one from this
+                     form — so the box still shows an existing project's state but can no
+                     longer set it. Non Project is unaffected and stays usable. */}
+                { [{ label: "Lump Sum", value: "LS", readOnly: true }, { label: "Non Project", value: "NP", readOnly: false }].map((item, index) => {
+                    const locked = item.readOnly || mode === 'edit';
+                    return (
+                    <label key={index} className={`flex-row items-center ${locked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} mr-4`}
+                        title={item.readOnly ? 'Lump Sum Projects are created in the Lump Sum module.' : undefined}>
                         <input className='mr-1'
-                            type="checkbox" 
+                            type="checkbox"
                             checked={projectDetails?.IslandCode === item.value}
-                            disabled={ mode === 'edit'}
+                            disabled={locked}
                             onChange={() => handleBoxClick(item.value)} />
                         {item.label}
                     </label>
-                ))}
+                    );
+                })}
             </div>
             <div className="space-y-8 text-sm">
                 

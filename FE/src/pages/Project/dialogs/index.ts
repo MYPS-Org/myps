@@ -1,6 +1,5 @@
 export { default as ComponentCostDialog } from './ComponentCostDialog';
 export { default as SaveProjectConfirmDialog } from './SaveProjectConfirmDialog';
-export { default as ImportLumpsumDialog } from './ImportLumpsumDialog';
 
 // Future dialogs can be exported here:
 // export { default as MajorItemDialog } from './MajorItemDialog';

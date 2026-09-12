@@ -176,7 +176,10 @@ export interface ProgramProjects {
 	Category: number;
 	CategoryName?: string;
 	Description: string;
-	Region: string;
+	/*  Optional: null for a Lump Sum Project, which covers a programme rather
+	    than a site. The Name fields below stay required — fProgramProjects
+	    coalesces those to '' so a missing office renders blank. */
+	Region?: string;
 	ThrustName: string;
 	OperatingUnitName: string;
 	ImplementingOfficeName: string;

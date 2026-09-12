@@ -68,13 +68,16 @@ export interface ProjectDetails {
 	AlternateId?: string;
 	MYId?: string;
 	Description: string;
-	Region: string;
+	/*  Optional, like Province/City/LegislativeDistrict beside them: a Lump Sum
+	    Project covers a programme, not a site, so the server sends null for its
+	    whole location chain. Mirrors DBHelper ProjectDetails.cs. */
+	Region?: string;
 	Province?: string;
 	City?: string;
 	LegislativeDistrict?: string;
-	DEO: string | undefined;
+	DEO?: string;
 	OperatingUnit: string;
-	ImplementingOffice: string;
+	ImplementingOffice?: string;
 	IslandCode?: string;
 	Category: number;
 	CategoryName?: string;
@@ -110,7 +113,14 @@ export interface ProjectDetails {
 	IsPublished?: boolean;
 }
 export interface ProjectLists {
+	/** tProjects.Id — for a Lump Sum Project, also the key of /lumpsum/:lumpSumId. */
 	Id: number;
+	/**
+	 * Server-computed: a Lump Sum Project (ProjectType 'LS' with no parent), which
+	 * the list opens in the Lump Sum module rather than the project form. Itemized
+	 * children are ordinary projects and come back false.
+	 */
+	IsLumpSum?: boolean;
 	ProgramId: string;
 	ProgramName: string;
 	ProjectId: string;
@@ -537,6 +547,19 @@ export interface ProjectEnums {
   Programs?: ProgramList[];
   Categories: CategoryEnum[];
   Thrusts: ThrustEnum[];
+  /**
+   * Category -> permitted Sub-Category (PAPKey) restrictions, from ShowProjectDropdowns.
+   *
+   * ONLY RESTRICTED CATEGORIES APPEAR HERE. The server resolves the three-part
+   * "is this Category restricted" rule (no mapping rows / a PAPKey = -1 wildcard, which means
+   * every Sub-Category qualifies / a mapping whose PAPKeys resolve to nothing) and omits any
+   * Category the rule calls unrestricted. So the only rule this side needs is:
+   * no entry for a CategoryId means every Thrust is allowed for it.
+   *
+   * Optional because the Modification module reuses this type against endpoints that do not
+   * return the field.
+   */
+  ThrustsByCategory?: { CategoryId: number; PAPKeys: number[] }[];
   CategoryThrustMap: { CategoryId: number; PAPKey: number }[];
   Origins: TableEnum[];
   Cities: ProjectCityEnum[];
