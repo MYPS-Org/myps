@@ -1140,8 +1140,36 @@ WHERE  NOT EXISTS (
    ---------------------------------------------------------------------------- */
 DECLARE @GroupId int = 1;
 
+/*  THE MODULE DOES NOT LIVE ENTIRELY ON ITS OWN CONTROLLER. Itemization borrows
+    two actions from ImportingController, and granting LumpsumController alone
+    leaves both 403 for an Admin who can otherwise do everything:
+
+      DownloadTemplate    the workbook the import dialog hands the user, and the
+                          first call every itemization e2e spec makes
+                          (e2e/tests/helpers/importWorkbook.ts)
+      DownloadImportFile  the result/error workbook a finished import offers back
+                          (FE/src/pages/LumpSum/Service.ts)
+
+    Found on myps_db_dev_200 on 2026-09-13: six Lump Sum specs failed on "You do
+    not have permission to perform 'DownloadTemplate' on 'ImportingController'",
+    and because ls-module-ui-walkthrough is mode:'serial' it took 29 more tests
+    with it. Admin held neither action on that lineage; both were granted to
+    groups 2/3/4 only.
+
+    MATCHED BY NAME, NEVER BY Id. tApiActions.Id is assigned per database and the
+    two lineages have already diverged: Id 123 is DownloadTemplate on
+    myps_db_dev_200 and DeleteItemizedProject on myps_db_dev. A grant script that
+    merges literal Ids grants something different on each server.
+
+    Deliberately just these two. Any other action Admin happens to lack on a
+    given lineage is that lineage's business, not this migration's. */
 ;WITH LumpSumActions AS (
     SELECT Id FROM dbo.tApiActions WHERE ControllerName = @Controller
+    UNION
+    SELECT Id FROM dbo.tApiActions
+    WHERE  ControllerName = N'ImportingController'
+      AND  ActionName COLLATE Latin1_General_BIN2 IN (
+            N'DownloadTemplate', N'DownloadImportFile')
 ),
 Existing AS (
     SELECT a.ActionId AS Id
@@ -1368,6 +1396,17 @@ PRINT '--- any registered action NOT granted to Admin? (want none) ---';
 SELECT a.ActionName
 FROM   dbo.tApiActions a
 WHERE  a.ControllerName = N'LumpsumController'
+  AND  NOT EXISTS (
+        SELECT 1 FROM dbo.tGroupRoles gr
+        CROSS APPLY OPENJSON(gr.ActionIds) WITH (ActionId INT '$') j
+        WHERE gr.GroupId = 1 AND j.ActionId = a.Id);
+
+PRINT '--- Lump Sum''s ImportingController dependencies not granted to Admin (want none) ---';
+SELECT a.ControllerName + '.' + a.ActionName AS Ungranted
+FROM   dbo.tApiActions a
+WHERE  a.ControllerName = N'ImportingController'
+  AND  a.ActionName COLLATE Latin1_General_BIN2 IN (
+        N'DownloadTemplate', N'DownloadImportFile')
   AND  NOT EXISTS (
         SELECT 1 FROM dbo.tGroupRoles gr
         CROSS APPLY OPENJSON(gr.ActionIds) WITH (ActionId INT '$') j
