@@ -179,6 +179,26 @@ function mapSummary(summary: DashboardSummary) {
   };
 }
 
+/*  LIVE DB IS TURNED OFF FOR NOW (2026-09-13, maintainer's call).
+    -----------------------------------------------------------------------------
+    The dashboard shows demo figures only, and issues no Dashboard/Summary query
+    at all. Nothing has been deleted to achieve that: fetchDashboardSummary, the
+    mapping in mapSummary(), and every panel that renders live rows are exactly
+    as they were, and the Live DB control is still on screen — disabled, and
+    saying why.
+
+    WHY. On a production-sized database the endpoint returns every visible
+    project uncapped (DashboardController: `Projects = projects`, no Take) —
+    56,722 rows, 33.5 MB and ~14 s per load on myps_db_dev_200, for a watchlist
+    that renders a handful of them. That wants a paged or capped endpoint, which
+    is a backend change and a separate piece of work.
+
+    TO PUT IT BACK: set this to true. That is the whole switch. The e2e spec
+    (e2e/tests/dashboard-real-data.narrated.spec.ts) covers the demo path today
+    and carries the live-path assertions alongside it, skipped against this same
+    flag, so they come back with it. */
+export const LIVE_DB_ENABLED = false;
+
 const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const { setTheme, isLight } = useDashboardTheme();
@@ -225,6 +245,16 @@ const DashboardContent: React.FC = () => {
   useEffect(() => {
     if (skipResolvedYearFetch.current) {
       skipResolvedYearFetch.current = false;
+      return;
+    }
+
+    /*  The disabled control above is the only way into 'real', but this is what
+        actually guarantees no query goes out while LIVE_DB_ENABLED is false —
+        a stale state value, a future caller, or a restored session cannot get
+        past it. Fall back to demo rather than rendering an empty dashboard. */
+    if (!LIVE_DB_ENABLED && dataSourceMode === 'real') {
+      setDataSourceMode('benchmark');
+      setSelectedYear(2027);
       return;
     }
 
@@ -315,7 +345,9 @@ const DashboardContent: React.FC = () => {
             {/* Real DB vs Benchmark Switch Toggle */}
             <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80 shadow-inner">
               <button
+                disabled={!LIVE_DB_ENABLED}
                 onClick={() => {
+                  if (!LIVE_DB_ENABLED) return;
                   setDataSourceMode('real');
                   setSelectedYear(null);
                   setAvailableYears([]);
@@ -324,8 +356,12 @@ const DashboardContent: React.FC = () => {
                   dataSourceMode === 'real'
                     ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25'
                     : 'text-slate-400 hover:text-white'
-                }`}
-                title="Query projects from the configured live MYPS database"
+                } ${!LIVE_DB_ENABLED ? 'opacity-40 cursor-not-allowed hover:text-slate-400' : ''}`}
+                title={
+                  LIVE_DB_ENABLED
+                    ? 'Query projects from the configured live MYPS database'
+                    : 'Live database view is temporarily unavailable while the summary endpoint is made pageable.'
+                }
               >
                 <CircleStackIcon className="w-3.5 h-3.5" />
                 <span>Live DB</span>

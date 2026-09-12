@@ -75,6 +75,7 @@ the idempotency check. Then read the verification output at the end:
 | Indexes | `IX_tProjects_ParentProjectId`, `IX_tProjectStages_RevisionId`, `IX_tProjects_ProjectType`, `UX_tImportJobResult_JobId`, `IX_tOptionProjectCategoryToPAPMap_CategoryId` |
 | Defaults | Three `DF_tImportJobResult_*` rows |
 | Lump Sum actions | The 13 V2 names, no wallet-era name, none ungranted, no dangling grant |
+| Importing dependencies | Empty. `DownloadTemplate` and `DownloadImportFile` are `ImportingController` actions the Lump Sum import calls, and Admin did not hold either on this lineage — six e2e specs 403'd on the first, and serial mode took 29 more tests with them (2026-09-13) |
 | `sp_RBP` / `a1_usp_AIP2` | **9285 and 10355 characters.** If either shrank, someone also ran the report script and reverted a live fix — see below |
 
 ### Step 3 — Read-committed snapshot
@@ -103,8 +104,40 @@ Only if you need them. Both are local-dev only and must never touch a shared ser
 
 | Script | Run it when | Note |
 |---|---|---|
-| `LumpSum.SampleData.Dev.sql` | You want Lump Sum data to look at | Copies from a `MyMYPS` database on the same instance. `MyMYPS` **is** present on this localhost instance, so it will run |
+| `LumpSum.SampleData.Dev.sql` | You want Lump Sum data to look at | Copies from a `MyMYPS` database on the same instance. `MyMYPS` **is** present on this localhost instance. See below — it needed rewriting to run here |
 | `LumpSum.DataSecurity.Dev.sql` | You are going to run `e2e/tests/ls-data-security.spec.ts` | Creates two fake sign-in accounts. Idempotent: re-running drops and re-creates just those two and touches no existing row |
+
+**Expect from the sample script:** `3 Lump Sum Project(s), 18 itemized child/children`, then
+`vLumpSumSet` = 3 and `vLumpSumChildSet` = 18, every `Invariant` reading `OK`, and every
+referential-integrity and chain-match count `0`. It is idempotent — a second run deletes the
+sample and re-copies it.
+
+The first run on a database that lacks the sample's program also prints
+`Program MP_P_CO-PS-535_03252025_073824 is absent here; copying it.`
+
+#### What the sample script had to learn on this database (2026-09-13)
+
+It was written for `myps_db_dev` and did not run here. Three things were wrong, all now fixed
+in the script itself:
+
+- **It preserved MyMYPS's identities** with `IDENTITY_INSERT`, on the premise that every source
+  Id sits above the target's `MAX`. True of `myps_db_dev`; false here, where `tProjects`
+  reaches Id 57,788 against MyMYPS's 56,514 — it refused with `Identity collision on 21 row(s)`
+  and the module had no data at all. Each table now allocates its own Id and the copy rewrites
+  every foreign key as it goes. Nothing keys on the old numbers: `ProjectPK`, `ProjectId` and
+  `ParentProjectId` are strings and are copied verbatim.
+- **The sample's program was missing here.** All three parents sit in
+  `MP_P_CO-PS-535_03252025_073824`, which `myps_db_dev` has and this database does not; a
+  project whose `ProgramFK` matches no program surfaces nowhere, because every Lump Sum view
+  joins through the program for its stage and start year. The script now copies it when absent,
+  at the TF-R stage it really holds.
+- **The copied rows predate two migrations.** MyMYPS still stores `ComponentId = 'LS1'` with the
+  component `Total` holding the *balance*; since 2026-09-06 the Total is the full allocation and
+  the per-year `Amount` is the balance. Straight-copied, `vLumpSumSet` showed `OriginalAllocation`
+  36,000,000 beneath an `ItemizedTotal` of 144,000,000 and the invariant reported `DRIFT`. The
+  script's §4e now applies both migrations scoped to the sample. This is the case the
+  "every data migration is a no-op here" note below anticipated: they stop being no-ops the
+  moment Lump Sum data is copied in.
 
 ### Step 5 — End to end
 
@@ -145,6 +178,14 @@ and `LumpSum.Repair.FormLookupKeys.2026-09-05.sql` all rewrite *existing* Lump S
 This database has none: 0 projects of type `LS`, 0 live `LS` components, 0 legacy `LS1`
 components, and `tLSWallets` empty. Every one of them would touch zero rows. Skip them, and
 revisit only if Lump Sum data is later imported or copied in from another database.
+
+**That "revisit" is triggered by Step 4's own sample script**, which copies pre-migration
+MyMYPS rows in. It does not run these files — none of them exists on this branch, and each
+sweeps every Lump Sum row in the database, which is equivalent only while the sample is the
+only Lump Sum data there is. It applies the two that matter (`ComponentMigration` and
+`Migrate.BalanceToPerYear`) itself, scoped to the sample, in its §4e. If you later import real
+Lump Sum data from another database, that is when to go and find these scripts on
+`lumpsum-v3-backup`.
 
 The `LS` row in `tOptionProjectComponentType` **is** present, which is what the module needs.
 
