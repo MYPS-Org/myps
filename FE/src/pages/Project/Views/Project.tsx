@@ -91,10 +91,20 @@ const Project: React.FC = () => {
     //     return amount.toLocaleString('en-PH');
     // };
 
-    const handleViewDetails = (projectId: string, stageName: string) => {
+    /*  A LUMP SUM PROJECT OPENS IN ITS OWN MODULE. The server marks such rows
+        (ProjectLists.IsLumpSum) and their Id is the key /lumpsum/:lumpSumId
+        takes, so the list hands them straight to the Lump Sum details page
+        rather than to a project form that can only show them read-only. Itemized
+        children are ordinary projects and take the ordinary route. The stage
+        panel passes its PARENT row, since the stage rows themselves carry no flag. */
+    const handleViewDetails = (project: ProjectLists, stageName: string) => {
         try{
-            if (projectId && stageName) {
-                navigate(`/projects/project-details/${projectId}:${stageName}`);
+            if (project.IsLumpSum) {
+                navigate(`/lumpsum/${project.Id}`);
+                return;
+            }
+            if (project.ProjectId && stageName) {
+                navigate(`/projects/project-details/${project.ProjectId}:${stageName}`);
             }
         } catch (error) {
             console.error('Error navigating to project details:', error);
@@ -189,10 +199,11 @@ const Project: React.FC = () => {
                                     <div className="flex items-center space-x-1">
                                         <Button
                                             color="orange"
-                                            onClick={() => project.ProjectId && handleViewDetails(project.ProjectId, project.StageName)}
+                                            onClick={() => project.ProjectId && handleViewDetails(project, project.StageName)}
                                             className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                                            title={project.IsLumpSum ? 'Opens in the Lump Sum module' : undefined}
                                         >
-                                            View Details
+                                            {project.IsLumpSum ? 'Open Lump Sum' : 'View Details'}
                                         </Button>
                                     </div>
                                 )
@@ -227,12 +238,16 @@ const Project: React.FC = () => {
                                                 <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.RevisionCreatedBy}</TableCell>
                                                 <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.RevisionCreatedDate ? stage.RevisionCreatedDate.StringToDate() : ''}</TableCell>
                                                 <TableCell className='text-center'>
+                                                    {/*  Routed through the PARENT row: a stage row carries no
+                                                         IsLumpSum flag, and the panel only ever shows one
+                                                         project's stages. stage.ProjectId equals project.ProjectId. */}
                                                     <Button
                                                         color="blue"
                                                         className="text-xs px-3 py-1.5 text-center"
-                                                        onClick={() => handleViewDetails(stage.ProjectId, stage.StageName)}
+                                                        onClick={() => handleViewDetails(project, stage.StageName)}
+                                                        title={project.IsLumpSum ? 'Opens in the Lump Sum module' : undefined}
                                                     >
-                                                        View Details
+                                                        {project.IsLumpSum ? 'Open Lump Sum' : 'View Details'}
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>

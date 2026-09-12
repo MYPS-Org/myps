@@ -26,6 +26,6 @@ export const appRouteList: AppRouteData[] = [
     { RouteName: 'Settings',            path: '/settings' },
     { RouteName: 'CodeTables',          path: '/code-tables' },
     { RouteName: 'LumpSumList',         path: '/lumpsum' },
-    { RouteName: 'LumpSumDetails',      path: '/lumpsum/:walletId' },
-    { RouteName: 'AddWallet',           path: '/lumpsum/add' },
+    { RouteName: 'LumpSumDetails',      path: '/lumpsum/:lumpSumId' },
+    { RouteName: 'AddWallet',            path: '/lumpsum/add' },
 ];

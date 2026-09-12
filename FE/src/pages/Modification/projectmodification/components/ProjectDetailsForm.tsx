@@ -7,7 +7,7 @@ import SearchableDropdown from '../../../../components/ui/SearchableDropdown';
 import { EditableField } from '../../../../components/ui/EditableField';
 import { DateInput } from '../../../../components/tailwindui/date-input';
 // Cross-module reuse of Project's location filtering hook — same accepted exception as
-// LSWallet/components/WalletDetailsSection.tsx (pure, side-effect-free hook).
+// LumpSum/components/LumpSumDetailsSection.tsx (pure, side-effect-free hook).
 import { useLocationFilters } from '../../../Project/filteringLocations';
 
 interface ProjectDetailsFormProps {
@@ -180,11 +180,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 onChange(field, value);
             }
             else if (field === 'Region') {
-                // Auto-populate IslandCode/ProjectType from the selected region's real geographic island code.
-                // Mirrors handleBoxClick, which drives both fields together for the LS/NP override.
+                /*  Auto-populate IslandCode/ProjectType from the selected region's real
+                    geographic island code. Mirrors handleBoxClick, which drives both fields
+                    together for the LS/NP override.
+
+                    NOT FOR A LUMP SUM PROJECT — see the identical guard in
+                    Project/components/ProjectDetailsForm.tsx for the full reasoning. In short:
+                    IslandCode 'LS' is the record's identity, ProjectType 'LS' is what
+                    CK_tProjects_ProjectType permits and what keeps fProgramStages from
+                    double-counting the project's cost. Region itself is still written. */
                 const selectedRegion = projectEnums?.Regions?.find((region) => region.ParticipantId === value);
-                onChange('IslandCode', selectedRegion?.IslandCode);
-                onChange('ProjectType', selectedRegion?.IslandCode);
+                if (!isLumpSum) {
+                    onChange('IslandCode', selectedRegion?.IslandCode);
+                    onChange('ProjectType', selectedRegion?.IslandCode);
+                }
                 onChange(field, value);
             }
             else if (field === 'Feasibility') {

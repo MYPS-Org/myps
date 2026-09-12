@@ -17,41 +17,29 @@ const SHEET_COMPONENT_DETAILS = 'COMPONENT DETAILS';
 const SHEET_MAJOR_ITEMS       = 'MAJOR ITEMS OF WORK';
 
 // ---------------------------------------------------------------------------
-// Validate _ImportStatus Sheet
+// System provenance marker
+//
+// Every workbook the backend generates — Download Template and the annotated
+// error report alike — carries a VeryHidden `_SysMeta` sheet whose A1 holds
+// this value (ImportErrorWorkbookBuilder.AddSystemMarker). The server checks
+// the same marker on upload; this browser-side check exists only so a wrong
+// file is explained BEFORE the user reviews rows that will never be accepted.
+//
+// This replaced an `_ImportStatus` sheet check (STATUS / SAVED_AT /
+// VALIDATED_AT / SIGNATURE) that no backend ever wrote, which made both import
+// dialogs reject the very template they had just downloaded. `_ImportStatus`
+// is retired (2026-09-05); a file that carries it but no `_SysMeta` is the
+// pre-template artefact the marker is meant to exclude.
 // ---------------------------------------------------------------------------
-function validateImportStatusSheet(ws: XLSX.WorkSheet): string | null {
-  // Directly access specific cells in the _ImportStatus sheet
-  const getCellValue = (cellAddress: string): string => {
-    const cell = ws[cellAddress];
-    return cell ? String(cell.v).trim() : '';
-  };
+const SYS_META_SHEET = '_SysMeta';
+const SYS_META_MARKER = 'MYPS-IMPORT-WORKBOOK-V1';
 
-  const status = getCellValue('B1');
-  const savedAt = getCellValue('B2');
-  const validatedAt = getCellValue('B3');
-  const signature = getCellValue('B4');
-
-  // Validate STATUS
-  if (status.toUpperCase() !== 'VALIDATED') {
-    return 'The STATUS is missing or invalid. STATUS must be VALIDATED.';
-  }
-
-  // Validate SAVED_AT
-  if (!savedAt) {
-    return 'The SAVED_AT field is missing or empty.';
-  }
-
-  // Validate VALIDATED_AT
-  if (!validatedAt) {
-    return 'The VALIDATED_AT field is missing or empty.';
-  }
-
-  // Validate SIGNATURE
-  if (signature.toUpperCase() !== 'MYPS-IMPORT-2026') {
-    return 'The SIGNATURE is missing or invalid. This is not an authorized import file.';
-  }
-
-  return null; // No errors
+function validateSystemMarker(wb: XLSX.WorkBook): string | null {
+  const ws = wb.Sheets[SYS_META_SHEET];
+  const cell = ws?.['A1'];
+  const value = cell ? String(cell.v).trim() : '';
+  if (value === SYS_META_MARKER) return null;
+  return 'This workbook was not produced by Download Template. Download a fresh template and transfer your rows into it.';
 }
 
 // ---------------------------------------------------------------------------
@@ -277,15 +265,10 @@ export async function parseImportFile(file: File): Promise<ImportParseResult> {
 
   const allErrors: string[] = [];
 
-  // Validate _ImportStatus sheet
-  const importStatusSheet = wb.Sheets['_ImportStatus'];
-  if (!importStatusSheet) {
-    allErrors.push('The _ImportStatus sheet is missing. The file is not valid.');
-  } else {
-    const validationError = validateImportStatusSheet(importStatusSheet);
-    if (validationError) {
-      allErrors.push(validationError);
-    }
+  // Provenance first: a file that is not ours is explained before its rows are.
+  const markerError = validateSystemMarker(wb);
+  if (markerError) {
+    allErrors.push(markerError);
   }
 
   // Validate presence of required sheets

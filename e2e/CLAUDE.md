@@ -53,6 +53,13 @@ await page.goto('/projects');
 
 Attach captured calls to the test report for debugging with `test.info().attach(name, { body: JSON.stringify(apiCalls, null, 2), contentType: 'application/json' })` — see existing specs for the pattern.
 
+## Narrating a run
+
+`narrator(page, { total })` from `tests/helpers/narrate.ts` gives a spec `check()` for a
+verified step and `say()` for a branch it deliberately did not take. Both log to stdout and
+push a test annotation, so a narrated run reads as a sequence in the HTML report rather than
+only in the terminal scrollback. `total` is reported, never enforced.
+
 ## Route inventory
 
 Full route table, from `FE/src/components/Routes.tsx` (source of truth — this table is a manually-maintained snapshot and will drift; re-check `Routes.tsx` if a route 404s):
@@ -75,9 +82,9 @@ Full route table, from `FE/src/components/Routes.tsx` (source of truth — this 
 | Reports | `/reports` | `pages/Reports/Reports` |
 | Settings | `/settings` | `pages/Settings/Settings` |
 | CodeTables | `/code-tables` | `pages/CodeTables/Views/CodeTables` |
-| LumpSumList | `/lumpsum` | `pages/LSWallet/Views/LSWalletList` |
-| AddWallet | `/lumpsum/add` | `pages/LSWallet/Views/AddWallet` |
-| LumpSumDetails | `/lumpsum/:walletId` | `pages/LSWallet/Views/LSWalletDetail` |
+| LumpSumList | `/lumpsum` | `pages/LumpSum/Views/LumpSumList` |
+| AddWallet | `/lumpsum/add` | `pages/LumpSum/Views/AddLumpSum` — the RouteName keeps the wallet-era spelling because it is a `dbo.tAppViews` row |
+| LumpSumDetails | `/lumpsum/:lumpSumId` | `pages/LumpSum/Views/LumpSumDetail` |
 
 All routes above are behind login (protected routes) — every spec needs `login(page)` before navigating to one.
 
@@ -87,9 +94,9 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 
 | Route | Spec file | Covered? |
 |---|---|---|
-| ProjectList (`/projects`) | `tests/project-list.spec.ts` | Yes |
-| AddProject (`/projects/addproject`) | `tests/project-form.spec.ts` | Yes |
-| Dashboard | — | No |
+| ProjectList (`/projects`) | `tests/project-list.spec.ts` | Yes — asserts the list request came back **200** with rows, and that the first ProjectId is on screen. It previously died on `text=Projects` (three matches) and never ran past line 14 |
+| AddProject (`/projects/addproject`) | `tests/project-form.spec.ts` | Yes — both dropdown endpoints must answer 200, not merely be requested |
+| Dashboard | `tests/dashboard-real-data.narrated.spec.ts` | **Written, self-skipping** — `WebAPI.csproj` excludes `Controllers\Dashboard\**`, so `/api/Dashboard/Summary` is a 405. It probes for that and enables itself when the controller is compiled again |
 | UserManagement | — | No |
 | InfraManagement | — | No |
 | ProgramList / ProgramDetails | — | No |
@@ -98,7 +105,14 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 | ProjectGroupList / ProjectGroupDetails | — | No |
 | Reports | — | No |
 | Settings / CodeTables | — | No |
-| LumpSumList / AddWallet / LumpSumDetails | — | No |
+| LumpSumList / AddWallet / LumpSumDetails | `tests/ls-module-ui-walkthrough.narrated.spec.ts` | **Yes, all 11** — creates by typing, spends through the dialogs, pages the list (screen, wire and server compared), deletes through the UI, and asserts the absent controls stay absent. Six of these were dark for weeks behind a stale fixture; see *Resolve the program, do not name it* |
+| Lump Sum API contract (13 actions) | `tests/ls-contract.spec.ts` | Yes — API level only, see below |
+| Lump Sum row-level data security (13 actions) | `tests/ls-data-security.spec.ts` | Yes — API level; needs the fixture script, see below |
+| Lump Sum data security, as a user sees it | `tests/ls-data-security-ui.narrated.spec.ts` | Yes — empty list, refused deep link, entitled user unaffected |
+| A Lump Sum Project in the Project form | `tests/ls-project-form-identity.narrated.spec.ts` | **Yes** — the self-skip has cleared. It opens with the Lump Sum exemptions applied, renders read-only with its banner, and offers no Save, Update, Revise or enabled Add control |
+| Lump Sum ownership — UACS inheritance, edit confinement | `tests/ls-ownership.spec.ts` | Yes — API level. Asserts children inherit the parent's UACS, that a differing workbook UACS is no longer refused, and that `AddProject` / `UpdateProjectDetails` / `ReviseProject` each refuse a Lump Sum **parent** while leaving children editable |
+| A Lump Sum Project inside the ordinary project lists | `tests/ls-list-tolerance.spec.ts` | Yes — API level. `ShowProjects` and `ShowProjectsInProgram` each return a full page with the Lump Sum Project in it, its absent Region and Implementing Office coming back null rather than throwing |
+| An Approved program on the Lump Sum page | `tests/ls-program-approved.narrated.spec.ts` | Yes — the rule is **narrow** (2026-09-09): only Delete Lump Sum Project is refused and only the details/component go read-only; Replenish, Import, Save, the row Delete and the child Delete stay live. Four cases: opened on an approved program; the flip on return-to-tab greying the delete **alone**; a Replenish draft caught by the flip still saving; the Add page's picker hiding the program and offering it again once Working. The API boundary is in `ls-contract`. Needs the approval fixture program, see *The approval fixture program* |
 
 ## Adding a new spec
 
@@ -107,3 +121,214 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 3. Use `captureApiCalls()` if the test should assert on network activity.
 4. Assert against visible text/role, per the [selector convention](#selector-convention) above — check the actual rendered copy in the relevant `FE/src/pages/**/Views/*.tsx` file rather than guessing.
 5. Update the [coverage map](#coverage-map) above.
+
+## Lump Sum V2
+
+`tests/ls-contract.spec.ts` locks the module's API contract — all 13 actions, the
+allocation arithmetic at both ends (a deduction and its restore), and each refusal's
+own words.
+
+**It is the API-level backstop; the narrated runs are
+`ls-module-ui-walkthrough.narrated.spec.ts` and its two companions.** Keep both: the
+contract spec is fast and precise about refusal wording, the walkthrough is what catches
+things only a browser can — it found that creating a Lump Sum Project from the form had
+never worked, because the program picker sent `ProgramLatest.ProgramId` where the server
+wants `ProgramPK` and the two differ only by an `MP_` prefix.
+
+### Running the whole suite
+
+```bash
+npx playwright test
+```
+
+Expected (whole suite, last counted 2026-09-04): **42 passed, 4 skipped, 0 failed** — plus the
+Lump Sum cases added since: the six Lump Sum suites (`ls-contract`,
+`ls-module-ui-walkthrough`, `ls-data-security`, `ls-program-approved`, `ls-data-security-ui`,
+`ls-project-form-identity`) were **55 passed, 3 skipped, 0 failed** on 2026-09-10. Recount the
+whole-suite line the next time everything is run together. All skips are honest and self-clearing:
+`dashboard-real-data` while `Controllers\Dashboard\**` stays out of the build, and three
+KNOWN GAP data-security cases that carry their gaps rather than deleting them.
+
+This ran nothing at all until 2026-09-04. `dashboard-real-data.narrated.spec.ts` imported
+`narrator` from `qa-kit/narrate.js` — a plain-JS kit junctioned into one machine's
+`node_modules` and never a dependency of this project — so **collection** failed and no spec
+in the suite could run. Its two methods now live in `tests/helpers/narrate.ts`. If you find
+yourself reaching for an external kit in a spec, put it in `helpers/` instead: a spec that
+cannot be collected is worse than one that fails.
+
+### Resolve the program, do not name it
+
+`ls-module-ui-walkthrough`'s `create` step typed the literal string `'Trust Funds'` into the
+program picker. That was correct when the sample data was Trust Fund; it stopped being correct
+when TF-R ceased to be itemizable (2026-09-04) and the data moved to GAA-R, and this database
+now has no Trust Funds program at all. The step failed on a 120s timeout — and because the
+file is `mode: 'serial'`, it took **six** downstream tests with it: the detail page, the
+edit-mode locks, replenish, the import dialog, the activity panel and delete-through-the-UI.
+The module's entire UI action coverage was dark, and the suite still reported "1 failed".
+
+It now calls `programOnStage(page, true)` from `helpers/lumpSumFixture.ts` — the same lookup
+the fixtures use — and types whatever name comes back, asserting Start Year against that
+program's own `StartYear` rather than a hard-coded 2025. **A spec should ask the database
+which row to use, not assume one.** The option text is matched as a string rather than a
+regex, because a program name is data and may contain metacharacters.
+
+### Wait for the write, not for a word that contains it
+
+The replenish step waited on `/Allocation raised|replenish/i`, then read the balance back.
+The in-flight overlay says **"Replenishing..."**, which that pattern matches — so the wait was
+satisfied by the spinner, the balance was read mid-request, and the assertion failed against
+the pre-replenish total. It had never run, so nobody had seen it.
+
+`ReplenishLumpSumDialog` calls `onClose()` only after the request resolves, so the dialog
+disappearing IS the write having landed. The spec waits on that, then `expect.poll`s the
+balance. Prefer a state the app only reaches after the work is done over any string that
+merely mentions it — and never a pattern that a loading state also satisfies.
+
+### An API spec must send what the UI sends
+
+`UpdateLumpSum` writes whatever arrives, so a spec's payload is a write to real data — not
+just an assertion. Three fields caught these specs out:
+
+- **`ComponentId`** — send `'LS'`. `'LS1'` is the pre-migration value; sending it writes it
+  back onto a parent.
+- **`Year`** — round-trip the row's own year, don't send `new Date().getFullYear()`. The
+  dialog pins it to the program's start year, and calendar-year rows drift out of range.
+- **`StartDate` / `EndDate`** — round-trip them too. **Omitting them NULLs them**, and the
+  Component Cost dialog then refuses to save that project until they are re-entered.
+
+The rule generalises: if the form cannot produce a value, a spec should not send one.
+
+### Cleanup is a globalTeardown, not an afterAll
+
+`tests/helpers/lumpSumSweeper.ts` runs after the whole run — passed, failed or aborted —
+and removes anything carrying the `(e2e <ISO timestamp>)` marker every Lump Sum fixture
+writes into what it creates. The three migrated MyMYPS sample projects carry that marker
+too and are **pinned by ProjectId so they survive**; sweeping them would quietly empty the
+module.
+
+`afterAll` is not enough on its own: a run whose first request times out against a cold
+API abandons the file before reaching it. That happened twice on 2026-09-03 and both times
+stranded a Lump Sum Project and its child. Orphans are not cosmetic — a stranded parent
+holds part of a program's allocation, and these specs assert on allocation arithmetic.
+
+**It does not need the FE dev server.** `FE/.env.development` points Vite's `/api` proxy
+at a remote host, so a contract spec that relied on the proxy would silently test someone
+else's database. It addresses the API directly instead, via `E2E_API_URL`
+(default `http://localhost:5015`), and authenticates with `apiLogin()` rather than the
+login form.
+
+**A UI spec must point the proxy at the local API too**, or it drives the local browser
+against a remote database. Pass the override to Vite rather than editing the tracked
+`.env.development`:
+
+```bash
+cd FE && VITE_API_BASE_URL=http://localhost:5015 npx vite --port 8080 --strictPort
+```
+
+**Expect `/auth/validate` 401s in the console on every page.** They fire before login and
+are pre-existing app behaviour, unrelated to whatever a spec is testing — a spec that
+asserts on console errors has to exclude them or it fails everywhere.
+
+```bash
+cd Main && ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5015 \
+  dotnet run --no-launch-profile          # the API; no FE needed
+cd e2e && npx playwright test ls-contract
+```
+
+**`workers: 1` is deliberate** — several Lump Sum specs itemize inside the same program,
+and concurrently they deadlocked SQL Server on `UpdateProjectDetails`, which read as a
+product bug and was not one. Kept at 1 until that is re-examined under snapshot isolation
+(below).
+
+**The local database must run `READ_COMMITTED_SNAPSHOT`.** Check with
+`SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = 'myps_db_dev'` — it must
+be 1; if not, run `Main/Resources/Internal/SQLScripts/LumpSum.Isolation.ReadCommittedSnapshot.sql`
+once (it disconnects every session to do it, so with the API stopped). Without it every read
+takes shared locks, and a read of one Lump Sum Project could be chosen as a deadlock victim
+(error 1205, a 500) against the hard delete of a *different* one — six times in one day's logs
+on 2026-09-06, always the read. The RCA is
+`documents/docs/engineering/MYPS_LUMPSUM_DEADLOCK_RCA.md`; the views were also rewritten to
+seek per project, and `ls-contract` has a race case (forty reads during five hard deletes) that
+fails if the view rewrite and the isolation both regress — under snapshot isolation it cannot
+see lock order, which is why a lock-first delete helper was tried and removed. If a run's API
+log ever contains `1205` again, that is the first thing to check.
+
+**Fixtures.** `provisionLumpSum()` makes each run its own parent: itemizing only ever
+lowers an allocation and there is no un-itemize, so a spec pinned to a shared parent
+passes once and fails every run after. `importChild()` is how a spec gets a parent with
+children — **Mode 2 is gone**, so an existing project can never be attached; children can
+only be created.
+
+### The approval fixture program — `tests/helpers/approvedProgramFixture.ts`
+
+An Approved program at GAA-R refuses creating and deleting a Lump Sum Project (2026-09-09), and
+approving a program runs `dbo.pRecomputeProjectPublishable` over every project it holds —
+which can demote real projects' publishability. So the approval specs never approve a program
+`programOnStage` might hand to another spec. They flip a program of their own, named
+**"E2E LS approval fixture"** (and a second one, "(GAA)", born at GAA for the "Approved off
+the revision stage does not gate" pin), created once and found by name after that. It is
+deliberately **never swept**: one row, named unmistakably.
+
+**It cannot be created at GAA-R directly.** `AddProgram` writes `tProgramStages.StageName`
+from the enum name (`"GAAR"`) while the table's foreign key is composite on
+`(StageId, StageName)` against the lookup's `"GAA-R"`, so a direct create at any hyphenated
+stage fails on the FK — a pre-existing defect in the Program module, the same `"GAAR"` vs
+`"GAA-R"` class the gate itself avoids. Real programs reach GAA-R by advancing, so the fixture
+is created at GAA, seeded with one Lump Sum parent (`UpdateProgramStage` refuses a program
+with no projects), advanced, and the seed removed.
+
+`withFixtureProgram(page, fn)` hands `fn` the program plus `approve()` / `restore()`, starts
+it Working and always ends it Working. Provision **before** approving — `CreateLumpSum` is one
+of the things approval refuses. `provisionLumpSum(..., { programPK })` targets it.
+
+Two consequences for every other spec:
+
+- `programOnStage` now **skips Approved programs and the fixture programs**. Without the
+  first, a database whose first GAA-R program is Approved would fail every fixture and, in a
+  serial file, every downstream test — for a reason unrelated to what they test. If *every*
+  GAA-R program is Approved the helper throws and says so.
+- The sweeper sets the fixture programs back to **Working before it sweeps**. A run that
+  aborts while one is Approved would otherwise leave parents `DeleteLumpSum` refuses forever.
+
+### Row-level data security — `tests/ls-data-security.spec.ts`
+
+`AssertLumpSumVisibleAsync` guards all 13 actions and, until this spec, had **never executed
+once**: it returns early when the session's `ApplyFilter` is 0, and no user on a restored
+`myps_db_dev` had it set. Every other spec runs as an Admin.
+
+**It needs a fixture, and the fixture is not optional:**
+
+```bash
+sqlcmd -S 127.0.0.1 -d myps_db_dev -U sa -P <pw> -C \
+  -i ../Main/Resources/Internal/SQLScripts/LumpSum.DataSecurity.Dev.sql
+npx playwright test ls-data-security
+```
+
+It creates `e2elsdenied` (a regional office outside the program's DataSecurityGroup) and
+`e2elsallowed` (Central Office, exempt structurally), and signs in with any password under
+`PIS.BypassLogin`. It touches no existing row and refuses to run on a non-dev database.
+
+**Two ways to write this kind of spec so it passes while proving nothing** — both were hit on
+the first run, so check for them in anything similar:
+
+1. **A user in the restricted group *and* any unrestricted group is not restricted.**
+   `vUsers.ApplyFilter` is computed as *"no group of mine is unrestricted"*, so adding a
+   restricted group to an existing account leaves it 0. The fixture puts each account in one
+   group only, and the first test asserts the flag really came out 1.
+2. **An ungranted group 403s at the permission filter before the guard runs.** A spec
+   asserting "the restricted user is refused" passes on that, having tested nothing. So the
+   fixture grants its group the 13 actions, and the spec asserts on the guard's **own words**
+   (`You do not have access to this Lump Sum Project.`), failing loudly if it sees a 403
+   instead.
+
+The spec provisions its probe target as an admin and deletes it afterwards, because a missing
+guard means the request that proves it deletes or mutates whatever it is aimed at.
+
+**Two known gaps are carried as `test.skip` with their reasoning** rather than deleted:
+`InitFilterLumpSum` names programs the user cannot see, and a Central Office user can *open* a
+Lump Sum Project but not *list* it (the guard uses `fUserVisiblePrograms(UserId)`;
+`ShowLumpSum` filters inline on `_Session.RegCode`, which is NULL for central users). Unskip
+them when the behaviour is fixed.
+
+**Still to do:** the same two accounts through the **UI** — a restricted user should find the
+list empty and a deep link refused. That is part of the phase-4 spec work.

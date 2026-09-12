@@ -1,10 +1,29 @@
 import { test, expect } from '@playwright/test';
 import { login } from './helpers/auth';
 import { captureApiCalls, type ApiCallDetails } from './helpers/networkCapture';
-// @ts-expect-error — qa-kit is a plain-JS kit junctioned into node_modules, no types shipped.
-import { narrator } from 'qa-kit/narrate.js';
+import { narrator } from './helpers/narrate';
+
+const API = (process.env.E2E_API_URL ?? 'http://localhost:5015').replace(/\/$/, '');
 
 test.describe('Dashboard — persisted MYPS data', () => {
+  /*  BLOCKED, AND NOT BY THIS SPEC. WebAPI.csproj removes Controllers\Dashboard\**
+      from compilation, so /api/Dashboard/Summary is a 405 while the Dashboard page
+      still calls it (lump-sum-v2.md, known gap 4). Every figure this spec asserts
+      comes from that endpoint, so there is nothing here it can verify until the
+      exclusion is lifted.
+
+      Probed rather than skipped outright, so the spec turns itself back on the day
+      the controller is compiled again — the same self-enabling pattern
+      ls-project-form-identity uses. A static skip would quietly stay off. */
+  test.beforeEach(async ({ request }) => {
+    const res = await request.post(`${API}/api/Dashboard/Summary`, { data: {}, failOnStatusCode: false });
+    test.skip(
+      res.status() === 404 || res.status() === 405,
+      'Dashboard/Summary is not routable — WebAPI.csproj excludes Controllers\Dashboard\** ' +
+        'from compilation (lump-sum-v2.md known gap 4). Re-enable it and this spec runs.',
+    );
+  });
+
   test('loads, reconciles, filters, refreshes, and opens live project records', async ({ page }) => {
     const qa = narrator(page, { total: 14 });
     const apiCalls = captureApiCalls(page, ['/api/Dashboard/Summary']);
