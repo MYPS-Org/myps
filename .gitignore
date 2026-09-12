@@ -390,3 +390,8 @@ Main/Resources/Reports/*.pdf
 # 157 pre-existing files under this tree are already tracked and unaffected;
 # this only stops future uploads from being committed
 Main/Resources/UploadedFiles/
+
+# Import pipeline scratch: uploaded workbooks and the reports/error workbooks the jobs write.
+# Generated per run by ImportingController / ImportProjectJobService / the Lump Sum import.
+Main/Resources/Upload/
+Main/Resources/Imports/
