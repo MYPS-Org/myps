@@ -270,18 +270,21 @@ namespace DBHelper.Data
 
         #region Lumpsum
 
-        #region Tables
-        public DbSet<Models.Table.Lumpsum.LSWallets> tLSWallets { get; set; }
-        public DbSet<Models.Table.Lumpsum.LSWalletRevisions> tLSWalletRevisions { get; set; }
-        public DbSet<Models.Table.Lumpsum.LSWalletFundingProfile> tLSWalletFundingProfile { get; set; }
-        public DbSet<Models.Table.Lumpsum.LSWalletComponentCost> tLSWalletComponentCost { get; set; }
-        public DbSet<Models.Table.Lumpsum.LSWalletComponentCostPerYear> tLSWalletComponentCostPerYear { get; set; }
-        #endregion
+        /*  There are NO Lump Sum tables. A Lump Sum Project is an ordinary
+            tProjects row holding an 'LS' component cost, and its funding profile,
+            component costs and per-year rows live in the tProject* tables like any
+            other project's. The parallel tLSWallet* storage was deleted in V2 —
+            see documents/plans/lump-sum-v2.md.
+
+            Four keyless views, all registered with HasNoKey().ToView() below. EF
+            binds these by COLUMN NAME, so a property with no matching column
+            aborts the whole query with "Invalid column name" — ship a view change
+            and its model in the same commit. */
 
         #region Views
-        public DbSet<Models.Views.Lumpsum.LSWalletLatest> vLSWalletLatest { get; set; }
-        public DbSet<Models.Views.Lumpsum.LSWalletProjectSet> vLSWalletProjectSet { get; set; }
-        public DbSet<Models.Views.Lumpsum.LSWalletBalance> vLSWalletBalance { get; set; }
+        public DbSet<Models.Views.Lumpsum.LumpSum> vLumpSumSet { get; set; }
+        public DbSet<Models.Views.Lumpsum.LumpSumChild> vLumpSumChildSet { get; set; }
+        public DbSet<Models.Views.Lumpsum.LumpSumBalance> vLumpSumBalance { get; set; }
         #endregion
 
         #endregion
@@ -324,13 +327,11 @@ namespace DBHelper.Data
             modelBuilder.Entity<UserVisiblePrograms>().HasNoKey().ToView("fUserVisiblePrograms");
             modelBuilder.Entity<RevisionApprovalStatus>().HasNoKey().ToView("fRevisionApprovalStatus");
             modelBuilder.Entity<PaginationCount>().HasNoKey().ToView("PaginationCount");
-            modelBuilder.Entity<Models.Views.Lumpsum.LSWalletBalance>().HasNoKey().ToView("vLSWalletBalance");
-            // Wallet Component Cost → Costs Per Year
-            modelBuilder.Entity<Models.Table.Lumpsum.LSWalletComponentCost>()
-                .HasMany(x => x.CostsPerYear)
-                .WithOne(x => x.ComponentCost)
-                .HasForeignKey(x => x.ComponentCostFK)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Lump Sum — keyless views. LumpSumChild carries [Key] on Id and is
+            // registered by convention, so it is not listed here.
+            modelBuilder.Entity<Models.Views.Lumpsum.LumpSum>().HasNoKey().ToView("vLumpSumSet");
+            modelBuilder.Entity<Models.Views.Lumpsum.LumpSumBalance>().HasNoKey().ToView("vLumpSumBalance");
+            modelBuilder.Entity<Models.Views.Lumpsum.LumpSumChild>().ToView("vLumpSumChildSet");
 
             // Component Cost → Costs Per Year
             modelBuilder.Entity<Models.Table.Project.ProjectComponentCost>()

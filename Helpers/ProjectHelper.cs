@@ -292,6 +292,12 @@ namespace Helpers
             // `if (ExistingRevisionProject.Thrust != RevisionProject.Thrust)` guard), just applied
             // here instead of being an accidental side effect of that method's own diff pattern.
             public int? PreviousThrust { get; set; }
+            // 2026-09-12: the gate watches BOTH fields. A save skips the pair check only while the
+            // stored Category AND the stored Sub-Category are untouched; changing either one is a
+            // new choice and re-validates the pair, so an orphaned legacy Sub-Category cannot be
+            // re-homed under a Category it does not fit. Supplied beside PreviousThrust by
+            // UpdateProjectDetails; left null by AddProject.
+            public int? PreviousCategory { get; set; }
         }
         public static async Task<ProjectHelperResponse<string>> ValidateProjectDetailsLookups(this MYPSDbContext _db, ValidateProjectDetailsLookupsParams p, CancellationToken cancellationToken)
         {
@@ -311,65 +317,19 @@ namespace Helpers
                 return response;
             }
 
-            // 2026-09-10 fix: was dead code -- referenced p.Thrust, a property that didn't exist
-            // on this params class, so it couldn't have compiled if ever uncommented. Thrust had
-            // ZERO server-side validation (AddProject relied solely on this now-real check;
-            // UpdateProjectDetails has its own separate existence-only inline check,
-            // ProjectController.cs:1459, kept for its audit-logging role -- becomes a harmless
-            // redundant recheck now that this runs first).
-            //
-            // Mirrors Hangfire/Importing/ImportingHelper.cs:248-269's already-proven Category<->
-            // Thrust rule (that pipeline validates imports; this validates normal Add/Update saves,
-            // which never went through it) -- a Category is "unrestricted" (any active thrust
-            // allowed) when tOptionProjectCategoryToPAPMap has no rows for it, or only a PAPKey=-1
-            // wildcard row. Uses the new vProjectThrustByCategory view for the fast "is this exact
-            // (Category, Thrust) pair explicitly allowed" check; the view's plain INNER JOIN can
-            // never represent the wildcard/no-row "unrestricted" cases (no real thrust has
-            // PAPKey=-1), so that fallback queries the raw map table directly, same as the import
-            // pipeline does.
-            // Thrust=0 (not just null) is this schema's existing "none selected" convention --
-            // confirmed live: 62 real projects carry Thrust=0, and PAPKey=0 doesn't exist as a real
-            // thrust row, so treating 0 as "must validate" would newly reject those projects on
-            // their next save even if Thrust itself was never touched.
-            if (p.Thrust.HasValue && p.Thrust.Value != 0)
-            {
-                // 2026-09-11 fix (RCA Section 9, Option A): only re-validate the Category<->Thrust
-                // relationship when Thrust is actually changing. UpdateProjectDetails posts the whole
-                // form on every save, so an untouched Thrust arrives identically whether the user
-                // edited it or not -- without this gate, any of the 556 pre-existing, already-live
-                // projects whose stored Category/Thrust pair predates this validation (confirmed via
-                // category_to_pap_many2many_map.xlsx, see the RCA doc) would fail its next save for
-                // ANY reason, including edits that never touch Thrust. A genuinely new Thrust
-                // selection is still fully validated below, same as today.
-                bool ThrustIsChanging = !p.PreviousThrust.HasValue || p.PreviousThrust.Value != p.Thrust.Value;
-                if (ThrustIsChanging)
-                {
-                    var ValidateThrust = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == p.Thrust.Value && (x.IsActive || (x.ValidToDate == 0 || x.ValidToDate >= CurrentDate.Year)), cancellationToken);
-                    if (ValidateThrust == null)
-                    {
-                        response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid."; response.Title = "Invalid Sub-Category";
-                        return response;
-                    }
-                    var ValidateThrustForCategory = await _db.vProjectThrustByCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == p.Category && x.PAPKey == p.Thrust.Value, cancellationToken);
-                    if (ValidateThrustForCategory == null)
-                    {
-                        // 2026-09-11 fix (F2): a mapping row with PAPKey != -1 only counts as a real
-                        // restriction if it actually resolves to a Thrust that exists -- otherwise a
-                        // Category whose only non-wildcard rows are orphaned/dangling references would
-                        // be "restricted" to a set of PAPKeys nothing can ever match, silently locking
-                        // out every real Thrust. Mirrors the dangling-reference safety valve
-                        // Hangfire/Importing/ImportingHelper.cs already has; this path was missing it.
-                        bool CategoryHasRestrictions = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking()
-                            .AnyAsync(x => x.CategoryId == p.Category && x.PAPKey != -1
-                                && _db.tOptionProjectThrustList.Any(t => t.PAPKey == x.PAPKey), cancellationToken);
-                        if (CategoryHasRestrictions)
-                        {
-                            response.Message = $"Selected Sub-Category '{p.Thrust}' is not valid for the selected Category."; response.Title = "Invalid Sub-Category";
-                            return response;
-                        }
-                    }
-                }
-            }
+            // Thrust existence + the Category<->Thrust mapping + the Option A grandfather gate.
+            // ONE implementation, ValidateThrustForCategoryAsync (below), shared with the Lump Sum
+            // save and ResubmitRevision. History, so nobody re-inlines it: the 2026-09-10 fix put
+            // the rule here; 2026-09-11 extracted it; the Option A rebase re-inlined a copy that
+            // (a) queried vProjectThrustByCategory, a view that exists on neither localhost
+            // database and has no DDL in this repo -- every AddProject with a Sub-Category threw
+            // "Invalid object name" -- and (b) read a -1 wildcard beside a specific row as a
+            // RESTRICTION, the opposite of the operator's rule. Converged again 2026-09-12; the
+            // shared method's header carries the rule and the gate.
+            var ValidateThrustPair = await _db.ValidateThrustForCategoryAsync(
+                p.Category, p.Thrust, p.PreviousCategory, p.PreviousThrust, cancellationToken);
+            if (!ValidateThrustPair.IsValid)
+                return ValidateThrustPair;
             string UserId = p._Session.UserId;
             var ValidateRegion = await _db.fUserVisibleRegions
                 .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleRegions({UserId})")
@@ -504,6 +464,132 @@ namespace Helpers
             // DetailedDesign=1, so no live blast-radius evidence, but identical shape).
             response.IsValid = true;
             response.Data = p.Region;//ValidateRegion.IslandCode;
+            return response;
+        }
+
+        /// <summary>
+        /// Thrust existence + the Category -> Sub-Category (PAPKey) mapping, in one place.
+        /// </summary>
+        /// <remarks>
+        /// EXTRACTED 2026-09-11. The rule previously existed three times and agreed twice:
+        ///
+        ///   - ValidateProjectDetailsLookups (above)              -- existence + mapping
+        ///   - RevisionController.ResubmitRevision (inline copy)   -- existence + mapping
+        ///   - LumpsumController.Writes.ValidateSubCategoryAsync   -- existence ONLY, plus a
+        ///     third, narrower validity window of its own
+        ///
+        /// So the Lump Sum form could store a (Category, Sub-Category) pair that the itemization
+        /// import -- Hangfire/Importing/ImportingHelper.cs:248-265, the same rule a fourth time --
+        /// then refused on the very next step. Measured on localhost 2026-09-10: 19 restricted
+        /// categories x 96 offered sub-categories = 1,824 selectable pairs, 134 of them permitted;
+        /// the Lump Sum save accepted all 1,690 invalid ones that AddProject rejected.
+        ///
+        /// THE RULE. A Category is UNRESTRICTED -- every valid Sub-Category qualifies -- when
+        /// tOptionProjectCategoryToPAPMap holds no rows for it, when ANY of its rows is the
+        /// PAPKey = -1 wildcard, or when none of its mapped PAPKeys resolves to a real thrust row.
+        ///
+        /// The wildcard WINS over specific rows beside it. The code this replaced asked instead
+        /// whether the Category had "any row with PAPKey != -1", which reads a Category carrying a
+        /// -1 wildcard AND a specific row as restricted -- the opposite of the intended meaning.
+        /// No Category carries that mix today (checked on localhost 2026-09-11: the 3 wildcard
+        /// categories, 20/24/31, have no specific rows), so the two agree on current data and the
+        /// difference would first appear the day someone adds one.
+        ///
+        /// NOT the vProjectThrustByCategory view, deliberately (2026-09-11). The earlier code here
+        /// used it for the pair lookup, but that view EXISTS ON NEITHER localhost database and no
+        /// script in this repo creates it -- the same missing-DDL failure this repo has hit before
+        /// (see Importing.Schema.sql's header). Any save carrying a Thrust therefore threw
+        /// "Invalid object name" on a database built from this folder's scripts. The view is only
+        /// an INNER JOIN of the map onto the thrust list, and the existence check immediately above
+        /// has already proven the thrust row exists, so asking the 137-row map directly is
+        /// equivalent, cheaper, and depends on nothing that might be absent.
+        ///
+        /// Thrust = 0 (not just null) is this schema's "none selected" convention -- confirmed
+        /// live: 62 real projects carry it and PAPKey = 0 is not a real thrust row -- so treating 0
+        /// as "must validate" would newly reject those projects on their next save even when
+        /// Thrust was never touched.
+        ///
+        /// The window is Project's own "is this already-selected value still acceptable to KEEP"
+        /// rule: IsActive OR ValidToDate = 0 OR ValidToDate >= current year. It is deliberately
+        /// MORE permissive than the dropdown's IsCurrentlyValid ("valid for a NEW selection"), so
+        /// a project can always re-save its own since-expired Sub-Category. Lump Sum used to be
+        /// narrower than BOTH, which is why it refused options its own dropdown had just offered.
+        /// </remarks>
+        public static async Task<ProjectHelperResponse<string>> ValidateThrustForCategoryAsync(
+            this MYPSDbContext _db, int category, int? thrust,
+            int? previousCategory, int? previousThrust, CancellationToken cancellationToken)
+        {
+            var response = new ProjectHelperResponse<string> { Data = string.Empty };
+
+            if (!thrust.HasValue || thrust.Value == 0)
+            {
+                response.IsValid = true;
+                return response;
+            }
+
+            // THE GRANDFATHER GATE (RCA section 9, Option A; widened to both fields 2026-09-12).
+            // Old data is exempt only while it is UNTOUCHED: when the caller supplies the stored
+            // Category and Sub-Category and both equal the incoming values, the pair is not
+            // re-checked. That is what lets the 556 legacy revisions whose stored pair predates the
+            // mapping (and the Lump Sum rows in the same state) take an unrelated edit and save.
+            // Changing EITHER field is a new choice and falls through to full validation -- an
+            // orphaned legacy Sub-Category must not be re-homed under a Category it does not fit,
+            // and mappings drift over time, so "it was valid once" proves nothing about the pair
+            // the user is now asserting. A create supplies neither previous value and is always
+            // validated in full. Both previous values must be present for the skip: a caller that
+            // knows one but not the other has no prior state worth trusting.
+            bool PairIsUntouched = previousCategory.HasValue && previousThrust.HasValue
+                                && previousCategory.Value == category
+                                && previousThrust.Value == thrust.Value;
+            if (PairIsUntouched)
+            {
+                response.IsValid = true;
+                return response;
+            }
+
+            int CurrentYear = Functions.CurrentDate().Year;
+
+            var ValidateThrust = await _db.tOptionProjectThrustList.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.PAPKey == thrust.Value
+                                       && (x.IsActive || (x.ValidToDate == 0 || x.ValidToDate >= CurrentYear)), cancellationToken);
+            if (ValidateThrust == null)
+            {
+                response.Message = $"Selected Sub-Category '{thrust}' is not valid."; response.Title = "Invalid Sub-Category";
+                return response;
+            }
+
+            // This Category's whole mapping in ONE round-trip -- at most a handful of rows, each
+            // carrying whether its PAPKey resolves to a real thrust row. The correlated EXISTS
+            // stays server-side; nothing here passes a client-side collection back into a
+            // predicate over a column, which is the shape whose SQL translation is not guaranteed.
+            var CategoryMappings = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking()
+                .Where(x => x.CategoryId == category)
+                .Select(x => new
+                {
+                    x.PAPKey,
+                    Resolves = _db.tOptionProjectThrustList.Any(t => t.PAPKey == x.PAPKey)
+                })
+                .ToListAsync(cancellationToken);
+
+            // A PAPKey = -1 row means EVERY valid Sub-Category qualifies for this Category, and it
+            // WINS over any specific rows sitting beside it. Stated by the operator 2026-09-11 and
+            // already how ImportingHelper.cs:261-263 reads it.
+            //
+            // The third clause is safe-by-default, as the import does: a mapping pointing only at
+            // PAPKeys with no thrust row behind them cannot restrict anything -- honouring it would
+            // lock the Category out of every Sub-Category instead. Zero such rows exist on
+            // localhost today, so it is a guard, not a live path.
+            bool Unrestricted = CategoryMappings.Count == 0
+                             || CategoryMappings.Any(m => m.PAPKey == -1L)
+                             || !CategoryMappings.Any(m => m.Resolves);
+
+            if (!Unrestricted && !CategoryMappings.Any(m => m.PAPKey == (long)thrust.Value))
+            {
+                response.Message = $"Selected Sub-Category '{thrust}' is not valid for the selected Category."; response.Title = "Invalid Sub-Category";
+                return response;
+            }
+
+            response.IsValid = true;
             return response;
         }
         #endregion
