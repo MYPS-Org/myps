@@ -127,14 +127,33 @@ test.describe('Lump Sum — full UI walkthrough', () => {
 
     /*  Free text matches the Description — the only LIKE filter the server
         offers. Scoped to the page card, because the app shell has a Search
-        button of its own and an unscoped role query matches both. */
+        button of its own and an unscoped role query matches both.
+
+        SEARCH FOR SOMETHING THIS RUN CREATED. This used to type the literal
+        'Demo pack', the description the three migrated MyMYPS samples carry.
+        That is data the database may not have — on myps_db_dev_200 the sample
+        script could not run at all — and the step then failed on an empty table
+        for a reason that had nothing to do with filtering. Provisioning the row
+        it searches for makes the test prove the filter rather than the
+        fixture; the label carries RUN_TAG, so the sweeper takes it away. */
+    const probe = `${RUN_TAG} filter probe`;
+    await provisionLumpSum(page, 1_000_000, probe);
+
     const card = page.locator('div.max-w-10xl');
-    await page.getByPlaceholder('Search by description...').fill('Demo pack');
+    await page.goto('/lumpsum');
+    await page.getByPlaceholder('Search by description...').fill(probe);
     await card.getByRole('button', { name: 'Search' }).click();
-    await expect(page.locator('table tbody tr').first()).toBeVisible();
+
+    /*  Every row that comes back is the one searched for — a filter that
+        narrows to nothing, or not at all, both fail here. */
+    const rows = page.locator('table tbody tr');
+    await expect(rows.first()).toBeVisible();
+    await expect
+      .poll(async () => (await rows.allTextContents()).filter((t) => !t.includes(probe)).length)
+      .toBe(0);
 
     await card.getByRole('button', { name: 'Clear' }).click();
-    await expect(page.locator('table tbody tr').first()).toBeVisible();
+    await expect(rows.first()).toBeVisible();
   });
 
   test('the list page: Next shows the next ten rows, not the first ten again', async ({ page }) => {
@@ -150,13 +169,28 @@ test.describe('Lump Sum — full UI walkthrough', () => {
 
     /*  Two full pages have to exist, and how many projects this machine holds
         is not something a test may assume. Ask, then top up — the fillers carry
-        the sweeper's marker, so globalTeardown removes them. */
+        the sweeper's marker, so globalTeardown removes them.
+
+        TWENTY, not eleven. The assertion below is that page 2 holds TEN rows
+        none of which were on page 1, so eleven projects satisfy the top-up and
+        then fail the assertion with one row on page 2. It passed only because
+        the database happened to hold enough already; on myps_db_dev_200, with
+        a single Lump Sum Project, it reported "Expected: 10, Received: 1". */
     const pageOne = async () =>
       post(page, '/api/Lumpsum/ShowLumpSum', { Filters: {}, limit: 10, page: 1, sortDirection: 0 });
     let first = await pageOne();
-    const shortfall = Math.max(0, 11 - Number(first.body?.total ?? 0));
+    const shortfall = Math.max(0, 20 - Number(first.body?.total ?? 0));
+    /*  THE FILLERS MUST NOT CARRY RUN_TAG. The last step of this test searches
+        for RUN_TAG and asserts the pager disappears — i.e. that the match fits
+        one page. Tagging twenty fillers with it makes that search return twenty
+        rows and the assertion fails, which is a trap that only springs on a
+        database with few Lump Sum Projects: where one already holds twenty,
+        shortfall is 0, no filler is made, and it passes.
+
+        provisionLumpSum appends the sweeper's "(e2e <ISO>)" marker to whatever
+        label it is given, so these are still swept without it. */
     for (let i = 0; i < shortfall; i += 1) {
-      await provisionLumpSum(page, 1_000_000, `${RUN_TAG} pager filler ${i + 1}`);
+      await provisionLumpSum(page, 1_000_000, `pager filler ${i + 1}`);
     }
     if (shortfall > 0) first = await pageOne();   // the cursor moved
 

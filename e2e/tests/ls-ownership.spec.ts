@@ -33,6 +33,15 @@ import {
 
 const TAG = 'LS-OWNERSHIP';
 
+/*  THE SWEEPER FINDS TEST DATA BY THIS MARKER, NOT BY TAG.
+    lumpSumSweeper.ts matches /\(e2e \d{4}-\d{2}-\d{2}T/ in a project's
+    Description; provisionLumpSum writes it, and any UpdateLumpSum that rewrites
+    the Description has to write it again or the parent becomes unsweepable.
+    One did not, and stranded P00800031LS on myps_db_dev_200 (2026-09-13) — a
+    parent holding 200,000,000 of a program's allocation, which the specs that
+    assert on allocation arithmetic would then read. */
+const RUN_MARKER = `(e2e ${new Date().toISOString().slice(0, 19)})`;
+
 /** A value no other row will collide with, so inheritance is unambiguous. */
 const PARENT_UACS = `UACS-${Date.now().toString().slice(-8)}`;
 
@@ -69,7 +78,7 @@ test.describe('Lump Sum ownership — UACS inheritance and edit confinement', ()
       LumpSumId: parent.lumpSumId,
       ProgramId: parent.programPK,
       CategoryId: 16, SubCategoryId: 1082, OperatingUnit: 'OI46',
-      Description: `${TAG} parent`,
+      Description: `${TAG} parent ${RUN_MARKER}`,
       Uacs: PARENT_UACS,
       Tier: 2, RegionWide: 1, Agency: 1001, Origin: 13,
       FundingProfiles: [{ Id: fundingId, Source: 'GOP', Agreement: 'DPWH-GAA-2025', Amount: 200_000_000, Percentage: 100, IsDeleted: false }],

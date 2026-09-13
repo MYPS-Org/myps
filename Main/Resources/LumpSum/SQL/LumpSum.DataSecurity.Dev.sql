@@ -173,9 +173,30 @@ IF NOT EXISTS (SELECT 1 FROM dbo.tGroupRoles WHERE GroupId = @GroupId)
 
     Logout goes with it for the same reason — also not anonymous, and a user who
     cannot sign out is stuck. */
+/*  THE IMPORT ACTIONS ARE NOT LUMP SUM'S EITHER, AND ARE JUST AS REQUIRED.
+
+    'the import refuses too' builds a real workbook as the restricted user, and
+    building one starts by fetching the template from ImportingController. Without
+    these two the helper dies on
+
+        DownloadTemplate answered 403: You do not have permission to perform
+        'DownloadTemplate' on 'ImportingController'
+
+    before ImportItemizedProjects is ever called — which is the SAME trap §2
+    below describes for the Lump Sum actions themselves: a spec that means to
+    prove "the visibility gate refuses this user" instead proves "this user was
+    never allowed to ask", and would pass on a 403 having tested nothing.
+
+    So the restricted group gets exactly what an entitled user has, and the only
+    thing standing between it and the data is the guard under test. */
 ;WITH SessionActions AS (
     SELECT Id FROM dbo.tApiActions
     WHERE ControllerName = N'AuthController' AND ActionName IN (N'Validate', N'Logout')
+),
+ImportActions AS (
+    SELECT Id FROM dbo.tApiActions
+    WHERE ControllerName = N'ImportingController'
+      AND ActionName COLLATE Latin1_General_BIN2 IN (N'DownloadTemplate', N'DownloadImportFile')
 ),
 LumpSumActions AS (
     SELECT Id FROM dbo.tApiActions WHERE ControllerName = @Controller
@@ -190,6 +211,7 @@ Merged AS (
     SELECT Id FROM Existing
     UNION SELECT Id FROM LumpSumActions
     UNION SELECT Id FROM SessionActions
+    UNION SELECT Id FROM ImportActions
 )
 UPDATE gr
    SET gr.ActionIds = (

@@ -96,7 +96,7 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 |---|---|---|
 | ProjectList (`/projects`) | `tests/project-list.spec.ts` | Yes — asserts the list request came back **200** with rows, and that the first ProjectId is on screen. It previously died on `text=Projects` (three matches) and never ran past line 14 |
 | AddProject (`/projects/addproject`) | `tests/project-form.spec.ts` | Yes — both dropdown endpoints must answer 200, not merely be requested |
-| Dashboard | `tests/dashboard-real-data.narrated.spec.ts` | **Written, self-skipping** — `WebAPI.csproj` excludes `Controllers\Dashboard\**`, so `/api/Dashboard/Summary` is a 405. It probes for that and enables itself when the controller is compiled again |
+| Dashboard | `tests/dashboard-real-data.narrated.spec.ts` | **Yes, for the demo path — which is all that ships today.** Live DB was switched off on 2026-09-13 (`LIVE_DB_ENABLED` in `Dashboard.tsx`), so the spec asserts the page opens on Demo Data, renders its panels, and **issues no `Dashboard/Summary` query at all**. The live-path test is kept whole in the same file and skipped against the same flag. See *The dashboard is demo-only for now* |
 | UserManagement | — | No |
 | InfraManagement | — | No |
 | ProgramList / ProgramDetails | — | No |
@@ -141,13 +141,21 @@ wants `ProgramPK` and the two differ only by an `MP_` prefix.
 npx playwright test
 ```
 
-Expected (whole suite, last counted 2026-09-04): **42 passed, 4 skipped, 0 failed** — plus the
-Lump Sum cases added since: the six Lump Sum suites (`ls-contract`,
-`ls-module-ui-walkthrough`, `ls-data-security`, `ls-program-approved`, `ls-data-security-ui`,
-`ls-project-form-identity`) were **55 passed, 3 skipped, 0 failed** on 2026-09-10. Recount the
-whole-suite line the next time everything is run together. All skips are honest and self-clearing:
-`dashboard-real-data` while `Controllers\Dashboard\**` stays out of the build, and three
-KNOWN GAP data-security cases that carry their gaps rather than deleting them.
+Expected (whole suite, counted 2026-09-13 against `localhost/myps_db_dev_200`):
+**70 passed, 4 skipped, 0 failed** in 5.3 minutes.
+
+All four skips are honest and self-clearing:
+
+- `dashboard-real-data` › *live database* — while `LIVE_DB_ENABLED` is false (see
+  *The dashboard is demo-only for now*). Its demo half runs.
+- three KNOWN GAP data-security cases, which carry their gaps rather than deleting them.
+
+That run was the first green one on this lineage. The one before it was **9 failed, 30 passed,
+29 did not run**, and none of the nine was a product regression: the bring-up granted
+`LumpsumController` but not the two `ImportingController` actions the import calls (six
+failures, plus a serial cascade), the sample fixture could not load on this database at all
+(two), and this dashboard spec had gone stale while it was dark (one). See
+`documents/docs/engineering/MYPS_DEV_200_BRINGUP_RUN_REPORT_2026-09-13.md`.
 
 This ran nothing at all until 2026-09-04. `dashboard-real-data.narrated.spec.ts` imported
 `narrator` from `qa-kit/narrate.js` — a plain-JS kit junctioned into one machine's
@@ -155,6 +163,50 @@ This ran nothing at all until 2026-09-04. `dashboard-real-data.narrated.spec.ts`
 in the suite could run. Its two methods now live in `tests/helpers/narrate.ts`. If you find
 yourself reaching for an external kit in a spec, put it in `helpers/` instead: a spec that
 cannot be collected is worse than one that fails.
+
+### Ask the database for the rows you need — do not name them, and do not assume they exist
+
+Three variants of the same mistake, all found on `myps_db_dev_200` on 2026-09-13, where the
+sample fixture could not run and the module started empty:
+
+- **`ls-module-ui-walkthrough`'s filter test searched for `'Demo pack'`** — the description the
+  three migrated MyMYPS samples carry. On a database without them it matched nothing and failed
+  on an empty table, for a reason unrelated to filtering. It now provisions the row it searches
+  for and asserts every returned row is that row.
+- **Its pager test topped up to ELEVEN projects** and then asserted page 2 holds **ten** rows
+  that were not on page 1. Eleven satisfies the top-up and fails the assertion; it passed only
+  where the database already held enough. Now twenty.
+- **`ls-ownership` dropped the sweeper's marker.** `provisionLumpSum` writes
+  `(e2e <ISO timestamp>)` into the Description, and the sweeper finds test data by that and
+  nothing else — so an `UpdateLumpSum` that rewrites the Description must write it again. One
+  did not, stranding a parent holding 200,000,000 of a program's allocation, which is exactly
+  the figure other specs assert on. **If a spec rewrites a Description, keep the marker.**
+
+### The dashboard is demo-only for now
+
+**Live DB is switched off** (2026-09-13, maintainer's call). `FE/src/pages/Dashboard/Dashboard.tsx`
+exports `LIVE_DB_ENABLED = false`: the page opens on Demo Data, the Live DB control renders
+disabled, and no `Dashboard/Summary` request is issued. Nothing was deleted — `fetchDashboardSummary`,
+`mapSummary` and every panel are intact behind the flag.
+
+The reason is cost: `Dashboard/Summary` returns every visible project uncapped
+(`DashboardController.cs`, `Projects = projects`, no `Take`) — on `myps_db_dev_200` that is
+**56,722 rows, 33.5 MB, ~14 s** per load, for a watchlist that shows a handful. Making it
+pageable is backend work.
+
+So the spec has two halves. The demo half runs and asserts, above all, that the page queries
+**nothing**. The live half is kept whole and `test.skip`ped against a constant that must track
+the FE flag — flip both to bring it back.
+
+Three things that half already paid for, if you do:
+
+- **Detect fetches with `waitForResponse`, never `captureApiCalls`.** That helper `await`s
+  `response.json()` inside its handler and swallows what it throws; on a 33.5 MB body it is slow
+  enough to look exactly like "the button did nothing". That is how the rewrite first failed.
+- **Read payloads with `page.request`, not the `request` fixture.** The fixture has its own
+  cookie jar, is not signed in, and answers 401.
+- **Budget three fetches**, not sixteen. Clicking every fiscal-year button cannot fit the 120 s
+  timeout at 14 s a call.
 
 ### Resolve the program, do not name it
 
