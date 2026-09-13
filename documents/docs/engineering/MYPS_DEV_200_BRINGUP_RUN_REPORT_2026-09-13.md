@@ -192,16 +192,16 @@ the `sp_RBP` / `a1_usp_AIP2` "do not run" figures are real; the 13 action names 
 | ID | Risk | Likelihood | Impact | Status |
 |---|---|---|---|---|
 | R1 | **Isolation script has no database guard** (finding #1). `WITH ROLLBACK IMMEDIATE` disconnects every session; run against the wrong database it is a whole-database setting change plus a forced disconnect. | Medium | High | **Open** |
-| R2 | **Sample fixture's database-wide delete** (finding #2). Did not fire here only because the collision guard halted first. On a database where the collision check passes, it deletes every orphaned `tProjectMajorWorkItem` row regardless of lineage. | Medium | High | **Open — latent** |
+| R2 | **Sample fixture's database-wide delete** (finding #2). Did not fire here only because the collision guard halted first. On a database where the collision check passes, it deletes every orphaned `tProjectMajorWorkItem` row regardless of lineage. | Medium | High | **Closed** — the sweep is gone (`a6b605d0`) |
 | R3 | **Migration's `myps_db` refusal fails open** for a non-sysadmin login (finding #3). The one guard protecting production behaves differently by login privilege. | Low | High | **Open** |
-| R4 | **`DownloadTemplate` ungranted** blocks the Lump Sum import path for Admin-group users on both lineages. Currently masks 6 e2e tests and cascades into 29 more. | **Certain (observed)** | Medium | **Open** |
-| R5 | **No Lump Sum data on `dev_200`.** Sample fixture cannot run without an Id-remapping script that does not exist. Two UI specs cannot pass; module demos have nothing to show. | **Certain (observed)** | Medium | **Open** |
+| R4 | **`DownloadTemplate` ungranted** blocks the Lump Sum import path for Admin-group users on both lineages. Currently masks 6 e2e tests and cascades into 29 more. | **Certain (observed)** | Medium | **Closed** — granted by name (`a6b605d0`) |
+| R5 | **No Lump Sum data on `dev_200`.** Sample fixture cannot run without an Id-remapping script that does not exist. Two UI specs cannot pass; module demos have nothing to show. | **Certain (observed)** | Medium | **Closed** — identities remapped, program copied, model normalised (`a6b605d0`, `8bb35933`, round 2) |
 | R6 | **Action Ids diverge between lineages** (123 = `DownloadTemplate` here, `DeleteItemizedProject` on `myps_db_dev`). Any Id-based grant or script is silently lineage-specific. | Medium | Medium | **Open** |
 | R7 | **`Dashboard/Summary` returns every visible project, uncapped.** `DashboardController.cs:466` sets `Projects = projects` with no `Take`. On `dev_200` that is **56,722 rows / 33.5 MB / 14.3 s** for a single page load, and the payload grows with the portfolio. The watchlist renders a handful of them. | **Certain (measured)** | Medium | **Mitigated, not fixed** — Live DB switched off in the UI (`LIVE_DB_ENABLED`, 2026-09-13) so the query is no longer issued. The endpoint is unchanged and still needs paging |
 | R8 | **`sp_RBP` / `a1_usp_AIP2` have no forward source.** Verified unchanged at 9285/10355 by this run, but they exist only in the database. | Medium | High | Carried (pre-existing) |
 | R9 | **Two divergent copies of the runbook** (finding #11) with stale paths in both — a future operator may follow the wrong one. | Medium | Low | **Open** |
 | R10 | **Credentials committed in the clear** in `.claude/settings.json` and `appsettings.Development.json`. | — | High | Carried as RISK-090 |
-| R11 | Stale comment in `dashboard-real-data` spec asserting an exclusion that has been lifted. | Low | Low | **Open** |
+| R11 | Stale comment in `dashboard-real-data` spec asserting an exclusion that has been lifted. | Low | Low | **Closed** — spec rewritten (`6afda7a6`) |
 
 ### Recommended order of work
 
@@ -255,6 +255,23 @@ kept whole and skipped against a constant tracking the FE flag.
 | Invariant drift | 0 |
 | `LS-OWNERSHIP` leftovers | 0 — the marker fix works; the sweeper removed 21 parents and 3 children |
 | Skips | 4: the deferred live-dashboard test and the three KNOWN GAP data-security cases |
+
+### Round 2 — review of the merged branch (PR #206), branch `fix/dev200-review-round-2`
+
+A second review, at high effort, over all four merged commits. Five findings, every one a
+**vacuous pass or an unexercised data shape** — the kind a green run cannot surface, which is
+why the register below treats "the suite is green" as weaker evidence than it looks.
+
+| # | Finding | Why the green run missed it | Fix |
+|---|---|---|---|
+| 1 | The filter-probe poll (`rows not matching = 0`) is satisfied by an **empty** table, and `LumpSumList` unmounts the table while a search is in flight | Passed on 0 rows during the loading window | One predicate: rows > 0 **and** every row matches |
+| 2 | §4e handled multiple per-year rows but not multiple live `'LS'` cost rows — which the `LS1→LS` rename can itself create. Both updates would then write twice, and §5's DRIFT would have no warning behind it | Sample parents have exactly one | `#LSCostRows` counts per revision; both updates require exactly one; others are reported. **Proven**: a duplicate injected in a rolled-back transaction is flagged `LSCostRows=2` |
+| 3 | §4d's Thrust repair *and its own warning* `INNER JOIN tPrograms`, so a program that never lands makes both fall silent while `vLumpSumSet`'s `LEFT JOIN` keeps §5/§6 green | The program copy succeeded | After §2, `NOEXEC ON` if the program is still absent — a rolled-back copy now stops the script rather than producing a sample that reads fine and cannot be saved |
+| 4 | The "pager disappears" poll (`Next page` count = 0) is also true during the loading window, because `PaginationBar` is inside the same `!isLoading && lists.length > 0` block | Loading is fast | Rows present **and** no Next, in one predicate |
+| 5 | The migration's BIN2 name match is reused verbatim in its own verification, so a name whose casing drifted grants nothing **and reports nothing** | Names match today | Verification now matches case-insensitively, so drift surfaces as "ungranted" |
+
+Re-verified: sample script clean warm, migration idempotent with empty check, walkthrough
+16 / 16 with the tightened polls exercised against 20 real fillers.
 
 ### Still open
 

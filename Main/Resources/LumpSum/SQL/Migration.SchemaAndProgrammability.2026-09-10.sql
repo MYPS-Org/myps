@@ -1401,11 +1401,17 @@ WHERE  a.ControllerName = N'LumpsumController'
         CROSS APPLY OPENJSON(gr.ActionIds) WITH (ActionId INT '$') j
         WHERE gr.GroupId = 1 AND j.ActionId = a.Id);
 
+/*  DELIBERATELY LOOSER THAN THE GRANT. The grant above matches the two names
+    byte-for-byte (BIN2), as every other action match in this file does. This
+    check matches them case-insensitively, so a row whose casing has drifted
+    from the code's — say 'Downloadtemplate' — is one the grant silently skipped
+    AND one this check still finds and reports as ungranted. Were both to use
+    BIN2, such a row would grant nothing and report nothing. */
 PRINT '--- Lump Sum''s ImportingController dependencies not granted to Admin (want none) ---';
 SELECT a.ControllerName + '.' + a.ActionName AS Ungranted
 FROM   dbo.tApiActions a
 WHERE  a.ControllerName = N'ImportingController'
-  AND  a.ActionName COLLATE Latin1_General_BIN2 IN (
+  AND  a.ActionName COLLATE Latin1_General_CI_AS IN (
         N'DownloadTemplate', N'DownloadImportFile')
   AND  NOT EXISTS (
         SELECT 1 FROM dbo.tGroupRoles gr

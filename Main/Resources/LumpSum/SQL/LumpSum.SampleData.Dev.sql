@@ -176,6 +176,18 @@ BEGIN
 END
 ELSE
     PRINT CONCAT('Program ', ISNULL(@ProgramPK, '(none)'), ' already present; not copied.');
+
+/*  STOP HERE IF THE PROGRAM IS STILL MISSING. Sections 4d, 5 and 6 reach the
+    program through joins: 4d's Thrust repair and its own "unresolved
+    Sub-Category" warning INNER JOIN tPrograms, so with no program row both
+    fall silent, while vLumpSumSet LEFT JOINs it and 5/6 stay green — a sample
+    that reads as fine and cannot be saved from the form. A rolled-back copy
+    (the transaction above, XACT_ABORT) is exactly how that would happen. */
+IF @ProgramPK IS NULL OR NOT EXISTS (SELECT 1 FROM dbo.tPrograms WHERE ProgramPK = @ProgramPK)
+BEGIN
+    PRINT CONCAT('STOPPED: program ', ISNULL(@ProgramPK, '(none)'), ' is not present and could not be copied.');
+    SET NOEXEC ON;
+END
 GO
 
 /* -- 3. Remove any previous copy (idempotency) -------------------------------
@@ -631,6 +643,31 @@ UPDATE py
 
 PRINT CONCAT('                     and on ', @@ROWCOUNT, ' per-year row(s).');
 
+/*  EXACTLY ONE LIVE 'LS' COST ROW PER PARENT, OR HANDS OFF. A Lump Sum Project
+    holds one component, but nothing in the schema enforces it, and the rename
+    just above can itself manufacture a second: a revision carrying both an 'LS'
+    and an 'LS1' row now carries two 'LS' rows. Both updates below would then
+    write the allocation twice and the balance twice, and section 5 would report
+    a DRIFT that no warning here explained. Counted once, used by both. */
+IF OBJECT_ID('tempdb..#LSCostRows') IS NOT NULL DROP TABLE #LSCostRows;
+
+SELECT r.Id AS RevisionId, r.ProjectId, COUNT(*) AS LSCostRows
+INTO   #LSCostRows
+FROM   dbo.tProjectRevisions r
+JOIN   dbo.tProjectComponentCost cc ON cc.ProjectRevisionFK = r.Id AND cc.IsDeleted = 0
+WHERE  r.ProjectFK IN (SELECT ProjectPK FROM #Sample WHERE IsParent = 1)
+  AND  r.IsDeleted = 0
+  AND  cc.ComponentId = 'LS'
+GROUP  BY r.Id, r.ProjectId;
+
+IF EXISTS (SELECT 1 FROM #LSCostRows WHERE LSCostRows <> 1)
+BEGIN
+    PRINT 'WARNING: these parents carry more than one live ''LS'' cost row, so neither';
+    PRINT '         their allocation nor their balance was touched. Section 5 will';
+    PRINT '         report them as DRIFT.';
+    SELECT ProjectId, LSCostRows FROM #LSCostRows WHERE LSCostRows <> 1 ORDER BY ProjectId;
+END
+
 /*  Total := SUM of the parent's own live funding lines. Only the parent's LIVE
     'LS' component on its live revision, and only where the two disagree. */
 ;WITH Parent AS (
@@ -639,6 +676,7 @@ PRINT CONCAT('                     and on ', @@ROWCOUNT, ' per-year row(s).');
                       FROM   dbo.tProjectFundingProfile f
                       WHERE  f.ProjectRevisionFK = r.Id AND f.IsDeleted = 0)
     FROM   dbo.tProjectRevisions r
+    JOIN   #LSCostRows one               ON one.RevisionId = r.Id AND one.LSCostRows = 1
     JOIN   dbo.tProjectComponentCost cc ON cc.ProjectRevisionFK = r.Id AND cc.IsDeleted = 0
     WHERE  r.ProjectFK IN (SELECT ProjectPK FROM #Sample WHERE IsParent = 1)
       AND  r.IsDeleted = 0
@@ -691,6 +729,7 @@ SELECT r.ProjectId,
             WHERE  k.ParentProjectId = r.ProjectId), 0)
 INTO   #ParentLS
 FROM   dbo.tProjectRevisions r
+JOIN   #LSCostRows one               ON one.RevisionId = r.Id AND one.LSCostRows = 1
 JOIN   dbo.tProjectComponentCost cc ON cc.ProjectRevisionFK = r.Id AND cc.IsDeleted = 0
 WHERE  r.ProjectFK IN (SELECT ProjectPK FROM #Sample WHERE IsParent = 1)
   AND  r.IsDeleted = 0
