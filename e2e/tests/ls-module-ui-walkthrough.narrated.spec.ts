@@ -145,12 +145,20 @@ test.describe('Lump Sum — full UI walkthrough', () => {
     await card.getByRole('button', { name: 'Search' }).click();
 
     /*  Every row that comes back is the one searched for — a filter that
-        narrows to nothing, or not at all, both fail here. */
+        narrows to nothing, or not at all, both fail here.
+
+        ONE predicate, requiring rows AND all of them matching. LumpSumList
+        unmounts the whole table while a search is in flight, so "first row
+        visible" can be satisfied by the OLD, unfiltered rows and a separate
+        "no row fails to match" poll then runs against an empty table and passes
+        on zero rows — the exact empty-result case this exists to catch. */
     const rows = page.locator('table tbody tr');
-    await expect(rows.first()).toBeVisible();
     await expect
-      .poll(async () => (await rows.allTextContents()).filter((t) => !t.includes(probe)).length)
-      .toBe(0);
+      .poll(async () => {
+        const texts = await rows.allTextContents();
+        return texts.length > 0 && texts.every((t) => t.includes(probe));
+      }, { timeout: 20000 })
+      .toBe(true);
 
     await card.getByRole('button', { name: 'Clear' }).click();
     await expect(rows.first()).toBeVisible();
@@ -237,7 +245,17 @@ test.describe('Lump Sum — full UI walkthrough', () => {
         inside the old, wider set. */
     await page.getByPlaceholder('Search by description...').fill(RUN_TAG);
     await card.getByRole('button', { name: 'Search' }).click();
-    await expect.poll(async () => card.getByRole('button', { name: 'Next page' }).count()).toBe(0);
+    /*  Rows present AND no Next — in one predicate. PaginationBar sits inside
+        the same `!isLoading && lists.length > 0` block as the table, so a bare
+        "Next page count is 0" is also true for the instant the search is in
+        flight and the whole block is unmounted. That would pass before any
+        narrowed result exists. */
+    await expect
+      .poll(async () =>
+        (await links.count()) > 0
+        && (await card.getByRole('button', { name: 'Next page' }).count()) === 0,
+      )
+      .toBe(true);
   });
 
   test('the empty form is refused with ONE message, naming the first field', async ({ page }) => {
