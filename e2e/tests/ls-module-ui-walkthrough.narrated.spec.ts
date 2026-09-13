@@ -180,8 +180,17 @@ test.describe('Lump Sum — full UI walkthrough', () => {
       post(page, '/api/Lumpsum/ShowLumpSum', { Filters: {}, limit: 10, page: 1, sortDirection: 0 });
     let first = await pageOne();
     const shortfall = Math.max(0, 20 - Number(first.body?.total ?? 0));
+    /*  THE FILLERS MUST NOT CARRY RUN_TAG. The last step of this test searches
+        for RUN_TAG and asserts the pager disappears — i.e. that the match fits
+        one page. Tagging twenty fillers with it makes that search return twenty
+        rows and the assertion fails, which is a trap that only springs on a
+        database with few Lump Sum Projects: where one already holds twenty,
+        shortfall is 0, no filler is made, and it passes.
+
+        provisionLumpSum appends the sweeper's "(e2e <ISO>)" marker to whatever
+        label it is given, so these are still swept without it. */
     for (let i = 0; i < shortfall; i += 1) {
-      await provisionLumpSum(page, 1_000_000, `${RUN_TAG} pager filler ${i + 1}`);
+      await provisionLumpSum(page, 1_000_000, `pager filler ${i + 1}`);
     }
     if (shortfall > 0) first = await pageOne();   // the cursor moved
 

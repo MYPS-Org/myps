@@ -71,14 +71,14 @@ JOIN   MyMYPS.dbo.tProjectRevisions r
 WHERE  r.ProjectFK IN (SELECT ProjectPK FROM #Sample WHERE IsParent = 1)
   AND  k.ProjectPK NOT IN (SELECT ProjectPK FROM #Sample);
 
-/* Revision and component-cost keys, for the child tables. */
-IF OBJECT_ID('tempdb..#Rev') IS NOT NULL DROP TABLE #Rev;
-SELECT Id INTO #Rev FROM MyMYPS.dbo.tProjectRevisions
-WHERE  ProjectFK IN (SELECT ProjectPK FROM #Sample);
+/*  NO #Rev / #Cost LISTS OF SOURCE Ids HERE ANY MORE.
 
-IF OBJECT_ID('tempdb..#Cost') IS NOT NULL DROP TABLE #Cost;
-SELECT Id INTO #Cost FROM MyMYPS.dbo.tProjectComponentCost
-WHERE  ProjectRevisionFK IN (SELECT Id FROM #Rev);
+    They used to carry MyMYPS's revision and cost Ids so the copy could filter on
+    them, which worked while identities were preserved. Section 4 remaps instead,
+    and a bare list of source Ids is the exact hazard section 6 warns about: read
+    against THIS database it selects whatever unrelated rows happen to hold those
+    numbers. Every step below scopes itself through #RevMap / #CostMap, which
+    hold real old -> new pairs. */
 
 DECLARE @Parents int = (SELECT COUNT(*) FROM #Sample WHERE IsParent = 1);
 DECLARE @Children int = (SELECT COUNT(*) FROM #Sample WHERE IsParent = 0);
@@ -107,11 +107,18 @@ DECLARE @ProgramPK nvarchar(200) =
 IF OBJECT_ID('tempdb..#ProgRevMap') IS NOT NULL DROP TABLE #ProgRevMap;
 CREATE TABLE #ProgRevMap (OldId int PRIMARY KEY, NewId int NOT NULL);
 
+/*  ALL THREE INSERTS OR NONE. The skip test below is "does tPrograms have this
+    ProgramPK", so a failure between the program row and its revision or stage
+    would leave a program that exists, is skipped by every later run, and has no
+    stage or start year — which every Lump Sum view reads. One transaction makes
+    the guard's question and the work it guards the same thing. */
 IF @ProgramPK IS NOT NULL AND NOT EXISTS (SELECT 1 FROM dbo.tPrograms WHERE ProgramPK = @ProgramPK)
 BEGIN
     PRINT CONCAT('Program ', @ProgramPK, ' is absent here; copying it.');
 
     DECLARE @pCols nvarchar(max), @pSel nvarchar(max), @pVals nvarchar(max), @pSql nvarchar(max);
+
+    BEGIN TRANSACTION;
 
     /*  tPrograms — nothing references tPrograms.Id, so a plain insert will do. */
     SELECT @pCols = STRING_AGG(QUOTENAME(c.name), ', ') WITHIN GROUP (ORDER BY c.column_id),
@@ -162,6 +169,8 @@ BEGIN
                 ' JOIN #ProgRevMap rm ON rm.OldId = s.RevisionId' +
                 ' WHERE s.ProgramFK = @pk;';
     EXEC sp_executesql @pSql, N'@pk nvarchar(200)', @pk = @ProgramPK;
+
+    COMMIT TRANSACTION;
 
     PRINT '  program, its revision and its stage copied.';
 END
@@ -643,30 +652,65 @@ UPDATE cc
 
 PRINT CONCAT('Allocation set from the funding lines on ', @@ROWCOUNT, ' parent cost row(s).');
 
-/*  Amount := Total - SUM of the children's costs. Left alone unless it differs,
-    so a parent whose balance is already right is untouched. */
-;WITH ParentYear AS (
-    SELECT py.Id             AS YearId,
-           Remaining = cc.Total - (
-                SELECT ISNULL(SUM(kc.Total), 0)
-                FROM   dbo.tProjects k
-                JOIN   dbo.tProjectRevisions kr ON kr.ProjectFK = k.ProjectPK AND kr.IsDeleted = 0
-                JOIN   dbo.tProjectComponentCost kc ON kc.ProjectRevisionFK = kr.Id AND kc.IsDeleted = 0
-                WHERE  k.ParentProjectId = r.ProjectId)
-    FROM   dbo.tProjectRevisions r
-    JOIN   dbo.tProjectComponentCost cc        ON cc.ProjectRevisionFK = r.Id AND cc.IsDeleted = 0
-    JOIN   dbo.tProjectComponentCostPerYear py ON py.ComponentCostFK = cc.Id AND py.IsDeleted = 0
-    WHERE  r.ProjectFK IN (SELECT ProjectPK FROM #Sample WHERE IsParent = 1)
-      AND  r.IsDeleted = 0
-      AND  cc.ComponentId = 'LS'
-)
-UPDATE py
-   SET py.Amount = pyr.Remaining
-  FROM dbo.tProjectComponentCostPerYear py
-  JOIN ParentYear pyr ON pyr.YearId = py.Id
- WHERE py.Amount <> pyr.Remaining;
+/*  Amount := Total - what the children have drawn out.
+
+    BOTH HALVES ARE COMPUTED THE WAY vLumpSumSet COMPUTES THEM, or this "fix"
+    writes a figure the view will disagree with and section 5 reports DRIFT
+    anyway:
+
+      - The view reads Remaining as the SUM of the LS component's live per-year
+        rows. So the balance belongs on ONE row. Writing it to every row doubles
+        the balance the moment a parent has two, which is an ordinary shape for
+        pre-2026-09-06 data. Parents that do not have exactly one live row are
+        reported below and left alone — the same scoping
+        LumpSum.Migrate.BalanceToPerYear.2026-09-06.sql chose, for the same
+        reason: splitting a balance across years is a data question.
+
+      - The view counts each child's LATEST live revision only (TOP 1 ... ORDER
+        BY Id DESC). Summing every live revision would subtract a child twice
+        the moment one has two. */
+IF OBJECT_ID('tempdb..#ParentLS') IS NOT NULL DROP TABLE #ParentLS;
+
+SELECT r.ProjectId,
+       CostId      = cc.Id,
+       Total       = cc.Total,
+       PerYearRows = (SELECT COUNT(*) FROM dbo.tProjectComponentCostPerYear cy
+                      WHERE cy.ComponentCostFK = cc.Id AND cy.IsDeleted = 0),
+       OnlyRowId   = (SELECT MIN(cy.Id) FROM dbo.tProjectComponentCostPerYear cy
+                      WHERE cy.ComponentCostFK = cc.Id AND cy.IsDeleted = 0),
+       Itemized    = ISNULL((
+            SELECT SUM(kc.TotalCost)
+            FROM   dbo.tProjects k
+            CROSS APPLY (SELECT TOP 1 kr.Id
+                         FROM   dbo.tProjectRevisions kr
+                         WHERE  kr.ProjectFK = k.ProjectPK AND kr.IsDeleted = 0
+                         ORDER  BY kr.Id DESC) kr
+            CROSS APPLY (SELECT ISNULL(SUM(kcc.Total), 0) AS TotalCost
+                         FROM   dbo.tProjectComponentCost kcc
+                         WHERE  kcc.ProjectRevisionFK = kr.Id AND kcc.IsDeleted = 0) kc
+            WHERE  k.ParentProjectId = r.ProjectId), 0)
+INTO   #ParentLS
+FROM   dbo.tProjectRevisions r
+JOIN   dbo.tProjectComponentCost cc ON cc.ProjectRevisionFK = r.Id AND cc.IsDeleted = 0
+WHERE  r.ProjectFK IN (SELECT ProjectPK FROM #Sample WHERE IsParent = 1)
+  AND  r.IsDeleted = 0
+  AND  cc.ComponentId = 'LS';
+
+UPDATE cy
+   SET cy.Amount = p.Total - p.Itemized
+  FROM dbo.tProjectComponentCostPerYear cy
+  JOIN #ParentLS p ON p.OnlyRowId = cy.Id
+ WHERE p.PerYearRows = 1
+   AND cy.Amount <> p.Total - p.Itemized;
 
 PRINT CONCAT('Remaining balance set on ', @@ROWCOUNT, ' per-year row(s).');
+
+IF EXISTS (SELECT 1 FROM #ParentLS WHERE PerYearRows <> 1)
+BEGIN
+    PRINT 'WARNING: these parents do not have exactly one live per-year row, so their';
+    PRINT '         balance was left alone. Section 5 will report them as DRIFT.';
+    SELECT ProjectId, PerYearRows, Total, Itemized FROM #ParentLS WHERE PerYearRows <> 1 ORDER BY ProjectId;
+END
 GO
 
 /* -- 5. Verification --------------------------------------------------------
