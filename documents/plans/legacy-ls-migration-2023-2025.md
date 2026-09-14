@@ -239,7 +239,16 @@ three parents live under a 2025 program; the four migrated ones have no children
 line the *loader* wrote on a revision it imported (`RevisionImported`), not only this script's —
 `P00700002LS` was the case that needed it.
 
-**Not done here.** API/UI verification on a scratch build (`ShowItemizedProjects` for
-`P00730052LS`, `UpdateLumpSum` echo, the `ls-*` Playwright specs) — the database side is proven
-by §8 and the views; the UI pass is the next step. The ~174,000 duplicated component pairs outside
-the linked children remain on `dev_200`, recorded in the group-load write-up §3.1.
+**UI/API pass (2026-09-14, scratch build on 5016 / Vite 8090, `myps_db_dev_200`).** `ls-contract`,
+`ls-list-tolerance` and `ls-module-ui-walkthrough.narrated`: **44 passed**. API: `LumpSumDetails`
+for `P00730052LS` reports 20,255,231,704.40 / 9,826,178,558.32 / 10,429,053,146.08 / 446 and
+`ShowItemizedProjects` pages 446 children carrying `ParentProjectId`, `AlternateId` = parent,
+`ProjectType 'LS'`, `ItemizationType 'Itemized'`; `P00900001LS` holds one `Lump Sum`/`LS`
+component of 500,000,000 on `DPWH-GAA-2025`; `P00830018LS` 7,998,736,757.37 / 0 / 242. A faithful
+`UpdateLumpSum` echo of `P00900001LS` and `P00730052LS` returns 200 and changes no figure (an echo
+that omits a detail field is refused by name under the Approved-program guard, as designed). UI:
+both detail pages render the three figures, the Approved banner and the one component; the list
+finds `P00830018LS` by description at "₱7,998,736,757.37 / ₱0 remaining / 242". The lock banner is
+deliberately suppressed while the program is Approved (`LumpSumForm.tsx`), so none shows on these
+parents. The ~174,000 duplicated component pairs outside the linked children remain on `dev_200`,
+recorded in the group-load write-up §3.1.
