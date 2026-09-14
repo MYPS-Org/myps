@@ -28,6 +28,23 @@ Only the **parent's** generated Project ID ends in `LS` — that is a constant, 
 a geographic code. A **child** takes its island code from its own Region, so a
 child in Region III ends in `LZ`.
 
+**Fifty-nine of the projects in the list are migrated 2024 data** (`myps_db_dev_200`,
+2026-09-14). They were brought onto the model above by
+`Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.2026-09-14.sql`; before it
+they were invisible, because their components stored `ComponentType` as the *code*
+(`'LS'`) and every reader here — `vLumpSumSet`'s `HasLSComponent`,
+`FindLSComponentAsync`, `GetLSComponentAsync` — joins on the *name*. Three things to
+expect of them. They sit under **Approved GAA-R programs**, so Create and Delete are
+refused and the details and component render read-only, while Save, Replenish and Import
+still work (see *An Approved program closes the project's record, not its money*). They
+have **no children**, so `Remaining` equals the allocation on every one. And their
+**Sub-Category was assigned by that script** from their descriptions — 54 of 55 matched
+a stated rule, one (`P00830018LS`) took a flagged fallback and is wrong; treat any of
+them as correctable rather than authoritative. Six carry a ₱0 allocation because the
+source data has none; Replenish is how they would be funded. The `MY…LS` identifiers on
+the same database are a **different module** and were deliberately not migrated —
+`documents/MYPS_LS_MY_Prefixed_Projects.md`.
+
 ---
 
 ## Folder structure

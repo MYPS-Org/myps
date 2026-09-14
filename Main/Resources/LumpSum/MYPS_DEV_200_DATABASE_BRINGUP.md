@@ -98,6 +98,46 @@ Left off, Lump Sum reads take shared locks and deadlock with writers. The sympto
 error — it is a 12-second read or a request that times out with nothing blocked in
 `sys.dm_exec_requests`. See the [Lump Sum deadlock RCA](MYPS_LUMPSUM_DEADLOCK_RCA.md).
 
+### Step 3b — Legacy 2024 Lump Sum data
+
+```
+sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.2026-09-14.sql
+```
+
+**Back up first.** This one soft-deletes component and per-year rows; both are reversible by
+hand, neither by re-running the script.
+
+Steps 1-3 give this database the Lump Sum *schema*. They deliberately carry no data
+migration, and the 2026-09-10 migration says so in its own header. But this lineage holds
+**59 Lump Sum projects migrated from 2024 data** — `ProjectPK` ending in `LS`, under three
+Approved GAA 2024 programs — and they predate the model entirely: their components store
+`ComponentType` as the *code* where every reader joins on the *name*, 53 carry an identical
+duplicate component, every component carries ten per-year rows of which one is real, none has
+a funding line, and 55 carry a `Thrust` the validators refuse. Step 3b is that migration.
+It is not optional if you want those projects in `/lumpsum`.
+
+**Do a dry run first.** Set `@DryRun = 1` in section 2b, read the Sub-Category pick table, then
+run for real. Every fallback in that table is a placeholder for someone to correct.
+
+**Expect:** `Legacy Lump Sum parents in scope: 59`, then `Committed.`, then every verification
+count **0** and:
+
+| Check | Wanted |
+|---|---|
+| `vLumpSumSet` | **62** — 3 sample + 59 migrated |
+| `vLumpSumChildSet` | **18**, unchanged |
+| Allocation held by the 59 | **4,778,229,699.08** |
+| Allocation invariant | **OK** on all 62, no DRIFT |
+
+Idempotent: a second run reports `parents in scope: 0` and stops.
+
+**MY-prefixed ids are excluded** — `MY00003005LS` and `MY00040003LS` belong to a module that
+is not implemented yet. They are inventoried in
+[MY-prefixed LS identifiers](../../../documents/MYPS_LS_MY_Prefixed_Projects.md) and are the only
+Lump-Sum-shaped ids here that have real children.
+
+Full write-up: [legacy Lump Sum migration](../../../documents/docs/engineering/MYPS_LEGACY_LS_MIGRATION_2026-09-14.md).
+
 ### Step 4 — Optional local fixtures
 
 Only if you need them. Both are local-dev only and must never touch a shared server.
