@@ -1,8 +1,34 @@
 /* =============================================================================
-   Lump Sum — migrate the legacy 2024 '…LS' projects onto the V3 data model
-   2026-09-14
+   Lump Sum — migrate the legacy '…LS' projects (2023 onwards) onto the V3 data model
+   2026-09-14, REVISION 2 the same day
    -----------------------------------------------------------------------------
    TARGET: localhost / myps_db_dev_200 first; SERVER-BOUND once proven.
+
+   REVISION 2 (2026-09-14). The first version migrated the 59 parents of 2024 and
+   declared that they had no itemized children. They have 2,028. The old data
+   model records an itemization as a dbo.history row against the CHILD —
+   'Itemized from Project: <parent>' — and in no project column, so the first
+   version's search of AlternateId / ParentProjectId / ParentWalletId could not
+   have found them. Consequences and changes:
+
+     - the 2023 and 2025 program groups were loaded from MYPS_BAK through the
+       reference pipeline (myps-gis-backend, app/data_migration), which now also
+       carries those history rows into tProjectNotes;
+     - section 1's scope spans 2023 onwards and RE-ADMITS an already-migrated
+       parent that holds a non-Lump-Sum component, has unlinked noted children,
+       or whose funding no longer balances;
+     - section 3 converts a non-Lump-Sum component (the 2025 OO-1 four hold a
+       'CW' one and nothing else) into the allocation, and folds extras;
+     - section 5b is new: it links the children from the notes and stamps them
+       as ImportItemizedProjects would, retiring their duplicate components
+       first;
+     - section 7 now derives the allocation as Remaining + Σ children and never
+       overwrites the stored balance — the first version had that backwards,
+       which is why it wrote the 22 itemized parents' funding lines short and
+       called six fully-itemized parents "unfunded".
+
+   The text below the line was written for the first version and is kept where
+   it is still true. Where it is not, the section's own header says so.
 
    WHY THIS FILE EXISTS
 
@@ -47,13 +73,14 @@
        LS component Total  = the FULL allocation = Σ the parent's live funding lines
        LS per-year Amount  = the REMAINING balance = Total − Σ children's costs
 
-   THERE ARE NO CHILDREN. Searched five ways — tProjectRevisions.AlternateId
-   equal to the parent's ProjectId, to its ProjectPK suffix, to its own
-   AlternateId, to its ExternalId, and containing its numeric core; plus
-   tProjects.ParentProjectId and ParentWalletId. Zero hits. (The 13 numeric-core
-   matches are unrelated regular projects — P00800005VS/LZ/MN — that merely share
-   a running number with P00800005LS.) So the balance equals the allocation for
-   all 59, and ItemizedTotal is 0.
+   THE CHILDREN (corrected in Revision 2). The first version said: "THERE ARE NO
+   CHILDREN. Searched five ways — AlternateId equal to the parent's ProjectId, to
+   its ProjectPK suffix, to its own AlternateId, to its ExternalId, and containing
+   its numeric core; plus ParentProjectId and ParentWalletId. Zero hits." Every
+   one of those searches was correct and the conclusion was not: the link is in
+   dbo.history, a free-text log, and nowhere else. Section 5b reads it from the
+   tProjectNotes rows the loader now carries across. 22 of the 59 have children;
+   the six with a zero balance are the ones whose children hold all of it.
 
    WHAT THIS FILE DELIBERATELY DOES NOT DO
 
@@ -135,21 +162,45 @@ GO
 /* =============================================================================
    1. The scope — built once, used by every section
    -----------------------------------------------------------------------------
-   A legacy Lump Sum parent is:
+   A CANDIDATE is a tProjects row that looks like a Lump Sum parent:
 
-     - a tProjects row whose ProjectPK ends in 'LS' (the parent's generated ID
-       carries 'LS' as its island code — a constant, not a geographic one;
-       FE/src/pages/LumpSum/LumpSum.md, "The model, in one paragraph"),
-     - NOT already ProjectType 'LS' (so the sample's three, and a second run's
-       own output, are excluded),
-     - with no ParentProjectId (a parent, never a child),
-     - and whose ProjectId does not start 'MY' (exclusion 1 in the header).
+     - ProjectPK or the latest live revision's ProjectId ends in 'LS' (the
+       parent's generated ID carries 'LS' as its island code — a constant, not a
+       geographic one; FE/src/pages/LumpSum/LumpSum.md, "The model, in one
+       paragraph"). ProjectId is checked as well as ProjectPK because the P008
+       group was renumbered: PK '…_P00800001LS' carries ProjectId 'P00800005LS'.
+     - no ParentProjectId — a parent, never a child,
+     - its program starts in 2023 or later (instruction, 2026-09-14: older data
+       needs sanitation before it is worth migrating),
+     - and its ProjectId does not start 'MY' (exclusion 1 in the header).
 
-   The MY clause matches nothing today — no MY-prefixed id is a ProjectPK, they
-   live only in AlternateId / MYId / ExternalId — but it states the exclusion
-   where a future restore would need it to hold.
+   A candidate is IN SCOPE when any of four things is true of it (REVISION 2,
+   2026-09-14). The first is the original rule; the rest are why this script now
+   has work to do on projects it has already migrated once:
+
+     R1  it is not ProjectType 'LS' yet — never migrated.
+     R2  its latest revision holds a live component that is not the Lump Sum
+         one. The 2025 OO-1 four hold a 'CW' Civil Works component and nothing
+         else; section 3 converts it. Without this, they would be listed with
+         an allocation the module cannot find.
+     R3  it has an 'Itemized from Project: <this ProjectId>' note naming a child
+         that is not yet linked. The 2024 parents were migrated on 2026-09-14
+         believing they had no children — see the header — and 2,027 of their
+         children are on this database with no ParentProjectId.
+     R4  its funding no longer equals Remaining + what its children hold. That
+         is the model's identity; a parent whose children were just linked by
+         R3 fails it until section 7 re-derives the allocation.
+
+   R1 alone is what made the previous version idempotent. R2-R4 are all written
+   against their own post-condition, so a second run still selects nothing.
    ============================================================================= */
 IF OBJECT_ID('tempdb..#Legacy') IS NOT NULL DROP TABLE #Legacy;
+
+/*  The component type name, needed by R2 before section 2b declares its own copy.
+    tProjectComponentCost stores the NAME ("Lump Sum") on rows the application
+    wrote and the CODE ('LS') on rows the migration loader wrote; both count. */
+DECLARE @LSNameScope nvarchar(200) =
+    (SELECT TOP 1 ComponentName FROM dbo.tOptionProjectComponentType WHERE ComponentId = N'LS');
 
 SELECT p.Id                 AS ProjectRowId,
        p.ProjectPK          AS ProjectPK,
@@ -164,7 +215,17 @@ SELECT p.Id                 AS ProjectRowId,
        lr.Thrust            AS Thrust,
        lr.Description       AS Description,
        g.StartYear          AS StartYear,
-       CAST(0 AS bit)       AS Skip
+       CAST(0 AS bit)       AS Skip,
+       /*  Why this row is here, printed below so the run explains itself. */
+       CAST(CASE WHEN ISNULL(p.ProjectType, N'') <> N'LS' THEN 1 ELSE 0 END AS bit) AS R1NotTyped,
+       CAST(CASE WHEN nonls.CostId IS NOT NULL          THEN 1 ELSE 0 END AS bit) AS R2NonLSComponent,
+       CAST(CASE WHEN kids.Unlinked > 0                 THEN 1 ELSE 0 END AS bit) AS R3UnlinkedChildren,
+       CAST(CASE WHEN ISNULL(p.ProjectType, N'') = N'LS'
+                  AND ABS(ISNULL(fund.Funded,0) - (ISNULL(bal.Remaining,0) + ISNULL(held.KidCost,0))) > 0.005
+                 THEN 1 ELSE 0 END AS bit) AS R4Drift,
+       /*  Was this revision written by the migration loader? Section 7 treats a
+           funding line on such a revision as the loader's, not a person's. */
+       CAST(CASE WHEN lr.DataImportId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS RevisionImported
 INTO   #Legacy
 FROM   dbo.tProjects p
 CROSS APPLY (
@@ -174,17 +235,80 @@ CROSS APPLY (
     ORDER  BY r.Id DESC
 ) lr
 JOIN   dbo.tPrograms g ON g.ProgramPK = p.ProgramFK
-WHERE  p.ProjectPK LIKE N'%LS'
-  AND  ISNULL(p.ProjectType, N'') <> N'LS'
+
+/*  R2: a live component on the latest revision that is not the Lump Sum one,
+    by NAME or by CODE, on either column. */
+OUTER APPLY (
+    SELECT TOP 1 cc.Id AS CostId
+    FROM   dbo.tProjectComponentCost cc
+    WHERE  cc.ProjectRevisionFK = lr.Id AND cc.IsDeleted = 0
+      AND  cc.ComponentType <> @LSNameScope
+      AND  cc.ComponentType <> N'LS'
+      AND  ISNULL(cc.ComponentId, N'') NOT IN (N'LS', N'LS1')
+) nonls
+
+/*  R3: children this parent is named by in the itemization notes the loader
+    carried across, that are not linked yet. A note lives on the CHILD's revision
+    and reads 'Itemized from Project: <parent ProjectId>'. */
+OUTER APPLY (
+    SELECT SUM(CASE WHEN kp.ParentProjectId IS NULL THEN 1 ELSE 0 END) AS Unlinked
+    FROM   dbo.tProjectNotes n
+    JOIN   dbo.tProjectRevisions kr ON kr.Id = n.ProjectRevisionFK AND kr.IsDeleted = 0
+    JOIN   dbo.tProjects kp         ON kp.ProjectPK = kr.ProjectFK
+    WHERE  n.[Description] LIKE N'Itemized from Project:%'
+      AND  LTRIM(RTRIM(SUBSTRING(n.[Description], 23, 60))) = lr.ProjectId
+) kids
+
+/*  R4: what the parent's children hold, counted the way vLumpSumSet counts it —
+    every project whose ParentProjectId names this parent, latest live revision,
+    live components — NOT by notes. The MyMYPS sample's three parents have
+    eighteen children linked by ParentProjectId and no notes at all; counting by
+    notes read them as childless and pulled them into scope as "drifting" when
+    they balance exactly. The harness caught that. */
+OUTER APPLY (
+    SELECT SUM(kc.Cost) AS KidCost
+    FROM   dbo.tProjects child
+    CROSS APPLY (SELECT TOP 1 kr.Id FROM dbo.tProjectRevisions kr
+                  WHERE kr.ProjectFK = child.ProjectPK AND kr.IsDeleted = 0 ORDER BY kr.Id DESC) kr
+    CROSS APPLY (SELECT ISNULL(SUM(kcc.Total), 0) AS Cost
+                 FROM   dbo.tProjectComponentCost kcc
+                 WHERE  kcc.ProjectRevisionFK = kr.Id AND kcc.IsDeleted = 0) kc
+    WHERE  child.ParentProjectId = lr.ProjectId
+) held
+
+OUTER APPLY (
+    SELECT SUM(f.Amount) AS Funded
+    FROM   dbo.tProjectFundingProfile f
+    WHERE  f.ProjectRevisionFK = lr.Id AND f.IsDeleted = 0
+) fund
+
+OUTER APPLY (
+    SELECT SUM(cy.Amount) AS Remaining
+    FROM   dbo.tProjectComponentCost cc
+    JOIN   dbo.tProjectComponentCostPerYear cy ON cy.ComponentCostFK = cc.Id AND cy.IsDeleted = 0
+    JOIN   dbo.tOptionProjectComponentType o   ON o.ComponentName = cc.ComponentType
+    WHERE  cc.ProjectRevisionFK = lr.Id AND cc.IsDeleted = 0 AND o.ComponentId = N'LS'
+) bal
+
+WHERE (p.ProjectPK LIKE N'%LS' OR lr.ProjectId LIKE N'%LS')
   AND  p.ParentProjectId IS NULL
-  AND  lr.ProjectId NOT LIKE N'MY%';
+  AND  lr.ProjectId NOT LIKE N'MY%'
+  AND  g.StartYear >= 2023
+  AND (
+        /* R1 */ ISNULL(p.ProjectType, N'') <> N'LS'
+     /* R2 */ OR nonls.CostId IS NOT NULL
+     /* R3 */ OR kids.Unlinked > 0
+     /* R4 */ OR (ISNULL(p.ProjectType, N'') = N'LS'
+                  AND ABS(ISNULL(fund.Funded,0) - (ISNULL(bal.Remaining,0) + ISNULL(held.KidCost,0))) > 0.005)
+      );
 
 DECLARE @Scope int = (SELECT COUNT(*) FROM #Legacy);
-PRINT CONCAT('Legacy Lump Sum parents in scope: ', @Scope);
+PRINT CONCAT('Lump Sum parents in scope: ', @Scope);
 
 IF @Scope = 0
 BEGIN
-    PRINT 'Nothing to migrate — every ...LS parent is already ProjectType ''LS''.';
+    PRINT 'Nothing to migrate — every ...LS parent from 2023 on is already on the model,';
+    PRINT 'holds only its Lump Sum component, has every noted child linked, and balances.';
     PRINT 'This is the expected result of a second run.';
     SET NOEXEC ON;
 END
@@ -196,7 +320,16 @@ SELECT   l.ProgramId, MAX(pl.[Name]) AS ProgramName, MAX(l.StartYear) AS StartYe
 FROM     #Legacy l
 LEFT JOIN dbo.vProgramLatest pl ON pl.ProgramPK = l.ProgramFK
 GROUP BY l.ProgramId
-ORDER BY Parents DESC;
+ORDER BY MAX(l.StartYear), Parents DESC;
+GO
+
+PRINT '--- scope by reason (a parent can be here for several) ---';
+SELECT SUM(CAST(R1NotTyped AS int))         AS [R1 not typed 'LS'],
+       SUM(CAST(R2NonLSComponent AS int))   AS [R2 holds a non-LS component],
+       SUM(CAST(R3UnlinkedChildren AS int)) AS [R3 has unlinked noted children],
+       SUM(CAST(R4Drift AS int))            AS [R4 allocation drift],
+       COUNT(*)                             AS [total]
+FROM   #Legacy;
 GO
 
 
@@ -219,10 +352,29 @@ BEGIN
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM dbo.tOptionFundingAgreement
-                WHERE Code = N'DPWH-GAA-2024' AND SourceOrg = N'GOP' AND IsActive = 1)
+/*  ONE FUNDING AGREEMENT PER PROGRAM YEAR IN SCOPE (Revision 2). The scope now
+    spans 2023-2025, and a GAA 2023 line item is funded under DPWH-GAA-2023, not
+    2024. Resolved for every distinct StartYear in #Legacy; any year without an
+    active 'GOP' / 'DPWH-GAA-<year>' row refuses the whole run, because writing a
+    2023 parent's funding line under the 2024 agreement would be a quiet lie the
+    project form then validates as fine. */
+IF OBJECT_ID('tempdb..#Agreement') IS NOT NULL DROP TABLE #Agreement;
+
+SELECT DISTINCT l.StartYear,
+       AgreementCode = N'DPWH-GAA-' + CAST(l.StartYear AS nvarchar(4)),
+       Present = CASE WHEN EXISTS (SELECT 1 FROM dbo.tOptionFundingAgreement a
+                                    WHERE a.Code = N'DPWH-GAA-' + CAST(l.StartYear AS nvarchar(4))
+                                      AND a.SourceOrg = N'GOP' AND a.IsActive = 1)
+                      THEN 1 ELSE 0 END
+INTO   #Agreement
+FROM   #Legacy l;
+
+PRINT '--- funding agreements by program year ---';
+SELECT StartYear, AgreementCode, CASE WHEN Present = 1 THEN 'active' ELSE 'MISSING' END AS state FROM #Agreement ORDER BY StartYear;
+
+IF EXISTS (SELECT 1 FROM #Agreement WHERE Present = 0)
 BEGIN
-    RAISERROR('REFUSED: funding agreement ''DPWH-GAA-2024'' under ''GOP'' is not an active row in dbo.tOptionFundingAgreement. Section 7 needs it. Pick the agreement this lineage uses before running.', 16, 1);
+    RAISERROR('REFUSED: a program year in scope has no active ''GOP'' / ''DPWH-GAA-<year>'' row in dbo.tOptionFundingAgreement (see the table above). Section 7 needs one per year. Add the agreement this lineage uses before running.', 16, 1);
     SET NOEXEC ON;
 END
 GO
@@ -259,21 +411,46 @@ PRINT '';
 
 
 /* -----------------------------------------------------------------------------
-   3. One live 'LS' component per parent
+   3. Exactly one live component, and it is the Lump Sum one
    -----------------------------------------------------------------------------
-   53 of the 59 carry an identical duplicate. vLumpSumSet SUMs the components
-   into LSCost, so leaving both doubles OriginalAllocation on every one of them.
+   A Lump Sum Project holds ONE component: the allocation. UpdateLumpSum refuses
+   any payload with a different number ("A Lump Sum Project holds exactly one
+   component…"), and vLumpSumSet SUMs whatever it finds into LSCost. Three shapes
+   arrive here that break that, and this section reduces all three to one row.
 
-   The survivor is the LOWEST Id — arbitrary but stable, and it is the one
-   FindLSComponentAsync would return (OrderBy(x => x.Id).FirstOrDefault), so the
+   1. AN IDENTICAL DUPLICATE — 53 of the 2024 parents carried one, and so do the
+      2023 rows. Not a data problem: the loader's component query selected
+      per-year columns under a SELECT DISTINCT meant to be per component, so one
+      component became one row per distinct (cost, dates) shape, each carrying
+      the whole Total. Left alone, every such parent reports DOUBLE its
+      allocation. Fixed at source on 2026-09-14 (app/data_migration/queries.py in
+      the myps-gis-backend repo), but rows already on this database still need
+      retiring.
+
+   2. A COMPONENT THAT IS NOT THE LUMP SUM ONE — the 2025 OO-1 four hold a 'CW'
+      Civil Works component and nothing else. That money IS their allocation:
+      they are Lump Sum line items whose component was never typed as such. The
+      survivor is CONVERTED, not discarded.
+
+   3. BOTH AT ONCE — an already-migrated parent that has since gained a stray
+      component. No such row exists here; the branch is for the server copy.
+
+   THE SURVIVOR is the lowest-Id Lump Sum component if the revision has one, else
+   the lowest-Id component of any type. Lowest Id because that is the row
+   FindLSComponentAsync returns (OrderBy(x => x.Id).FirstOrDefault) — so the
    script and the application agree about which row is the allocation.
 
-   IDENTICAL, OR HANDS OFF. A duplicate that is a true copy is a copy; one that
+   IDENTICAL, OR HANDS OFF. A duplicate proved a true copy is retired; one that
    differs is DATA, and deleting it would destroy a figure nobody has looked at.
    Compared on Total, live per-year row count, live per-year Σ Amount and live
    UACS-bearing row count. A revision whose duplicates differ is marked Skip and
-   sits out sections 4 and 7 — it is reported here and will show as DRIFT in the
-   verification, which is the correct outcome: visible, not silently averaged.
+   sits out the rest — reported here and showing as DRIFT in the verification,
+   which is the correct outcome: visible, not silently averaged.
+
+   A NON-DUPLICATE EXTRA COMPONENT IS FOLDED: its Total is added to the survivor
+   and it is retired, both figures printed. Its money belongs to the allocation,
+   and leaving it would fail the single-component rule. No row in this data needs
+   it; the branch exists so the server copy cannot surprise us.
 
    Soft delete only. IsDeleted = 1 on the component and on its per-year rows,
    stamped with @Who, reversible with one UPDATE.
@@ -284,67 +461,98 @@ SELECT l.ProjectId,
        l.RevisionId,
        cc.Id                                                          AS CostId,
        cc.Total                                                       AS Total,
+       cc.ComponentType                                               AS ComponentType,
+       ISNULL(cc.ComponentId, N'')                                    AS ComponentId,
+       /*  IS THIS THE LUMP SUM COMPONENT? By NAME **or** by CODE, on either
+           column. The module writes the canonical NAME ("Lump Sum") and every
+           reader joins on it; this lineage's loaded rows hold the CODE ('LS').
+           Matching only the name finds nothing here; matching only the code
+           would miss a parent someone has since re-saved through the form. */
+       CAST(CASE WHEN cc.ComponentType = @LSName
+                   OR cc.ComponentType = N'LS'
+                   OR ISNULL(cc.ComponentId, N'') IN (N'LS', N'LS1')
+                 THEN 1 ELSE 0 END AS bit)                            AS IsLS,
        PerYear   = (SELECT COUNT(*)            FROM dbo.tProjectComponentCostPerYear cy
                      WHERE cy.ComponentCostFK = cc.Id AND cy.IsDeleted = 0),
        PerYearSum= (SELECT ISNULL(SUM(cy.Amount), 0) FROM dbo.tProjectComponentCostPerYear cy
                      WHERE cy.ComponentCostFK = cc.Id AND cy.IsDeleted = 0),
        UacsRows  = (SELECT COUNT(*)            FROM dbo.tProjectComponentCostPerYear cy
                      WHERE cy.ComponentCostFK = cc.Id AND cy.IsDeleted = 0 AND cy.UACS IS NOT NULL),
-       rn        = ROW_NUMBER() OVER (PARTITION BY l.RevisionId ORDER BY cc.Id)
+       /*  Survivor first: a Lump Sum component outranks any other, then lowest Id. */
+       rn        = ROW_NUMBER() OVER (
+                       PARTITION BY l.RevisionId
+                       ORDER BY CASE WHEN cc.ComponentType = @LSName
+                                       OR cc.ComponentType = N'LS'
+                                       OR ISNULL(cc.ComponentId, N'') IN (N'LS', N'LS1')
+                                     THEN 0 ELSE 1 END,
+                                cc.Id)
 INTO   #Comp
 FROM   #Legacy l
 JOIN   dbo.tProjectComponentCost cc
   ON   cc.ProjectRevisionFK = l.RevisionId
- AND   cc.IsDeleted = 0
- /*  BY NAME **OR** BY CODE. The module writes the canonical NAME and every
-     reader joins on it, but this lineage's legacy rows hold the CODE (see the
-     header). Matching only the name finds nothing here; matching only the code
-     would miss a parent someone has since re-saved through the form. Section 3
-     normalises whichever it finds to the name, so after this runs there is one
-     spelling and the readers agree with the data. */
- AND  (cc.ComponentType = @LSName OR cc.ComponentType = N'LS');
+ AND   cc.IsDeleted = 0;
 
 /*  Counted into variables first: PRINT takes only scalar expressions, so a
     subquery inside its CONCAT fails the whole batch at PARSE time — before a
     single statement of this transaction runs. */
 DECLARE @CompRows int    = (SELECT COUNT(*) FROM #Comp);
 DECLARE @CompParents int = (SELECT COUNT(DISTINCT RevisionId) FROM #Comp);
-PRINT CONCAT('Live ''LS'' components found: ', @CompRows, ' across ', @CompParents, ' parent(s).');
+DECLARE @CompLS int      = (SELECT COUNT(*) FROM #Comp WHERE IsLS = 1);
+PRINT CONCAT('Live components found: ', @CompRows, ' across ', @CompParents,
+             ' parent(s); ', @CompLS, ' already typed as Lump Sum.');
 
-/*  A parent with NO live LS component cannot be a Lump Sum Project — vLumpSumSet
-    requires HasLSComponent = 1. Skip it and say so rather than flipping a type
-    that makes it invisible anyway. */
+/*  A parent with NO live component at all cannot be a Lump Sum Project —
+    vLumpSumSet requires HasLSComponent = 1 and there is nothing to convert.
+    Skip it and say so rather than flipping a type that leaves it invisible. */
 UPDATE l SET Skip = 1
 FROM   #Legacy l
 WHERE  NOT EXISTS (SELECT 1 FROM #Comp c WHERE c.RevisionId = l.RevisionId);
 
 IF @@ROWCOUNT > 0
 BEGIN
-    PRINT 'WARNING: these parents hold no live ''LS'' component and are SKIPPED —';
-    PRINT '         vLumpSumSet would not list them whatever their ProjectType.';
+    PRINT 'WARNING: these parents hold no live component at all and are SKIPPED —';
+    PRINT '         there is nothing to convert and vLumpSumSet would not list them.';
     SELECT ProjectId, Description FROM #Legacy WHERE Skip = 1 ORDER BY ProjectId;
 END
 
 /*  Duplicates that are not true copies. */
 IF OBJECT_ID('tempdb..#CompDiff') IS NOT NULL DROP TABLE #CompDiff;
 
-SELECT DISTINCT keep.RevisionId, keep.ProjectId
-INTO   #CompDiff
+/*  A TRUE COPY, or not. Compared against the survivor on everything that makes a
+    component what it is — its type class, its Total, and the shape of its
+    per-year rows. Only rows of the SAME class are compared: a 'CW' beside an
+    'LS' is not a duplicate of it, it is an extra component, and it is folded
+    below rather than retired as a copy. */
+SELECT keep.RevisionId, keep.ProjectId, dup.CostId,
+       CAST(CASE WHEN keep.IsLS = dup.IsLS
+                  AND keep.Total      = dup.Total
+                  AND keep.PerYear    = dup.PerYear
+                  AND keep.PerYearSum = dup.PerYearSum
+                  AND keep.UacsRows   = dup.UacsRows
+                 THEN 1 ELSE 0 END AS bit) AS IsTrueCopy
+INTO   #Dup
 FROM   #Comp keep
-JOIN   #Comp dup
-  ON   dup.RevisionId = keep.RevisionId AND dup.rn > 1
-WHERE  keep.rn = 1
-  AND (keep.Total      <> dup.Total
-    OR keep.PerYear    <> dup.PerYear
-    OR keep.PerYearSum <> dup.PerYearSum
-    OR keep.UacsRows   <> dup.UacsRows);
+JOIN   #Comp dup ON dup.RevisionId = keep.RevisionId AND dup.rn > 1
+WHERE  keep.rn = 1;
+
+/*  Several components of the SAME class that are NOT identical. That is data:
+    two different Lump Sum figures, or two different Civil Works figures, and no
+    rule here says which is right. Reported, skipped, left to a human. */
+IF OBJECT_ID('tempdb..#CompDiff') IS NOT NULL DROP TABLE #CompDiff;
+
+SELECT DISTINCT d.RevisionId, d.ProjectId
+INTO   #CompDiff
+FROM   #Dup d
+JOIN   #Comp keep ON keep.RevisionId = d.RevisionId AND keep.rn = 1
+JOIN   #Comp dup  ON dup.CostId = d.CostId
+WHERE  d.IsTrueCopy = 0 AND keep.IsLS = dup.IsLS;
 
 IF EXISTS (SELECT 1 FROM #CompDiff)
 BEGIN
-    PRINT 'WARNING: these parents carry SEVERAL live ''LS'' components that are NOT';
-    PRINT '         identical. Nothing was deleted and nothing was derived for them;';
-    PRINT '         section 8 will report them as DRIFT. Resolve by hand.';
-    SELECT c.ProjectId, c.CostId, c.Total, c.PerYear, c.PerYearSum, c.UacsRows
+    PRINT 'WARNING: these parents carry SEVERAL live components of the same kind that';
+    PRINT '         are NOT identical. Nothing was deleted and nothing was derived for';
+    PRINT '         them; section 8 reports them as DRIFT. Resolve by hand.';
+    SELECT c.ProjectId, c.CostId, c.ComponentType, c.ComponentId, c.IsLS, c.Total, c.PerYear, c.PerYearSum, c.UacsRows
     FROM   #Comp c JOIN #CompDiff d ON d.RevisionId = c.RevisionId
     ORDER  BY c.ProjectId, c.CostId;
 
@@ -352,32 +560,88 @@ BEGIN
     FROM   #Legacy l JOIN #CompDiff d ON d.RevisionId = l.RevisionId;
 END
 
-/*  Retire the surplus copies: their per-year rows first, then the components. */
+/*  The survivor, per parent — every later section works from this. Declared
+    before the retirements so the fold can add to it. */
+IF OBJECT_ID('tempdb..#Keep') IS NOT NULL DROP TABLE #Keep;
+
+SELECT c.ProjectId, c.RevisionId, c.CostId, c.Total, c.IsLS, c.ComponentType, c.ComponentId
+INTO   #Keep
+FROM   #Comp c
+JOIN   #Legacy l ON l.RevisionId = c.RevisionId AND l.Skip = 0
+WHERE  c.rn = 1;
+
+/*  FOLD the extras that are not true copies: their money is part of the
+    allocation, and the single-component rule leaves nowhere else to put it.
+    Printed in full — a fold changes a stored figure, which is the kind of thing
+    that must never happen quietly. Expected to be 0 on this data. */
+IF OBJECT_ID('tempdb..#Fold') IS NOT NULL DROP TABLE #Fold;
+
+SELECT d.RevisionId, d.ProjectId, d.CostId, c.ComponentType, c.ComponentId, c.Total
+INTO   #Fold
+FROM   #Dup d
+JOIN   #Comp c    ON c.CostId = d.CostId
+JOIN   #Keep k    ON k.RevisionId = d.RevisionId      -- excludes skipped parents
+JOIN   #Comp keep ON keep.RevisionId = d.RevisionId AND keep.rn = 1
+WHERE  d.IsTrueCopy = 0 AND keep.IsLS <> c.IsLS;
+
+IF EXISTS (SELECT 1 FROM #Fold)
+BEGIN
+    PRINT 'FOLDING these extra components into the surviving allocation:';
+    SELECT f.ProjectId, f.CostId, f.ComponentType, f.ComponentId, f.Total AS FoldedIn,
+           k.Total AS SurvivorBefore, k.Total + f.Total AS SurvivorAfter
+    FROM   #Fold f JOIN #Keep k ON k.RevisionId = f.RevisionId
+    ORDER  BY f.ProjectId, f.CostId;
+
+    UPDATE cc
+       SET cc.Total = cc.Total + fold.Amount, cc.UpdatedBy = @Who, cc.UpdatedDate = @Now
+      FROM dbo.tProjectComponentCost cc
+      JOIN #Keep k ON k.CostId = cc.Id
+      JOIN (SELECT RevisionId, SUM(Total) AS Amount FROM #Fold GROUP BY RevisionId) fold
+        ON fold.RevisionId = k.RevisionId;
+    PRINT CONCAT('Folded into ', @@ROWCOUNT, ' surviving component(s).');
+
+    /*  Keep #Keep's Total in step — section 7 reads it. */
+    UPDATE k SET k.Total = k.Total + fold.Amount
+      FROM #Keep k
+      JOIN (SELECT RevisionId, SUM(Total) AS Amount FROM #Fold GROUP BY RevisionId) fold
+        ON fold.RevisionId = k.RevisionId;
+
+    /*  THE BALANCE RISES BY THE SAME AMOUNT. Folded money is allocation nobody has
+        drawn on, so it is also remaining — exactly what RaiseLSAllocationAsync does
+        for a Replenish: Total and the per-year row move together. Onto the
+        survivor's earliest live row, as MoveLSBalanceAsync puts it. Without this,
+        section 7 (which derives the allocation FROM the balance, D14) would read
+        the pre-fold balance and quietly undo the fold — the harness caught exactly
+        that: 5,000,000 + 700,000 folded, allocation back at 5,000,000. */
+    UPDATE cy
+       SET cy.Amount = cy.Amount + fold.Amount, cy.UpdatedBy = @Who, cy.UpdatedDate = @Now
+      FROM dbo.tProjectComponentCostPerYear cy
+      JOIN #Keep k ON k.CostId = cy.ComponentCostFK
+      JOIN (SELECT RevisionId, SUM(Total) AS Amount FROM #Fold GROUP BY RevisionId) fold
+        ON fold.RevisionId = k.RevisionId
+     WHERE cy.Id = (SELECT MIN(x.Id) FROM dbo.tProjectComponentCostPerYear x
+                    WHERE x.ComponentCostFK = k.CostId AND x.IsDeleted = 0);
+    PRINT CONCAT('Balance raised by the folded amount on ', @@ROWCOUNT, ' per-year row(s).');
+END
+
+/*  Retire every surplus row: true copies and folded extras alike. A component
+    belonging to a skipped parent is left exactly as found. */
 UPDATE cy
    SET cy.IsDeleted = 1, cy.UpdatedBy = @Who, cy.UpdatedDate = @Now
   FROM dbo.tProjectComponentCostPerYear cy
-  JOIN #Comp c ON c.CostId = cy.ComponentCostFK
-  LEFT JOIN #CompDiff d ON d.RevisionId = c.RevisionId
- WHERE c.rn > 1 AND d.RevisionId IS NULL AND cy.IsDeleted = 0;
+  JOIN #Dup d ON d.CostId = cy.ComponentCostFK
+  LEFT JOIN #CompDiff x ON x.RevisionId = d.RevisionId
+ WHERE x.RevisionId IS NULL AND cy.IsDeleted = 0;
 SET @Rows = @@ROWCOUNT;
 
 UPDATE cc
    SET cc.IsDeleted = 1, cc.UpdatedBy = @Who, cc.UpdatedDate = @Now
   FROM dbo.tProjectComponentCost cc
-  JOIN #Comp c ON c.CostId = cc.Id
-  LEFT JOIN #CompDiff d ON d.RevisionId = c.RevisionId
- WHERE c.rn > 1 AND d.RevisionId IS NULL AND cc.IsDeleted = 0;
+  JOIN #Dup d ON d.CostId = cc.Id
+  LEFT JOIN #CompDiff x ON x.RevisionId = d.RevisionId
+ WHERE x.RevisionId IS NULL AND cc.IsDeleted = 0;
 
-PRINT CONCAT('Retired ', @@ROWCOUNT, ' duplicate ''LS'' component(s) and ', @Rows, ' of their per-year row(s).');
-
-/*  The survivor, per parent — every later section works from this. */
-IF OBJECT_ID('tempdb..#Keep') IS NOT NULL DROP TABLE #Keep;
-
-SELECT c.ProjectId, c.RevisionId, c.CostId, c.Total
-INTO   #Keep
-FROM   #Comp c
-JOIN   #Legacy l ON l.RevisionId = c.RevisionId AND l.Skip = 0
-WHERE  c.rn = 1;
+PRINT CONCAT('Retired ', @@ROWCOUNT, ' surplus component(s) and ', @Rows, ' of their per-year row(s).');
 
 /*  ComponentType: the CODE -> the canonical NAME.
 
@@ -393,10 +657,25 @@ WHERE  c.rn = 1;
 
     Written against its post-condition, so a re-run and an already-correct row
     both match nothing. */
+IF EXISTS (SELECT 1 FROM #Keep WHERE IsLS = 0)
+BEGIN
+    PRINT 'CONVERTING these components to the Lump Sum allocation — their money IS the';
+    PRINT 'allocation; the component was simply never typed as such:';
+    SELECT ProjectId, CostId, ComponentType AS WasType, ComponentId AS WasId, Total
+    FROM   #Keep WHERE IsLS = 0 ORDER BY ProjectId;
+END
+
 UPDATE cc SET cc.ComponentType = @LSName, cc.UpdatedBy = @Who, cc.UpdatedDate = @Now
   FROM dbo.tProjectComponentCost cc JOIN #Keep k ON k.CostId = cc.Id
  WHERE cc.ComponentType <> @LSName;
-PRINT CONCAT('ComponentType normalised to the canonical name on ', @@ROWCOUNT, ' component row(s).');
+PRINT CONCAT('ComponentType set to the canonical Lump Sum name on ', @@ROWCOUNT, ' component row(s).');
+
+/*  A converted component still describes the work it used to be ("Civil Works").
+    Left alone where it says anything else: a description someone typed is theirs. */
+UPDATE cc SET cc.[Description] = @LSName, cc.UpdatedBy = @Who, cc.UpdatedDate = @Now
+  FROM dbo.tProjectComponentCost cc JOIN #Keep k ON k.CostId = cc.Id
+ WHERE k.IsLS = 0 AND cc.[Description] IN (N'Civil Works', N'CW');
+PRINT CONCAT('Description updated on ', @@ROWCOUNT, ' converted component(s).');
 
 /*  ComponentId 'LS1' -> 'LS', the same normalisation LumpSum.ComponentMigration
     §1 applies. Expected to match nothing on this lineage (these rows already
@@ -474,6 +753,22 @@ UPDATE cy
 
 PRINT CONCAT('Blank UACS cleared to NULL on ', @@ROWCOUNT, ' per-year row(s).');
 
+/*  A YEAR THAT IS NOT A YEAR. The loader derives Year from the id's digit
+    segment (+2015+stream year), which is right for every id here, but a
+    malformed id or a hand-made row can land 1 or 0 — and DATEFROMPARTS below
+    would then mint the year 0001 without complaint. Clamped to the program's
+    StartYear before the dates are derived, and printed, because a wrong year is
+    a fact about the row worth knowing. Expected 0 on this data. */
+UPDATE cy
+   SET cy.Year = l.StartYear, cy.UpdatedBy = @Who, cy.UpdatedDate = @Now
+  FROM dbo.tProjectComponentCostPerYear cy
+  JOIN #Keep k   ON k.CostId = cy.ComponentCostFK
+  JOIN #Legacy l ON l.RevisionId = k.RevisionId
+ WHERE cy.IsDeleted = 0
+   AND (cy.Year < 2000 OR cy.Year > 2100);
+
+PRINT CONCAT('Year clamped to the program start year on ', @@ROWCOUNT, ' per-year row(s).');
+
 UPDATE cy
    SET cy.StartDate = DATEFROMPARTS(cy.Year, 1, 1),
        cy.EndDate   = DATEFROMPARTS(cy.Year, 12, 31),
@@ -518,24 +813,221 @@ END
    on CreateLumpSum's own write). Already 0 on all 59; stated so the server copy
    cannot inherit a 1.
 
-   ParentProjectId, ItemizationType and ProjectStatus stay NULL — they are the
-   CHILD's columns, and vLumpSumChildSet's membership is ParentProjectId IS NOT
-   NULL. Writing them here would move all 59 into the children view.
+   ParentProjectId, ItemizationType and ProjectStatus stay NULL ON THE PARENT —
+   they are the CHILD's columns, and vLumpSumChildSet's membership is
+   ParentProjectId IS NOT NULL. Writing them here would move every parent into
+   the children view. Section 5b writes them on the children.
 
-   AlternateId is left exactly as found. On a PARENT it is free text
-   (CreateLumpSum writes dto.AlternateId straight through); the "AlternateId is
-   the parent's Project ID" rule of 2026-09-05 is the CHILD's, and there are no
-   children. The P008 four carry their pre-renumber ID there, which is a fact
-   about them worth keeping.
+   AlternateId is left exactly as found on a PARENT: it is free text there
+   (CreateLumpSum writes dto.AlternateId straight through). The "AlternateId is
+   the parent's Project ID" rule of 2026-09-05 is the CHILD's, and section 5b
+   applies it to the children. The P008 four carry their pre-renumber ID here,
+   which is a fact about them worth keeping.
    -------------------------------------------------------------------------- */
 UPDATE p
    SET p.ProjectType   = N'LS',
        p.IsPublishable = 0
   FROM dbo.tProjects p
   JOIN #Legacy l ON l.ProjectPK = p.ProjectPK
- WHERE l.Skip = 0;
+ WHERE l.Skip = 0
+   AND (ISNULL(p.ProjectType, N'') <> N'LS' OR p.IsPublishable <> 0);
 
 PRINT CONCAT('ProjectType set to ''LS'' on ', @@ROWCOUNT, ' project(s).');
+
+
+/* -----------------------------------------------------------------------------
+   5b. The children  (Revision 2, 2026-09-14)
+   -----------------------------------------------------------------------------
+   THE FIRST VERSION OF THIS SCRIPT SAID THERE WERE NO CHILDREN. It searched
+   AlternateId, ParentProjectId and ParentWalletId and found none, and concluded
+   from that. The conclusion was wrong: the old data model records an itemization
+   in NONE of those columns. It records it as a dbo.history row against the
+   CHILD, in the GAA-R program only —
+
+       'Itemized from Project: P00730052LS'
+
+   — and the loader now carries those rows into tProjectNotes on the child's
+   revision (build_project_notes_sql, myps-gis-backend). Of 42,589 such notes in
+   the source, not one has the child's alternate_id equal to the parent it names;
+   the original search was thorough and could not have found them.
+
+   This section is the consumer of those notes. For every note naming a parent
+   in scope it does what ImportItemizedProjects does when it creates a child
+   (LumpsumController.Import.cs, the tProjects and tProjectRevisions writes):
+
+     tProjects.ParentProjectId   := the parent's ProjectId   — THE LINK. It is
+                                    what vLumpSumChildSet lists by, what
+                                    vLumpSumSet counts ItemizedTotal from, what
+                                    ShowItemizedProjects filters on and what
+                                    DeleteItemizedProject resolves the parent
+                                    through.
+     tProjects.ProjectType       := 'LS'        (the importer writes it on every child)
+     tProjects.ItemizationType   := 'Itemized'
+     tProjects.ProjectStatus     := 'potential', or 'scheduled' if the child is
+                                    already published (LumpSum.Baseline §6's rule)
+     revision.AlternateId        := the parent's ProjectId   (rule 2026-09-05)
+     funding.IsWalletDraw        := 1 on the child's live lines — the flag
+                                    vLumpSumChildSet.CurrentDrawAmount sums
+
+   FIRST, THE CHILD'S OWN DUPLICATE COMPONENTS (decision D13). The 2024 children
+   were loaded by the old component query and carry two identical copies of each
+   component — 2,237 of their 2,280 (revision, component) pairs. vLumpSumSet reads
+   a child's cost as the SUM of its live components, so linking them as-is would
+   double every 2024 parent's ItemizedTotal. The same identical-copy rule as
+   section 3, per ComponentId, lowest Id survives; a child whose copies are NOT
+   identical is still linked — its cost is whatever its live rows sum to — and is
+   printed, because that is a figure someone should look at.
+
+   Only where ParentProjectId IS NULL. A child already linked to THIS parent is
+   left alone; one linked to a DIFFERENT parent is printed and left alone too,
+   since two notes disagreeing is not something a migration should settle.
+   -------------------------------------------------------------------------- */
+IF OBJECT_ID('tempdb..#Kids') IS NOT NULL DROP TABLE #Kids;
+
+/*  One row per (child, parent) named by a note, restricted to parents in scope.
+    The note text after the 22-character prefix is the parent's ProjectId. */
+SELECT DISTINCT
+       kp.ProjectPK                                    AS ChildPK,
+       kp.ParentProjectId                              AS ChildLinkedTo,   -- NULL today
+       kp.IsPublished                                  AS ChildIsPublished,
+       l.ProjectId                                     AS ParentProjectId,
+       l.RevisionId                                    AS ParentRevisionId,
+       l.StartYear                                     AS StartYear
+INTO   #Kids
+FROM   dbo.tProjectNotes n
+JOIN   dbo.tProjectRevisions kr ON kr.Id = n.ProjectRevisionFK AND kr.IsDeleted = 0
+JOIN   dbo.tProjects kp         ON kp.ProjectPK = kr.ProjectFK
+JOIN   #Legacy l                ON l.ProjectId = LTRIM(RTRIM(SUBSTRING(n.[Description], 23, 60)))
+                               AND l.Skip = 0
+WHERE  n.[Description] LIKE N'Itemized from Project:%';
+
+DECLARE @KidRows int = (SELECT COUNT(*) FROM #Kids);
+DECLARE @KidParents int = (SELECT COUNT(DISTINCT ParentProjectId) FROM #Kids);
+PRINT CONCAT('Itemization notes naming a parent in scope: ', @KidRows, ' child(ren) under ', @KidParents, ' parent(s).');
+
+/*  A child two notes give to two different parents, or one already linked
+    elsewhere. Neither is this script's to decide. */
+IF EXISTS (SELECT 1 FROM #Kids k WHERE k.ChildLinkedTo IS NOT NULL AND k.ChildLinkedTo <> k.ParentProjectId)
+   OR EXISTS (SELECT ChildPK FROM #Kids GROUP BY ChildPK HAVING COUNT(DISTINCT ParentProjectId) > 1)
+BEGIN
+    PRINT 'WARNING: these children are claimed by more than one parent, or are already';
+    PRINT '         linked to a different one. Left exactly as found; resolve by hand.';
+    SELECT k.ChildPK, k.ChildLinkedTo, k.ParentProjectId
+    FROM   #Kids k
+    WHERE (k.ChildLinkedTo IS NOT NULL AND k.ChildLinkedTo <> k.ParentProjectId)
+       OR  k.ChildPK IN (SELECT ChildPK FROM #Kids GROUP BY ChildPK HAVING COUNT(DISTINCT ParentProjectId) > 1)
+    ORDER  BY k.ChildPK;
+
+    DELETE k FROM #Kids k
+    WHERE (k.ChildLinkedTo IS NOT NULL AND k.ChildLinkedTo <> k.ParentProjectId)
+       OR  k.ChildPK IN (SELECT ChildPK FROM #Kids GROUP BY ChildPK HAVING COUNT(DISTINCT ParentProjectId) > 1);
+END
+
+/*  Each child's latest live revision — the one every view reads. */
+IF OBJECT_ID('tempdb..#KidRev') IS NOT NULL DROP TABLE #KidRev;
+
+SELECT k.ChildPK, k.ParentProjectId, k.StartYear, kr.Id AS RevisionId
+INTO   #KidRev
+FROM   #Kids k
+CROSS APPLY (SELECT TOP 1 r.Id FROM dbo.tProjectRevisions r
+             WHERE r.ProjectFK = k.ChildPK AND r.IsDeleted = 0 ORDER BY r.Id DESC) kr;
+
+/*  Duplicate components on the children, same rule as section 3. */
+IF OBJECT_ID('tempdb..#KidComp') IS NOT NULL DROP TABLE #KidComp;
+
+SELECT kr.ChildPK, kr.StartYear, cc.Id AS CostId, ISNULL(cc.ComponentId, N'') AS ComponentId, cc.Total,
+       PerYear    = (SELECT COUNT(*) FROM dbo.tProjectComponentCostPerYear cy WHERE cy.ComponentCostFK = cc.Id AND cy.IsDeleted = 0),
+       PerYearSum = (SELECT ISNULL(SUM(cy.Amount), 0) FROM dbo.tProjectComponentCostPerYear cy WHERE cy.ComponentCostFK = cc.Id AND cy.IsDeleted = 0),
+       UacsRows   = (SELECT COUNT(*) FROM dbo.tProjectComponentCostPerYear cy WHERE cy.ComponentCostFK = cc.Id AND cy.IsDeleted = 0 AND cy.UACS IS NOT NULL),
+       rn         = ROW_NUMBER() OVER (PARTITION BY kr.RevisionId, ISNULL(cc.ComponentId, N'') ORDER BY cc.Id)
+INTO   #KidComp
+FROM   #KidRev kr
+JOIN   dbo.tProjectComponentCost cc ON cc.ProjectRevisionFK = kr.RevisionId AND cc.IsDeleted = 0;
+
+IF OBJECT_ID('tempdb..#KidDup') IS NOT NULL DROP TABLE #KidDup;
+
+SELECT dup.ChildPK, dup.StartYear, dup.CostId, dup.ComponentId,
+       IsTrueCopy = CAST(CASE WHEN keep.Total = dup.Total AND keep.PerYear = dup.PerYear
+                               AND keep.PerYearSum = dup.PerYearSum AND keep.UacsRows = dup.UacsRows
+                              THEN 1 ELSE 0 END AS bit)
+INTO   #KidDup
+FROM   #KidComp keep
+JOIN   #KidComp dup ON dup.ChildPK = keep.ChildPK AND dup.ComponentId = keep.ComponentId AND dup.rn > 1
+WHERE  keep.rn = 1;
+
+IF EXISTS (SELECT 1 FROM #KidDup WHERE IsTrueCopy = 0)
+BEGIN
+    PRINT 'WARNING: these children carry several live rows of the same component that are';
+    PRINT '         NOT identical. Linked anyway; their cost is the sum of their live rows,';
+    PRINT '         and nothing of theirs was retired. Look at them.';
+    SELECT c.ChildPK, c.CostId, c.ComponentId, c.Total, c.PerYear, c.PerYearSum
+    FROM   #KidComp c JOIN #KidDup d ON d.ChildPK = c.ChildPK AND d.ComponentId = c.ComponentId AND d.IsTrueCopy = 0
+    ORDER  BY c.ChildPK, c.ComponentId, c.CostId;
+END
+
+UPDATE cy
+   SET cy.IsDeleted = 1, cy.UpdatedBy = @Who, cy.UpdatedDate = @Now
+  FROM dbo.tProjectComponentCostPerYear cy
+  JOIN #KidDup d ON d.CostId = cy.ComponentCostFK
+ WHERE d.IsTrueCopy = 1 AND cy.IsDeleted = 0;
+SET @Rows = @@ROWCOUNT;
+
+UPDATE cc
+   SET cc.IsDeleted = 1, cc.UpdatedBy = @Who, cc.UpdatedDate = @Now
+  FROM dbo.tProjectComponentCost cc
+  JOIN #KidDup d ON d.CostId = cc.Id
+ WHERE d.IsTrueCopy = 1 AND cc.IsDeleted = 0;
+
+PRINT CONCAT('Retired ', @@ROWCOUNT, ' duplicate child component(s) and ', @Rows, ' of their per-year row(s).');
+SELECT StartYear, COUNT(*) AS retired_copies FROM #KidDup WHERE IsTrueCopy = 1 GROUP BY StartYear ORDER BY StartYear;
+
+/*  THE LINK, and the stamps that go with it. */
+UPDATE p
+   SET p.ParentProjectId = k.ParentProjectId,
+       p.ProjectType     = N'LS',
+       p.ItemizationType = N'Itemized',
+       p.ProjectStatus   = CASE WHEN p.IsPublished = 1 THEN N'scheduled' ELSE N'potential' END
+  FROM dbo.tProjects p
+  JOIN #Kids k ON k.ChildPK = p.ProjectPK
+ WHERE p.ParentProjectId IS NULL;
+
+PRINT CONCAT('Linked ', @@ROWCOUNT, ' child(ren) to their Lump Sum parent.');
+
+UPDATE r
+   SET r.AlternateId = k.ParentProjectId, r.UpdatedBy = @Who, r.UpdatedDate = @Now
+  FROM dbo.tProjectRevisions r
+  JOIN #KidRev k ON k.RevisionId = r.Id
+ WHERE ISNULL(r.AlternateId, N'') <> k.ParentProjectId;
+
+PRINT CONCAT('Alternate ID set to the parent''s Project ID on ', @@ROWCOUNT, ' child revision(s).');
+
+UPDATE f
+   SET f.IsWalletDraw = 1, f.UpdatedBy = @Who, f.UpdatedDate = @Now
+  FROM dbo.tProjectFundingProfile f
+  JOIN #KidRev k ON k.RevisionId = f.ProjectRevisionFK
+ WHERE f.IsDeleted = 0 AND f.IsWalletDraw = 0;
+
+PRINT CONCAT('IsWalletDraw set on ', @@ROWCOUNT, ' child funding line(s).');
+
+/*  What the NOTES gave each parent — informational. Section 7 does not read
+    this: it counts children by ParentProjectId, which after the link above
+    includes these and any linked by other means (the sample fixture's eighteen). */
+IF OBJECT_ID('tempdb..#NoteKidCost') IS NOT NULL DROP TABLE #NoteKidCost;
+
+SELECT k.ParentProjectId,
+       Children = COUNT(*),
+       KidCost  = SUM(kc.Cost)
+INTO   #NoteKidCost
+FROM   #KidRev k
+CROSS APPLY (SELECT ISNULL(SUM(cc.Total), 0) AS Cost
+             FROM   dbo.tProjectComponentCost cc
+             WHERE  cc.ProjectRevisionFK = k.RevisionId AND cc.IsDeleted = 0) kc
+GROUP  BY k.ParentProjectId;
+
+PRINT '--- children linked from the notes, per parent ---';
+SELECT l.StartYear, kc.ParentProjectId, kc.Children, kc.KidCost
+FROM   #NoteKidCost kc JOIN #Legacy l ON l.ProjectId = kc.ParentProjectId
+ORDER  BY l.StartYear, kc.ParentProjectId;
 
 
 /* -----------------------------------------------------------------------------
@@ -682,53 +1174,160 @@ END
 
 
 /* -----------------------------------------------------------------------------
-   7. The allocation: a funding line, then derive
+   7. The allocation  (Revision 2, 2026-09-14 — decisions D12 / D14)
    -----------------------------------------------------------------------------
-   Not one of the 59 has a funding line, and since 2026-09-06 the allocation IS
-   the sum of the live funding lines: SyncLSToFundingAsync sets
-   Total := Σ funding on EVERY save. So a parent left without one does not merely
-   look odd in the funding table — the first time anybody presses Save, its
-   allocation is rewritten to zero. The line is not cosmetic; it is where the
-   number lives.
+   THE MODEL (maintainer decision, 2026-09-06):
 
-   ONE LINE, at 100%, for the component's current Total — which is what
-   CreateLumpSum writes for a new project, and what the project form's
-   "funding must total 100%" rule requires.
+       LS component Total   = the FULL allocation  = Σ the parent's live funding lines
+       LS per-year Amount   = the REMAINING balance = Total − Σ children's costs
 
-   IsWalletDraw = FALSE. That flag marks a CHILD's draw against its parent;
-   flagging a Lump Sum Project's own funding would make it a claimant against
-   itself (CreateLumpSum's own comment).
+   WHAT THE FIRST VERSION GOT WRONG. It wrote the funding line at the component's
+   stored Total and then set Amount := Total − Σ children. With no children
+   linked, that made Amount = Total, and both equal to the stored figure. But the
+   stored figure IS the remaining balance: itemization in the old system deducted
+   each child from the parent's cost, so what the loader carried over is what was
+   LEFT, not what was GIVEN. P00730052LS: 11,000,000,000 at GAA, 9,826,178,558.32
+   at GAA-R, 446 children costing 10,429,053,146.08. The 22 parents that had
+   children therefore received a funding line short by their itemized total — and
+   the six with nothing left were written up as "unfunded" when they were fully
+   itemized.
 
-   Source GOP / agreement DPWH-GAA-2024: these are GAA 2024 programs, and this is
-   the 2024 analogue of the DPWH-GAA-2025 line the sample fixture carries.
-   Resolved from the lookup and REFUSED if absent, rather than written blind —
-   the project form validates the pair against tOptionFundingAgreement.
+   THE DIRECTION IS NOW THE OTHER WAY (D14). The stored per-year Amount is never
+   overwritten: it is the remaining balance and always was. The allocation is
+   DERIVED from it:
 
-   SIX PARENTS HAVE Total = 0 (decision D2): they get a ₱0 line and list with
-   OriginalAllocation 0 / Remaining 0. That is truthful — they are unfunded line
-   items — and Replenish is how they would be funded later.
+       Kids      := Σ linked children's latest-revision live component Totals
+       Remaining := the surviving per-year row's Amount, as stored
+       Target    := Remaining + Kids
 
-   THEN THE TWO DERIVATIONS, computed exactly as vLumpSumSet computes them or
-   the view will disagree and section 8 reports DRIFT:
-       Total  := Σ live funding lines
-       Amount := Total − Σ children's costs, and there are no children, so Total.
-   Only parents with exactly one live per-year row are derived (section 4).
+   and the funding line and component Total are set to Target. The old
+   "Amount := Total − Kids" UPDATE is now an ASSERTION: a row that fails it is
+   printed as DRIFT and not written. That reversal is what makes correcting the
+   2024 parents non-destructive — nothing they hold has to be undone, only the
+   line this script itself wrote gets raised.
+
+   THE FUNDING LINE. One line at 100%, IsWalletDraw = 0 (that flag marks a
+   CHILD's draw; a parent's own line is not a claim against itself). Source GOP
+   under the program year's DPWH-GAA agreement, proven present per year by
+   section 2. Three shapes:
+
+     - no live line                   → insert one at Target (most 2023 / 2025 parents)
+     - exactly one live line that is THE MIGRATION's — either written by this
+       script on an earlier run (CreatedBy = @Who) or carried over by the loader
+       on a revision it wrote (the revision carries DataImportId) — and it
+       disagrees with Target         → set it to Target, old and new printed.
+                                       The 22 already-migrated 2024 parents are
+                                       the first kind; P00700002LS is the
+                                       second: the old system's own funding row,
+                                       which recorded the same post-itemization
+                                       figure the cost did, and pre-dates the
+                                       model just as much.
+     - anything else — several lines, or a line a person entered in the app
+                                     → not touched, printed, shows as DRIFT in 8.
+                                       A figure a person entered is theirs.
+
+   CHILDREN ARE COUNTED BY ParentProjectId, exactly as vLumpSumSet counts
+   ItemizedTotal — not by notes. After section 5b that includes every noted
+   child, and it also includes children linked by other means, such as the
+   sample fixture's eighteen, which have no notes and must still be subtracted.
+
+   Since 2026-09-06 SyncLSToFundingAsync sets Total := Σ funding on EVERY save, so
+   the line is not cosmetic — it is where the allocation lives, and a parent
+   without one is rewritten to zero the first time anyone presses Save.
+
+   Only parents with exactly one live per-year row are derived (section 4); the
+   rest are reported there and left alone.
    -------------------------------------------------------------------------- */
-DECLARE @Source    nvarchar(100) = N'GOP';
-DECLARE @Agreement nvarchar(100) = N'DPWH-GAA-2024';   -- proven present by section 2
+DECLARE @Source nvarchar(100) = N'GOP';
 
+/*  What each parent's children hold NOW — by ParentProjectId, latest live
+    revision, live components: vLumpSumSet's own arithmetic. */
+IF OBJECT_ID('tempdb..#KidCost') IS NOT NULL DROP TABLE #KidCost;
+
+SELECT k.ProjectId AS ParentProjectId,
+       Children = COUNT(child.ProjectPK),
+       KidCost  = ISNULL(SUM(kc.Cost), 0)
+INTO   #KidCost
+FROM   #Keep k
+LEFT JOIN dbo.tProjects child ON child.ParentProjectId = k.ProjectId
+OUTER APPLY (SELECT TOP 1 kr.Id FROM dbo.tProjectRevisions kr
+              WHERE kr.ProjectFK = child.ProjectPK AND kr.IsDeleted = 0 ORDER BY kr.Id DESC) kr
+OUTER APPLY (SELECT ISNULL(SUM(kcc.Total), 0) AS Cost
+             FROM   dbo.tProjectComponentCost kcc
+             WHERE  kcc.ProjectRevisionFK = kr.Id AND kcc.IsDeleted = 0) kc
+GROUP  BY k.ProjectId;
+
+IF OBJECT_ID('tempdb..#Alloc') IS NOT NULL DROP TABLE #Alloc;
+
+SELECT k.ProjectId, k.RevisionId, k.CostId,
+       ag.AgreementCode,
+       Remaining = cy.Amount,
+       Kids      = ISNULL(kc.KidCost, 0),
+       Children  = ISNULL(kc.Children, 0),
+       Target    = cy.Amount + ISNULL(kc.KidCost, 0),
+       LiveLines = (SELECT COUNT(*) FROM dbo.tProjectFundingProfile f
+                    WHERE f.ProjectRevisionFK = k.RevisionId AND f.IsDeleted = 0),
+       Funded    = (SELECT ISNULL(SUM(f.Amount), 0) FROM dbo.tProjectFundingProfile f
+                    WHERE f.ProjectRevisionFK = k.RevisionId AND f.IsDeleted = 0),
+       /*  The migration's line: this script's, or the loader's on a revision it
+           wrote. A person's line in the app is on a revision the app made, which
+           carries no DataImportId. */
+       OwnLineId = (SELECT MIN(f.Id) FROM dbo.tProjectFundingProfile f
+                    WHERE f.ProjectRevisionFK = k.RevisionId AND f.IsDeleted = 0
+                      AND (f.CreatedBy = @Who OR l.RevisionImported = 1))
+INTO   #Alloc
+FROM   #Keep k
+JOIN   #RowCount rc ON rc.CostId = k.CostId AND rc.LiveRows = 1
+JOIN   dbo.tProjectComponentCostPerYear cy ON cy.Id = rc.OnlyRowId
+JOIN   #Legacy l    ON l.RevisionId = k.RevisionId
+JOIN   #Agreement ag ON ag.StartYear = l.StartYear
+LEFT JOIN #KidCost kc ON kc.ParentProjectId = k.ProjectId;
+
+/*  No live line: insert one at Target. */
 INSERT dbo.tProjectFundingProfile
        (ProjectRevisionFK, SourceOrg, AgreementCode, Amount, Percentage, IsWalletDraw,
         CreatedBy, CreatedDate, IsDeleted)
-SELECT k.RevisionId, @Source, @Agreement, k.Total, 100.0, 0,
-       @Who, @Now, 0
-FROM   #Keep k
-WHERE  NOT EXISTS (SELECT 1 FROM dbo.tProjectFundingProfile f
-                    WHERE f.ProjectRevisionFK = k.RevisionId AND f.IsDeleted = 0);
+SELECT a.RevisionId, @Source, a.AgreementCode, a.Target, 100.0, 0, @Who, @Now, 0
+FROM   #Alloc a
+WHERE  a.LiveLines = 0;
 
-PRINT CONCAT('Added ', @@ROWCOUNT, ' funding line(s).');
+PRINT CONCAT('Added ', @@ROWCOUNT, ' funding line(s) at Remaining + children.');
 
-/*  Total := Σ live funding. */
+/*  Exactly one live line, this script's own, disagreeing: raise it. */
+IF EXISTS (SELECT 1 FROM #Alloc a WHERE a.LiveLines = 1 AND a.OwnLineId IS NOT NULL AND ABS(a.Funded - a.Target) > 0.005)
+BEGIN
+    PRINT 'RAISING these funding lines — this script''s from an earlier run, or the loader''s';
+    PRINT 'from the old system — written at the remaining balance, before the children were linked:';
+    SELECT a.ProjectId, a.Children, a.Funded AS LineWas, a.Remaining, a.Kids, a.Target AS LineNow
+    FROM   #Alloc a
+    WHERE  a.LiveLines = 1 AND a.OwnLineId IS NOT NULL AND ABS(a.Funded - a.Target) > 0.005
+    ORDER  BY a.ProjectId;
+
+    UPDATE f
+       SET f.Amount = a.Target, f.UpdatedBy = @Who, f.UpdatedDate = @Now
+      FROM dbo.tProjectFundingProfile f
+      JOIN #Alloc a ON a.OwnLineId = f.Id
+     WHERE a.LiveLines = 1 AND ABS(a.Funded - a.Target) > 0.005;
+
+    PRINT CONCAT('Raised ', @@ROWCOUNT, ' funding line(s).');
+END
+
+/*  Any other shape that disagrees is somebody's figure, not this script's. */
+IF EXISTS (SELECT 1 FROM #Alloc a
+           WHERE ABS(a.Funded - a.Target) > 0.005
+             AND NOT (a.LiveLines = 0 OR (a.LiveLines = 1 AND a.OwnLineId IS NOT NULL)))
+BEGIN
+    PRINT 'WARNING: these parents have funding lines this script did not write, and they';
+    PRINT '         do not agree with Remaining + children. Left alone; section 8 reports';
+    PRINT '         them as DRIFT. Resolve by hand.';
+    SELECT a.ProjectId, a.LiveLines, a.Funded, a.Remaining, a.Kids, a.Target
+    FROM   #Alloc a
+    WHERE  ABS(a.Funded - a.Target) > 0.005
+      AND  NOT (a.LiveLines = 0 OR (a.LiveLines = 1 AND a.OwnLineId IS NOT NULL))
+    ORDER  BY a.ProjectId;
+END
+
+/*  Total := Σ live funding — re-read, since the lines above just changed. */
 UPDATE cc
    SET cc.Total = f.Funded, cc.UpdatedBy = @Who, cc.UpdatedDate = @Now
   FROM dbo.tProjectComponentCost cc
@@ -738,32 +1337,24 @@ UPDATE cc
                WHERE  x.ProjectRevisionFK = k.RevisionId AND x.IsDeleted = 0) f
  WHERE cc.Total <> f.Funded;
 
-PRINT CONCAT('Allocation derived from the funding lines on ', @@ROWCOUNT, ' component(s).');
+PRINT CONCAT('Allocation (component Total) set from the funding lines on ', @@ROWCOUNT, ' component(s).');
 
-/*  Amount := Total − Σ children. Children are counted the way vLumpSumSet counts
-    them — each child's LATEST live revision only — so that a child appearing on
-    the server copy is handled correctly rather than assumed away. */
-UPDATE cy
-   SET cy.Amount = d.Balance, cy.UpdatedBy = @Who, cy.UpdatedDate = @Now
-  FROM dbo.tProjectComponentCostPerYear cy
-  JOIN #RowCount rc ON rc.OnlyRowId = cy.Id AND rc.LiveRows = 1
-  JOIN #Keep k      ON k.CostId = rc.CostId
-  JOIN dbo.tProjectComponentCost cc ON cc.Id = k.CostId
-  CROSS APPLY (
-      SELECT cc.Total - ISNULL((
-          SELECT SUM(kc.TotalCost)
-          FROM   dbo.tProjects child
-          CROSS APPLY (SELECT TOP 1 kr.Id FROM dbo.tProjectRevisions kr
-                        WHERE kr.ProjectFK = child.ProjectPK AND kr.IsDeleted = 0
-                        ORDER BY kr.Id DESC) kr
-          CROSS APPLY (SELECT ISNULL(SUM(kcc.Total), 0) AS TotalCost
-                       FROM   dbo.tProjectComponentCost kcc
-                       WHERE  kcc.ProjectRevisionFK = kr.Id AND kcc.IsDeleted = 0) kc
-          WHERE  child.ParentProjectId = k.ProjectId), 0) AS Balance
-  ) d
- WHERE cy.IsDeleted = 0 AND cy.Amount <> d.Balance;
-
-PRINT CONCAT('Remaining balance set on ', @@ROWCOUNT, ' per-year row(s).');
+/*  THE ASSERTION that replaced the derivation: Amount must equal Total − Kids.
+    Nothing is written here. A row that fails is a parent whose funding was left
+    alone above, and it is listed so nobody has to hunt for it in section 8. */
+IF EXISTS (SELECT 1 FROM #Alloc a
+           JOIN dbo.tProjectComponentCost cc ON cc.Id = a.CostId
+           WHERE ABS(a.Remaining - (cc.Total - a.Kids)) > 0.005)
+BEGIN
+    PRINT 'DRIFT: on these parents Remaining <> Total - children after this section.';
+    PRINT '       Nothing was written to their balance; the model does not hold for them.';
+    SELECT a.ProjectId, a.Remaining, cc.Total, a.Kids, cc.Total - a.Kids AS RemainingShouldBe
+    FROM   #Alloc a JOIN dbo.tProjectComponentCost cc ON cc.Id = a.CostId
+    WHERE  ABS(a.Remaining - (cc.Total - a.Kids)) > 0.005
+    ORDER  BY a.ProjectId;
+END
+ELSE
+    PRINT 'Remaining = Total - children holds on every derived parent.';
 
 IF @DryRun = 1
 BEGIN
@@ -842,6 +1433,62 @@ SELECT
                                OR (t.ValidFromDate < l.StartYear AND t.ValidToDate > l.StartYear))))
                                                         AS StillInvalidSubCategory,
     (SELECT COUNT(*) FROM #Legacy WHERE Skip = 1)       AS SkippedAndReportedAbove;
+GO
+
+PRINT '--- Revision 2 checks (every count must be 0) ---';
+
+SELECT
+    /*  A parent still holding a live component that is not the Lump Sum one. */
+    (SELECT COUNT(*) FROM (
+        SELECT DISTINCT l.RevisionId
+        FROM   #Legacy l
+        JOIN   dbo.tProjectComponentCost cc ON cc.ProjectRevisionFK = l.RevisionId AND cc.IsDeleted = 0
+        LEFT JOIN dbo.tOptionProjectComponentType o ON o.ComponentName = cc.ComponentType
+        WHERE  l.Skip = 0 AND ISNULL(o.ComponentId, N'') <> N'LS') x)
+                                                        AS ParentsHoldingANonLSComponent,
+    /*  A note naming an in-scope parent whose child is still unlinked. */
+    (SELECT COUNT(*) FROM dbo.tProjectNotes n
+      JOIN dbo.tProjectRevisions kr ON kr.Id = n.ProjectRevisionFK AND kr.IsDeleted = 0
+      JOIN dbo.tProjects kp         ON kp.ProjectPK = kr.ProjectFK
+      JOIN #Legacy l                ON l.ProjectId = LTRIM(RTRIM(SUBSTRING(n.[Description], 23, 60))) AND l.Skip = 0
+      WHERE n.[Description] LIKE N'Itemized from Project:%' AND kp.ParentProjectId IS NULL)
+                                                        AS NotedChildrenUnlinked,
+    /*  A linked child still carrying two live rows of one component. */
+    (SELECT COUNT(*) FROM (
+        SELECT cc.ProjectRevisionFK, cc.ComponentId
+        FROM   dbo.vLumpSumChildSet c
+        JOIN   dbo.tProjectComponentCost cc ON cc.ProjectRevisionFK = c.RevisionId AND cc.IsDeleted = 0
+        GROUP  BY cc.ProjectRevisionFK, cc.ComponentId HAVING COUNT(*) > 1) x)
+                                                        AS LinkedChildrenWithDuplicateComponents,
+    /*  A child pointing at a parent the module does not list. */
+    (SELECT COUNT(*) FROM dbo.vLumpSumChildSet c
+      WHERE NOT EXISTS (SELECT 1 FROM dbo.vLumpSumSet s WHERE s.ProjectId = c.ParentProjectId))
+                                                        AS ChildrenLinkedToAnUnlistedParent,
+    /*  A linked child without the stamps ImportItemizedProjects writes. */
+    (SELECT COUNT(*) FROM dbo.tProjects p
+      WHERE p.ParentProjectId IS NOT NULL
+        AND (ISNULL(p.ProjectType, N'') <> N'LS' OR p.ItemizationType IS NULL OR p.ProjectStatus IS NULL))
+                                                        AS LinkedChildrenMissingStamps;
+GO
+
+PRINT '--- by program year: parents listed, children linked, what they hold ---';
+SELECT   g.StartYear,
+         Parents      = COUNT(DISTINCT v.ProjectPK),
+         Children     = SUM(v.ItemizedCount),
+         Allocation   = SUM(v.OriginalAllocation),
+         Remaining    = SUM(v.Remaining),
+         Itemized     = SUM(v.ItemizedTotal)
+FROM     dbo.vLumpSumSet v
+JOIN     dbo.tPrograms g ON g.ProgramPK = v.ProgramFK
+GROUP BY g.StartYear
+ORDER BY g.StartYear;
+GO
+
+PRINT '--- the parents that were listed at zero: what they hold now ---';
+SELECT   v.ProjectId, v.OriginalAllocation, v.Remaining, v.ItemizedTotal, v.ItemizedCount
+FROM     dbo.vLumpSumSet v
+WHERE    v.ProjectId IN (N'P00800007LS', N'P00830004LS', N'P00830010LS', N'P00830013LS', N'P00830014LS', N'P00830018LS')
+ORDER BY v.ProjectId;
 GO
 
 PRINT '--- what the module now sees ---';
