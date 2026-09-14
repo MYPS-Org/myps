@@ -138,8 +138,8 @@ the ₱300tn source row, substituted by decision. Then:
 To undo a group: `sqlcmd … -i app/data_migration/migration_sql/rollback_program_group.sql -v ProgramPK="MP_…"`.
 
 Full write-up, including the two loader defects fixed on the way and the figures per group:
-[loading the 2023/2025 groups](MYPS_BAK_2023_2025_GROUP_LOAD_2026-09-14.md). The changed files are mirrored under
-[documents/python_migration](../../python_migration/).
+[loading the 2023/2025 groups](MYPS_BAK_2023_2025_GROUP_LOAD_2026-09-14.md). The scripts live only in the
+backend repo; the note on what changed in them is [here](../../python_migration/docs/2026-09-14_component_grain_target_columns_and_notes.md).
 
 ### Step 3c — Legacy Lump Sum data (2023 onwards)
 

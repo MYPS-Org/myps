@@ -58,7 +58,7 @@ Volume by decision (whole groups): 20 stage-programs, ≈103k revisions, ≈161k
 |---|---|
 | D1 | Target `myps_db_dev_200` |
 | D2 | **Whole program groups**: 2023 CSSP, 2023 LP, 2023 OO-1, 2025 OO-1, all stages |
-| D3 | Backend repo, changed files mirrored into `documents/python_migration/scripts` |
+| D3 | Backend repo, changed files mirrored into `documents/python_migration/scripts` — **mirror removed 2026-09-14 by the maintainer's instruction**: the backend repo is the only home of the scripts |
 | D4 | Component-grain fix in the reference is **required** before loading |
 | D5 | `DataImportId` mapped at write time; no schema change on `dev_200` |
 | D6 | Non-LS → LS: survivor = the LS component if any, else lowest-Id; identical copies retired; any other live component folded (Total added, retired, printed). Real data has one `CW1` per parent |
@@ -205,7 +205,8 @@ writes (`to_target`) and reads (`target_column_name`). Added `build_project_note
 program-cost overflow fallback to Σ cost stream (one source row, ₱300,585,464,920,206 — the
 maintainer's call), the `steps_for_2023_2025_groups.py` entrypoint with its localhost guard and
 already-loaded refusal, `rollback_program_group.sql`, two verifiers and 27 unit tests. Files
-mirrored to `documents/python_migration/scripts/` (not the `.env`).
+mirrored to `documents/python_migration/scripts/` (not the `.env`) — then removed again the same day at the
+maintainer's instruction; refer to the backend repo only.
 
 **Phase B — the load.** 2023 LP, 2023 OO-1, 2023 CSSP, 2025 OO-1 — 29,786 projects, 102,989
 revisions, 161,756 components at one row each (verified), 4,132 notes including the 2,059

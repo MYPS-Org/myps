@@ -3,7 +3,7 @@
 **Date:** 2026-09-14
 **Branch (backend):** `feat/data-migration-2023-2025-groups` in `02_refactored/myps-gis-backend`
 **Files changed:** `app/data_migration/queries.py`, `app/data_migration/migration.py`; new `steps_for_2023_2025_groups.py`, `migration_sql/rollback_program_group.sql`, `test_sql/verify_component_grain.py`, `test_sql/verify_itemization_notes.py`, `tests/unit/test_migration_target_columns.py`
-**Mirrored here:** `documents/python_migration/scripts/` (the `.env` is deliberately not mirrored)
+**Where the scripts are:** `C:\Users\User\Eptisa\git_wsl\02_refactored\myps-gis-backend\app\data_migration` — the backend repo is the only copy; this folder holds write-ups only (decision 2026-09-14, after a mirror was removed).
 
 ## 1. `build_project_component_cost_sql` produced one row per yearly cost shape — fixed
 
