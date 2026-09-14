@@ -86,10 +86,11 @@
 
    1. MY-PREFIXED IDs ARE NOT MIGRATED. 'MY00003005LS' and 'MY00040003LS' belong
       to a module that is not implemented yet (instruction, 2026-09-14). They are
-      inventoried in documents/MYPS_LS_MY_Prefixed_Projects.md and excluded by
-      the scope predicate below. Note they are also the ONLY Lump-Sum-shaped ids
-      in this database that genuinely have AlternateId-linked children (14 + 1) —
-      which is precisely why they are someone else's migration.
+      inventoried in documents/docs/engineering/MYPS_LEGACY_LS_MIGRATION.md,
+      Appendix A, and excluded by the scope predicate below. That instruction is
+      the only reason they are out of scope: AlternateId does not record
+      itemization (section 5b's own header explains why), so their appearance
+      there says nothing about whether they have children either way.
 
    2. It does not touch the OLDER live revisions. Each parent has two (the P008
       group has five); 71 of them carry components of their own. Every Lump Sum
@@ -139,12 +140,14 @@ GO
    Print the target, then refuse to run against the retired production database
    name (SKL-005 / ADR-118).
 
-   SET NOEXEC ON after the RAISERROR is not decoration. The 2026-09-10
-   migration's guard raises at severity 20 WITH LOG, which a NON-SYSADMIN login
-   cannot do: it fails with Msg 2754, that batch aborts, and every later batch
-   RUNS ANYWAY — the guard fails OPEN for exactly the login least likely to be
-   trusted with it (bring-up code review, finding #3). NOEXEC does not care who
-   raised what.
+   SET NOEXEC ON after the RAISERROR is not decoration, and the RAISERROR itself
+   is severity 16, NOT the 2026-09-10 migration's severity 20 WITH LOG. A
+   NON-SYSADMIN login cannot raise WITH LOG: it fails with Msg 2754, and with
+   XACT_ABORT ON that aborts the BATCH before SET NOEXEC ON ever runs — every
+   later batch RUNS ANYWAY. That is the exact fail-open the 2026-09-10
+   migration has (bring-up code review, finding #3); this guard is written to
+   close it, not repeat it. NOEXEC does not care who raised what, and a plain
+   severity-16 RAISERROR is something every login can raise.
    ============================================================================= */
 PRINT CONCAT('Server   : ', @@SERVERNAME);
 PRINT CONCAT('Database : ', DB_NAME());
@@ -153,7 +156,7 @@ GO
 
 IF DB_NAME() = N'myps_db'
 BEGIN
-    RAISERROR('REFUSED: this script will not run against myps_db, the retired production database name (SKL-005/ADR-118). Point it at a dev database.', 20, 1) WITH LOG;
+    RAISERROR('REFUSED: this script will not run against myps_db, the retired production database name (SKL-005/ADR-118). Point it at a dev database.', 16, 1);
     SET NOEXEC ON;
 END
 GO
@@ -222,10 +225,7 @@ SELECT p.Id                 AS ProjectRowId,
        CAST(CASE WHEN kids.Unlinked > 0                 THEN 1 ELSE 0 END AS bit) AS R3UnlinkedChildren,
        CAST(CASE WHEN ISNULL(p.ProjectType, N'') = N'LS'
                   AND ABS(ISNULL(fund.Funded,0) - (ISNULL(bal.Remaining,0) + ISNULL(held.KidCost,0))) > 0.005
-                 THEN 1 ELSE 0 END AS bit) AS R4Drift,
-       /*  Was this revision written by the migration loader? Section 7 treats a
-           funding line on such a revision as the loader's, not a person's. */
-       CAST(CASE WHEN lr.DataImportId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS RevisionImported
+                 THEN 1 ELSE 0 END AS bit) AS R4Drift
 INTO   #Legacy
 FROM   dbo.tProjects p
 CROSS APPLY (
@@ -516,7 +516,7 @@ BEGIN
 END
 
 /*  Duplicates that are not true copies. */
-IF OBJECT_ID('tempdb..#CompDiff') IS NOT NULL DROP TABLE #CompDiff;
+IF OBJECT_ID('tempdb..#Dup') IS NOT NULL DROP TABLE #Dup;
 
 /*  A TRUE COPY, or not. Compared against the survivor on everything that makes a
     component what it is — its type class, its Total, and the shape of its
@@ -609,18 +609,27 @@ BEGIN
     /*  THE BALANCE RISES BY THE SAME AMOUNT. Folded money is allocation nobody has
         drawn on, so it is also remaining — exactly what RaiseLSAllocationAsync does
         for a Replenish: Total and the per-year row move together. Onto the
-        survivor's earliest live row, as MoveLSBalanceAsync puts it. Without this,
-        section 7 (which derives the allocation FROM the balance, D14) would read
-        the pre-fold balance and quietly undo the fold — the harness caught exactly
-        that: 5,000,000 + 700,000 folded, allocation back at 5,000,000. */
+        survivor's row for the PROGRAM's StartYear when one exists (falling back to
+        the earliest live row otherwise), as MoveLSBalanceAsync puts it. This runs
+        before section 4 retires the nine empty rows, so a component whose rows
+        were not loaded in year order must still land the raise on the row that
+        will SURVIVE section 4 — targeting the lowest Id there could raise an
+        empty later-year row instead, leaving it non-zero (so section 4 keeps it),
+        the parent with two live rows, and both skipped by section 7's derivation.
+        Without the raise at all, section 7 (which derives the allocation FROM the
+        balance, D14) would read the pre-fold balance and quietly undo the fold —
+        the harness caught exactly that: 5,000,000 + 700,000 folded, allocation
+        back at 5,000,000. */
     UPDATE cy
        SET cy.Amount = cy.Amount + fold.Amount, cy.UpdatedBy = @Who, cy.UpdatedDate = @Now
       FROM dbo.tProjectComponentCostPerYear cy
-      JOIN #Keep k ON k.CostId = cy.ComponentCostFK
+      JOIN #Keep k   ON k.CostId = cy.ComponentCostFK
+      JOIN #Legacy l ON l.RevisionId = k.RevisionId
       JOIN (SELECT RevisionId, SUM(Total) AS Amount FROM #Fold GROUP BY RevisionId) fold
         ON fold.RevisionId = k.RevisionId
-     WHERE cy.Id = (SELECT MIN(x.Id) FROM dbo.tProjectComponentCostPerYear x
-                    WHERE x.ComponentCostFK = k.CostId AND x.IsDeleted = 0);
+     WHERE cy.Id = (SELECT TOP 1 x.Id FROM dbo.tProjectComponentCostPerYear x
+                    WHERE x.ComponentCostFK = k.CostId AND x.IsDeleted = 0
+                    ORDER BY CASE WHEN x.Year = l.StartYear THEN 0 ELSE 1 END, x.Id);
     PRINT CONCAT('Balance raised by the folded amount on ', @@ROWCOUNT, ' per-year row(s).');
 END
 
@@ -1045,7 +1054,8 @@ ORDER  BY l.StartYear, kc.ParentProjectId;
    tOptionProjectThrustList's window. Within that set, the rules below match the
    project's own Description against the thrust it names.
 
-   Unlike the sample script, these parents have NO children and NO work items, so
+   Unlike the sample script, these parents have NO work items of their own (their
+   children do, but a child's work items were never a candidate source here), so
    there is no scope of work to read the family off. The Description is the only
    evidence, and it is unusually good evidence here: these are GAA line items and
    their text is near-verbatim the thrust's own wording ("Rainwater Collector
@@ -1269,12 +1279,17 @@ SELECT k.ProjectId, k.RevisionId, k.CostId,
                     WHERE f.ProjectRevisionFK = k.RevisionId AND f.IsDeleted = 0),
        Funded    = (SELECT ISNULL(SUM(f.Amount), 0) FROM dbo.tProjectFundingProfile f
                     WHERE f.ProjectRevisionFK = k.RevisionId AND f.IsDeleted = 0),
-       /*  The migration's line: this script's, or the loader's on a revision it
-           wrote. A person's line in the app is on a revision the app made, which
-           carries no DataImportId. */
+       /*  The migration's line: this script's own (CreatedBy = @Who), or one the
+           loader wrote when it carried an old-system funding row across
+           (tProjectFundingProfile.DataImportId is set only by the loader — never
+           by the application, so a person's line in the app never matches this).
+           Checking the LINE's own provenance, not the revision's: Replenish and
+           Save write to the parent's current (imported) revision, so a person's
+           correction sits on that same revision and must not be mistaken for the
+           migration's own line. */
        OwnLineId = (SELECT MIN(f.Id) FROM dbo.tProjectFundingProfile f
                     WHERE f.ProjectRevisionFK = k.RevisionId AND f.IsDeleted = 0
-                      AND (f.CreatedBy = @Who OR l.RevisionImported = 1))
+                      AND (f.CreatedBy = @Who OR f.DataImportId IS NOT NULL))
 INTO   #Alloc
 FROM   #Keep k
 JOIN   #RowCount rc ON rc.CostId = k.CostId AND rc.LiveRows = 1
@@ -1327,14 +1342,20 @@ BEGIN
     ORDER  BY a.ProjectId;
 END
 
-/*  Total := Σ live funding — re-read, since the lines above just changed. */
+/*  Total := Σ live funding — re-read, since the lines above just changed.
+    Scoped to #Alloc, NOT every #Keep survivor: #Alloc is exactly the parents
+    with one live per-year row, the ones this section actually derived a
+    funding line for. A parent with >1 live row (section 4's WARNING) has no
+    row in #Alloc and its funding was never touched above — joining #Keep here
+    instead would still overwrite its Total from whatever funding happens to
+    exist (often none), zeroing an allocation section 4 said was left alone. */
 UPDATE cc
    SET cc.Total = f.Funded, cc.UpdatedBy = @Who, cc.UpdatedDate = @Now
   FROM dbo.tProjectComponentCost cc
-  JOIN #Keep k ON k.CostId = cc.Id
+  JOIN #Alloc a ON a.CostId = cc.Id
   CROSS APPLY (SELECT ISNULL(SUM(x.Amount), 0) AS Funded
                FROM   dbo.tProjectFundingProfile x
-               WHERE  x.ProjectRevisionFK = k.RevisionId AND x.IsDeleted = 0) f
+               WHERE  x.ProjectRevisionFK = a.RevisionId AND x.IsDeleted = 0) f
  WHERE cc.Total <> f.Funded;
 
 PRINT CONCAT('Allocation (component Total) set from the funding lines on ', @@ROWCOUNT, ' component(s).');

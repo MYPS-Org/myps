@@ -148,7 +148,7 @@ Full write-up, including what changed in the pipeline and the figures per group:
 ### Step 3c — Legacy Lump Sum data (2023 onwards)
 
 ```
-sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.Proof.Dev.sql   # harness: PASS 8 of 8, rolls back
+sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.Proof.Dev.sql   # harness: PASS 16 of 16, rolls back
 sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.2026-09-14.sql
 ```
 
