@@ -6,6 +6,21 @@
 **Backup taken:** `…\MSSQL\Backup\myps_db_dev_200_pre_legacyls_20260914.bak` (196,121 pages, compressed)
 **Result:** 59 projects migrated. Every verification check 0. Second run reports 0 in scope.
 
+> ### ⚠ Corrected 2026-09-14 — read §3 before trusting any figure here
+>
+> **§3 concluded that these 59 parents have no itemized children. That is wrong.** 22 of them
+> have **2,028** children between them, and **2,027 are already on this database**, unlinked.
+> The old model records an itemization in `dbo.history`, not in any project column, which is why
+> a careful search of `AlternateId` / `ParentProjectId` / `ParentWalletId` found nothing.
+>
+> Three figures below are wrong as a consequence, and are marked where they appear:
+> `ItemizedTotal` is not 0; the allocation written is really the **remaining balance**; and the
+> six "unfunded" ₱0 parents are **fully itemized**, not unfunded.
+>
+> The migration as run did no harm — the rows it wrote are correct as far as they go — but it is
+> incomplete. The follow-up work links the children and re-derives each allocation as
+> `Remaining + Σ children`. See `documents/plans/legacy-ls-migration-2023-2025.md`.
+
 ---
 
 ## 1. What this closes
@@ -18,17 +33,21 @@ But `myps_db_dev_200` carries **59 Lump Sum projects migrated from 2024 data** �
 |---|---|---|
 | Projects listed by `vLumpSumSet` | 3 (the MyMYPS sample) | **62** |
 | Of which the 2024 legacy set | 0 | **59** |
-| Allocation held by the 59 | — | **₱4,778,229,699.08** |
-| Allocation invariant (`Total = Remaining + Itemized`) | OK on 3 | **OK on 62** |
-| `vLumpSumChildSet` | 18 | **18** (unchanged) |
+| Allocation held by the 59 | — | ₱4,778,229,699.08 — **this is the remaining balance, not the allocation; see §3** |
+| Allocation invariant (`Total = Remaining + Itemized`) | OK on 3 | **OK on 62** — but with `Itemized` wrongly 0 on 22 of them |
+| `vLumpSumChildSet` | 18 | 18 — **should be 2,045; the 2,027 loaded children were never linked, see §3** |
 
 Per program:
 
-| ProgramId | Program | Projects | Allocation | Remaining | Itemized |
+The `Itemized` column below is **0 only because the children were never linked** (§3). The true
+itemized total across the 2024 set is ₱8,696,942,250.33 under 22 parents, so both `Allocation`
+and `Itemized` here understate reality; `Remaining` is right.
+
+| ProgramId | Program | Projects | Allocation *(= Remaining; wrong)* | Remaining | Itemized *(wrong)* |
 |---|---|---:|---:|---:|---:|
-| `P_CO-PS-634_01222024_174001` | GAA 2024 SSP | 34 | 578,425,699.08 | 578,425,699.08 | 0 |
-| `P_CO-PS-278_01262024_140207` | GAA 2024 LP | 21 | 3,689,804,000.00 | 3,689,804,000.00 | 0 |
-| `P_CO-PS-635_07202023_140408` | GAA 2024 OO-1 | 4 | 510,000,000.00 | 510,000,000.00 | 0 |
+| `P_CO-PS-634_01222024_174001` | GAA 2024 SSP | 34 | 578,425,699.08 | 578,425,699.08 | 0 — really 8,696,942,250.33 under 19 parents |
+| `P_CO-PS-278_01262024_140207` | GAA 2024 LP | 21 | 3,689,804,000.00 | 3,689,804,000.00 | 0 — really 24,000,000.00 under 1 parent |
+| `P_CO-PS-635_07202023_140408` | GAA 2024 OO-1 | 4 | 510,000,000.00 | 510,000,000.00 | 0 — really 143,500,000.00 under 2 parents |
 | `P_CO-PS-535_03252025_073824` | Trust Funds 2025 (sample, untouched) | 3 | 540,000,000.00 | 108,000,000.00 | 432,000,000.00 |
 
 All three 2024 programs are **Approved at GAA-R**. Under the rule of 2026-09-09 that means creating and deleting a Lump Sum Project in them is refused, and the project's details and component render read-only — while Save, Replenish, Import and child delete keep working. That is the expected state for this data, not a regression.
@@ -45,7 +64,7 @@ Verified against the live database on 2026-09-14 before anything was written.
 | `ProjectType` on them | the literal string **`'NULL'`** — an artifact shared by 56,769 projects on this lineage |
 | Live revisions per parent | 2 (older at `GAA`, latest at `GAA-R`); the four `P008…` have 5 |
 | `AlternateId` on the parent | its own ProjectId; the `P008` four carry their pre-renumber id (PK `…P00800001LS`, ProjectId `P00800005LS`, AlternateId `P00800001LS`) |
-| **Itemized children** | **none** — see §3 |
+| **Itemized children** | ~~none~~ **2,028, under 22 of the 59** — recorded in `dbo.history`, not in any project column. See §3 |
 | `ComponentType` on their LS components | the **code** `'LS'`, not the name `'Lump Sum'` — see §4.1 |
 | LS components on the latest revision | 112 across 59: **53 carry an identical duplicate**, 6 carry one with `Total = 0` |
 | Per-year rows | **10 per component** (2024–2033); only 2024 non-zero, only 2024 carries a UACS; the empty rows hold `''`, not `NULL` |
@@ -56,25 +75,118 @@ Verified against the live database on 2026-09-14 before anything was written.
 
 ---
 
-## 3. There are no children — the evidence
+## 3. ~~There are no children~~ — CORRECTED 2026-09-14
 
-This is the load-bearing finding, because it determines the balance: with no children, `Remaining = Total` for all 59 and `ItemizedTotal` is 0.
+> **This section was wrong, and it was the load-bearing finding.** It concluded that the 59
+> parents have no itemized children. They have **2,028**, of which **2,027 are on this very
+> database**. Everything below the rule is the correction; the original claim and its evidence
+> are kept under it, because the way it was wrong is worth more than the conclusion was.
 
-The parent's Project ID was searched for in every place a child could record it:
+### What is actually true
 
-| Searched | Hits |
-|---|---|
-| `tProjectRevisions.AlternateId` = parent's `ProjectId` | 0 |
-| `tProjectRevisions.AlternateId` = parent's `ProjectPK` suffix | 0 |
-| `tProjectRevisions.AlternateId` = parent's own `AlternateId` | 0 |
-| `tProjectRevisions.AlternateId` = parent's `ExternalId` | 0 |
-| `tProjectRevisions.AlternateId` **contains** the parent's numeric core | 13 — **all false positives** |
-| `tProjects.ParentProjectId` → any of the 59 | 0 |
-| `tProjects.ParentWalletId` (wallet era) — anywhere in the database | 0 |
+**22 of the 59 parents are itemized, across 2,028 children.** The old data model does not record
+an itemization in any project column. It records it as a `dbo.history` row against the **child**,
+in the GAA-R program only:
 
-The 13 numeric-core matches are unrelated regular projects that merely share a running number: `P00800005VS`, `P00800005LZ`, `P00800005MN` against parent `P00800005LS`, and so on. Different island codes, different projects, no relationship.
+```
+projectid   = P00746419LZ
+programid   = P_CO-PS-535_03292023_105429
+description = 'Itemized from Project: P00730052LS'
+```
 
-**This is the opposite of the `MY…LS` identifiers**, which *do* have `AlternateId`-linked children (15 + 1) and which were excluded from this migration — see `documents/MYPS_LS_MY_Prefixed_Projects.md`.
+`dbo.vw_notes` is the read-only view over it. Every one of the 42,589 such notes in `MYPS_BAK`
+names a parent ending in `LS`; **not one** has the child's `alternate_id` equal to that parent.
+So a search of `AlternateId` — however thorough — cannot find them, and the original search was
+thorough. It looked in exactly the places the *new* model would use, and the old model uses none
+of them.
+
+The children were loaded onto `myps_db_dev_200` with the 2024 program groups, before the notes
+were understood to carry the link. They are there now, unlinked:
+
+| | Count |
+|---|---:|
+| Itemization notes in the 2024 groups | 2,028 |
+| Distinct children | 2,028 |
+| Parents named | **22** of the 59 |
+| Children already on `myps_db_dev_200` | **2,027** |
+| Children with `ParentProjectId` set | **0** |
+| The one missing | `P00851066VS` — a note naming `P00830018LS`, with no `dbo.project` row behind it in the source |
+
+### What that means for the figures in this document
+
+Three things stated below are consequences of the wrong finding and are wrong with it:
+
+1. **`ItemizedTotal` is not 0 and `Remaining` is not the allocation.** Itemization *reduced* the
+   parent's stored cost, so the GAA-R figure this migration wrote as the allocation is really the
+   **remaining balance**. `P00730052LS` (2023, same shape): 11,000,000,000 at GAA, 9,826,178,558.32
+   at GAA-R, 446 children costing 10,429,053,146.08. The identity that holds is
+   `OriginalAllocation = Remaining + Σ children`, not `= Remaining`.
+2. **The six ₱0 parents are not unfunded — they are fully itemized.** §4.6 calls them "unfunded
+   line items". Every one of them has children:
+
+   | Parent | Listed allocation now | Noted children | Their cost in `MYPS_BAK` |
+   |---|---:|---:|---:|
+   | `P00800007LS` | ₱0 | 2 | 93,500,000.00 |
+   | `P00830004LS` | ₱0 | 140 | 39,600,000.00 |
+   | `P00830010LS` | ₱0 | 155 | 52,565,000.00 |
+   | `P00830013LS` | ₱0 | 117 | 46,060,049.05 |
+   | `P00830014LS` | ₱0 | 88 | 36,600,000.00 |
+   | `P00830018LS` | ₱0 | 243 | 2,619,974,218.27 |
+
+   Their balance is 0 because their children hold all of it. Reporting them at ₱0 allocation is
+   the visible symptom of the missing link.
+3. **The funding line this migration wrote is short** by each parent's itemized total, since it
+   was written at `Remaining`.
+
+### Why the original search missed it
+
+Not for want of rigour — for want of the right column. The search below was run against the
+places the **V3** model records a parent/child link. The old model predates all of them:
+`ParentProjectId` did not exist, `ParentWalletId` belongs to the retired wallet era, and
+`AlternateId` was never the link. The one place it *is* recorded, `dbo.history`, was not searched
+because nothing suggested a free-text log held a relational fact.
+
+The lesson is narrow and worth keeping: **"absent from every column I know about" is not
+"absent".** The original wording — "THERE ARE NO CHILDREN. Searched five ways" — asserted the
+second from the first.
+
+### The original section, as written
+
+> This is the load-bearing finding, because it determines the balance: with no children,
+> `Remaining = Total` for all 59 and `ItemizedTotal` is 0.
+>
+> The parent's Project ID was searched for in every place a child could record it:
+>
+> | Searched | Hits |
+> |---|---|
+> | `tProjectRevisions.AlternateId` = parent's `ProjectId` | 0 |
+> | `tProjectRevisions.AlternateId` = parent's `ProjectPK` suffix | 0 |
+> | `tProjectRevisions.AlternateId` = parent's own `AlternateId` | 0 |
+> | `tProjectRevisions.AlternateId` = parent's `ExternalId` | 0 |
+> | `tProjectRevisions.AlternateId` **contains** the parent's numeric core | 13 — **all false positives** |
+> | `tProjects.ParentProjectId` → any of the 59 | 0 |
+> | `tProjects.ParentWalletId` (wallet era) — anywhere in the database | 0 |
+>
+> The 13 numeric-core matches are unrelated regular projects that merely share a running number:
+> `P00800005VS`, `P00800005LZ`, `P00800005MN` against parent `P00800005LS`, and so on. Different
+> island codes, different projects, no relationship.
+
+Those seven rows are all still accurate. The 13 numeric-core matches really are false positives.
+The conclusion drawn from them was not.
+
+**On the `MY…LS` identifiers.** The original said they are "the opposite" — the only ids here with
+`AlternateId`-linked children. That comparison is now meaningless: `AlternateId` is not how
+itemization is recorded, and the `MY…LS` values appear there for some other reason. They remain
+excluded from this migration (see `documents/MYPS_LS_MY_Prefixed_Projects.md`), on the
+instruction that they belong to a module not yet implemented — which was always the real reason.
+
+### What is being done about it
+
+The link is migrated into `tProjectNotes` by the loader
+(`app/data_migration/queries.py: build_project_notes_sql` in the `myps-gis-backend` repo) and
+read back by the revised migration script, which sets `ParentProjectId` and re-derives each
+parent's allocation as `Remaining + Σ children`. The 2024 groups' 2,059 notes were back-filled on
+2026-09-14. See `documents/plans/legacy-ls-migration-2023-2025.md` and the group-load write-up.
 
 ---
 
@@ -132,7 +244,12 @@ Result: 531 empty rows retired (59 × 9), 2 blank UACS cleared to `NULL`, and `S
 
 `ParentProjectId`, `ItemizationType` and `ProjectStatus` stay **NULL**: they are the *child's* columns, and `vLumpSumChildSet`'s membership is `ParentProjectId IS NOT NULL`. Writing them would move all 59 into the children view.
 
-`AlternateId` is left exactly as found. On a **parent** it is free text (`CreateLumpSum` writes `dto.AlternateId` straight through); the "AlternateId is the parent's Project ID" rule of 2026-09-05 is the **child's**, and there are no children. The `P008` four keep their pre-renumber id, which is a fact about them worth keeping.
+`AlternateId` is left exactly as found. On a **parent** it is free text (`CreateLumpSum` writes `dto.AlternateId` straight through); the "AlternateId is the parent's Project ID" rule of 2026-09-05 is the **child's**. The `P008` four keep their pre-renumber id, which is a fact about them worth keeping.
+
+> **Corrected:** this paragraph originally ended "…is the **child's**, and there are no children."
+> There are 2,028 (§3). Leaving the parents' `AlternateId` alone is still right, and the child
+> rule is still the child's — but those children exist, and the follow-up work stamps their
+> `AlternateId` with the parent's `ProjectId` exactly as `ImportItemizedProjects` does.
 
 This flip is also what makes the script idempotent — §1's predicate excludes exactly what §5 writes.
 
@@ -140,7 +257,13 @@ This flip is also what makes the script idempotent — §1's predicate excludes 
 
 55 carry `Thrust = 0`. That is not a PAPKey — the same "a row Id where a PAPKey belongs" shape `LumpSum.SampleData.Dev.sql` §4d found on the MyMYPS parents — and `ValidateRequiredFieldsAsync` refuses it, so **Save, Replenish and Import are all dead** on those projects until it is resolved.
 
-Unlike the sample script, these parents have no children and no work items, so there is no scope of work to read a family off. The Description is the only evidence — and here it is unusually good evidence, because these are GAA line items whose text is near-verbatim the thrust's own wording.
+Unlike the sample script, these parents have no work items of their own, so there is no scope of work to read a family off. The Description is the only evidence — and here it is unusually good evidence, because these are GAA line items whose text is near-verbatim the thrust's own wording.
+
+> **Corrected:** this originally read "these parents have no children and no work items". They
+> have 2,028 children (§3). The reasoning survives the correction: the sample script reads the
+> family off a parent's **own** work items, and these parents genuinely have none — 0 work items
+> across every component of every revision of all 59. The children's work items were never a
+> candidate source here, so no Sub-Category pick changes.
 
 Candidates are exactly what the validators and the FE dropdown allow: PAPKeys mapped to the Category by `tOptionProjectCategoryToPAPMap`, valid in the program's `StartYear` per `tOptionProjectThrustList`'s window. **Every rule is validated against that set before use** and discarded with a warning if its target is not allowed — so a rule right here and wrong on the server copy fails loudly instead of writing a plausible value.
 
@@ -171,9 +294,37 @@ Total  := Σ live funding lines
 Amount := Total − Σ children's latest-live-revision costs   (= Total; there are none)
 ```
 
-Both reported **0 rows changed** — correctly. The funding line was inserted *at* the component's `Total`, and the surviving per-year row already held that figure, so the model was already satisfied. The statements remain because they are the definition, and on the server copy they may well bite.
+Both reported **0 rows changed** — correctly *for what the script could see*. The funding line was inserted *at* the component's `Total`, and the surviving per-year row already held that figure.
 
-**Six parents have `Total = 0`** (decision D2): `P00800007LS`, `P00830004LS`, `P00830010LS`, `P00830013LS`, `P00830014LS`, `P00830018LS`. They got a ₱0 line and list with allocation 0 / remaining 0. That is truthful — they are unfunded line items — and Replenish is how they would be funded later.
+> **Corrected (§3).** The parenthesis "there are none" is wrong: 22 of these parents have 2,028
+> children between them. The derivation itself is sound — it is `vLumpSumSet`'s own arithmetic —
+> but it was fed `Σ children = 0` because no child carried a `ParentProjectId`. The consequence
+> is that **the funding line each of those 22 parents received is short by its itemized total**,
+> and what this document calls their allocation is really their remaining balance.
+>
+> The direction of the identity is what makes this recoverable rather than destructive: the
+> stored per-year `Amount` **is** the remaining balance and always was, so nothing that was
+> written needs undoing. The follow-up re-derives the funding line and the component `Total` as
+> `Remaining + Σ children` once the children are linked.
+
+**Six parents have `Total = 0`** (decision D2): `P00800007LS`, `P00830004LS`, `P00830010LS`, `P00830013LS`, `P00830014LS`, `P00830018LS`. They got a ₱0 line and list with allocation 0 / remaining 0.
+
+> **Corrected (§3).** This originally concluded: "That is truthful — they are unfunded line items
+> — and Replenish is how they would be funded later." They are not unfunded. **All six are fully
+> itemized** — their balance is 0 because their children hold every peso of it:
+>
+> | Parent | Noted children | Their cost |
+> |---|---:|---:|
+> | `P00800007LS` | 2 | ₱93,500,000.00 |
+> | `P00830004LS` | 140 | ₱39,600,000.00 |
+> | `P00830010LS` | 155 | ₱52,565,000.00 |
+> | `P00830013LS` | 117 | ₱46,060,049.05 |
+> | `P00830014LS` | 88 | ₱36,600,000.00 |
+> | `P00830018LS` | 243 | ₱2,619,974,218.27 |
+>
+> A ₱0 allocation on a parent with 243 children should have been read as a missing link rather
+> than as a funding gap. It was the clearest signal in the data that §3 was wrong, and it was
+> written up as a feature.
 
 ---
 
@@ -217,13 +368,26 @@ No warnings were raised: no parent lacked an LS component, no duplicate pair dif
 
 Three per-year rows still lack Start/End dates — they are the **MyMYPS sample's** three, which this script does not touch. Pre-existing and documented in `LumpSum.ComponentMigration.sql`'s header ("START/END DATES … are left null as found").
 
+> **Corrected (§3) — every number above is real, and three of the checks are vacuous.**
+>
+> | Check | Why it could not have failed |
+> |---|---|
+> | `Children with no parent` = 0 | `vLumpSumChildSet`'s membership **is** `ParentProjectId IS NOT NULL`. With no child linked, the view was empty of them and the check had nothing to examine. It would have read 0 whether there were 0 children or 2,027. |
+> | `vLumpSumChildSet` = 18 unchanged | "Unchanged" was the *wanted* value, taken from the belief that there was nothing to add. It confirmed an assumption instead of testing it. |
+> | `Allocation drift` = 0 | Drift is `Total − (Remaining + Itemized)`. `Total` was written *as* `Remaining` and `Itemized` read 0, so the check compared a figure against itself. It is satisfied by any pair of matching wrong numbers. |
+>
+> This is the failure mode the round-2 bring-up review named: *a green run is weaker evidence
+> than it looks when the assertion is satisfied by the empty case.* The right check would have
+> been an independent one — the source's own itemization notes against the target's links — and
+> it now exists as `app/data_migration/test_sql/verify_itemization_notes.py`.
+
 ---
 
 ## 6. What was deliberately left alone
 
 | Left alone | Why |
 |---|---|
-| **`MY…LS` identifiers** (16 projects) | A module not implemented yet. Inventoried in `documents/MYPS_LS_MY_Prefixed_Projects.md`. They are the only Lump-Sum-shaped ids here with real `AlternateId`-linked children. |
+| **`MY…LS` identifiers** (16 projects) | A module not implemented yet — the instruction, and the only reason that matters. Inventoried in `documents/MYPS_LS_MY_Prefixed_Projects.md`. ~~They are the only Lump-Sum-shaped ids here with real `AlternateId`-linked children.~~ **That clause is void (§3):** `AlternateId` is not how itemization is recorded, so their appearance there says nothing about children. |
 | **`ProjectType = 'NULL'` on 56,710 other projects** | A genuine restore artifact, and its own decision. Only the 59 were changed. |
 | **`ComponentType` as a code on ~353,000 other rows** | Same reasoning (§4.1). Only the 59 parents' LS components were normalised. |
 | **The older live revisions** | Each parent has a second (the `P008` four have five); 71 carry components of their own, still in the duplicate/ten-row shape. Every Lump Sum view reads the **latest** live revision only, and rewriting history is not this script's job. |
@@ -243,6 +407,12 @@ This is the localhost proof of that fix. Finding #3 remains open against the 202
 ---
 
 ## 8. Before running against `192.168.50.200`
+
+> **Do not run the 2026-09-14 version of this script against the server.** It is superseded:
+> it writes each parent's funding line at the *remaining balance* rather than the allocation,
+> because it could not see the children (§3). Use the revised script, which links the children
+> from `tProjectNotes` and derives `Remaining + Σ children` — see
+> `documents/plans/legacy-ls-migration-2023-2025.md`. The points below still apply to it.
 
 This script is server-bound but has only been run on `myps_db_dev_200`. Before the server:
 

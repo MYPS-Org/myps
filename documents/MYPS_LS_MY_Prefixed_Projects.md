@@ -28,12 +28,27 @@ excluded by the predicate rather than by luck.
 
 ## What makes them different from the 59 that were migrated
 
-The 59 legacy Lump Sum parents have **no children at all** — searched five ways
-and confirmed zero. These `MY…LS` values are the opposite: they are the only
-Lump-Sum-shaped identifiers in this database that genuinely have
-`AlternateId`-linked children. That parent/child relationship is precisely the
-thing the unimplemented module is expected to model, which is why they are
-someone else's migration and not a gap in this one.
+**They are excluded by instruction: they belong to a module that is not implemented
+yet.** That is the whole reason, and it does not depend on anything about children.
+
+> **Corrected 2026-09-14.** This section originally read: *"The 59 legacy Lump Sum
+> parents have **no children at all** — searched five ways and confirmed zero. These
+> `MY…LS` values are the opposite: they are the only Lump-Sum-shaped identifiers in
+> this database that genuinely have `AlternateId`-linked children."*
+>
+> Both halves are wrong. The 59 parents have **2,028** itemized children between 22 of
+> them; the old data model records an itemization as a `dbo.history` row against the
+> child (`'Itemized from Project: <parent>'`), not in `AlternateId` — of 42,589 such
+> notes in `MYPS_BAK`, not one has the child's `alternate_id` equal to the parent it
+> names. So `AlternateId` says nothing about parentage either way, and these `MY…LS`
+> values appearing there is not evidence of children.
+>
+> See `documents/docs/engineering/MYPS_LEGACY_LS_MIGRATION_2026-09-14.md` §3.
+
+What the 16 rows below actually have in common is narrower: each carries an `MY…LS`
+value in `MYId` / `ExternalId`, and in most cases in an **earlier** revision's
+`AlternateId`. What that meant in the old system is not recorded here, and is a
+question for whoever builds the module.
 
 Note also that **no `MY…LS` project row exists to be their parent.** Every value
 below is a dangling reference: 15 projects point at `MY00003005LS` and 1 at
