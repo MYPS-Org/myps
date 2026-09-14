@@ -352,6 +352,16 @@ namespace WebAPI.Controllers.Lumpsum
                 }, cancellationToken);
 
                 await _db.SaveChangesAsync(cancellationToken);
+
+                // The new Lump Sum Project's allocation feeds the parent Program's Cost
+                // (ADR-055), so the program has to recompute the moment it exists — otherwise
+                // Program Details shows a stale total until an unrelated project edit happens
+                // to touch the same ProgramFK.
+                await _db.pRecomputeProgramCost
+                    .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={Program.ProgramPK}")
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
+
                 await transaction.CommitAsync(cancellationToken);
 
                 var Created = await _db.vLumpSumSet
@@ -776,6 +786,14 @@ namespace WebAPI.Controllers.Lumpsum
                 await ApplyUacsToPerYearRowsAsync(Revision.Id, dto.Uacs, UserId, CurrentDate, cancellationToken);
 
                 await _db.SaveChangesAsync(cancellationToken);
+
+                // This project's allocation may have just changed; the parent Program's Cost
+                // (ADR-055) has to follow, or Program Details shows a stale total.
+                await _db.pRecomputeProgramCost
+                    .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={LumpSumProject.ProgramFK}")
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
+
                 await transaction.CommitAsync(cancellationToken);
 
                 /*  THE SAVE ANSWERS THE WHOLE PROJECT (2026-09-10) — the shape
@@ -1042,6 +1060,13 @@ namespace WebAPI.Controllers.Lumpsum
                     LumpSumProject.RevisionId,
                     $"Lump Sum allocation increased by {TopUp:N2} to {dto.NewAmount:N2} ({Source} / {Agreement}).",
                     UserId, CurrentDate, cancellationToken);
+
+                // The top-up just raised this project's allocation; the parent Program's Cost
+                // (ADR-055) has to follow, or Program Details shows a stale total.
+                await _db.pRecomputeProgramCost
+                    .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={LumpSumProject.ProgramFK}")
+                    .AsNoTracking()
+                    .ToListAsync(cancellationToken);
 
                 await transaction.CommitAsync(cancellationToken);
 
