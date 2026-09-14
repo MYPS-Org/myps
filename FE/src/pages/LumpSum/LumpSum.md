@@ -48,7 +48,7 @@ their **Sub-Category was assigned by that script** from their descriptions where
 none — one 2023 parent (`P00730052LS`) and one 2024 parent (`P00830018LS`) took a flagged
 fallback and are wrong; treat any of them as correctable rather than authoritative. The `MY…LS`
 identifiers on the same database are a **different module** and were deliberately not migrated —
-`documents/MYPS_LS_MY_Prefixed_Projects.md`.
+`documents/docs/engineering/MYPS_LEGACY_LS_MIGRATION.md`, Appendix A.
 
 ---
 
