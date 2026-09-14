@@ -4,7 +4,8 @@
 **Database:** `localhost` / `myps_db_dev_200`
 **Script:** `Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.2026-09-14.sql`
 **Backup taken:** `…\MSSQL\Backup\myps_db_dev_200_pre_legacyls_20260914.bak` (196,121 pages, compressed)
-**Result:** 59 projects migrated. Every verification check 0. Second run reports 0 in scope.
+**Result (first run, 59 parents of 2024):** 59 projects migrated. Every verification check 0. Second run reports 0 in scope.
+**Result (Revision 2, same day, 2023 onwards):** 83 parents in scope, 4,037 children linked, `vLumpSumSet` 62 → **123**, `vLumpSumChildSet` 18 → **4,055**. See §9.
 
 > ### ⚠ Corrected 2026-09-14 — read §3 before trusting any figure here
 >
@@ -20,6 +21,10 @@
 > The migration as run did no harm — the rows it wrote are correct as far as they go — but it is
 > incomplete. The follow-up work links the children and re-derives each allocation as
 > `Remaining + Σ children`. See `documents/plans/legacy-ls-migration-2023-2025.md`.
+>
+> **Resolved the same day.** Revision 2 of the script ran on `myps_db_dev_200` at 11:59 after the
+> 2023 and 2025 program groups were loaded from `MYPS_BAK`. §9 is its run log; every figure this
+> box calls wrong is corrected there.
 
 ---
 
@@ -408,26 +413,157 @@ This is the localhost proof of that fix. Finding #3 remains open against the 202
 
 ## 8. Before running against `192.168.50.200`
 
-> **Do not run the 2026-09-14 version of this script against the server.** It is superseded:
-> it writes each parent's funding line at the *remaining balance* rather than the allocation,
-> because it could not see the children (§3). Use the revised script, which links the children
-> from `tProjectNotes` and derives `Remaining + Σ children` — see
-> `documents/plans/legacy-ls-migration-2023-2025.md`. The points below still apply to it.
+> **Run only Revision 2** — the file at the path in the header, as committed in `585904f4` or
+> later. The first version (`f69db199`) wrote each parent's funding line at the *remaining
+> balance* rather than the allocation, because it could not see the children (§3). Revision 2
+> links the children from `tProjectNotes` and derives `Remaining + Σ children`; it also re-admits
+> and corrects any parent the first version touched, so a database that received the first
+> version is repaired by running the second. The server has neither the 2023/2025 groups nor the
+> `tProjectNotes` rows the link travels in — the group load in
+> `MYPS_BAK_2023_2025_GROUP_LOAD_2026-09-14.md` comes first, or Revision 2 finds no children
+> there and writes the 2024 parents exactly as the first version did.
 
 This script is server-bound but has only been run on `myps_db_dev_200`. Before the server:
 
 1. **Back up.** §3 and §4 soft-delete rows; reversible by hand, not by re-running the script.
 2. **Dry run first** (`@DryRun = 1` in §2b) and read the §6 pick table. The Sub-Category rules were written against *this* lineage's descriptions; a rule whose PAPKey is not allowed there is discarded with a warning rather than applied, but a description this script has never seen falls back — and every fallback is a row for a human.
 3. **Expect the duplicate-pair branch to matter.** None differed here. If any differ there, they are reported, skipped, and surface as DRIFT — that is the designed outcome, not a failure.
-4. **Check the funding agreement.** `DPWH-GAA-2024` under `GOP` must be an active row, or §2 refuses.
-5. **Confirm the scope count before committing.** §1 prints it. On this database it was 59; a wildly different number means the predicate is finding something else.
+4. **Check the funding agreements.** `DPWH-GAA-<year>` under `GOP` must be an active row for every program year in scope (§2 prints the table), or §2 refuses.
+5. **Confirm the scope count before committing.** §1 prints it, by program and by reason. On this database it was 59 on the first run and 83 on Revision 2 (61 R1 / 4 R2 / 52 R3 / 0 R4); a wildly different number means the predicate is finding something else.
+6. **Run the harness first** — `LumpSum.Migrate.LegacyLSProjects.Proof.Dev.sql`, which injects three fixture projects, runs the migration against them inside a transaction, asserts eight outcomes and rolls back. It needs an existing 2024 program to hang the fixtures under and passes 8 of 8 here.
+
+---
+
+## 9. Revision 2 — run log (2026-09-14, 11:59)
+
+**Backup taken:** `myps_db_dev_200_pre_phaseC_20260914.bak`. **Preceded by:** the 2023 and 2025
+group load (`MYPS_BAK_2023_2025_GROUP_LOAD_2026-09-14.md`) and the harness, PASS 8 of 8. **Plan:**
+`documents/plans/legacy-ls-migration-2023-2025.md`, Phase C.
+
+### What changed in the script
+
+| § | Revision 2 |
+|---|---|
+| 1 scope | 2023 onwards; `MY…` excluded; and a parent already on the model is **re-admitted** when it is not typed `LS` (R1), holds a live non-Lump-Sum component (R2), is named by an itemization note whose child is still unlinked (R3), or its funding no longer equals `Remaining + Σ children` (R4) |
+| 2 lookups | the `DPWH-GAA-<year>` agreement resolved for every program year in scope; refuses if any is missing |
+| 3 components | all live components on the latest revision, not only the `LS`-typed ones. Survivor = the `LS`-typed one if any, else the lowest Id; identical copies retired as before; other components **folded** into the survivor (Total and earliest per-year Amount, printed); the survivor **converted** to `Lump Sum` / `LS` |
+| 5b children | **new.** Reads `'Itemized from Project: <parent>'` from `tProjectNotes`, retires identical duplicate components on each child's latest revision, then stamps the child as `ImportItemizedProjects` would: `ParentProjectId`, `ProjectType 'LS'`, `ItemizationType 'Itemized'`, `ProjectStatus`, revision `AlternateId := parent`, `IsWalletDraw = 1` on its funding lines |
+| 7 allocation | **reversed.** The stored per-year `Amount` *is* the remaining balance and is never written. `Target = Remaining + Σ children`: a parent with no line gets one at `Target`; a parent whose only line is the migration's — this script's from the first run, or the loader's on a revision it wrote — is raised to `Target`; anything a person entered is left and shows as DRIFT. Component `Total := Σ funding`; `Remaining = Total − children` is asserted, not derived |
+| 8 verification | five new counters (`ParentsHoldingANonLSComponent`, `NotedChildrenUnlinked`, `LinkedChildrenWithDuplicateComponents`, `ChildrenLinkedToAnUnlistedParent`, `LinkedChildrenMissingStamps`), a per-program-year table, and the six formerly-₱0 parents |
+
+### Scope: 83 parents
+
+| Program | Parents | | Reason | Parents |
+|---|---:|---|---|---:|
+| GAA 2023 CSSP | 34 | | R1 not typed `LS` (the 57 of 2023 + the 4 of 2025) | 61 |
+| GAA 2023 LP | 20 | | R2 holds a non-LS component (2025 OO-1's four, `CW1`) | 4 |
+| GAA 2023 OO-1 | 3 | | R3 has unlinked noted children (22 of 2024 + 30 of 2023) | 52 |
+| GAA 2024 SSP / OO-1 / LP | 19 / 2 / 1 | | R4 allocation drift | 0 |
+| GAA 2025 OO-1 | 4 | | | |
+
+The 37 parents of 2024 that have no children were **not** re-admitted: they are typed, hold one
+`Lump Sum` component, have no notes and balance — exactly the idempotence the first run promised.
+
+### The log
+
+```
+Live components found: 83 across 83 parent(s); 79 already typed as Lump Sum.
+Retired 0 surplus component(s) and 0 of their per-year row(s).
+CONVERTING these components to the Lump Sum allocation:
+  P00900001LS  CW/CW1  500,000,000     P00900002LS  CW/CW1  100,000,000
+  P00900003LS  CW/CW1  100,000,000     P00900004LS  CW/CW1  100,000,000
+ComponentType set to the canonical Lump Sum name on 61 component row(s).
+Description updated on 4 converted component(s).
+ComponentId normalised to 'LS' on 4 component row(s) and on 40 per-year row(s).
+Retired 549 empty per-year row(s).
+Blank UACS cleared to NULL on 0 per-year row(s).
+Year clamped to the program start year on 0 per-year row(s).
+Filled Start/End dates on 61 per-year row(s).
+ProjectType set to 'LS' on 61 project(s).
+Itemization notes naming a parent in scope: 4037 child(ren) under 52 parent(s).
+Retired 2237 duplicate child component(s) and 22370 of their per-year row(s).   -- all 2024
+Linked 4037 child(ren) to their Lump Sum parent.
+Alternate ID set to the parent's Project ID on 4037 child revision(s).
+IsWalletDraw set on 4032 child funding line(s).                                 -- 5 children have no line
+Sub-Category set on 1 revision(s).        -- P00730052LS, fallback: lowest allowed (flagged, see below)
+Added 60 funding line(s) at Remaining + children.
+Raised 23 funding line(s).
+Allocation (component Total) set from the funding lines on 52 component(s).
+Remaining = Total - children holds on every derived parent.
+Committed.
+```
+
+Nothing folded: no in-scope parent held a second component. The 2,237 duplicate child components
+are the 2024 children's second copies from the component-grain defect (group-load write-up §3.1);
+the 2023 and 2025 children, loaded after the fix, had none. Five children carry no funding line in
+the source and so have no `IsWalletDraw` flag to set; `vLumpSumChildSet` counts them from their
+components, not their lines.
+
+**The 23 raised lines** are the 22 lines the first run wrote at the remaining balance, plus
+`P00700002LS` (2023 OO-1), whose only line came from the old system through the loader and
+recorded the same post-itemization figure. Old → new for the six that were listed at ₱0:
+
+| Parent | Children | Line was | Remaining | Children hold | Line now |
+|---|---:|---:|---:|---:|---:|
+| `P00800007LS` | 2 | 0 | 0 | 93,500,000.00 | 93,500,000.00 |
+| `P00830004LS` | 140 | 0 | 0 | 39,600,000.00 | 39,600,000.00 |
+| `P00830010LS` | 155 | 0 | 0 | 52,564,999.99 | 52,564,999.99 |
+| `P00830013LS` | 117 | 0 | 0 | 46,060,049.05 | 46,060,049.05 |
+| `P00830014LS` | 88 | 0 | 0 | 36,600,000.00 | 36,600,000.00 |
+| `P00830018LS` | 242 | 0 | 0 | 7,998,736,757.37 | 7,998,736,757.37 |
+
+and, for the shape of the rest: `P00830001LS` 627,157.82 → 33,600,000.00 (68 children, 32,972,842.18 —
+no longer doubled), `P00700002LS` 128,776,000 → 233,530,000 (= the source's GAA cost),
+`P00800005LS` 450,000,000 → 500,000,000 (1 child). The 60 added lines are the 56 of 2023 that had
+none and the 4 of 2025.
+
+**`P00730052LS`'s Sub-Category** (2023 CSSP, description "Rehabilitation of Disaster-Related
+Infrastructure and Other Facilities") matched no rule and took the lowest allowed PAPKey, `1054`.
+It is the one placeholder this run left for a person to correct. The 2023 GAA-R rows otherwise
+arrived with valid PAPKeys, so §6 had nothing else to do.
+
+### Verification
+
+| Check | Wanted | Got |
+|---|---|---|
+| Orphan revisions / costs / per-year / funding; children with no parent | 0 | **0 / 0 / 0 / 0 / 0** |
+| Not listed / not exactly one LS component / drift / invalid Sub-Category / skipped | 0 | **0 / 0 / 0 / 0 / 0** |
+| Parents holding a non-LS component | 0 | **0** |
+| Noted children still unlinked | 0 | **0** |
+| Linked children with duplicate components | 0 | **0** |
+| Children linked to an unlisted parent | 0 | **0** |
+| Linked children missing stamps | 0 | **0** |
+| `vLumpSumSet` | 123 | **123** |
+| `vLumpSumChildSet` | 4,055 = 18 sample + 2,010 + 2,027 | **4,055** |
+| Invariant `Total = Remaining + Itemized` | OK on all 123 | **OK on all 123** |
+| Second run | 0 in scope | **"Lump Sum parents in scope: 0"** |
+
+By program year, as `vLumpSumSet` now reports it:
+
+| Year | Parents | Children | Allocation | Remaining | Itemized |
+|---|---:|---:|---:|---:|---:|
+| 2023 | 57 | 2,010 | 24,878,881,542.99 | 13,463,934,649.75 | 11,414,946,893.24 |
+| 2024 | 59 | 2,027 | 13,622,671,949.41 | 4,778,229,699.08 | 8,844,442,250.33 |
+| 2025 | 7 (4 migrated + 3 sample) | 18 (sample) | 1,340,000,000.00 | 908,000,000.00 | 432,000,000.00 |
+
+The 2024 `Remaining` is the first run's "allocation" to the centavo — that figure was the balance
+all along. The 2024 children number 2,027 against 2,028 notes: `P00851066VS` is named by a note
+and has no project row in `MYPS_BAK` itself. The largest parent, `P00730052LS`, now shows 446
+children, 10,429,053,146.08 itemized against a 20,255,231,704.40 allocation.
+
+These checks are not the vacuous ones §5 warned about: `NotedChildrenUnlinked` compares the
+source's own itemization record against the target's links, and the per-year `Itemized` figures
+were confirmed against `MYPS_BAK` per parent before the run (`verify_itemization_notes.py`).
 
 ---
 
 ## Related
 
 - `Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.2026-09-14.sql`
+- `Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.Proof.Dev.sql` — the rolled-back fixture harness
+- `documents/docs/engineering/MYPS_BAK_2023_2025_GROUP_LOAD_2026-09-14.md` — the group load that precedes Revision 2
+- `documents/plans/legacy-ls-migration-2023-2025.md`
 - `documents/MYPS_LS_MY_Prefixed_Projects.md`
-- `documents/docs/engineering/MYPS_DEV_200_DATABASE_BRINGUP.md` — Step 3b
+- `documents/docs/engineering/MYPS_DEV_200_DATABASE_BRINGUP.md` — Steps 3b and 3c
 - `documents/docs/engineering/MYPS_DEV_200_BRINGUP_RUN_REPORT_2026-09-13.md`
 - `FE/src/pages/LumpSum/LumpSum.md` — the model, and the Approved-program rule

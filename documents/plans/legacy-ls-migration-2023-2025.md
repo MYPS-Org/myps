@@ -1,6 +1,6 @@
 # Plan: load the 2023 / 2025 program groups from `MYPS_BAK` and complete the Lump Sum migration
 
-Status: **Approved — implementation in progress** (2026-09-14)
+Status: **Implemented** (2026-09-14) — see the Completion Log
 Created: 2026-09-14
 Supersedes: `documents/plans/legacy-ls-migration.md` (implemented 2026-09-14 for the 59 parents already on `dev_200`)
 Source: profiling of `localhost/MYPS_BAK` + `localhost/myps_db_dev_200`, the maintainer's addenda (2023 onwards only; use the python reference pipeline; `vw_notes` records itemization; non-BP-first groups are valid)
@@ -186,3 +186,59 @@ No C#, no views, no schema change on `dev_200`.
 | `ProjectType 'NULL'` keeps arriving from the reference | Unchanged by design; Phase C flips what it owns |
 | Backend repo pending edits | A0 baseline commit or explicit acceptance |
 | `.env` names `192.168.50.200` for `MYPS_DB` | The entrypoint never reads the target host from `.env` and refuses non-local hosts |
+
+---
+
+## Completion Log
+
+Implemented 2026-09-14 on `feat/legacy-ls-migration` (this repo) and
+`feat/data-migration-2023-2025-groups` (`02_refactored/myps-gis-backend`). Localhost only throughout.
+Backups: `myps_db_dev_200_pre_2023_2025_load_20260914.bak` before Phase B,
+`myps_db_dev_200_pre_phaseC_20260914.bak` before Phase C.
+
+**Phase A — the reference pipeline.** Baselined the maintainer's working tree (three files; the
+staged `migration_old.py` left as found after one commit swept it in and was redone). Fixed the
+component-grain defect in `build_project_component_cost_sql` (`GROUP BY` + `SUM`, 176,316
+duplicated pairs on `dev_200` traced to it) and mapped the target's `DataImportId` columns on
+writes (`to_target`) and reads (`target_column_name`). Added `build_project_notes_sql` /
+`migrate_project_notes` / `migrate_notes_for_programs` for the `dbo.history` itemization rows, a
+program-cost overflow fallback to Σ cost stream (one source row, ₱300,585,464,920,206 — the
+maintainer's call), the `steps_for_2023_2025_groups.py` entrypoint with its localhost guard and
+already-loaded refusal, `rollback_program_group.sql`, two verifiers and 27 unit tests. Files
+mirrored to `documents/python_migration/scripts/` (not the `.env`).
+
+**Phase B — the load.** 2023 LP, 2023 OO-1, 2023 CSSP, 2025 OO-1 — 29,786 projects, 102,989
+revisions, 161,756 components at one row each (verified), 4,132 notes including the 2,059
+back-filled onto the 2024 groups; 4,037 itemization links, all resolving, one source gap
+(`P00851066VS`). Two false starts, both rolled back: the read-side column name, and a `nohup`
+load killed with the shell — which exposed and fixed the rollback script's `ComponentCostFK = 0`
+blind spot (33 pre-existing orphan work items from the server load recorded, not touched).
+Write-up: `documents/docs/engineering/MYPS_BAK_2023_2025_GROUP_LOAD_2026-09-14.md`.
+
+**Phase C — the migration, Revision 2.** Wrote §5b (children), rewrote §7 (allocation =
+`Remaining + Σ children`, stored balance never written), extended §1/§2/§3/§8, and the harness
+(`LumpSum.Migrate.LegacyLSProjects.Proof.Dev.sql`, PASS 8 of 8). Harness → dry run → real run:
+**83 in scope** (61 R1 / 4 R2 / 52 R3 / 0 R4), 4 `CW → LS` conversions, **4,037 children linked**,
+**2,237 duplicate child components** retired (all 2024), 60 funding lines added, 23 raised (the
+first run's 22 + `P00700002LS`), every counter 0, `vLumpSumSet` **123**, `vLumpSumChildSet`
+**4,055**, invariant OK on all 123, second run 0 in scope. One Sub-Category fallback flagged
+(`P00730052LS`). Committed `585904f4`. Run log: `MYPS_LEGACY_LS_MIGRATION_2026-09-14.md` §9.
+
+**Phase D — documentation.** Group-load write-up (new), Revision 2 run log in the legacy LS
+write-up, runbook Steps 3b/3c in both copies, `FE/src/pages/LumpSum/LumpSum.md` migrated-data
+paragraph, `documents/python_migration/docs/2026-09-14_component_grain_target_columns_and_notes.md`,
+this log. The planned pointer from the `MY…LS` inventory to "pre-2023 `From MY…LS` notes" was
+dropped: `MYPS_BAK.dbo.history` holds **no** row mentioning a `MY…LS` id (`LIKE '%MY0%LS%'` → 0),
+so there is nothing to point at — the 16 MY-referencing projects carry the id in `AlternateId` only.
+
+**Departures from the plan.** 2024's `ItemizedTotal` is 8,844,442,250.33, not the 8,864,442,250.33
+the plan wrote (a transcription slip; the per-parent figures were verified against `MYPS_BAK`).
+The 2025 per-year row in `vLumpSumSet` shows 7 parents / 18 children because the MyMYPS sample's
+three parents live under a 2025 program; the four migrated ones have no children. §7 also raises a
+line the *loader* wrote on a revision it imported (`RevisionImported`), not only this script's —
+`P00700002LS` was the case that needed it.
+
+**Not done here.** API/UI verification on a scratch build (`ShowItemizedProjects` for
+`P00730052LS`, `UpdateLumpSum` echo, the `ls-*` Playwright specs) — the database side is proven
+by §8 and the views; the UI pass is the next step. The ~174,000 duplicated component pairs outside
+the linked children remain on `dev_200`, recorded in the group-load write-up §3.1.
