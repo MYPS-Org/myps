@@ -49,7 +49,7 @@ Every command below is written for that file's current target.
 ### Step 1 — Schema and programmability
 
 ```
-sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/Internal/SQLScripts/Migration.SchemaAndProgrammability.2026-09-10.sql
+sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/LumpSum/SQL/Migration.SchemaAndProgrammability.2026-09-10.sql
 ```
 
 One file, idempotent, covering everything in the table above except the isolation flag. It
@@ -80,7 +80,7 @@ the idempotency check. Then read the verification output at the end:
 ### Step 3 — Read-committed snapshot
 
 ```
-sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/Internal/SQLScripts/LumpSum.Isolation.ReadCommittedSnapshot.sql
+sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/LumpSum/SQL/LumpSum.Isolation.ReadCommittedSnapshot.sql
 ```
 
 Separate from Step 1 on purpose. This changes how the *whole database* isolates readers from
@@ -96,6 +96,100 @@ prints the flag before and after, and does nothing if the flag is already on.
 Left off, Lump Sum reads take shared locks and deadlock with writers. The symptom is not an
 error — it is a 12-second read or a request that times out with nothing blocked in
 `sys.dm_exec_requests`. See the [Lump Sum deadlock RCA](MYPS_LUMPSUM_DEADLOCK_RCA.md).
+
+### Step 3b — Load the program groups from `MYPS_BAK`
+
+Steps 1-3 give this database the Lump Sum *schema* and no data. The restore it came from carries
+the **2024** program groups only; the 2023 and 2025 groups — and with them 61 of the 123 legacy
+Lump Sum parents — exist only in `localhost / MYPS_BAK`, in the old data model. This step brings
+every 2023 program group and the 2025 OO-1 group across through the reference python pipeline in
+the backend repo, which also carries the old system's itemization notes (`dbo.history`,
+`'Itemized from Project: …'`) into `tProjectNotes`. Those notes are the **only** record of which
+child was itemized from which parent, and Step 3c cannot link a child without them.
+
+**Back up first.** The loader commits per table per stage; a failure mid-group leaves it half
+loaded, and only the rollback script or the backup undoes that.
+
+```
+cd C:\Users\User\Eptisa\git_wsl\02_refactored\myps-gis-backend       # branch feat/data-migration-2023-2025-groups
+.pixi\envs\default\python.exe -m app.data_migration.steps_for_2023_2025_groups --list         # the 33 groups
+.pixi\envs\default\python.exe -m app.data_migration.steps_for_2023_2025_groups                # every group not yet on the target
+.pixi\envs\default\python.exe -m app.data_migration.steps_for_2023_2025_groups --notes-only   # then: back-fill the 2024 notes
+```
+
+Source and target are constants in the entrypoint (`localhost/MYPS_BAK` → `localhost/myps_db_dev_200`);
+it refuses any host that is not this machine, and the default run skips any group whose
+`ProgramPK` already exists, so a re-run cannot double-load — but a half-loaded group counts as
+loaded, so roll one back before re-running. Run it from a foreground shell or as a detached
+background task with its own log — not `nohup … &` from a shell that then exits. Load one group
+at a time with `--group "2023 LP"` if you want to watch the first one land (80 s); the whole set
+takes about 30 minutes.
+
+**Expect** per group: `=== <group>: done (MP_…) ===`, one `WARNING` for `RBP FY 2023 Region XII
+BARMM` (no projects in the source; program rows only), and at the end `All groups loaded.`; the
+CSSP group also logs one `program cost … exceeds the column; using Σ cost stream` line — that is
+the ₱300tn source row, substituted by decision. Then:
+
+| Check | Wanted |
+|---|---|
+| `tPrograms` | **73** (40 + 33; 32 of them `StartYear = 2023`, all `MP_`-keyed) |
+| `tProjects` / `tProjectRevisions` | **115,360** / **258,566** |
+| `tProjectComponentCost` | **564,350**, one row per (revision, component) in the 33 groups |
+| `tProjectNotes` | **4,138** — 4,037 `Itemized from Project` links, every one resolving to a loaded parent |
+| `app/data_migration/test_sql/verify_component_grain.py --all-2023-2025` | 210,920 pairs, all one row, all non-Lump-Sum Totals = source |
+| `app/data_migration/test_sql/verify_itemization_notes.py --all` | 4,037 links, 0 unresolved, 1 known source gap (`P00851066VS`) |
+
+To undo a group: `sqlcmd … -i app/data_migration/migration_sql/rollback_program_group.sql -v ProgramPK="MP_…"`.
+
+Full write-up, including what changed in the pipeline and the figures per group:
+[loading the program groups](MYPS_BAK_PROGRAM_GROUP_LOAD.md). The scripts live only in the backend repo.
+
+### Step 3c — Legacy Lump Sum data (2023 onwards)
+
+```
+sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.Proof.Dev.sql   # harness: PASS 16 of 16, rolls back
+sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.2026-09-14.sql
+```
+
+**Back up first.** This one soft-deletes component and per-year rows; both are reversible by
+hand, neither by re-running the script.
+
+This lineage holds **123 Lump Sum projects migrated from 2023-2025 data** — `ProjectPK` ending
+in `LS` under Approved GAA-R programs — and **4,037 projects itemized from them**, and all of it
+predates the model: parents' components store `ComponentType` as the *code* where every reader
+joins on the *name*, four of the 2025 parents hold a `CW` component that *is* their allocation,
+every component carries ten per-year rows of which one is real, most parents have no funding
+line, and no child knows its parent except through the notes Step 3b carried. Step 3c is that
+migration: it types the parents, converts or folds their components into one `Lump Sum` one,
+links the children from the notes and stamps them as `ImportItemizedProjects` would, retires the
+2024 children's duplicate component copies, and writes each parent's allocation as
+`Remaining + Σ children`. It is not optional if you want those projects in `/lumpsum`.
+
+**Run the harness first**, then **do a dry run** (`@DryRun = 1` in section 2b) and read the
+scope-by-reason table, the CONVERTING table and the Sub-Category pick table before running for
+real. Every fallback in the pick table is a placeholder for someone to correct.
+
+**Expect:** `Lump Sum parents in scope: 83` (61 R1 / 4 R2 / 52 R3 / 0 R4), then `Committed.`,
+then every verification count **0** — the five referential, the five model, and the five
+Revision 2 counters — and:
+
+| Check | Wanted |
+|---|---|
+| `vLumpSumSet` | **123** — 3 sample + 57 of 2023 + 59 of 2024 + 4 of 2025 |
+| `vLumpSumChildSet` | **4,055** — 18 sample + 2,010 + 2,027 |
+| Children linked / duplicate child components retired | **4,037** / **2,237** (all 2024) |
+| Funding lines added / raised | **60** / **23** |
+| Allocation invariant | **OK** on all 123, no DRIFT |
+| `P00730052LS` | 446 children, allocation 20,255,231,704.40 |
+
+Idempotent: a second run reports `parents in scope: 0` and stops. A database that received the
+first (2024-only) version of this script is repaired by this one — the 22 itemized parents it
+wrote short are re-admitted under R3 and their lines raised.
+
+**MY-prefixed ids are excluded** — `MY00003005LS` and `MY00040003LS` belong to a module that
+is not implemented yet. They are inventoried in Appendix A of the write-up below.
+
+Full write-up: [legacy Lump Sum migration](MYPS_LEGACY_LS_MIGRATION.md).
 
 ### Step 4 — Optional local fixtures
 

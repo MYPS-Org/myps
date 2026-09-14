@@ -28,6 +28,28 @@ Only the **parent's** generated Project ID ends in `LS` — that is a constant, 
 a geographic code. A **child** takes its island code from its own Region, so a
 child in Region III ends in `LZ`.
 
+**One hundred and twenty of the projects in the list are migrated 2023-2025 data**, with
+**4,037 migrated children** under 52 of them (`myps_db_dev_200`, 2026-09-14). They were brought
+onto the model above by `Main/Resources/LumpSum/SQL/LumpSum.Migrate.LegacyLSProjects.2026-09-14.sql`
+(Revision 2); before it they were invisible, because their components stored `ComponentType` as
+the *code* (`'LS'`, or `'CW'` on four of the 2025 parents whose civil-works component *was* the
+allocation and was converted) and every reader here — `vLumpSumSet`'s `HasLSComponent`,
+`FindLSComponentAsync`, `GetLSComponentAsync` — joins on the *name*. Things to expect of them.
+They sit under **Approved GAA-R programs**, so Create and Delete are refused and the details and
+component render read-only, while Save, Replenish and Import still work (see *An Approved program
+closes the project's record, not its money*). Their **children were linked from the old system's
+itemization notes**, not created by Import, and are stamped exactly as Import stamps a child
+(`ParentProjectId`, `ProjectType 'LS'`, `ItemizationType 'Itemized'`, `AlternateId` = the
+parent's Project ID, `IsWalletDraw` on the funding line); six of the 2024 parents are **fully
+itemized** — `Remaining` ₱0 with the whole allocation in their children — which the list shows as
+a zero balance, not as unfunded. Their **allocation is `Remaining + Σ children`**, derived by the
+script from the stored balance and the linked children, so the invariant holds on every one. And
+their **Sub-Category was assigned by that script** from their descriptions where the source had
+none — one 2023 parent (`P00730052LS`) and one 2024 parent (`P00830018LS`) took a flagged
+fallback and are wrong; treat any of them as correctable rather than authoritative. The `MY…LS`
+identifiers on the same database are a **different module** and were deliberately not migrated —
+`documents/docs/engineering/MYPS_LEGACY_LS_MIGRATION.md`, Appendix A.
+
 ---
 
 ## Folder structure
