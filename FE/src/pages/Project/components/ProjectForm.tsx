@@ -993,15 +993,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </Button>
                 </>
               )}
-              {mode === 'edit' && !isLumpSumProject && initialData?.IsActive === true && Number(initialData?.ProgramDetails?.Status) !== 1 && (
+              {/* CanUpdate is state-aware (published + open-revision check server-side) and is
+                  mutually exclusive with CanRevise below by construction — see ProjectController.cs
+                  ShowProjectDetails. Number(...) !== 1 is the pre-existing, separate stage-lock
+                  condition, unchanged. */}
+              {mode === 'edit' && !isLumpSumProject && initialData?.CanUpdate === true && Number(initialData?.ProgramDetails?.Status) !== 1 && (
                 <>
                   <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
                     {updateAllProject ? 'Updating...' : 'Update Project'}
-                  </Button> 
+                  </Button>
                 </>
               )}
-              {/* A Lump Sum Project is not revisable — RevisionController refuses it. */}
-              {mode === 'edit' && !isLumpSumProject && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.ProjectDetails?.IsPublished && initialData?.CanRevise && (
+              {/* A Lump Sum Project is not revisable — RevisionController refuses it.
+                  CanRevise already encodes IsPublished + no-open-revision server-side. */}
+              {mode === 'edit' && !isLumpSumProject && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.CanRevise && (
                 <Menu as="div" className="relative inline-block text-left">
                   <MenuButton
                     as={Button}
