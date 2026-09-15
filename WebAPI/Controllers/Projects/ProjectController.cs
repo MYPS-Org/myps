@@ -1593,25 +1593,18 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Category != dto.ProjectDetails?.Category)
                 {
-                    var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentDate.Year || x.ValidUntil == 0).FirstOrDefaultAsync(x => x.CategoryId == dto.ProjectDetails!.Category);
-                    if (Category == null)
+                    // Category is permanently baked into this project's already-generated,
+                    // never-regenerated ProjectId (Helpers/ProjectHelper.cs:GenerateProjectID
+                    // allocates a Category-specific numeric range via dbo.pReserveProjectIdBlock,
+                    // called exactly once, at AddProject, for the life of the project). Changing
+                    // Category after creation would permanently desync the ID from its own
+                    // meaning with no way to regenerate and fix it. See
+                    // documents/docs/engineering/MYPS_CATEGORY_LOCKED_POST_CREATION_AND_SUBCATEGORY_FIX.md.
+                    return new BadRequestObjectResult(new
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.ProjectDetails!.Category}' is not valid.", Title = "Invalid Category" });
-                    }
-                    var OldCategory = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == Project.Category);
-                    hasUpdated = true;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        ReferenceId = TransactionReferenceId,
-                        TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tProjectRevisions",
-                        AffectedColumn = "Category",
-                        NewValue = $"Stage: {StageName} Value: {Category.CategoryName}",
-                        OldValue = $"Stage: {StageName} Value: {OldCategory?.CategoryName}",
-                        CreatedBy = UserId,
-                        CreatedDate = CurrentDate
+                        Message = "Category cannot be changed after a Project has been created — it determines part of the Project's ID and cannot be modified.",
+                        Title = "Category Locked"
                     });
-                    Project.Category = dto.ProjectDetails!.Category;
                 }
                 if (Project.Thrust != dto.ProjectDetails?.Thrust)
                 {
