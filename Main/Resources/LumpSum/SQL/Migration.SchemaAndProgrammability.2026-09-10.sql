@@ -839,11 +839,13 @@ BEGIN
         RETURN;
     END
 
+    -- RISK-108 fix: CROSS APPLY the effective-revision-aware function so an
+    -- approved Formal Revision's funding overlays base, instead of a direct
+    -- join that was blind to it.
     SELECT @NewCost = ISNULL(SUM(fp.Amount), 0)
     FROM dbo.tProjectStages ps
-    JOIN dbo.tProjectFundingProfile fp
-        ON fp.ProjectRevisionFK = ps.RevisionId AND fp.IsDeleted = 0
     JOIN dbo.tProjects prj ON prj.ProjectPK = ps.ProjectFK
+    CROSS APPLY dbo.fProjectFundingProfile(ps.ProjectFK, ps.StageId) fp
     WHERE ps.ProgramFK = @ProgramPK
       AND ps.StageId = @CurrentStageId
       AND prj.ProjectType <> N'LS';  -- RISK-009 guard
@@ -859,10 +861,11 @@ BEGIN
     SET Cost = @NewCost
     WHERE Id = @CurrentRevisionId;
 
-    /*  StageId is required by DBHelper.Models.Procedures.RecomputeProgramCost,
-        which UpdateProjectDetails maps this result set onto with FromSql.
-        Omitting it aborts the whole update with "The required column 'StageId'
-        was not present in the results of a 'FromSql' operation." */
+    /*  StageId is extra: DBHelper.Models.Procedures.RecomputeProgramCost only
+        declares RevisionId and NewCost. EF Core's FromSql mapping onto a
+        keyless type ignores result columns with no matching property, so this
+        column is harmless to keep and safe to drop -- kept here only because
+        dropping it isn't part of this fix. */
     SELECT @CurrentRevisionId AS RevisionId, @CurrentStageId AS StageId, @NewCost AS NewCost;
 END
 GO
