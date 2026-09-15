@@ -1,0 +1,1189 @@
+%% ERD — myps_db_dev_200 (localhost SQL Server)
+%% Generated 2026-09-15 from sys.tables / sys.columns / sys.foreign_keys.
+%% Solid lines  = declared FOREIGN KEY constraints (label = constraint name).
+%% Dashed lines = inferred relationships (no DB constraint; derived from *FK column naming, label starts with "inferred").
+%% Excluded: zz_backup_*_pre_migration_20260909 tables (13 migration backups).
+%% Non-dbo schemas are prefixed, e.g. HangFire_Job = HangFire.Job.
+erDiagram
+    AdminAreaCongressionalDistrict {
+        nvarchar RegionCode
+        nvarchar ProvinceCode
+        nvarchar CongDistCode
+        nvarchar CongDistHierarchyCode
+        nvarchar CongDistName
+        nvarchar NetworkStatusId
+        nvarchar IsActive
+    }
+    InternalOrgUnits {
+        nvarchar ParentParticipantId
+        nvarchar ParentName
+        nvarchar ParentType
+        nvarchar ParticipantId
+        nvarchar Name
+        nvarchar InternalOrgUnitType
+        tinyint NetworkStatusId
+        tinyint IsActive
+    }
+    pcma_project_modify {
+        varchar projectid PK
+        varchar programid PK
+        varchar approved_request
+        date date_of_approval
+        bit is_publish
+        varchar reasons_for_rm
+        varchar details_of_reason
+        varchar certified_by
+        datetime date_certified
+    }
+    province {
+        int RegionCode
+        smallint RegionHierarchyCode
+        nvarchar RegionParticipantId
+        nvarchar RegionName
+        int ProvinceCode
+        int ProvinceHierarchyCode
+        nvarchar ProvinceName
+        nvarchar IslandGroupCode
+        tinyint NetworkStatusId
+        tinyint IsActive
+    }
+    tApiActions {
+        int Id PK
+        nvarchar ActionName
+        nvarchar Description
+        nvarchar ControllerName
+    }
+    tApiControllers {
+        int Id PK
+        nvarchar ControllerName
+        nvarchar Description
+        nvarchar ModuleName
+    }
+    tAppModules {
+        int Id PK
+        nvarchar ModuleName
+        nvarchar Description
+    }
+    tAppViews {
+        int Id PK
+        nvarchar RouteName
+        nvarchar RoutePath
+        nvarchar Description
+        nvarchar ModuleName
+    }
+    tCodeTableTransactionLog {
+        int Id PK
+        nvarchar TransactionId
+        nvarchar TypeOfTransaction
+        nvarchar AffectedTable
+        nvarchar AffectedColumn
+        nvarchar OldValue
+        nvarchar NewValue
+        nvarchar CreatedBy
+        datetime CreatedDate
+    }
+    tFutureBridge {
+        int Id PK
+        int NetworkStatusId
+        int InfraExistingOrFutureId
+        nvarchar RoadSectionId
+        nvarchar BridgeId
+        nvarchar Name
+        float From
+        float Length
+        float CarriageWay
+        float OverallWidth
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+    }
+    tFutureRoads {
+        int Id PK
+        int NetworkStatusId
+        int InfraExistingOrFutureId
+        nvarchar RoadId
+        nvarchar Name
+        int Classification
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+        int ClassKey
+        nvarchar ClassName
+        int Class2Key
+        nvarchar Class2Name
+    }
+    tFutureRoadsClassification {
+        int Id PK
+        int ClassificationId
+        nvarchar Classification
+        nvarchar Description
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdateDate
+    }
+    tFutureRoadSections {
+        int Id
+        int NetworkStatusId
+        int InfraExistingOrFutureId
+        nvarchar RoadId
+        nvarchar RoadSectionId
+        float LengthM
+        nvarchar DEOParticipantId
+        nvarchar RegionParticipantId
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+    }
+    tGroupRoles {
+        int Id PK
+        int GroupId
+        nvarchar ActionIds
+        nvarchar ViewIds
+    }
+    tGroups {
+        int Id PK
+        nvarchar GroupName
+        nvarchar Description
+        bit ApplyFilter
+        nvarchar CreatedBy
+        datetime CreatedDate
+    }
+    tImportingStatus {
+        int Id PK
+        nvarchar ImportFunctionName
+        nvarchar LastUserIdInUse
+        datetime LastUsedDate
+        bit IsActive
+    }
+    tImportJob {
+        uniqueidentifier ImportJobId PK
+        nvarchar ImportFunctionName
+        nvarchar Status
+        nvarchar RequestedBy
+        datetime StartedDate
+        datetime LastHeartbeat
+        datetime CompletedDate
+        int RowsTotal
+        int RowsProcessed
+        nvarchar ErrorMessage
+        datetime CreatedDate
+    }
+    tImportJobResult {
+        int Id PK
+        nvarchar JobId
+        nvarchar HangfireJobId
+        nvarchar Status
+        nvarchar Message
+        int ValidCount
+        int WarningCount
+        int ErrorCount
+        nvarchar TextFileName
+        nvarchar ExcelFileName
+        datetime QueuedAt
+        datetime StartedAt
+        datetime CompletedAt
+        nvarchar RequestedBy
+    }
+    tInfraInventoryBridges {
+        int Id PK
+        int NetworkStatusId
+        int InfraExistingOrFutureId
+        nvarchar BridgeId
+        nvarchar RoadSectionId
+        nvarchar Name
+        float StartChainageM
+        float OverallLengthM
+        float OverallWidthM
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+    }
+    tInfraInventoryLRPs {
+        int Id PK
+        int NetworkStatusId
+        int InfraExistingOrFutureId
+        nvarchar RoadSectionId
+        nvarchar KMPost
+        float StartChainageM
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+    }
+    tInfraInventoryRoads {
+        int Id PK
+        int NetworkStatusId
+        int InfraExistingOrFutureId
+        nvarchar RoadId
+        nvarchar Name
+        int ClassKey
+        nvarchar ClassName
+        int Class2Key
+        nvarchar Class2Name
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+    }
+    tInfraInventoryRoadSections {
+        int Id PK
+        int NetworkStatusId
+        int InfraExistingOrFutureId
+        nvarchar RoadId
+        nvarchar RoadSectionId
+        float LengthM
+        nvarchar DEOParticipantId
+        nvarchar RegionParticipantId
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+    }
+    tLoginHistory {
+        int Id PK
+        nvarchar UserId
+        nvarchar IpAddress
+        nvarchar HostName
+        datetime LogDate
+        bit IsValid
+        nvarchar ValidationMessage
+    }
+    tOptionAdminAreaCityMunicipality {
+        int Id PK
+        nvarchar Name
+        nvarchar Code
+        nvarchar Hierarchy
+        nvarchar ProvinceCode
+        int NetworkStatusId
+        bit Deprecated
+        datetime CreatedDate
+        datetime UpdatedDate
+    }
+    tOptionAdminAreaCongressionalDistrict {
+        int Id PK
+        nvarchar Name
+        nvarchar Code
+        nvarchar Hierarchy
+        int NetworkStatusId
+        bit Deprecated
+        datetime CreatedDate
+        datetime UpdatedDate
+        nvarchar ProvinceCode
+    }
+    tOptionAdminAreaProvince {
+        int Id PK
+        nvarchar Name
+        nvarchar Code
+        nvarchar Hierarchy
+        int NetworkStatusId
+        bit Deprecated
+        datetime CreatedDate
+        datetime UpdatedDate
+        nvarchar RegionParticipantId
+    }
+    tOptionAdminAreaRegion {
+        int Id PK
+        nvarchar ParticipantId
+        nvarchar Name
+        nvarchar Code
+        nvarchar Hierarchy
+        varchar IslandCode
+        int NetworkStatusId
+        bit Deprecated
+        nvarchar SucceededByParticipantId
+        datetime CreatedDate
+        datetime UpdatedDate
+    }
+    tOptionAdminOffice {
+        int Id PK
+        nvarchar OfficeType
+        nvarchar ProvinceCode
+        nvarchar ParticipantId
+        nvarchar Name
+        nvarchar InternalOrgUnitType
+        int NetworkStatusId
+        bit Deprecated
+        nvarchar SucceededByParticipantId
+        datetime CreatedDate
+        datetime UpdatedDate
+        nvarchar RegionParticipantId
+        nvarchar ParentParticipantId
+    }
+    tOptionCodeTables {
+        int Id PK
+        nvarchar Group
+        nvarchar Name
+        nvarchar Code
+        bit IsActive
+    }
+    tOptionFundingAgreement {
+        int Id PK
+        nvarchar Code
+        nvarchar SourceOrg
+        nvarchar Name
+        nvarchar FinancingSourceSegmentCode
+        bit IsActive
+        nvarchar CreatedBy
+        datetime CreatedDate
+    }
+    tOptionFundingSource {
+        int Id PK
+        nvarchar Organization
+        nvarchar Name
+        nvarchar Nature
+        bit IsActive
+        nvarchar CreatedBy
+        datetime CreatedDate
+    }
+    tOptionGlobalSearch {
+        int Id PK
+        nvarchar CategoryName
+        bit IsActive
+    }
+    tOptionInfraNetworkStatus {
+        int Id PK
+        int OptionId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+    }
+    tOptionInfraType {
+        int Id PK
+        int InfraId
+        nvarchar InfraCode
+        nvarchar InfraName
+        bit IsActive
+    }
+    tOptionProgramStage {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+        decimal StageHierarchy
+        nvarchar DisplayName
+    }
+    tOptionProgramStatus {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionProgramType {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+        nvarchar Code
+    }
+    tOptionProjectAgency {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionProjectCategory {
+        int Id PK
+        int CategoryId
+        nvarchar CategoryName
+        int Minimum
+        int Maximum
+        int ValidUntil
+        bit IsActive
+    }
+    tOptionProjectCategoryToPAPMap {
+        bigint CategoryId
+        bigint PAPKey
+        int Id PK
+    }
+    tOptionProjectComponentType {
+        int Id PK
+        nvarchar ComponentModuleScope
+        nvarchar ComponentId
+        nvarchar ComponentName
+        bit ExportToPCMA
+        bit IsActive
+    }
+    tOptionProjectComponentTypeModule {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionProjectDetailedDesign {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionProjectEmergencyMode {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionProjectFeasibilityStudy {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionProjectGeometryCreation {
+        bigint EvalOrder
+        bigint CategoryId
+        varchar CategoryName
+        float PAPProgramId
+        varchar PAPProgramName
+        varchar InfraType
+        varchar FutureOrExisting
+        varchar PAPTreeRules
+        varchar PAPDescription
+        varchar GeometryCreationFunction
+    }
+    tOptionProjectImplementationMode {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionProjectOrigin {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionProjectRowAvailable {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionProjectThrustList {
+        int Id PK
+        int PAPKey
+        nvarchar ProgramName
+        nvarchar SubProgramName
+        nvarchar ActivityName
+        int SequenceNumber
+        int ValidFromDate
+        int ValidToDate
+        nvarchar InfrastructureType
+        nvarchar ThrustDescription
+        bit IsActive
+    }
+    tOptionProjectTier {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionRegionWide {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionReportProgram {
+        int Id PK
+        nvarchar ReportName
+        bit IsActive
+    }
+    tOptionRevisionApprovalLevel {
+        nvarchar Code PK
+        nvarchar Name
+        int Sequence
+        bit IsActive
+    }
+    tOptionRevisionCategory {
+        int Id PK
+        int CategoryId
+        nvarchar CategoryName
+        int RevisionGroupId FK
+        bit IsActive
+    }
+    tOptionRevisionDocuments {
+        int Id PK
+        int RevisionGroupId
+        int CategoryId
+        nvarchar SecondSegmentName
+        bit IsActive
+    }
+    tOptionRevisionHeader {
+        int Id PK
+        int RevisionGroupId
+        nvarchar RevisionName
+        bit IsActive
+    }
+    tOptionRevisionReasons {
+        int Id PK
+        int ReasonId
+        nvarchar Reason
+        int RevisionGroupId FK
+        nvarchar CategoryId
+        bit IsActive
+    }
+    tOptionRevisionStatus {
+        int Id PK
+        int NameId
+        nvarchar Name
+        nvarchar Description
+        bit IsActive
+    }
+    tOptionScopeOfWork {
+        int Id PK
+        int Enum
+        nvarchar InfraType
+        nvarchar WorkCategory
+        nvarchar Description
+        nvarchar Measure
+        int MaxAmount
+        int MinAmount
+        bit IsActive
+    }
+    tOptionSearchCategory {
+        int Id PK
+        nvarchar CategoryName
+        bit IsActive
+    }
+    tOptionSupportingDocs {
+        int Id PK
+        nvarchar Code
+        nvarchar Name
+        nvarchar CreatedBy
+        datetime CreatedDate
+        int ValidUntil
+        bit IsActive
+    }
+    tProgramRevisions {
+        int Id PK
+        nvarchar ProgramFK
+        nvarchar ProgramId
+        nvarchar Name
+        int Status
+        decimal Cost
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar DataImportId
+    }
+    tPrograms {
+        int Id PK
+        nvarchar ProgramPK
+        nvarchar UserGroup
+        nvarchar DataSecurityGroup
+        int Type FK
+        int StartYear
+        bit IsPublished
+        bit IsDeleted
+        bit IsSkipped
+        nvarchar SkipReason
+        int PCMARevisionCount
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar DataImportId
+    }
+    tProgramStages {
+        int Id PK
+        nvarchar ProgramFK
+        nvarchar ProgramId
+        int RevisionId
+        int StageId FK
+        nvarchar StageName FK
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar DataImportId
+    }
+    tProgramTypeStages {
+        int Id PK
+        int ProgramTypeId FK
+        nvarchar StageIds
+        bit IsActive
+    }
+    tProjectComponentCost {
+        int Id PK
+        int ProjectRevisionFK FK
+        nvarchar ComponentType
+        nvarchar ComponentId
+        nvarchar Description
+        decimal Total
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+        bit IsDeleted
+        nvarchar DataImportProgramId
+        nvarchar DataImportProjectId
+        nvarchar DataImportComponentId
+    }
+    tProjectComponentCostPerYear {
+        int Id PK
+        int ComponentCostFK
+        nvarchar ComponentId
+        decimal Amount
+        int Year
+        nvarchar UACS
+        datetime StartDate
+        datetime EndDate
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+        bit IsDeleted
+        datetime DateOfApproval
+        nvarchar DataImportProgramId
+        nvarchar DataImportProjectId
+        nvarchar DataImportComponentId
+    }
+    tProjectFundingProfile {
+        int Id PK
+        int ProjectRevisionFK FK
+        nvarchar SourceOrg FK
+        nvarchar AgreementCode FK
+        decimal Amount
+        float Percentage
+        bit IsWalletDraw
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+        bit IsDeleted
+        nvarchar DataImportId
+    }
+    tProjectGroups {
+        int Id PK
+        nvarchar Name
+        nvarchar Description
+        int UserGroup
+        bit IsDeleted
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+    }
+    tProjectIdSequence {
+        int CategoryId
+        nvarchar Suffix
+        nvarchar IslandCode
+        int YearStart
+        int CurrentSequence
+        datetime UpdatedDate
+    }
+    tProjectMajorWorkItem {
+        int Id PK
+        int ComponentCostFK
+        nvarchar ComponentId
+        int YearOfWork
+        int WorkTypeFK FK
+        nvarchar InfraTypeFK FK
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+        bit IsDeleted
+        nvarchar DataImportProgramId
+        nvarchar DataImportProjectId
+        nvarchar DataImportComponentId
+    }
+    tProjectMajorWorkLocations {
+        int Id PK
+        int WorkItemFK
+        nvarchar ComponentId
+        nvarchar InfraId
+        nvarchar DetailedScope
+        int TargetUnitId
+        nvarchar TargetUnit
+        float StartX
+        float StartY
+        float EndX
+        float EndY
+        float PhysicalTarget
+        nvarchar StartStationLimit
+        nvarchar EndStationLimit
+        float StartChainage
+        float EndChainage
+        float Length
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+        bit IsDeleted
+        nvarchar DataImportProgramId
+        nvarchar DataImportProjectId
+        nvarchar DataImportComponentId
+    }
+    tProjectNotes {
+        int Id PK
+        int ProjectRevisionFK FK
+        nvarchar FileName
+        nvarchar FileExtension
+        nvarchar FilePath
+        nvarchar Description
+        nvarchar CreatedBy
+        datetime CreatedDate
+    }
+    tProjectRevisions {
+        int Id PK
+        nvarchar ProjectFK FK
+        nvarchar ProgramFK
+        nvarchar ProgramId
+        nvarchar ProjectId
+        nvarchar AlternateId
+        datetime MYCAApprovalDate
+        nvarchar Description
+        nvarchar Region
+        nvarchar Province
+        nvarchar City
+        nvarchar LegislativeDistrict
+        nvarchar DEO
+        nvarchar OperatingUnit
+        nvarchar ImplementingOffice
+        nvarchar IslandCode
+        int Category
+        int Thrust
+        int Origin
+        int Agency
+        int ImplementationMode
+        int EmergencyMode
+        int RegionWide
+        int Feasibility
+        datetime FeasibilityDate
+        int DetailedDesign
+        datetime DetailedDesignDate
+        int RowAvailable
+        int Tier
+        float Rank
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar UpdatedBy
+        datetime UpdatedDate
+        bit IsDeleted
+        nvarchar DataImportId
+    }
+    tProjects {
+        int Id PK
+        nvarchar ProjectPK
+        nvarchar ProgramFK
+        nvarchar ProgramId
+        nvarchar ExternalId
+        nvarchar MYId
+        nvarchar ProjectType
+        int ProjectGroupFK FK
+        int ParentWalletId
+        decimal WalletDrawFrozen
+        bit IsPublished
+        bit IsRevised
+        bit IsPublishable
+        int PCMARevisionCount
+        nvarchar LockedBy
+        datetime LockedDate
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar DataImportId
+        nvarchar ParentProjectId
+        nvarchar ItemizationType
+        nvarchar ProjectStatus
+    }
+    tProjectSet {
+        int Id PK
+        int WalletFK
+        nvarchar ProjectSetType
+    }
+    tProjectStages {
+        int Id PK
+        nvarchar ProjectFK FK
+        nvarchar ProgramFK
+        nvarchar ProgramId
+        int RevisionId FK
+        int StageId FK
+        nvarchar StageName FK
+        nvarchar CreatedBy
+        datetime CreatedDate
+        nvarchar DataImportId
+    }
+    tProjectSupportingDocs {
+        int Id PK
+        int ProjectRevisionFK
+        nvarchar DocTypeName
+        nvarchar DocTypeFK FK
+        nvarchar FileName
+        nvarchar FileExtension
+        nvarchar FilePath
+        nvarchar Description
+        nvarchar CreatedBy
+        datetime CreatedDate
+    }
+    tReportJobResult {
+        int Id PK
+        nvarchar JobId
+        nvarchar HangfireJobId
+        nvarchar Status
+        nvarchar Message
+        nvarchar FileName
+        nvarchar FilePath
+        datetime QueuedAt
+        datetime StartedAt
+        datetime CompletedAt
+        nvarchar RequestedBy
+    }
+    tRevisionApprovals {
+        int Id PK
+        int RevisionDetailFK FK
+        nvarchar Level FK
+        int Status
+        nvarchar Description
+        nvarchar Approver
+        datetime ApprovedDate
+        datetime LastUpdatedDate
+    }
+    tRevisionDetails {
+        int Id PK
+        nvarchar TransactionId
+        nvarchar ProjectFK FK
+        int ProjectRevisionFK FK
+        nvarchar ProgramId
+        int RevisionGroupId FK
+        int CategoryId FK
+        int ReasonId FK
+        datetime IODocApprovalDate
+        nvarchar IODocPath
+        bit IsCertified
+        nvarchar CreatedBy
+        datetime CreatedDate
+    }
+    tRevisionDocuments {
+        int Id PK
+        int RevisionDetailFK FK
+        nvarchar DocumentName
+        nvarchar DocumentPath
+        bit IsApprovedDocument
+    }
+    tRevisionForCorrectionDetails {
+        int Id PK
+        int RevisionDetailFK FK
+        nvarchar ReturnedBy FK
+        nvarchar CorrectionReason
+        datetime ForCorrectionDate
+    }
+    tRevisionPCMAComponent {
+        int Id PK
+        nvarchar TransactionId
+        nvarchar ComponentId
+        int ConstructionStatusCode
+        nvarchar ConstructionStatusName
+        bit IsPackaged
+    }
+    tRevisionProjectComponentCost {
+        int Id PK
+        int RevisionDetailFK FK
+        nvarchar ComponentType
+        nvarchar ComponentId
+        nvarchar Description
+        decimal Total
+        bit IsDeleted
+    }
+    tRevisionProjectComponentCostPerYear {
+        int Id PK
+        nvarchar ComponentId
+        int RevisionComponentCostFK FK
+        decimal Amount
+        int Year
+        nvarchar UACS
+        datetime StartDate
+        datetime EndDate
+        bit IsDeleted
+        datetime DateOfApproval
+    }
+    tRevisionProjectFundingProfile {
+        int Id PK
+        int RevisionDetailFK FK
+        nvarchar SourceOrg FK
+        nvarchar AgreementCode FK
+        decimal Amount
+        float Percentage
+        bit IsDeleted
+        bit IsWalletDraw
+    }
+    tRevisionProjectMajorWorkItem {
+        int Id PK
+        int ComponentCostFK
+        nvarchar ComponentId
+        int YearOfWork
+        int WorkTypeFK FK
+        nvarchar InfraTypeFK FK
+        bit IsDeleted
+    }
+    tRevisionProjectMajorWorkLocations {
+        int Id PK
+        int RevisionWorkItemFK
+        nvarchar InfraId
+        nvarchar DetailedScope
+        int TargetUnitId
+        nvarchar TargetUnit
+        float StartX
+        float StartY
+        float EndX
+        float EndY
+        float PhysicalTarget
+        nvarchar StartStationLimit
+        nvarchar EndStationLimit
+        float StartChainage
+        float EndChainage
+        float Length
+        bit IsDeleted
+    }
+    tRevisionProjects {
+        int Id PK
+        bit IsActive
+        nvarchar TransactionId
+        int RevisionId
+        nvarchar ProjectFK
+        nvarchar ProgramFK
+        nvarchar ProgramId
+        nvarchar ProjectId
+        nvarchar ExternalId
+        nvarchar MYId
+        nvarchar AlternateId
+        datetime MYCAApprovalDate
+        nvarchar Description
+        nvarchar Region
+        nvarchar Province
+        nvarchar City
+        nvarchar LegislativeDistrict
+        nvarchar DEO
+        nvarchar OperatingUnit
+        nvarchar ImplementingOffice
+        nvarchar IslandCode
+        int Category
+        int Thrust
+        int Origin
+        int Agency
+        int ImplementationMode
+        int EmergencyMode
+        int RegionWide
+        int Feasibility
+        datetime FeasibilityDate
+        int DetailedDesign
+        datetime DetailedDesignDate
+        int RowAvailable
+        int Tier
+        float Rank
+        nvarchar CreatedBy
+        datetime CreatedDate
+        bit IsDeleted
+    }
+    tRevisionProjectSnapshot {
+        int Id PK
+        int RevisionDetailFK FK
+        nvarchar ProjectId
+        nvarchar AlternateId
+        datetime MYCAApprovalDate
+        nvarchar Description
+        nvarchar Region
+        nvarchar Province
+        nvarchar City
+        nvarchar LegislativeDistrict
+        nvarchar DEO
+        nvarchar OperatingUnit
+        nvarchar ImplementingOffice
+        nvarchar IslandCode
+        int Category
+        int Thrust
+        int Origin
+        int Agency
+        int ImplementationMode
+        int EmergencyMode
+        int RegionWide
+        int Feasibility
+        datetime FeasibilityDate
+        int DetailedDesign
+        datetime DetailedDesignDate
+        int RowAvailable
+        int Tier
+        float Rank
+        bit IsDeleted
+    }
+    tRevisionRules {
+        int Id PK
+        int ReasonId FK
+        nvarchar PCMA_Status
+        nvarchar Package_Status
+        nvarchar Field
+        bit IsActive
+    }
+    tTransactionLog {
+        int Id PK
+        nvarchar ReferenceId
+        nvarchar TransactionType
+        nvarchar AffectedTable
+        nvarchar AffectedColumn
+        nvarchar OldValue
+        nvarchar NewValue
+        nvarchar CreatedBy
+        nvarchar Hostname
+        datetime CreatedDate
+    }
+    tUserGroups {
+        int Id PK
+        nvarchar UserId
+        nvarchar GroupIds
+        nvarchar CreatedBy
+        datetime CreatedDate
+    }
+    tUsers {
+        int Id PK
+        nvarchar EmployeeId
+        nvarchar UserId
+        nvarchar Name
+        nvarchar Email
+        nvarchar RegCode
+        nvarchar PlantillaOffice
+        bit IsActive
+    }
+    HangFire_AggregatedCounter {
+        nvarchar Key PK
+        bigint Value
+        datetime ExpireAt
+    }
+    HangFire_Counter {
+        nvarchar Key PK
+        int Value
+        datetime ExpireAt
+        bigint Id PK
+    }
+    HangFire_Hash {
+        nvarchar Key PK
+        nvarchar Field PK
+        nvarchar Value
+        datetime2 ExpireAt
+    }
+    HangFire_Job {
+        bigint Id PK
+        bigint StateId
+        nvarchar StateName
+        nvarchar InvocationData
+        nvarchar Arguments
+        datetime CreatedAt
+        datetime ExpireAt
+    }
+    HangFire_JobParameter {
+        bigint JobId PK,FK
+        nvarchar Name PK
+        nvarchar Value
+    }
+    HangFire_JobQueue {
+        bigint Id PK
+        bigint JobId
+        nvarchar Queue PK
+        datetime FetchedAt
+    }
+    HangFire_List {
+        bigint Id PK
+        nvarchar Key PK
+        nvarchar Value
+        datetime ExpireAt
+    }
+    HangFire_Schema {
+        int Version PK
+    }
+    HangFire_Server {
+        nvarchar Id PK
+        nvarchar Data
+        datetime LastHeartbeat
+    }
+    HangFire_Set {
+        nvarchar Key PK
+        float Score
+        nvarchar Value PK
+        datetime ExpireAt
+    }
+    HangFire_State {
+        bigint Id PK
+        bigint JobId PK,FK
+        nvarchar Name
+        nvarchar Reason
+        datetime CreatedAt
+        nvarchar Data
+    }
+
+    %% ---- Declared foreign keys ----
+    HangFire_Job ||--o{ HangFire_JobParameter : "FK_HangFire_JobParameter_Job (JobId -> Id)"
+    HangFire_Job ||--o{ HangFire_State : "FK_HangFire_State_Job (JobId -> Id)"
+    tOptionRevisionHeader ||--o{ tOptionRevisionCategory : "FK_tOptionRevisionCategory_Header (RevisionGroupId -> RevisionGroupId)"
+    tOptionRevisionHeader ||--o{ tOptionRevisionReasons : "FK_tOptionRevisionReasons_Header (RevisionGroupId -> RevisionGroupId)"
+    tOptionProgramType ||--o{ tPrograms : "FK_tPrograms_Type (Type -> Id)"
+    tOptionProgramStage ||--o{ tProgramStages : "FK_tProgramStages_Stage (StageId,StageName -> Id,Name)"
+    tOptionProgramType ||--o| tProgramTypeStages : "FK_tProgramTypeStages_Type (ProgramTypeId -> Id)"
+    tProjectRevisions ||--o{ tProjectComponentCost : "FK_tProjectComponentCost_Revision (ProjectRevisionFK -> Id)"
+    tOptionFundingAgreement ||--o{ tProjectFundingProfile : "FK_tProjectFundingProfile_Agreement (AgreementCode -> Code)"
+    tProjectRevisions ||--o{ tProjectFundingProfile : "FK_tProjectFundingProfile_Revision (ProjectRevisionFK -> Id)"
+    tOptionFundingSource ||--o{ tProjectFundingProfile : "FK_tProjectFundingProfile_Source (SourceOrg -> Organization)"
+    tOptionInfraType ||--o{ tProjectMajorWorkItem : "FK_tProjectMajorWorkItem_InfraType (InfraTypeFK -> InfraCode)"
+    tOptionScopeOfWork ||--o{ tProjectMajorWorkItem : "FK_tProjectMajorWorkItem_WorkType (WorkTypeFK -> Enum)"
+    tProjectRevisions ||--o{ tProjectNotes : "FK_tProjectNotes_Revision (ProjectRevisionFK -> Id)"
+    tProjects ||--o{ tProjectRevisions : "FK_tProjectRevisions_Project (ProjectFK -> ProjectPK)"
+    tProjectGroups |o--o{ tProjects : "FK_tProjects_ProjectGroup (ProjectGroupFK -> Id)"
+    tProjects ||--o{ tProjectStages : "FK_tProjectStages_Project (ProjectFK -> ProjectPK)"
+    tProjectRevisions ||--o{ tProjectStages : "FK_tProjectStages_Revision (RevisionId -> Id)"
+    tOptionProgramStage ||--o{ tProjectStages : "FK_tProjectStages_Stage (StageId,StageName -> Id,Name)"
+    tOptionSupportingDocs ||--o{ tProjectSupportingDocs : "FK_tProjectSupportingDocs_DocType (DocTypeFK -> Code)"
+    tRevisionDetails ||--o{ tRevisionApprovals : "FK_tRevApprovals_Detail (RevisionDetailFK -> Id)"
+    tOptionRevisionApprovalLevel ||--o{ tRevisionApprovals : "FK_tRevApprovals_Level (Level -> Code)"
+    tOptionRevisionCategory |o--o{ tRevisionDetails : "FK_tRevisionDetails_Category (CategoryId -> CategoryId)"
+    tOptionRevisionHeader ||--o{ tRevisionDetails : "FK_tRevisionDetails_Header (RevisionGroupId -> RevisionGroupId)"
+    tProjects ||--o{ tRevisionDetails : "FK_tRevisionDetails_Project (ProjectFK -> ProjectPK)"
+    tProjectRevisions ||--o{ tRevisionDetails : "FK_tRevisionDetails_ProjectRevision (ProjectRevisionFK -> Id)"
+    tOptionRevisionReasons ||--o{ tRevisionDetails : "FK_tRevisionDetails_Reason (ReasonId -> ReasonId)"
+    tRevisionDetails ||--o{ tRevisionDocuments : "FK_tRevDoc_Detail (RevisionDetailFK -> Id)"
+    tRevisionDetails ||--o{ tRevisionForCorrectionDetails : "FK_tRevCorrection_Detail (RevisionDetailFK -> Id)"
+    tOptionRevisionApprovalLevel ||--o{ tRevisionForCorrectionDetails : "FK_tRevCorrection_ReturnedBy (ReturnedBy -> Code)"
+    tRevisionDetails ||--o{ tRevisionProjectComponentCost : "FK_tRevCost_Detail (RevisionDetailFK -> Id)"
+    tRevisionProjectComponentCost ||--o{ tRevisionProjectComponentCostPerYear : "FK_tRevCostYear_Cost (RevisionComponentCostFK -> Id)"
+    tOptionFundingAgreement ||--o{ tRevisionProjectFundingProfile : "FK_tRevFunding_Agreement (AgreementCode -> Code)"
+    tRevisionDetails ||--o{ tRevisionProjectFundingProfile : "FK_tRevFunding_Detail (RevisionDetailFK -> Id)"
+    tOptionFundingSource ||--o{ tRevisionProjectFundingProfile : "FK_tRevFunding_Source (SourceOrg -> Organization)"
+    tOptionInfraType ||--o{ tRevisionProjectMajorWorkItem : "FK_tRevWork_InfraType (InfraTypeFK -> InfraCode)"
+    tOptionScopeOfWork ||--o{ tRevisionProjectMajorWorkItem : "FK_tRevWork_WorkType (WorkTypeFK -> Enum)"
+    tRevisionDetails ||--o{ tRevisionProjectSnapshot : "FK_tRevisionProjectSnapshot_Detail (RevisionDetailFK -> Id)"
+    tOptionRevisionReasons ||--o{ tRevisionRules : "FK_tRevisionRules_Reason (ReasonId -> ReasonId)"
+
+    %% ---- Inferred relationships (not enforced by the database) ----
+    tPrograms |o..o{ tProjects : "inferred (ProgramFK -> ProgramPK)"
+    tPrograms |o..o{ tProgramRevisions : "inferred (ProgramFK -> ProgramPK)"
+    tPrograms |o..o{ tProgramStages : "inferred (ProgramFK -> ProgramPK)"
+    tProgramRevisions |o..o{ tProgramStages : "inferred (RevisionId -> Id)"
+    tPrograms |o..o{ tProjectRevisions : "inferred (ProgramFK -> ProgramPK)"
+    tPrograms |o..o{ tProjectStages : "inferred (ProgramFK -> ProgramPK)"
+    tProjects |o..o{ tRevisionProjects : "inferred (ProjectFK -> ProjectPK)"
+    tPrograms |o..o{ tRevisionProjects : "inferred (ProgramFK -> ProgramPK)"
+    tProjectRevisions |o..o{ tProjectSupportingDocs : "inferred (ProjectRevisionFK -> Id)"
+    tProjectComponentCost |o..o{ tProjectComponentCostPerYear : "inferred (ComponentCostFK -> Id)"
+    tProjectComponentCost |o..o{ tProjectMajorWorkItem : "inferred (ComponentCostFK -> Id)"
+    tProjectMajorWorkItem |o..o{ tProjectMajorWorkLocations : "inferred (WorkItemFK -> Id)"
+    tRevisionProjectComponentCost |o..o{ tRevisionProjectMajorWorkItem : "inferred (ComponentCostFK -> Id)"
+    tRevisionProjectMajorWorkItem |o..o{ tRevisionProjectMajorWorkLocations : "inferred (RevisionWorkItemFK -> Id)"
+    tProjects |o..o{ tProjectSet : "inferred (WalletFK -> Id)"
+    tProjects |o..o{ tProjects : "inferred (ParentWalletId -> Id)"
+    tGroups |o..o{ tGroupRoles : "inferred (GroupId -> Id)"
+    tUsers |o..o{ tUserGroups : "inferred (UserId -> UserId)"
+    tUsers |o..o{ tLoginHistory : "inferred (UserId -> UserId)"
+    HangFire_Job |o..o{ HangFire_JobQueue : "inferred (JobId -> Id)"
