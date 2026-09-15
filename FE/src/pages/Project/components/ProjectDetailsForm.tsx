@@ -220,9 +220,13 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         }
         else if (field === 'Category') {
             onChange(field, value);
-            // Clear the selected Sub-Category if it's no longer valid for the newly-picked
-            // Category -- only fires on an actual user change, never on initial data load.
-            if (projectDetails?.Thrust && !isThrustAllowedForCategory(projectDetails.Thrust, value as number, projectEnums?.CategoryThrustMap, validThrustPAPKeys)) {
+            // Clear the Sub-Category whenever the Category actually changes -- unconditional,
+            // matching LumpSumForm.tsx's proven pattern. The previous conditional clear (only when
+            // isThrustAllowedForCategory said the OLD value was no longer valid) had a gap: for any
+            // "unrestricted" Category (zero CategoryThrustMap rows), that helper returns true for
+            // every PAPKey by design, so a stale Sub-Category from a DIFFERENT Category silently
+            // passed the guard and carried over, looking like a real selection the user never made.
+            if (projectDetails?.Category !== value) {
                 onChange('Thrust', undefined);
             }
         }
@@ -419,7 +423,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.Category || ''}
                                         onChange={(value) => handleInputChange('Category', value === '' ? undefined : parseInt(value.toString()))}
                                         placeholder="Select Category"
-                                        disabled={disabled}
+                                        disabled={mode === 'edit' || disabled}
                                         error={!!errors.Category}
                                         allowClear={true}
                                         searchPlaceholder="Search"

@@ -762,6 +762,20 @@ namespace Helpers
                 if (string.IsNullOrWhiteSpace(key))
                     continue;
 
+                // Category/Region are permanently baked into a Project's already-generated,
+                // never-regenerated ProjectId (Helpers/ProjectHelper.cs:GenerateProjectID --
+                // called exactly once, at AddProject, for the life of the project). Locked here,
+                // not just in tRevisionRules data, so a misconfigured or future rule row can never
+                // reopen this: confirmed live, 16 active tRevisionRules rows currently mark one or
+                // both of these editable for specific revision-reason/status combinations. Applies
+                // to every caller of this shared helper (RequestRevision, ResubmitRevision, and
+                // any future one), not just ProjectDetails -- for unrelated entity shapes that
+                // don't have a same-named property, this is already inert via the property lookup
+                // below, so it's safe to keep unconditional rather than gated by AffectedTable.
+                // See documents/docs/engineering/MYPS_CATEGORY_LOCKED_POST_CREATION_AND_SUBCATEGORY_FIX.md.
+                if (key == "Category" || key == "Region")
+                    continue;
+
                 var sourceProp = sourceType.GetProperty(key);
                 var destProp = destType.GetProperty(key);
 
