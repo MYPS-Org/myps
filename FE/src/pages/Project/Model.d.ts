@@ -9,9 +9,14 @@ export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
   IsUnlock?: boolean;
-  // Whether the current user has permission to submit a revision request (ShowProjectDetails
-  // computes this from vUserActionPermission/vUserViewPermission; ReviseProject also returns it).
+  // State-aware: true only when the project is published with no open revision AND the caller
+  // holds the ReviseProject/RevisionDetails permissions. Mutually exclusive with CanUpdate by
+  // construction (ShowProjectDetails derives both from one server-side check). ReviseProject also
+  // returns this field.
   CanRevise?: boolean;
+  // State-aware mirror of CanRevise: true only when the project is NOT published (or has no open
+  // revision blocking a direct edit) AND the caller holds the UpdateProjectDetails permission.
+  CanUpdate?: boolean;
   ProgramDetails: ProgramLatest;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];

@@ -791,11 +791,27 @@ namespace WebAPI.Controllers.Projects
                 #endregion
 
                 var HasViewPermission = await _db.vUserViewPermission.AnyAsync(x => x.RouteName == "RevisionDetails" && x.UserId == _Session.UserId && x.IsActive);
-                var HasAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "ReviseProject" && x.UserId == _Session.UserId && x.IsActive);
+                var HasReviseAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "ReviseProject" && x.UserId == _Session.UserId && x.IsActive);
+                var HasUpdateAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "UpdateProjectDetails" && x.UserId == _Session.UserId && x.IsActive);
+
+                // Revise vs Update is state-based, not just permission-based, and the two must be
+                // mutually exclusive. Mirrors the exact IsPublished + fOpenRevision checks
+                // RequestRevision already enforces server-side (RevisionController.cs:947,1009) --
+                // this is not a new rule, just surfacing the existing one here so the buttons agree
+                // with what the write action will actually allow, instead of each deriving its own
+                // approximation. Both booleans below are derived from ONE state check (IsRevisable),
+                // so they cannot both be true for the same project.
+                var HasOpenRevision = await _db.fOpenRevision
+                    .FromSqlInterpolated($"SELECT * FROM fOpenRevision({ProjectFK})")
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
+                bool IsRevisable = ProjectParent.IsPublished && HasOpenRevision == null;
+
                 return Ok(new
                 {
                     IsActive = CurrentProgramVersion != null && ProgramLatest.Status != "Approved",
-                    CanRevise = HasAPIPermission && HasViewPermission,
+                    CanRevise = IsRevisable && HasReviseAPIPermission && HasViewPermission,
+                    CanUpdate = !IsRevisable && HasUpdateAPIPermission,
                     ProgramDetails = Program,
                     ProjectDetails = ProjectRevisions,
                     FundingProfile = Funding,
