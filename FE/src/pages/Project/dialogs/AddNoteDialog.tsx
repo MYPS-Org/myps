@@ -4,7 +4,6 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { AddNotes, ProjectSupportingDocs, DropdownSupportingDocs } from '../Model.d';
 import { addDoc } from '../Service';
-import { toDateInputValue } from '../../../utils/GlobalFunctions';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddNoteDialogProps {
@@ -107,28 +106,36 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         const response = await addDoc(formData);
         console.log('Add document response:', response);
 
-        if (response?.Data) {
+        if (response?.Data?.Data) {
             // 2026-09-11 fix: previously fabricated this row entirely from client-only data --
             // FilePath was set to formData.File.DataUrl (the base64 preview URL), which worked
             // as a link target by accident (data: is a valid absolute URI) but opened the raw
             // upload blob instead of the real server file until a refresh replaced it with real
             // data. UploadSupportingDocs now returns the actual persisted row -- use that instead
             // of guessing, so the just-uploaded doc works immediately, not just after refresh.
-            const doc = response.Data;
+            //
+            // Fixed again: response.Data is the whole {Message, Title, Data} envelope
+            // httpClient.post wraps the raw body in -- the real row is response.Data.Data. Reading
+            // response.Data directly (as this line used to) meant every field below except the two
+            // with a fallback resolved to undefined, so the grid showed blank columns immediately
+            // after upload and only looked correct after a refresh re-read the doc from
+            // ShowProjectDetails' differently-shaped (flat) response instead. No fallbacks needed
+            // now that doc is the real row -- leaving them in would just mask a future regression.
+            const doc = response.Data.Data;
             const newDoc: ProjectSupportingDocs = {
             Id: doc.Id,
             ProjectId: projectId,
-            DocumentType: doc.DocTypeName || formData.DocTypeName || formData.DocumentType,
-            Code: doc.DocTypeFK || '',
-            Name: doc.DocTypeName || '',
-            DocTypeFK: doc.DocTypeFK || '',
-            DocTypeName: doc.DocTypeName || '',
+            DocumentType: doc.DocTypeName,
+            Code: doc.DocTypeFK,
+            Name: doc.DocTypeName,
+            DocTypeFK: doc.DocTypeFK,
+            DocTypeName: doc.DocTypeName,
             Description: doc.Description,
             FileName: doc.FileName,
             FileExtension: doc.FileExtension,
             FilePath: doc.FilePath,
             CreatedBy: doc.CreatedBy,
-            CreatedDate: doc.CreatedDate || toDateInputValue(new Date()),
+            CreatedDate: doc.CreatedDate,
             };
 
             console.log('Creating new document object:', newDoc);

@@ -152,10 +152,14 @@ export const addNote = async (formData: AddNotes) => {
 };
 export const addDoc = async (formData: AddNotes) => {
   try {
-    // 2026-09-11 fix: typed with UploadedDocData (httpClient.post<T> already wraps the return
-    // as ApiResponse<T>) so callers can use the real persisted document (Id/FilePath/etc.) the
-    // backend now returns instead of fabricating one.
-    const response = await httpClient.post<UploadedDocData>(`/Project/UploadSupportingDocs/`, formData, {
+    // UploadSupportingDocs returns {Message, Title, Data: UploadedDocData} -- httpClient.post<T>
+    // wraps that whole body as ApiResponse.Data, so the real row is response.Data.Data, not
+    // response.Data. Typing T as the envelope (not UploadedDocData directly) lets TS catch a
+    // caller that forgets the second unwrap, which is exactly what happened before this fix:
+    // response.Data was read as if it were the row, so every field but two (masked by fallbacks)
+    // resolved to undefined until a page refresh pulled the same doc from ShowProjectDetails'
+    // genuinely flat response instead.
+    const response = await httpClient.post<{ Message: string; Title: string; Data: UploadedDocData }>(`/Project/UploadSupportingDocs/`, formData, {
       preloaderMessage: 'Adding document...',
     });
     return response;
