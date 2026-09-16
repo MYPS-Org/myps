@@ -141,13 +141,25 @@ namespace WebAPI.Controllers.CrystalReport
                 });
             }
 
-            string User = _Session.UserId;
+            // _Session is never populated here -- this controller inherits ControllerBase, not
+            // CoreController, so CoreController's OnActionExecuting (which sets _Session from
+            // vUsers) never runs. Read the user id straight from claims instead, same as Download below.
+            var requestedByClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(requestedByClaim))
+            {
+                return Unauthorized(new
+                {
+                    Title = "Session invalid",
+                    Message = "Your session does not contain a valid user id. Please sign in again."
+                });
+            }
+            string requestedBy = requestedByClaim;
 
             var payload = new ReportJobPayload
             {
                 ReportName = reportName,
                 QueryString = JsonSerializer.Serialize(legacyParams),
-                RequestedBy = User
+                RequestedBy = requestedBy
             };
 
             // ── Save initial job record ────────────────────────────────────
