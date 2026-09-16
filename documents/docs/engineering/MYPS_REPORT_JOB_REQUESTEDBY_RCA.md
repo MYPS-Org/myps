@@ -91,7 +91,16 @@ separate follow-up work.
 +            // _Session is never populated here -- this controller inherits ControllerBase, not
 +            // CoreController, so CoreController's OnActionExecuting (which sets _Session from
 +            // vUsers) never runs. Read the user id straight from claims instead, same as Download below.
-+            string requestedBy = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
++            var requestedByClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
++            if (string.IsNullOrEmpty(requestedByClaim))
++            {
++                return Unauthorized(new
++                {
++                    Title = "Session invalid",
++                    Message = "Your session does not contain a valid user id. Please sign in again."
++                });
++            }
++            string requestedBy = requestedByClaim;
 
              var payload = new ReportJobPayload
              {
@@ -102,8 +111,19 @@ separate follow-up work.
              };
 ```
 
-One-line behavioral change, reusing the exact pattern already proven correct by `Download` in the
-same file. No `CoreController`/permission-model change, no DB schema change.
+Reuses the exact pattern already proven correct by `Download` in the same file. No
+`CoreController`/permission-model change, no DB schema change.
+
+The first version of this fix fell back to `?? string.Empty` when the claim was missing, silently
+writing an empty `RequestedBy` rather than a real one — a smaller version of the same "blank
+audit-trail field" defect this RCA is about. Since `[Authorize]` already guarantees an authenticated
+identity before the action body runs, and `AuthController.Login` always stamps
+`ClaimTypes.NameIdentifier` on a successful login, the claim being absent here should be
+unreachable through the normal auth flow. Rather than mask that (via `?? string.Empty`) or crash
+into an unhandled exception (via `throw`, and this controller has no exception-handling middleware
+or `IMYPSExceptionHandler` wired in to catch one), the final version fails the single request
+cleanly with `401 Unauthorized` and a clear message, and never inserts a `tReportJobResult` row at
+all for that request.
 
 ## Verification (2026-09-16, against `myps_db_dev` on 192.168.50.200)
 
@@ -130,6 +150,12 @@ re-testing.
 | `rbp` (Crystal/PDF path) | `Rbp` | 317 | `longboanak` | Failed — bad test data (`programid=1` doesn't exist); **`RequestedBy` still correctly populated on the failure path** |
 | `rbp` (Crystal/PDF path) | `Rbp` | 318 | `longboanak` | Failed — real `ProgramId` but missing report-level parameters the `.rpt` requires (`@PlanningEngineer`, `@ReviewdBy`, `@ApprovedBy`, `@ReviewedBy`) that `ReportRequestMapper.MapRbp` treats as optional; confirmed via direct call to CrystalReportService, which returns the exact missing-parameter list |
 | `rbp` (Crystal/PDF path) | `Rbp` | 319 | `longboanak` | Completed with all signatory fields supplied; downloaded valid PDF (1 page, 74.6 KB) |
+| `extract-pc` (Excel path), re-tested after the `Unauthorized` guard was added | `ExtractPc` | 320 | `longboanak` | Completed — guard does not interfere with the normal authenticated path |
+
+A request with no session cookie at all was also re-tested against the guarded build: it still gets
+`401` from the standard `[Authorize]`/cookie-auth pipeline before the action body ever runs, so it
+never reaches the new check — expected, and consistent with the guard being unreachable dead code
+under the current auth flow rather than a path with real traffic.
 
 Both output-format code paths (`IExcelReportGenerator` direct-to-Excel, and the
 CrystalReportService HTTP round trip for PDF) confirmed. `RequestedBy` is populated on both the
