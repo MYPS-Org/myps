@@ -50,7 +50,27 @@ export interface BudgetBreakdownRow {
     projectCount: number;
 }
 
-export const kpisCacheAtom = atom<SectionCache<KpiData>>(emptySectionCache<KpiData>());
+/**
+ * The KPI request is the one that also tells us which fiscal years exist, so its cache entry
+ * carries that alongside the tile figures rather than costing a second round trip just to
+ * populate the year switcher.
+ */
+export interface KpiSection {
+    kpis: KpiData;
+    selectedYear: number;
+    availableYears: number[];
+}
+
+export const kpisCacheAtom = atom<SectionCache<KpiSection>>(emptySectionCache<KpiSection>());
+
+/**
+ * Which fiscal years Live DB offers. Deliberately NOT part of the keyed section cache: that
+ * cache is per `${mode}:${year}` and reads as empty the moment the year changes, whereas this
+ * list is the same whatever year is selected. Holding it here stops the year switcher from
+ * momentarily falling back to its placeholder mid-request and snapping the user's selection
+ * back — see the selection guard in Dashboard.tsx.
+ */
+export const liveAvailableYearsAtom = atom<number[]>([]);
 export const trendCacheAtom = atom<SectionCache<TrendRow[]>>(emptySectionCache<TrendRow[]>());
 export const budgetBreakdownCacheAtom = atom<SectionCache<BudgetBreakdownRow[]>>(emptySectionCache<BudgetBreakdownRow[]>());
 export const statusesCacheAtom = atom<SectionCache<{ statuses: StatusSegment[]; islands: IslandAllocation[] }>>(

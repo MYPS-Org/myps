@@ -58,7 +58,14 @@ namespace WebAPI.Controllers.Dashboard
         public string? Status { get; set; }
     }
 
-    public class ShowDashboardProjectsDTO : EnumPagination<ShowDashboardProjectsFilterDTO> { }
+    public class ShowDashboardProjectsDTO : EnumPagination<ShowDashboardProjectsFilterDTO>
+    {
+        // The watchlist is scoped to the same fiscal year as the rest of the dashboard.
+        // Null falls back to the latest year that actually has cost data (see
+        // DashboardController.ResolveYearAsync).
+        [Range(2000, 2200)]
+        public int? Year { get; set; }
+    }
 
     public class DashboardSummaryDTO
     {

@@ -61,6 +61,13 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
   const avgProjects = trajectoryData.length > 0
     ? Math.round(trajectoryData.reduce((sum, item) => sum + item.projects, 0) / trajectoryData.length)
     : 0;
+  // Same reason as DashboardCharts' trend row: Live DB supplies one point per fiscal year with
+  // data (16 today), not the five this sparkline's fixed gaps were sized for. Tighten spacing so
+  // a long series stays inside the card instead of pushing its year labels out of it.
+  const isDenseTrajectory = trajectoryData.length > 8;
+  const trajectoryRowGap = isDenseTrajectory ? 'gap-1 sm:gap-2' : 'gap-3 sm:gap-6';
+  const trajectoryLabelSize = isDenseTrajectory ? 'text-[9px]' : 'text-[11px]';
+
   const yearRange = trajectoryData.length > 0
     ? `${trajectoryData[0].year} to ${trajectoryData[trajectoryData.length - 1].year}`
     : 'No fiscal years';
@@ -210,7 +217,7 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
           <span>Period Avg: <strong className={isLight ? 'text-slate-800' : 'text-white'}>{avgProjects.toLocaleString()}</strong> projects</span>
         </div>
 
-        <div className={`h-28 flex items-end gap-3 sm:gap-6 px-2 pt-2 border-b ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+        <div className={`h-28 flex items-end ${trajectoryRowGap} px-2 pt-2 border-b ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
           {isLoading && !isBenchmark
             ? Array.from({ length: 5 }).map((_, index) => (
                 <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
@@ -227,7 +234,7 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
             return (
               <div
                 key={item.year}
-                className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer"
+                className="flex-1 min-w-0 flex flex-col items-center justify-end h-full group relative cursor-pointer"
                 onClick={() => onSelectYear?.(item.year)}
               >
                 {/* Tooltip on hover */}
@@ -251,7 +258,7 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
                   }`}
                 />
                 <span
-                  className={`text-[11px] font-bold mt-1.5 ${
+                  className={`${trajectoryLabelSize} font-bold mt-1.5 ${
                     isSelected
                       ? isLight ? 'text-blue-700' : 'text-amber-400'
                       : isLight ? 'text-slate-500' : 'text-slate-400'

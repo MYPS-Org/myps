@@ -390,3 +390,107 @@ useDashboardActivities,useDashboardRevisions}.ts`
 
 e2e: `e2e/CLAUDE.md` (coverage map), `e2e/tests/dashboard-real-data.spec.ts` (new, replaces
 deleted `e2e/tests/dashboard-real-data.narrated.spec.ts`)
+
+---
+
+## Follow-up: per-year loading and SQL-side aggregation (2026-09-16)
+
+Status: Implemented
+
+### Why
+Two problems surfaced against the live database once it had real volume (56,789 projects,
+~3.5M component-cost-per-year rows across 16 fiscal years):
+
+1. **Only FY2027 was selectable.** `TemporaryDashboardYear = 2027` was still in place and
+   `AvailableYears` returned `new[] { TemporaryDashboardYear }`, so the year switcher had exactly
+   one option. The stopgap's premise ("the live database only has clean data for FY2027") no
+   longer held — FY2024 through FY2033 each carry ~353k cost rows.
+2. **The split made total database work worse, not better.** Every one of the eight endpoints
+   opened with `GetYearScopedProjectsAsync`, which materialized the full year-scoped portfolio
+   (~57k rows) plus five lookup round-trips, and only then grouped it in memory to produce a
+   handful of output rows. Measured: ~8–11 s per endpoint, so a dashboard that loads seven
+   sections did roughly 400,000 row materializations and ~23 s of database CPU per page view.
+   The lazy loading from the original plan spread that cost out; it did not reduce it.
+
+The plan above explicitly recorded "Recommendation: skip Hangfire for this pass ... revisit only
+if a specific split endpoint is measured slow after this ships." It was measured slow. The cause
+turned out to be query shape, not a missing cache, so the answer is still not Hangfire.
+
+### What changed
+
+**Database.** `dbo.tProjectComponentCostPerYear` had no index on `Year`, so the predicate every
+endpoint leads with (`WHERE IsDeleted = 0 AND Year = @year`) full-scanned ~3.5M rows, seven times
+per page view. Added `IX_tProjectComponentCostPerYear_Year_Live` — key on `[Year]`, `INCLUDE
+(ComponentCostFK, Amount)`, filtered `WHERE IsDeleted = 0`, following this database's existing
+`_Live` filtered-index convention. Script: `Main/Resources/Internal/SQLScripts/
+Dashboard.Indexes.sql` (idempotent; this repo has no migration runner, so it is applied by hand
+like `Revision.Queue.sql`).
+
+**Backend.** `TemporaryDashboardYear` is gone. `ResolveYearAsync` returns the years that actually
+have cost rows and validates the requested year against them; every endpoint now takes a
+`{ Year }` body. Each endpoint aggregates in SQL instead of in memory — `GetYearCostRows` returns
+an `IQueryable` that callers append their own `GroupBy` to, so only aggregated rows cross the
+wire. `Statuses` groups once by `{StageName, Region}` and rolls that up both ways, since a project
+has exactly one of each. `Activities` is a `TOP 12` in SQL. `Projects` pages in SQL with
+`OFFSET/FETCH` over a narrow `GROUP BY ProjectPK`, then fetches display columns for that page
+only. `Trend` deliberately spans all years rather than the selected one, which is what makes the
+trajectory chart meaningful now that the year pin is lifted. `Summary` keeps its old
+materializing path, unchanged, so the `dashboard-live-data-integrity` contract still holds.
+
+**Frontend.** Every live call posts `{ Year }`. The year switcher is driven by `AvailableYears`
+from the KPI response instead of a hardcoded `[2027]`; that list is held in
+`liveAvailableYearsAtom` rather than the keyed section cache, because the keyed cache reads empty
+during a year change and would otherwise snap the user's new selection back. All dashboard
+requests now pass `silent: true` — they were passing `preloaderMessage`, which shows httpClient's
+*global page-blocking overlay*, so eight independent lazy requests read to the user as one long
+modal wait and the per-section skeletons this plan added were never actually visible.
+
+### Measured result (local SQL Server, 56,789 projects, FY2027, warm)
+
+| Endpoint | Before | After |
+|---|---|---|
+| Kpis | 8,412 ms | 831 ms |
+| BudgetBreakdown | 9,129 ms | 791 ms |
+| Statuses | 11,686 ms | 1,610 ms |
+| RegionalBreakdown | 9,251 ms | 894 ms |
+| Activities | 9,590 ms | 896 ms |
+| Trend | 8,400 ms | 489 ms |
+| Projects (page 1) | 8,891 ms | 1,253 ms |
+
+Response bodies collapsed correspondingly — `Kpis` is 312 bytes, `RegionalBreakdown` 577 bytes.
+
+### Verification
+- Backend builds with 0 errors; `npm run typecheck` shows the same 21 pre-existing `Rbac` errors
+  as before the change and none in `pages/Dashboard` (compared before/after via `git stash`).
+- All eight endpoints exercised over real HTTP against the live development database as a
+  logged-in user; every one returns 200.
+- KPI figures reconcile exactly to direct SQL for eight different fiscal years, and
+  `BudgetBreakdown`, `RegionalBreakdown`, `Islands`, `Statuses` and the `Projects` pagination
+  total all reconcile exactly to the KPI totals for FY2027 and FY2026 — satisfying the
+  `dashboard-live-data-integrity` criterion "aggregates reconcile to their returned detail rows".
+- Browser check (Playwright, Chromium, against the local API): the switcher offers all 16 years,
+  selecting FY2033 and FY2024 sticks and requests only that year, `Projects`/`Statuses`/
+  `RegionalBreakdown`/`Activities` fetch only on scroll, and no blocking overlay is in the DOM.
+
+### Known gaps
+- **Deployment.** `FE/.env.development` points `VITE_API_BASE_URL` at `https://myps.eptisa-dev.com`,
+  so the browsers developers actually use talk to that deployment. The SQL index script has been
+  applied to the local development database only; it must also be applied wherever the live
+  dashboard is served, or that deployment keeps the full-scan behaviour.
+- **`Trend` scans every fiscal year by design.** It returns 16 rows in ~490 ms and is lazy-loaded,
+  but it is the one endpoint whose cost grows with total history rather than with one year.
+- **LS Wallet figures remain zero**, unchanged from the original plan.
+
+### Follow-up UI cleanup (same pass)
+- **Trend/trajectory bar rows now adapt to series length.** Both were sized for the five-point
+  Demo Data series with fixed bar widths and `gap-6`, and flex's default `min-width: auto` meant
+  they could not shrink; at 16 fiscal years the row overflowed its card and the trailing year
+  labels rendered over the panel beside it. Past eight points they tighten gaps, let the bars
+  flex (`flex-1` with a `max-w` cap) and drop the label size. Demo Data renders unchanged.
+- **The three "perspective" tabs were removed in favour of one view.** *Executive Overview &
+  Analytics*, *FY {year} DPWH Budget Allocation* and *Live Database Portfolio & Watchlist* all
+  rendered from the same hooks and the same `dataSourceMode`; the latter two were strict subsets
+  of the first (FY Budget = Overview minus the trajectory chart and the activity feed; Live
+  Portfolio = the watchlist block Overview already ends with). Nothing was reachable only through
+  them. What data to show is the Live DB / Demo Data toggle's job and which year is the year
+  switcher's, so the tabs duplicated neither and only split one page into three partial copies.

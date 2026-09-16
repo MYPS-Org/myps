@@ -1,12 +1,9 @@
-import React, { useState, lazy } from 'react';
+import React, { useState, useEffect, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSetAtom } from 'jotai';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useSetAtom, useAtomValue } from 'jotai';
 import {
   ArrowPathIcon,
   SparklesIcon,
-  ChartPieIcon,
-  AdjustmentsHorizontalIcon,
   PlusIcon,
   SunIcon,
   MoonIcon,
@@ -43,15 +40,17 @@ import {
   activitiesCacheAtom,
   revisionsCacheAtom,
   emptySectionCache,
+  liveAvailableYearsAtom,
 } from './atoms/dashboardSectionCache.atom';
 
-// Live DB is currently pinned to FY2027 only, server-side (WebAPI/Controllers/Dashboard/
-// DashboardController.cs's TemporaryDashboardYear stopgap) -- Demo Data still supports the full
-// presentation year range. Both lists are static, so there's no fetch needed just to know them.
-const LIVE_AVAILABLE_YEARS = [2027];
+// Live DB offers whichever fiscal years actually have cost data; /Dashboard/Kpis returns that
+// list as AvailableYears, so the switcher follows the database instead of a hardcoded year.
+// (It used to be pinned to [2027] to match a TemporaryDashboardYear stopgap in
+// DashboardController.cs, which is why only FY2027 was ever selectable.) Demo Data stays on the
+// static presentation year range. LIVE_YEARS_FALLBACK is only what the switcher shows in the
+// moment before the first KPI response lands.
+const LIVE_YEARS_FALLBACK = [2027];
 const BENCHMARK_AVAILABLE_YEARS = [2027, 2026, 2025, 2024, 2023];
-
-type ViewPerspective = 'overview' | 'nep_briefing' | 'live_portfolio';
 
 const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
@@ -63,10 +62,8 @@ const DashboardContent: React.FC = () => {
   const [activeStatusFilter, setActiveStatusFilter] = useState<string | null>(null);
   const [activeIslandFilter, setActiveIslandFilter] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<WatchlistProject | null>(null);
-  const [viewPerspective, setViewPerspective] = useState<ViewPerspective>('overview');
   const [refreshSignal, setRefreshSignal] = useState(0);
 
-  const availableYears = dataSourceMode === 'benchmark' ? BENCHMARK_AVAILABLE_YEARS : LIVE_AVAILABLE_YEARS;
   // LS Wallet integration is disabled server-side (see DashboardController.cs) -- always empty
   // until that ships, so there's no section hook for it.
   const lsProjects: DashboardLsProject[] = [];
@@ -76,10 +73,29 @@ const DashboardContent: React.FC = () => {
   const kpis = useDashboardKpis(selectedYear, dataSourceMode, true);
   const revisions = useDashboardRevisions(selectedYear, dataSourceMode, true);
 
-  // Tier 2 -- lazy on visible. One viewport observer per section, shared across tabs: a section
-  // that renders in more than one tab (e.g. MacroBudget in both Overview and NEP Briefing) only
-  // needs to be "seen" once for its data hook to fetch -- see useInViewport for why sharing one
-  // instance across tab remounts is safe (callback ref, not useRef).
+  const liveAvailableYears = useAtomValue(liveAvailableYearsAtom);
+  const availableYears = dataSourceMode === 'benchmark'
+    ? BENCHMARK_AVAILABLE_YEARS
+    : (liveAvailableYears.length ? liveAvailableYears : LIVE_YEARS_FALLBACK);
+
+  // Switching data source can leave a year selected that the other source doesn't offer (the
+  // Demo Data range and the live range are independent). Snap to the newest year it does offer
+  // rather than firing requests for a year that isn't there. Guarded on `hasLoadedLiveYears` so
+  // this never fires against the placeholder list while the first KPI request is still in
+  // flight -- doing so would snap the user's brand-new selection straight back.
+  const hasLoadedLiveYears = liveAvailableYears.length > 0;
+  useEffect(() => {
+    if (dataSourceMode === 'real' && !hasLoadedLiveYears) return;
+    if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
+      setSelectedYear(availableYears[0]);
+    }
+  }, [dataSourceMode, hasLoadedLiveYears, availableYears, selectedYear]);
+
+  // Tier 2 -- lazy on visible. One viewport observer per section: a section's data hook fetches
+  // the first time that section is scrolled into view, and not before. (These were also shared
+  // across the old perspective tabs, so a section appearing in more than one tab only fetched
+  // once; the tabs are gone, but a callback ref still makes the observer survive remounts --
+  // see useInViewport.)
   const macroBudgetViewport = useInViewport<HTMLDivElement>();
   const trajectoryViewport = useInViewport<HTMLDivElement>();
   const regionalMatrixViewport = useInViewport<HTMLDivElement>();
@@ -309,35 +325,11 @@ const DashboardContent: React.FC = () => {
           </div>
         )}
 
-        {/* Perspective View Switcher Tabs */}
-        <div className="relative flex items-center gap-2 mt-6 pt-5 border-t border-slate-800/80 overflow-x-auto">
-          {[
-            { id: 'overview', label: 'Executive Overview & Analytics', icon: SparklesIcon },
-            { id: 'nep_briefing', label: `FY ${selectedYear} DPWH Budget Allocation`, icon: ChartPieIcon },
-            { id: 'live_portfolio', label: 'Live Database Portfolio & Watchlist', icon: AdjustmentsHorizontalIcon },
-          ].map((tab) => {
-            const active = viewPerspective === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setViewPerspective(tab.id as ViewPerspective)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                  active
-                    ? 'bg-white/15 text-white border border-white/20 shadow-inner'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <tab.icon className={`w-4 h-4 ${active ? 'text-amber-400' : 'text-slate-400'}`} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* 2. Key High-Impact Animated KPI Cards */}
       <DashboardKpiCards
-        data={kpis.data ?? {
+        data={kpis.data?.kpis ?? {
           totalBudget: 0,
           activeProjects: 0,
           publishedProjects: 0,
@@ -352,143 +344,69 @@ const DashboardContent: React.FC = () => {
         onCardClick={(type) => setSelectedKpi(type as DashboardKpiType)}
       />
 
-      {/* 3. Main Analytics Workspaces */}
-      <AnimatePresence mode="wait">
-        {viewPerspective === 'overview' && (
-          <motion.div
-            key="overview"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            {/* Macro Budget Summary */}
-            <LazySection isVisible={macroBudgetViewport.isVisible} sectionRef={macroBudgetViewport.ref} skeleton={skeletonBlock('h-96')}>
-              <DashboardMacroBudget
-                selectedYear={selectedYear}
-                isBenchmark={dataSourceMode === 'benchmark'}
-                liveBreakdown={budgetBreakdown.data ?? []}
-                isLoading={budgetBreakdown.isLoading}
-              />
-            </LazySection>
+      {/* 3. Main Analytics Workspaces
+          One view, not three. This used to be a 'perspective' tab bar (Executive Overview /
+          FY Budget Allocation / Live Database Portfolio), but the other two tabs rendered
+          strict subsets of this one from the same hooks and the same dataSourceMode: the FY
+          Budget tab was this list minus the trajectory chart and minus the activity feed, and
+          the Live Portfolio tab was just the watchlist block below. Nothing was reachable only
+          through them. Choosing what data to look at is the Live DB / Demo Data toggle's job,
+          and choosing which fiscal year is the year switcher's -- the tabs duplicated neither
+          and only split the same page into three partial copies. */}
+      <div className="space-y-6">
+          {/* Macro Budget Summary */}
+          <LazySection isVisible={macroBudgetViewport.isVisible} sectionRef={macroBudgetViewport.ref} skeleton={skeletonBlock('h-96')}>
+            <DashboardMacroBudget
+              selectedYear={selectedYear}
+              isBenchmark={dataSourceMode === 'benchmark'}
+              liveBreakdown={budgetBreakdown.data ?? []}
+              isLoading={budgetBreakdown.isLoading}
+            />
+          </LazySection>
 
-            {/* 5-Year Trajectory */}
-            <LazySection isVisible={trajectoryViewport.isVisible} sectionRef={trajectoryViewport.ref} skeleton={skeletonBlock('h-80')}>
-              <DashboardTrajectoryChart
-                selectedYear={selectedYear}
-                onSelectYear={(yr) => setSelectedYear(yr)}
-                isBenchmark={dataSourceMode === 'benchmark'}
-                liveData={trajectoryLiveData}
-                isLoading={trend.isLoading}
-              />
-            </LazySection>
+          {/* 5-Year Trajectory */}
+          <LazySection isVisible={trajectoryViewport.isVisible} sectionRef={trajectoryViewport.ref} skeleton={skeletonBlock('h-80')}>
+            <DashboardTrajectoryChart
+              selectedYear={selectedYear}
+              onSelectYear={(yr) => setSelectedYear(yr)}
+              isBenchmark={dataSourceMode === 'benchmark'}
+              liveData={trajectoryLiveData}
+              isLoading={trend.isLoading}
+            />
+          </LazySection>
 
-            {/* Regional Capital Outlays Infographic Matrix */}
-            <LazySection isVisible={regionalMatrixViewport.isVisible} sectionRef={regionalMatrixViewport.ref} skeleton={skeletonBlock('h-[500px]')}>
-              <DashboardRegionalMatrix
-                selectedYear={selectedYear}
-                regions={regionalBreakdown.data ?? []}
-                isLoading={regionalBreakdown.isLoading}
-                onSelectIsland={(isl) => setActiveIslandFilter(isl)}
-                activeIslandFilter={activeIslandFilter}
-              />
-            </LazySection>
+          {/* Regional Capital Outlays Infographic Matrix */}
+          <LazySection isVisible={regionalMatrixViewport.isVisible} sectionRef={regionalMatrixViewport.ref} skeleton={skeletonBlock('h-[500px]')}>
+            <DashboardRegionalMatrix
+              selectedYear={selectedYear}
+              regions={regionalBreakdown.data ?? []}
+              isLoading={regionalBreakdown.isLoading}
+              onSelectIsland={(isl) => setActiveIslandFilter(isl)}
+              activeIslandFilter={activeIslandFilter}
+            />
+          </LazySection>
 
-            {/* Annual Trend & Project Stages */}
-            <LazySection isVisible={chartsViewport.isVisible} sectionRef={chartsViewport.ref} skeleton={skeletonBlock('h-96')}>
-              <DashboardCharts
-                selectedYear={selectedYear}
-                monthlyData={monthlyData}
-                statusData={statuses.data?.statuses ?? []}
-                islandData={statuses.data?.islands ?? []}
-                isTrendLoading={trend.isLoading}
-                isStatusesLoading={statuses.isLoading}
-                onStatusSelect={setActiveStatusFilter}
-                activeStatusFilter={activeStatusFilter}
-                onSelectIsland={setActiveIslandFilter}
-                activeIslandFilter={activeIslandFilter}
-              />
-            </LazySection>
+          {/* Annual Trend & Project Stages */}
+          <LazySection isVisible={chartsViewport.isVisible} sectionRef={chartsViewport.ref} skeleton={skeletonBlock('h-96')}>
+            <DashboardCharts
+              selectedYear={selectedYear}
+              monthlyData={monthlyData}
+              statusData={statuses.data?.statuses ?? []}
+              islandData={statuses.data?.islands ?? []}
+              isTrendLoading={trend.isLoading}
+              isStatusesLoading={statuses.isLoading}
+              onStatusSelect={setActiveStatusFilter}
+              activeStatusFilter={activeStatusFilter}
+              onSelectIsland={setActiveIslandFilter}
+              activeIslandFilter={activeIslandFilter}
+            />
+          </LazySection>
 
-            {/* Project Watchlist & Activity Stream */}
-            <LazySection isVisible={watchlistViewport.isVisible} sectionRef={watchlistViewport.ref} skeleton={skeletonBlock('h-96')}>
-              {watchlistAndActivity}
-            </LazySection>
-          </motion.div>
-        )}
-
-        {viewPerspective === 'nep_briefing' && (
-          <motion.div
-            key="nep_briefing"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            <LazySection isVisible={macroBudgetViewport.isVisible} sectionRef={macroBudgetViewport.ref} skeleton={skeletonBlock('h-96')}>
-              <DashboardMacroBudget
-                selectedYear={selectedYear}
-                isBenchmark={dataSourceMode === 'benchmark'}
-                liveBreakdown={budgetBreakdown.data ?? []}
-                isLoading={budgetBreakdown.isLoading}
-              />
-            </LazySection>
-            <LazySection isVisible={regionalMatrixViewport.isVisible} sectionRef={regionalMatrixViewport.ref} skeleton={skeletonBlock('h-[500px]')}>
-              <DashboardRegionalMatrix
-                selectedYear={selectedYear}
-                regions={regionalBreakdown.data ?? []}
-                isLoading={regionalBreakdown.isLoading}
-                onSelectIsland={(isl) => setActiveIslandFilter(isl)}
-                activeIslandFilter={activeIslandFilter}
-              />
-            </LazySection>
-            <LazySection isVisible={chartsViewport.isVisible} sectionRef={chartsViewport.ref} skeleton={skeletonBlock('h-96')}>
-              <DashboardCharts
-                selectedYear={selectedYear}
-                monthlyData={monthlyData}
-                statusData={statuses.data?.statuses ?? []}
-                islandData={statuses.data?.islands ?? []}
-                isTrendLoading={trend.isLoading}
-                isStatusesLoading={statuses.isLoading}
-                onStatusSelect={setActiveStatusFilter}
-                activeStatusFilter={activeStatusFilter}
-                onSelectIsland={setActiveIslandFilter}
-                activeIslandFilter={activeIslandFilter}
-              />
-            </LazySection>
-            <LazySection isVisible={watchlistViewport.isVisible} sectionRef={watchlistViewport.ref} skeleton={skeletonBlock('h-96')}>
-              <DashboardProjectWatchlist
-                year={selectedYear}
-                dataSourceMode={dataSourceMode}
-                enabled={watchlistViewport.isVisible}
-                refreshSignal={refreshSignal}
-                activeIslandFilter={activeIslandFilter}
-                activeStatusFilter={activeStatusFilter}
-                onClearFilters={clearCrossFilters}
-                onSelectProject={setSelectedProject}
-                onViewAll={() => navigate('/projects')}
-              />
-            </LazySection>
-          </motion.div>
-        )}
-
-        {viewPerspective === 'live_portfolio' && (
-          <motion.div
-            key="live_portfolio"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            <LazySection isVisible={watchlistViewport.isVisible} sectionRef={watchlistViewport.ref} skeleton={skeletonBlock('h-96')}>
-              {watchlistAndActivity}
-            </LazySection>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {/* Project Watchlist & Activity Stream */}
+          <LazySection isVisible={watchlistViewport.isVisible} sectionRef={watchlistViewport.ref} skeleton={skeletonBlock('h-96')}>
+            {watchlistAndActivity}
+          </LazySection>
+      </div>
 
       {/* Modals */}
       <ProjectQuickDetailModal project={selectedProject} onClose={() => setSelectedProject(null)} />
@@ -497,7 +415,7 @@ const DashboardContent: React.FC = () => {
         type={selectedKpi}
         selectedYear={selectedYear}
         dataSourceMode={dataSourceMode}
-        kpiData={kpis.data ?? undefined}
+        kpiData={kpis.data?.kpis ?? undefined}
         lsProjects={lsProjects}
         revisions={revisions.data ?? undefined}
         onClose={() => setSelectedKpi(null)}

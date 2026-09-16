@@ -400,11 +400,20 @@ function resolveYear(year?: number): number {
 // ---------------------------------------------------------------------------
 // Split endpoints — one per dashboard section, replacing the old single
 // /Dashboard/Summary call so each section can load (and lazy-load) independently.
-// Every real-mode call is pinned to TemporaryDashboardYear (2027) server-side
-// regardless of what year is passed here; benchmark mode still supports any
-// year in REGIONAL_TOTAL_BY_YEAR for the Demo Data experience. (/Dashboard/Summary
-// itself still exists on the backend for the dashboard-live-data-integrity e2e
-// contract, but nothing on the frontend calls it anymore.)
+// Every real-mode call posts { Year } and the backend scopes its aggregate to that
+// fiscal year; the year list the switcher offers comes back from /Dashboard/Kpis as
+// AvailableYears. Benchmark mode still supports any year in REGIONAL_TOTAL_BY_YEAR
+// for the Demo Data experience. (/Dashboard/Summary itself still exists on the
+// backend for the dashboard-live-data-integrity e2e contract, but nothing on the
+// frontend calls it anymore.)
+//
+// All of these pass `silent: true`. httpClient's default is a global, page-blocking
+// overlay (fixed inset-0 + backdrop-blur) shown for any request carrying a
+// preloaderMessage — which is the right treatment for a single foreground action, but
+// the exact opposite of what this page wants: every section already renders its own
+// skeleton, and a section that loads on scroll must never freeze the sections the user
+// is currently reading. With the overlay on, eight independent lazy requests read as one
+// long modal wait and the per-section loading states are never actually seen.
 // ---------------------------------------------------------------------------
 
 export interface DashboardTrendRow {
@@ -434,8 +443,8 @@ export async function fetchDashboardKpis(year: number | undefined, useBenchmark:
   }
   const response = await httpClient.post<{ SelectedYear: number; AvailableYears: number[]; Kpis: DashboardSummary['Kpis'] }>(
     '/Dashboard/Kpis',
-    null,
-    { preloaderMessage: 'Loading KPIs...' }
+    { Year: resolveYear(year) },
+    { silent: true }
   );
   return response.Data;
 }
@@ -446,8 +455,8 @@ export async function fetchDashboardTrend(year: number | undefined, useBenchmark
   }
   const response = await httpClient.post<{ AnnualTrend: DashboardTrendRow[] }>(
     '/Dashboard/Trend',
-    null,
-    { preloaderMessage: 'Loading trend...' }
+    { Year: resolveYear(year) },
+    { silent: true }
   );
   return response.Data;
 }
@@ -458,8 +467,8 @@ export async function fetchDashboardBudgetBreakdown(year: number | undefined, us
   }
   const response = await httpClient.post<{ BudgetBreakdown: DashboardSummary['BudgetBreakdown'] }>(
     '/Dashboard/BudgetBreakdown',
-    null,
-    { preloaderMessage: 'Loading budget breakdown...' }
+    { Year: resolveYear(year) },
+    { silent: true }
   );
   return response.Data;
 }
@@ -471,8 +480,8 @@ export async function fetchDashboardStatuses(year: number | undefined, useBenchm
   }
   const response = await httpClient.post<{ Statuses: DashboardSummary['Statuses']; Islands: DashboardSummary['Islands'] }>(
     '/Dashboard/Statuses',
-    null,
-    { preloaderMessage: 'Loading status breakdown...' }
+    { Year: resolveYear(year) },
+    { silent: true }
   );
   return response.Data;
 }
@@ -497,8 +506,8 @@ export async function fetchDashboardRegionalBreakdown(year: number | undefined, 
   }
   const response = await httpClient.post<{ Regions: DashboardRegionRow[] }>(
     '/Dashboard/RegionalBreakdown',
-    null,
-    { preloaderMessage: 'Loading regional breakdown...' }
+    { Year: resolveYear(year) },
+    { silent: true }
   );
   return response.Data;
 }
@@ -509,8 +518,8 @@ export async function fetchDashboardActivities(year: number | undefined, useBenc
   }
   const response = await httpClient.post<{ Activities: DashboardSummary['Activities'] }>(
     '/Dashboard/Activities',
-    null,
-    { preloaderMessage: 'Loading activity feed...' }
+    { Year: resolveYear(year) },
+    { silent: true }
   );
   return response.Data;
 }
@@ -522,7 +531,7 @@ export async function fetchDashboardRevisions(year: number | undefined, useBench
   const response = await httpClient.post<DashboardRevisionSummary>(
     '/Dashboard/Revisions',
     null,
-    { preloaderMessage: 'Loading revisions...' }
+    { silent: true }
   );
   return response.Data;
 }
@@ -613,8 +622,8 @@ export async function fetchDashboardProjects(
   }
   const response = await httpClient.post<PaginationResponse<DashboardSummary['Projects'][number]>>(
     '/Dashboard/Projects',
-    request,
-    { preloaderMessage: 'Loading projects...' }
+    { ...request, Year: resolveYear(year) },
+    { silent: true }
   );
   return { Data: { ...response.Data, lists: response.Data.lists.map(mapProjectDtoToWatchlist) } };
 }
