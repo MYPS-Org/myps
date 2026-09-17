@@ -21,6 +21,15 @@
 | [`RevisionController` refactoring plan](engineering/MYPS_REVISION_CONTROLLER_REFACTORING_PLAN.md) | Code-informed defect register, target architecture, query/command split, workflow state machine, document/PCMA design, test plan, and incremental rollout | Planning baseline; application code not changed |
 | [`RevisionRequests` refactoring specification](engineering/MYPS_REVISION_REQUESTS_REFACTORING_SPECIFICATION.md) | Focused queue analysis covering filter defects, actor and row scope, corrected workflow ownership, API/frontend contract, pagination, tests, and rollout | Business decisions complete 2026-08-11; ready for technical implementation planning |
 
+## Data migration records (`myps_db_dev_200`)
+
+| Document | Purpose | Status |
+|---|---|---|
+| [`myps_db_dev_200` bring-up runbook](engineering/MYPS_DEV_200_DATABASE_BRINGUP.md) | Schema, isolation, the program-group load (Step 3b) and the Lump Sum migration (Step 3c) in run order, with expected outputs | Runbook; mirrored at `Main/Resources/LumpSum/` |
+| [Program-group load from `MYPS_BAK`](engineering/MYPS_BAK_PROGRAM_GROUP_LOAD.md) | Every 2023 group and 2025 OO-1 through the reference python pipeline: what changed in the pipeline, the 33 groups, figures per group, verification, how to run it again | Done 2026-09-14; scripts live only in the backend repo |
+| [Legacy Lump Sum migration](engineering/MYPS_LEGACY_LS_MIGRATION.md) | 123 parents and 4,037 children onto the V3 model: the data as found, what the script does, both runs, what the first run got wrong, server checklist, `MY…LS` inventory (Appendix A) | Done 2026-09-14 on `dev_200`; server-bound, not yet run there |
+| [Plan: legacy Lump Sum migration](../plans/legacy-ls-migration.md) | Goal, acceptance criteria, decisions D1–D14, phases, Completion Log | Implemented |
+
 ## Database design samples
 
 | Document | Purpose | Status |

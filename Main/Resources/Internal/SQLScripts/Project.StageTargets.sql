@@ -191,7 +191,7 @@ RETURN
     LEFT JOIN dbo.tOptionProgramStage ops
         ON ops.NameId = s.StageId
     LEFT JOIN dbo.tOptionScopeOfWork sw
-        ON sw.Id = wi.WorkTypeFK
+        ON sw.Enum = wi.WorkTypeFK
     WHERE wi.DedupeRank = 1
 );
 GO

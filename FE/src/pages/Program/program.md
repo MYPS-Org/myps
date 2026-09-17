@@ -298,7 +298,7 @@ IsActive && !isTerminalStage
 
 - Not opened from anywhere in the live UI as of this writing; `ActionsDropdown`'s "Import Projects" menu item opens `ImportProjectsJobDialog` instead
 - Accepts `.xlsm` via drag-and-drop or file picker
-- Validates `_ImportStatus` sheet: `STATUS = VALIDATED`, `SIGNATURE = MYPS-IMPORT-2026`
+- Checks the `_SysMeta` provenance marker (`A1 = MYPS-IMPORT-WORKBOOK-V1`) via `parseImportFile`; the `_ImportStatus` / `MYPS-IMPORT-2026` check it used to make is retired
 - Parses 4 sheets client-side: `PROJECT DETAILS`, `FUNDING PROFILE`, `COMPONENT DETAILS`, `MAJOR ITEMS OF WORK`
 - 8-tab preview: Summary | Projects | Funding | Components | Cost/Year | Major Items | Locations | Errors
 - Its `onSubmit` path called `parseImportFile` → `transformImportedProjects` → `importProjects()`, which POSTed a full parsed JSON payload to `/Importing/ImportProject/` — that JSON-body contract no longer exists on the backend (see `IMPORT_PROJECTS_GUIDE.md`), so this dialog cannot currently complete an import even if reopened
@@ -352,8 +352,7 @@ IsActive && !isTerminalStage
 ### `parseImportFile.ts`
 
 - Uses `xlsx` library to parse `.xlsm` files
-- Validates `_ImportStatus` sheet before any data parsing
-- Required signature: `MYPS-IMPORT-2026`
+- Checks the `_SysMeta` provenance sheet before any data parsing: `A1 = MYPS-IMPORT-WORKBOOK-V1`, the marker every backend-generated workbook carries (the former `_ImportStatus` / `MYPS-IMPORT-2026` check matched nothing the backend ever wrote, and is retired)
 - Returns `ImportParseResult: { projects: ImportedProject[], errors: string[], totalRows }`
 - Excel date serials converted via `XLSX.SSF.parse_date_code()`
 

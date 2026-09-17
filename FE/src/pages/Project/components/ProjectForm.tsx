@@ -34,11 +34,8 @@ import ComponentTargetsForm from './ComponentTargetsForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, getComponentsEnums, updateEntireProject, fetchProjectGeoJSON, importProject } from '../Service';
-import { ChevronDownIcon, ChevronRightIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import ImportLumpsumDialog from '../dialogs/ImportLumpsumDialog';
-import type { ImportedProject } from '../Model.d';
-import { transformImportedProjects } from '../../Program/utils/transformImportedProjects';
+import { addProjectDetails, getProjectEnums, getComponentsEnums, updateEntireProject, fetchProjectGeoJSON } from '../Service';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramLatest } from '../../Program/Model';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
@@ -74,8 +71,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const { showToast } = useToast();
   // DisableFields if status === approved
   // const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
+  /*  A LUMP SUM PROJECT IS DISPLAYED HERE, NEVER EDITED.
+
+      It is an ordinary tProjects row, so this form will open and save it like any
+      other project — bypassing the stage gate, the allocation arithmetic and the
+      identity rules that only the Lump Sum module applies. The server refuses it
+      too (ProjectController.UpdateProjectDetails); this keeps the UI honest rather
+      than letting someone fill in a form that cannot be saved.
+
+      IslandCode, not ProjectType: itemized CHILDREN also carry ProjectType 'LS',
+      but they take their island code from their own Region, so only parents read
+      'LS' here. Children are ordinary projects and stay editable. */
+  const isLumpSumProject = initialData?.ProjectDetails?.IslandCode === 'LS';
+
   const isDisabled = Boolean(
     (initialData?.IsActive === false) ||
+    isLumpSumProject ||
     (initialData?.ProgramDetails?.StageName === 'GAA-R' && Number(initialData?.ProgramDetails?.Status) === 1)
   );
 
@@ -90,7 +101,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [ isConfirmDialogOpen, setIsConfirmDialogOpen ] = useState<boolean>(false);
   const [ isProceedDialogOpen, setIsProceedDialogOpen ] = useState<boolean>(false);
   const [ proceedMessage, setProceedMessage ] = useState<string>('');
-  const [ isImportLumpsumOpen, setIsImportLumpsumOpen ] = useState<boolean>(false);
 
   
   // SetMaxAmount in ComponentCostForm
@@ -942,43 +952,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   };
 
-  // ── Lump Sum Import ──────────────────────────────────────────────────────
-  const handleImportLumpsumSubmit = async (projects: ImportedProject[]) => {
-    try {
-      const programId = initialData?.ProgramDetails?.ProgramId ?? '';
-      const stageName = initialData?.ProgramDetails?.StageName ?? '';
-
-      const transformed = transformImportedProjects(projects, programId, stageName);
-
-      console.group('[Lump Sum Import — Exact API Payload → /Importing/ImportProject/]');
-      console.log('programDetails:',       transformed.programDetails);
-      console.log('projectDetails:',       transformed.projectDetails);
-      console.log('fundingProfile:',       transformed.fundingProfile);
-      console.log('componentCosts:',       transformed.componentCosts);
-      console.log('componentCostPerYear:', transformed.componentCostPerYear);
-      console.log('majorItemOfWorks:',     transformed.majorItemOfWorks);
-      console.log('majorItemLocations:',   transformed.majorItemLocations);
-      console.log('── Full JSON ──', JSON.stringify(transformed, null, 2));
-      console.groupEnd();
-
-      await importProject(transformed);
-      showToast({
-        type: 'success',
-        message: `Successfully imported ${transformed.projectDetails.length} project${transformed.projectDetails.length !== 1 ? 's' : ''}.`,
-      });
-
-      // Refresh the page after successful import
-      if (initialData?.ProjectDetails?.ProjectId && stageName) {
-        navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${stageName}`);
-      }
-    } catch (error) {
-      console.error('Error importing lump sum project:', error);
-      showToast({
-        type: 'error',
-        message: 'Failed to import lump sum project. Please try again.',
-      });
-    }
-  };
 
   const handleReviseProject = (projectId: string, stageName: string, revisionTypeId: number, revisionTypeDescription: string) => {
     // navigate(`/projects/modify-project/${projectId}:${stageName}`);
@@ -1020,24 +993,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </Button>
                 </>
               )}
-              {mode === 'edit' && initialData?.ProgramDetails?.StageName !== 'GAA-R' && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
-                <Button
-                  color="blue"
-                  className="cursor-pointer"
-                  onClick={() => setIsImportLumpsumOpen(true)}
-                >
-                  <ArrowUpTrayIcon className="h-4 w-4" />
-                  Itemized Lump Sum
-                </Button>
-              )}
-              {mode === 'edit' && initialData?.IsActive === true && Number(initialData?.ProgramDetails?.Status) !== 1 && (
+              {/* CanUpdate is state-aware (published + open-revision check server-side) and is
+                  mutually exclusive with CanRevise below by construction — see ProjectController.cs
+                  ShowProjectDetails. Number(...) !== 1 is the pre-existing, separate stage-lock
+                  condition, unchanged. */}
+              {mode === 'edit' && !isLumpSumProject && initialData?.CanUpdate === true && Number(initialData?.ProgramDetails?.Status) !== 1 && (
                 <>
                   <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
                     {updateAllProject ? 'Updating...' : 'Update Project'}
-                  </Button> 
+                  </Button>
                 </>
               )}
-              {mode === 'edit' && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.ProjectDetails?.IsPublished && initialData?.CanRevise && (
+              {/* A Lump Sum Project is not revisable — RevisionController refuses it.
+                  CanRevise already encodes IsPublished + no-open-revision server-side. */}
+              {mode === 'edit' && !isLumpSumProject && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.CanRevise && (
                 <Menu as="div" className="relative inline-block text-left">
                   <MenuButton
                     as={Button}
@@ -1078,6 +1047,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               )}
           </div>
         </div>
+
+      {/*  Say why the form is dead. Without this a Lump Sum Project looks like an
+           ordinary project whose fields have all mysteriously stopped responding. */}
+      {isLumpSumProject && (
+        <div className="mb-6 rounded-md border border-blue-200 bg-blue-50 p-4">
+          <h3 className="text-sm font-semibold text-blue-900">This is a Lump Sum Project</h3>
+          <p className="mt-1 text-sm text-blue-800">
+            It is shown here for reference only. Lump Sum Projects are edited in the Lump
+            Sum module, which is where their allocation, itemization and identity rules
+            are applied.
+          </p>
+          {/*  The list, not the detail page: /lumpsum/:lumpSumId takes vLumpSumSet's
+               numeric Id, which this module has no way to resolve from a ProjectId.
+               Searching the list for the ID below is one step and always works. */}
+          <a
+            href="/lumpsum"
+            className="mt-2 inline-block text-sm font-medium text-blue-700 underline hover:text-blue-900"
+          >
+            Go to the Lump Sum module
+          </a>
+        </div>
+      )}
 
       {/* Map Section */}
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
@@ -1313,16 +1304,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         onConfirm={handleProceedAnyway}
         message={proceedMessage}
         projectName={projectDetails.Description}
-      />
-
-      {/* Lump Sum Import Dialog */}
-      <ImportLumpsumDialog
-        isOpen={isImportLumpsumOpen}
-        onClose={() => setIsImportLumpsumOpen(false)}
-        onSubmit={handleImportLumpsumSubmit}
-        projectId={initialData?.ProjectDetails?.ProjectId ?? ''}
-        programId={initialData?.ProgramDetails?.ProgramId ?? ''}
-        stageName={initialData?.ProgramDetails?.StageName ?? ''}
       />
 
     </div>

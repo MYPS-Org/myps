@@ -10,8 +10,8 @@ import '../../../utils/GlobalFunctions';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
 import type { ProgramLatest } from '../../Program/Model';
 import { autoFillComponentDescription } from '../Service';
-// LS component type is exclusive to the LSWallet module — exclude it from regular project dropdowns
-import { WALLET_EXCLUSIVE_COMPONENT_TYPES } from '../../LSWallet/utils/constants';
+// LS component type is exclusive to the LumpSum module — exclude it from regular project dropdowns
+import { LUMPSUM_EXCLUSIVE_COMPONENT_TYPES } from '../../LumpSum/utils/constants';
 
 
 interface ComponentCostDialogProps {
@@ -487,7 +487,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                           ?.filter(
                             (type: ComponentTypeEnum) =>
                               // Exclude LS and any future wallet-exclusive component types
-                              !WALLET_EXCLUSIVE_COMPONENT_TYPES.includes(type.ComponentId || '')
+                              !LUMPSUM_EXCLUSIVE_COMPONENT_TYPES.includes(type.ComponentId || '')
                           )
                           .map((type: ComponentTypeEnum) => (
                             <option key={type.Id} value={type.ComponentName}>

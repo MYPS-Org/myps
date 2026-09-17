@@ -32,11 +32,31 @@ namespace DBHelper.Models.Table.Project
         public string ProjectType { get; set; } = string.Empty;
         // FK -> dbo.tProjectGroups(Id)
         public int? ProjectGroupFK { get; set; }
-        // FK -> dbo.tLSWallets(Id)
-        public int? ParentWalletId { get; set; }
-        // Draw frozen at publish time. decimal(18,2) to match the actual column.
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? WalletDrawFrozen { get; set; }
+        /*  ParentWalletId and WalletDrawFrozen are NOT mapped.
+            Both are wallet-era columns that V2 retired:
+              - ParentWalletId pointed at dbo.tLSWallets, which no longer exists.
+                The live parent link is ParentProjectId below.
+              - WalletDrawFrozen's only writer was WF-6's ApplyApprovedRevisionAsync,
+                and WF-6 has left the module. Publishing never wrote it.
+            Both columns remain on dbo.tProjects (nullable, no default) so dropping
+            them is a separate, deliberate migration — but nothing reads them, and
+            an unmapped nullable column costs nothing on insert. */
+
+        /// <summary>
+        /// The itemized project's parent Lump Sum Project, by that project's
+        /// ProjectId. Set by ItemizeProject; the whole Lump Sum child set hangs
+        /// off it.
+        /// </summary>
+        [MaxLength(200)]
+        public string? ParentProjectId { get; set; }
+
+        /// <summary>Proj-1: 'Itemized' or 'Additional'.</summary>
+        [MaxLength(20)]
+        public string? ItemizationType { get; set; }
+
+        /// <summary>Proj-9 lifecycle: 'potential' then 'scheduled'.</summary>
+        [MaxLength(20)]
+        public string? ProjectStatus { get; set; }
         [Required]
         public bool IsPublished { get; set; }
         [Required]

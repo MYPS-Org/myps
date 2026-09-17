@@ -92,8 +92,11 @@ namespace Hangfire.Importing
         // signal, not a tamper-proof security control — anyone who knows to look for it (Alt+F11,
         // or unzipping the .xlsm) could reproduce it, but it catches the realistic case of an
         // unrelated or accidentally-mangled file that happens to pass the sheet-name/header checks.
-        internal const string SystemMarkerSheetName = "_SysMeta";
-        internal const string SystemMarkerValue = "MYPS-IMPORT-WORKBOOK-V1";
+        // public, not internal: WebAPI's Lump Sum import checks the same marker on its own upload
+        // (ImportWorkbookReader.HasSystemMarker), and a second copy of the string in another
+        // assembly would drift the moment the marker versions.
+        public const string SystemMarkerSheetName = "_SysMeta";
+        public const string SystemMarkerValue = "MYPS-IMPORT-WORKBOOK-V1";
 
         private static void AddSystemMarker(ExcelPackage pkg)
         {
@@ -451,8 +454,12 @@ namespace Hangfire.Importing
                     .Where(x => x.CategoryId == category.CategoryId)
                     .Select(x => x.PAPKey)
                     .ToList();
+                // 2026-09-11 fix (F2): a lone -1 row no longer unrestricts a Category that also has
+                // specific (non-wildcard) rows -- only when EVERY mapped PAPKey is -1 does the
+                // wildcard apply, matching Helpers/ProjectHelper.cs's save-time validation. The
+                // dangling-reference clause below is unchanged, already correct.
                 bool unrestricted = mappedPAPKeys.Count == 0
-                    || mappedPAPKeys.Contains(-1)
+                    || mappedPAPKeys.All(k => k == -1)
                     || !mappedPAPKeys.Any(k => cache.Thrusts.Any(t => t.PAPKey == k));
 
                 bucket.AddRange((unrestricted ? validThrusts : validThrusts.Where(t => mappedPAPKeys.Contains(t.PAPKey)))

@@ -2,12 +2,12 @@ import React, { useMemo } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../../../Project/Model.d";
 import type { FormValidationError } from "../../../../utils/FormValidation";
 import type { FieldRules } from '../../Model';
-import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, toDateInputValue } from '../../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, isThrustAllowedForCategory, toDateInputValue } from '../../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../../components/ui/SearchableDropdown';
 import { EditableField } from '../../../../components/ui/EditableField';
 import { DateInput } from '../../../../components/tailwindui/date-input';
 // Cross-module reuse of Project's location filtering hook — same accepted exception as
-// LSWallet/components/WalletDetailsSection.tsx (pure, side-effect-free hook).
+// LumpSum/components/LumpSumDetailsSection.tsx (pure, side-effect-free hook).
 import { useLocationFilters } from '../../../Project/filteringLocations';
 
 interface ProjectDetailsFormProps {
@@ -34,6 +34,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     fieldRules,
 }) => {
     const isLumpSum = projectDetails?.IslandCode === 'LS';
+
+    // 2026-09-11 fix (F2): see Project/components/ProjectDetailsForm.tsx's identical comment --
+    // isThrustAllowedForCategory needs the real Thrust PAPKey set so a dangling mapping row can't
+    // count as a real restriction.
+    const validThrustPAPKeys = useMemo(
+        () => new Set((projectEnums?.Thrusts ?? []).map(t => t.PAPKey)),
+        [projectEnums?.Thrusts]
+    );
 
     const {
         cities: filteredCities,
@@ -172,11 +180,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 onChange(field, value);
             }
             else if (field === 'Region') {
-                // Auto-populate IslandCode/ProjectType from the selected region's real geographic island code.
-                // Mirrors handleBoxClick, which drives both fields together for the LS/NP override.
+                /*  Auto-populate IslandCode/ProjectType from the selected region's real
+                    geographic island code. Mirrors handleBoxClick, which drives both fields
+                    together for the LS/NP override.
+
+                    NOT FOR A LUMP SUM PROJECT — see the identical guard in
+                    Project/components/ProjectDetailsForm.tsx for the full reasoning. In short:
+                    IslandCode 'LS' is the record's identity, ProjectType 'LS' is what
+                    CK_tProjects_ProjectType permits and what keeps fProgramStages from
+                    double-counting the project's cost. Region itself is still written. */
                 const selectedRegion = projectEnums?.Regions?.find((region) => region.ParticipantId === value);
-                onChange('IslandCode', selectedRegion?.IslandCode);
-                onChange('ProjectType', selectedRegion?.IslandCode);
+                if (!isLumpSum) {
+                    onChange('IslandCode', selectedRegion?.IslandCode);
+                    onChange('ProjectType', selectedRegion?.IslandCode);
+                }
                 onChange(field, value);
             }
             else if (field === 'Feasibility') {
@@ -191,6 +208,19 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 // Clear the date if Detailed Design is not "Yes"
                 if (value !== 1) {
                     onChange('DetailedDesignDate', null);
+                }
+            }
+            else if (field === 'Category') {
+                onChange(field, value);
+                // Clear the Sub-Category whenever the Category actually changes -- unconditional,
+                // matching LumpSumForm.tsx's proven pattern. The previous conditional clear (only
+                // when isThrustAllowedForCategory said the OLD value was no longer valid) had a
+                // gap: for any "unrestricted" Category (zero CategoryThrustMap rows), that helper
+                // returns true for every PAPKey by design, so a stale Sub-Category from a
+                // DIFFERENT Category silently passed the guard and carried over, looking like a
+                // real selection the user never made.
+                if (projectDetails?.Category !== value) {
+                    onChange('Thrust', undefined);
                 }
             }
             else if (field === 'ImplementingOffice') {
@@ -386,7 +416,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                             options={formatDropdownOptions(
                                                 filterKeepingSelected(
                                                     projectEnums?.Thrusts,
-                                                    x => x.IsCurrentlyValid,
+                                                    x => x.IsCurrentlyValid && isThrustAllowedForCategory(x.PAPKey, projectDetails?.Category, projectEnums?.CategoryThrustMap, validThrustPAPKeys),
                                                     'PAPKey',
                                                     projectDetails?.Thrust
                                                 ),
@@ -397,7 +427,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                             value={projectDetails?.Thrust || ''}
                                             onChange={(value) => handleInputChange('Thrust', value === '' ? undefined : parseInt(value.toString()))}
                                             placeholder="Select Sub-Category"
-                                            disabled={!editable}
+                                            disabled={!projectDetails?.Category || !editable}
                                             error={!!errors.Thrust}
                                             allowClear={true}
                                             searchPlaceholder="Search sub-categories..."

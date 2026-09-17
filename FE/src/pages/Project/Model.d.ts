@@ -9,9 +9,14 @@ export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
   IsUnlock?: boolean;
-  // Whether the current user has permission to submit a revision request (ShowProjectDetails
-  // computes this from vUserActionPermission/vUserViewPermission; ReviseProject also returns it).
+  // State-aware: true only when the project is published with no open revision AND the caller
+  // holds the ReviseProject/RevisionDetails permissions. Mutually exclusive with CanUpdate by
+  // construction (ShowProjectDetails derives both from one server-side check). ReviseProject also
+  // returns this field.
   CanRevise?: boolean;
+  // State-aware mirror of CanRevise: true only when the project is NOT published (or has no open
+  // revision blocking a direct edit) AND the caller holds the UpdateProjectDetails permission.
+  CanUpdate?: boolean;
   ProgramDetails: ProgramLatest;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
@@ -19,7 +24,7 @@ export interface ProjectFormPayload {
   MajorItemOfWorks: MajorItemOfWork[];
   MajorItemLocations: MajorItemLocations[];
   ProjectNotes: ProjectNote[];
-  Docs: Docs[];
+  Docs: ProjectSupportingDocs[];
   FundingProfile: FundingProfile[];
   /** @deprecated Not returned by ShowProjectDetails. Use getComponentsEnums()/ShowProjectComponentDropdowns instead. Kept optional for the Modification/Revision module. */
   Dropdowns?: Dropdowns;
@@ -68,13 +73,16 @@ export interface ProjectDetails {
 	AlternateId?: string;
 	MYId?: string;
 	Description: string;
-	Region: string;
+	/*  Optional, like Province/City/LegislativeDistrict beside them: a Lump Sum
+	    Project covers a programme, not a site, so the server sends null for its
+	    whole location chain. Mirrors DBHelper ProjectDetails.cs. */
+	Region?: string;
 	Province?: string;
 	City?: string;
 	LegislativeDistrict?: string;
-	DEO: string | undefined;
+	DEO?: string;
 	OperatingUnit: string;
-	ImplementingOffice: string;
+	ImplementingOffice?: string;
 	IslandCode?: string;
 	Category: number;
 	CategoryName?: string;
@@ -110,7 +118,14 @@ export interface ProjectDetails {
 	IsPublished?: boolean;
 }
 export interface ProjectLists {
+	/** tProjects.Id — for a Lump Sum Project, also the key of /lumpsum/:lumpSumId. */
 	Id: number;
+	/**
+	 * Server-computed: a Lump Sum Project (ProjectType 'LS' with no parent), which
+	 * the list opens in the Lump Sum module rather than the project form. Itemized
+	 * children are ordinary projects and come back false.
+	 */
+	IsLumpSum?: boolean;
 	ProgramId: string;
 	ProgramName: string;
 	ProjectId: string;
@@ -382,6 +397,7 @@ export interface ProjectSupportingDocs {
 	Code: string;
 	Name: string;
 	DocTypeFK: string;
+	DocTypeName: string;
 	ProjectId: string;
 	StageName?: string;
 	FileName: string;
@@ -391,6 +407,20 @@ export interface ProjectSupportingDocs {
 	CreatedBy: string;
 	CreatedDate?: string;
 	IsDeleted?: boolean;
+}
+// The real persisted-row shape UploadSupportingDocs now returns (ProjectController.cs) --
+// used by AddNoteDialog.tsx to build the just-uploaded row from server truth instead of
+// fabricating one from client-only data.
+export interface UploadedDocData {
+	Id: number;
+	DocTypeFK: string;
+	DocTypeName: string;
+	FileName: string;
+	FileExtension: string;
+	FilePath: string;
+	Description: string;
+	CreatedBy: string;
+	CreatedDate: string;
 }
 
 // #region Additional interfaces for dropdowns and enums
@@ -522,6 +552,20 @@ export interface ProjectEnums {
   Programs?: ProgramList[];
   Categories: CategoryEnum[];
   Thrusts: ThrustEnum[];
+  /**
+   * Category -> permitted Sub-Category (PAPKey) restrictions, from ShowProjectDropdowns.
+   *
+   * ONLY RESTRICTED CATEGORIES APPEAR HERE. The server resolves the three-part
+   * "is this Category restricted" rule (no mapping rows / a PAPKey = -1 wildcard, which means
+   * every Sub-Category qualifies / a mapping whose PAPKeys resolve to nothing) and omits any
+   * Category the rule calls unrestricted. So the only rule this side needs is:
+   * no entry for a CategoryId means every Thrust is allowed for it.
+   *
+   * Optional because the Modification module reuses this type against endpoints that do not
+   * return the field.
+   */
+  ThrustsByCategory?: { CategoryId: number; PAPKeys: number[] }[];
+  CategoryThrustMap: { CategoryId: number; PAPKey: number }[];
   Origins: TableEnum[];
   Cities: ProjectCityEnum[];
   Provinces: ProjectProvinceEnum[];

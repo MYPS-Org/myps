@@ -15,13 +15,9 @@ import ModificationList from '../pages/Modification/views/ModifcationList';
 import ModificationDetails from '../pages/Modification/views/ModificationDetails';
 import ViewRevision from '../pages/Modification/views/ViewRevision';
 import Reports from '../pages/Reports/Reports';
-// NOTE: LSWalletList and LSWalletDetail do not exist yet — they are built in
-// the junior-engineer pass that follows this senior-engineer pass. The imports
-// below will cause a TypeScript/Vite error until those View files are created.
-// That is expected and will be resolved in the next implementation step.
-import AddWallet from '../pages/LSWallet/Views/AddWallet';
-import LSWalletList from '../pages/LSWallet/Views/LSWalletList';
-import LSWalletDetail from '../pages/LSWallet/Views/LSWalletDetail';
+import AddLumpSum from '../pages/LumpSum/Views/AddLumpSum';
+import LumpSumList from '../pages/LumpSum/Views/LumpSumList';
+import LumpSumDetail from '../pages/LumpSum/Views/LumpSumDetail';
 // ✅ Extend RouteObject with a permission key
 export type AppRoute = RouteObject & {
   RouteName?: string; // matches keys returned by your session/API
@@ -63,10 +59,14 @@ const protectedRoutes: AppRoute[] = [
   { RouteName: 'CodeTables', path: '/code-tables', element: <CodeTables /> },
   // #endregion Settings Routes
 
-  // #region LS Wallet Routes
-  { RouteName: 'LumpSumList', path: '/lumpsum', element: <LSWalletList /> },
-  { RouteName: 'AddWallet', path: '/lumpsum/add', element: <AddWallet /> },
-  { RouteName: 'LumpSumDetails', path: '/lumpsum/:walletId', element: <LSWalletDetail /> },
-  // #endregion LS Wallet Routes
+  // #region Lump Sum Routes
+  { RouteName: 'LumpSumList', path: '/lumpsum', element: <LumpSumList /> },
+  /*  'AddWallet' is a dbo.tAppViews.RouteName, not a code symbol — usePermittedRoutes
+      matches it against the session's ViewAccess. Renaming it here alone would hide
+      /lumpsum/add from every user, so it keeps the wallet-era spelling until the
+      database row is renamed with it. */
+  { RouteName: 'AddWallet', path: '/lumpsum/add', element: <AddLumpSum /> },
+  { RouteName: 'LumpSumDetails', path: '/lumpsum/:lumpSumId', element: <LumpSumDetail /> },
+  // #endregion Lump Sum Routes
 ];
 export default protectedRoutes;

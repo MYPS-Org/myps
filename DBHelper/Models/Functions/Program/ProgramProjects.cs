@@ -35,7 +35,19 @@ namespace DBHelper.Models.Functions.Program
         public string? CategoryName { get; set; }
         [MaxLength(400)]
         public string? ThrustName { get; set; }
-        public string? Description { get; set; }
+        [Required]
+        public string Description { get; set; } = string.Empty;
+        /*  NULLABLE ON PURPOSE — see ProjectLatest.Region. fProgramProjects
+            draws both from fProjectDetails, which returns NULL for a Lump Sum
+            parent because it has no site. Declaring them non-nullable made EF
+            throw while materialising the TVF, taking down the whole Program
+            Details project list rather than just the offending row.
+
+            The Name columns beside them stay non-null: fProgramProjects §12
+            ISNULLs them to '' after its LEFT JOINs, so a missing office renders
+            blank instead of hiding the project. OperatingUnit is NOT nullable
+            either — it is required on a Lump Sum Project and always written, so
+            a NULL there is a real defect and should still fail loudly. */
         [MaxLength(20)]
         public string? Region { get; set; }
         [Required]

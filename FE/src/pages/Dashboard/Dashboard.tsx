@@ -52,6 +52,27 @@ import {
 const LIVE_YEARS_FALLBACK = [2027];
 const BENCHMARK_AVAILABLE_YEARS = [2027, 2026, 2025, 2024, 2023];
 
+/*  LIVE DB SWITCH.
+    -----------------------------------------------------------------------------
+    Turned off on 2026-09-13 (maintainer's call) because Dashboard/Summary returned
+    every visible project uncapped — 56,722 rows, 33.5 MB and ~14 s per load on
+    myps_db_dev_200 — and the stated condition for turning it back on was a paged
+    or capped endpoint.
+
+    Re-enabled 2026-09-17 because that condition is now met: the page no longer
+    calls Dashboard/Summary at all. Each section loads from its own endpoint
+    (Kpis, Trend, BudgetBreakdown, Statuses, RegionalBreakdown, Projects,
+    Activities, Revisions), only when scrolled into view; aggregates are computed
+    in SQL and return tens of rows; and the watchlist pages server-side. The
+    largest response is the 20-row watchlist page at ~12 KB. See the follow-up
+    section of documents/plans/dashboard-modular-data-loading.md for timings.
+
+    The switch is kept rather than removed. Setting it to false still disables the
+    Live DB control and — via `sourceMode` below — routes every section hook to
+    Demo Data, so no dashboard query can go out. The e2e spec tracks this same
+    constant; flip both together. */
+export const LIVE_DB_ENABLED = true;
+
 const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const { setTheme, isLight } = useDashboardTheme();
@@ -64,17 +85,28 @@ const DashboardContent: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<WatchlistProject | null>(null);
   const [refreshSignal, setRefreshSignal] = useState(0);
 
+  // What the data hooks actually query. The disabled Live DB button is the normal way to stay
+  // out of 'real' while LIVE_DB_ENABLED is false; this is what guarantees it -- a stale state
+  // value, a future caller, or a restored session still cannot send a dashboard query.
+  const sourceMode: 'real' | 'benchmark' = LIVE_DB_ENABLED ? dataSourceMode : 'benchmark';
+  useEffect(() => {
+    if (!LIVE_DB_ENABLED && dataSourceMode === 'real') {
+      setDataSourceMode('benchmark');
+      setSelectedYear(2027);
+    }
+  }, [dataSourceMode]);
+
   // LS Wallet integration is disabled server-side (see DashboardController.cs) -- always empty
   // until that ships, so there's no section hook for it.
   const lsProjects: DashboardLsProject[] = [];
 
   // Tier 1 -- eager on mount. Always-visible KPI row; two independent requests (the revision
   // tile resolves on its own without blocking the rest of the cards).
-  const kpis = useDashboardKpis(selectedYear, dataSourceMode, true);
-  const revisions = useDashboardRevisions(selectedYear, dataSourceMode, true);
+  const kpis = useDashboardKpis(selectedYear, sourceMode, true);
+  const revisions = useDashboardRevisions(selectedYear, sourceMode, true);
 
   const liveAvailableYears = useAtomValue(liveAvailableYearsAtom);
-  const availableYears = dataSourceMode === 'benchmark'
+  const availableYears = sourceMode === 'benchmark'
     ? BENCHMARK_AVAILABLE_YEARS
     : (liveAvailableYears.length ? liveAvailableYears : LIVE_YEARS_FALLBACK);
 
@@ -85,11 +117,11 @@ const DashboardContent: React.FC = () => {
   // flight -- doing so would snap the user's brand-new selection straight back.
   const hasLoadedLiveYears = liveAvailableYears.length > 0;
   useEffect(() => {
-    if (dataSourceMode === 'real' && !hasLoadedLiveYears) return;
+    if (sourceMode === 'real' && !hasLoadedLiveYears) return;
     if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
       setSelectedYear(availableYears[0]);
     }
-  }, [dataSourceMode, hasLoadedLiveYears, availableYears, selectedYear]);
+  }, [sourceMode, hasLoadedLiveYears, availableYears, selectedYear]);
 
   // Tier 2 -- lazy on visible. One viewport observer per section: a section's data hook fetches
   // the first time that section is scrolled into view, and not before. (These were also shared
@@ -104,11 +136,11 @@ const DashboardContent: React.FC = () => {
 
   // Trend feeds both the Trajectory chart and the Charts panel's trend bars -- one shared fetch,
   // enabled by whichever of the two sections is reached first.
-  const trend = useDashboardTrend(selectedYear, dataSourceMode, trajectoryViewport.isVisible || chartsViewport.isVisible);
-  const budgetBreakdown = useDashboardBudgetBreakdown(selectedYear, dataSourceMode, macroBudgetViewport.isVisible);
-  const statuses = useDashboardStatuses(selectedYear, dataSourceMode, chartsViewport.isVisible);
-  const regionalBreakdown = useDashboardRegionalBreakdown(selectedYear, dataSourceMode, regionalMatrixViewport.isVisible);
-  const activities = useDashboardActivities(selectedYear, dataSourceMode, watchlistViewport.isVisible);
+  const trend = useDashboardTrend(selectedYear, sourceMode, trajectoryViewport.isVisible || chartsViewport.isVisible);
+  const budgetBreakdown = useDashboardBudgetBreakdown(selectedYear, sourceMode, macroBudgetViewport.isVisible);
+  const statuses = useDashboardStatuses(selectedYear, sourceMode, chartsViewport.isVisible);
+  const regionalBreakdown = useDashboardRegionalBreakdown(selectedYear, sourceMode, regionalMatrixViewport.isVisible);
+  const activities = useDashboardActivities(selectedYear, sourceMode, watchlistViewport.isVisible);
 
   const monthlyData = (trend.data ?? []).map((row) => ({
     month: String(row.year),
@@ -162,7 +194,7 @@ const DashboardContent: React.FC = () => {
       <div className="lg:col-span-2">
         <DashboardProjectWatchlist
           year={selectedYear}
-          dataSourceMode={dataSourceMode}
+          dataSourceMode={sourceMode}
           enabled={watchlistViewport.isVisible}
           refreshSignal={refreshSignal}
           activeIslandFilter={activeIslandFilter}
@@ -221,7 +253,9 @@ const DashboardContent: React.FC = () => {
             {/* Real DB vs Benchmark Switch Toggle */}
             <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80 shadow-inner">
               <button
+                disabled={!LIVE_DB_ENABLED}
                 onClick={() => {
+                  if (!LIVE_DB_ENABLED) return;
                   setDataSourceMode('real');
                   setSelectedYear(2027);
                 }}
@@ -229,8 +263,12 @@ const DashboardContent: React.FC = () => {
                   dataSourceMode === 'real'
                     ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25'
                     : 'text-slate-400 hover:text-white'
-                }`}
-                title="Query projects from the configured live MYPS database"
+                } ${!LIVE_DB_ENABLED ? 'opacity-40 cursor-not-allowed hover:text-slate-400' : ''}`}
+                title={
+                  LIVE_DB_ENABLED
+                    ? 'Query projects from the configured live MYPS database'
+                    : 'Live database view is temporarily unavailable while the summary endpoint is made pageable.'
+                }
               >
                 <CircleStackIcon className="w-3.5 h-3.5" />
                 <span>Live DB</span>
@@ -358,7 +396,7 @@ const DashboardContent: React.FC = () => {
           <LazySection isVisible={macroBudgetViewport.isVisible} sectionRef={macroBudgetViewport.ref} skeleton={skeletonBlock('h-96')}>
             <DashboardMacroBudget
               selectedYear={selectedYear}
-              isBenchmark={dataSourceMode === 'benchmark'}
+              isBenchmark={sourceMode === 'benchmark'}
               liveBreakdown={budgetBreakdown.data ?? []}
               isLoading={budgetBreakdown.isLoading}
             />
@@ -369,7 +407,7 @@ const DashboardContent: React.FC = () => {
             <DashboardTrajectoryChart
               selectedYear={selectedYear}
               onSelectYear={(yr) => setSelectedYear(yr)}
-              isBenchmark={dataSourceMode === 'benchmark'}
+              isBenchmark={sourceMode === 'benchmark'}
               liveData={trajectoryLiveData}
               isLoading={trend.isLoading}
             />
@@ -414,7 +452,7 @@ const DashboardContent: React.FC = () => {
       <DashboardKpiDetailModal
         type={selectedKpi}
         selectedYear={selectedYear}
-        dataSourceMode={dataSourceMode}
+        dataSourceMode={sourceMode}
         kpiData={kpis.data?.kpis ?? undefined}
         lsProjects={lsProjects}
         revisions={revisions.data ?? undefined}

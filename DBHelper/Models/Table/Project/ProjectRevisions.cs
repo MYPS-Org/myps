@@ -32,24 +32,25 @@ namespace DBHelper.Models.Table.Project
         public DateTime? MYCAApprovalDate { get; set; }
         [Required]
         public string Description { get; set; } = string.Empty;
-        [Required]
         [MaxLength(20)]
-        public string Region { get; set; } = string.Empty;
+        /*  Nullable since LumpSum.Baseline.sql §2b widened these columns: the V2
+            field spec makes Region, DEO and Implementing Office OPTIONAL, and a
+            Lump Sum Project is program-wide with no geography at all. The model
+            must match the column or EF throws SqlNullValueException on read. */
+        public string? Region { get; set; }
         [MaxLength(20)]
         public string? Province { get; set; }
         [MaxLength(20)]
         public string? City { get; set; }
         [MaxLength(20)]
         public string? LegislativeDistrict { get; set; }
-        [Required]
         [MaxLength(20)]
-        public string DEO { get; set; } = string.Empty;
+        public string? DEO { get; set; }
         [Required]
         [MaxLength(20)]
         public string OperatingUnit { get; set; } = string.Empty;
-        [Required]
         [MaxLength(20)]
-        public string ImplementingOffice { get; set; } = string.Empty;
+        public string? ImplementingOffice { get; set; }
         [MaxLength(2)]
         public string? IslandCode { get; set; }
         [Required]

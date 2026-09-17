@@ -55,7 +55,6 @@ namespace WebAPI.Controllers.Importing
             _backgroundJobs = backgroundJobs;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> ImportProject([FromForm] ImportProgramDetailsWithFile programDetails, CancellationToken cancellationToken)
@@ -175,7 +174,6 @@ namespace WebAPI.Controllers.Importing
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateProject([FromForm] ImportProgramDetailsWithFile programDetails, CancellationToken cancellationToken)
@@ -296,7 +294,6 @@ namespace WebAPI.Controllers.Importing
 
 
         // ── Poll endpoint ──────────────────────────────────────────────────────────
-        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetImportStatus([FromQuery] string jobId, CancellationToken cancellationToken)
         {
@@ -324,7 +321,6 @@ namespace WebAPI.Controllers.Importing
         }
 
         // ── Download endpoint ──────────────────────────────────────────────────────
-        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> DownloadImportFile([FromQuery] string fileName, CancellationToken cancellationToken)
         {
@@ -359,9 +355,13 @@ namespace WebAPI.Controllers.Importing
         // unfixable request fails fast with a 400 instead of queueing a job that can only fail.
         // Deliberately does NOT take tImportingStatus's system-wide lock (confirmed with the user):
         // Export is read-only, so it must never block, or be blocked by, an in-progress Import/
-        // Update or another concurrent Export. [AllowAnonymous] matches every other action in this
-        // controller (ImportProject, UpdateProject, DownloadTemplate).
-        [AllowAnonymous]
+        // Update or another concurrent Export.
+        // 2026-09-11 fix: [AllowAnonymous] removed from every action in this controller --
+        // investigated and confirmed every caller is the already-authenticated React app
+        // (httpClient, withCredentials: true, cookie auth); no external/webhook/cron caller
+        // exists. It was also silently disabling this app's own PermissionFilter/_Session
+        // resolution (CoreController.cs), breaking LastUserIdInUse audit attribution, not just
+        // route-level auth.
         [HttpPost]
         public async Task<IActionResult> ExportProjects([FromBody] ExportProjectsDTO dto, CancellationToken cancellationToken)
         {
@@ -426,7 +426,6 @@ namespace WebAPI.Controllers.Importing
         // just with nothing pre-filled. Runs inline (no Hangfire) since there's no uploaded
         // file to parse/validate here — just ~20 small lookup-table reads, so this completes
         // in well under a second.
-        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> DownloadTemplate(CancellationToken cancellationToken)
         {

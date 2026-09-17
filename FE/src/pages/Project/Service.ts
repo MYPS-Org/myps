@@ -1,7 +1,7 @@
 import { httpClient, gisClient, type ApiResponse } from "../../services/httpClient";
 import type { ProgramList, ProgramLatest } from "../Program/Model";
 import { fetchProgram } from "../Program/Service";
-import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, Dropdowns, ProjectFormPayload, ProjectFilter, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO, SearchProgram, ProjectTargetComponent, ShowProjectStageTargetsRequest, ProjectStageTargetsPaginationResponse } from "./Model.d";
+import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, Dropdowns, ProjectFormPayload, ProjectFilter, AddNotes, InfraData, ProjectSupportingDocs, UploadedDocData, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO, SearchProgram, ProjectTargetComponent, ShowProjectStageTargetsRequest, ProjectStageTargetsPaginationResponse } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: PaginatedRequest<ProjectFilter>) => {
@@ -152,7 +152,14 @@ export const addNote = async (formData: AddNotes) => {
 };
 export const addDoc = async (formData: AddNotes) => {
   try {
-    const response = await httpClient.post<ApiResponse>(`/Project/UploadSupportingDocs/`, formData, {
+    // UploadSupportingDocs returns {Message, Title, Data: UploadedDocData} -- httpClient.post<T>
+    // wraps that whole body as ApiResponse.Data, so the real row is response.Data.Data, not
+    // response.Data. Typing T as the envelope (not UploadedDocData directly) lets TS catch a
+    // caller that forgets the second unwrap, which is exactly what happened before this fix:
+    // response.Data was read as if it were the row, so every field but two (masked by fallbacks)
+    // resolved to undefined until a page refresh pulled the same doc from ShowProjectDetails'
+    // genuinely flat response instead.
+    const response = await httpClient.post<{ Message: string; Title: string; Data: UploadedDocData }>(`/Project/UploadSupportingDocs/`, formData, {
       preloaderMessage: 'Adding document...',
     });
     return response;

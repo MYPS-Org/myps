@@ -144,20 +144,13 @@ if (app.Environment.IsDevelopment())
 
 
 // ==========================================================
-// STATIC FILES
+// STATIC FILES -- SPA shell only. Stays public and stays first: the React app's own
+// bundled JS/CSS/index.html must be reachable before login, or nobody could even load
+// the login page. The /Resources-scoped mapping (uploaded documents) moved below,
+// after authentication -- see the note there for why.
 // ==========================================================
 
 app.UseStaticFiles();
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(Appsetting.RootPath, "Resources")),
-
-    RequestPath = new PathString("/Resources"),
-
-    ContentTypeProvider = new FileExtensionContentTypeProvider()
-});
 
 
 // ==========================================================
@@ -191,6 +184,40 @@ app.UseCors("AllowReactApp");
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+
+// ==========================================================
+// /RESOURCES STATIC FILES -- gated behind authentication
+//
+// 2026-09-11 fix: this mapping used to run before UseAuthentication/UseAuthorization
+// (up with the SPA-shell block above), which meant every uploaded document --
+// Supporting Docs, Project Notes, Revision documents -- was served to anyone, no login
+// required, at a deterministic path. Moving it after UseAuthentication alone is not
+// enough: static-file middleware doesn't consult auth state on its own, it just matches
+// a path and serves the file. The explicit check below is what actually closes the gap.
+// Cookie auth means an already-logged-in browser keeps working with no FE change --
+// only anonymous access is blocked.
+// ==========================================================
+
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/Resources") && context.User.Identity?.IsAuthenticated != true)
+    {
+        context.Response.StatusCode = 401;
+        return;
+    }
+    await next();
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(Appsetting.RootPath, "Resources")),
+
+    RequestPath = new PathString("/Resources"),
+
+    ContentTypeProvider = new FileExtensionContentTypeProvider()
+});
 
 
 // ==========================================================

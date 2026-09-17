@@ -18,6 +18,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using static Helpers.ProjectHelper;
 
+using WebAPI.Controllers.Lumpsum;
 namespace WebAPI.Controllers.Projects
 {
     [ApiController]
@@ -87,12 +88,53 @@ namespace WebAPI.Controllers.Projects
                 var tiers = await _db.tOptionProjectTier.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var regionWides = await _db.tOptionRegionWide.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
+                // 2026-09-11: Category -> permitted Sub-Category (PAPKey) restrictions, so a form
+                // can offer only the Sub-Categories its selected Category actually allows. The Lump
+                // Sum details form consumes this; Project and Modification ignore it and keep their
+                // permissive dropdowns, per this codebase's save-time-enforcement convention.
+                //
+                // (Restored 2026-09-12: this hunk and its ProjectEnums type were lost when the
+                // Option A branch was rebased over this file, while the frontend consumer and the
+                // decision record in MYPS_PROJECT_THRUST_CATEGORY_VALIDATION_RCA_AND_DECISION.md
+                // both survived -- leaving the FE referencing a field the API no longer sent, which
+                // broke the type-check.)
+                //
+                // RESOLVED HERE, ON PURPOSE. "Is this Category restricted" is a three-part rule --
+                // no map rows, an explicit PAPKey = -1 wildcard, or every mapped PAPKey dangling
+                // with no thrust row behind it. Shipping the raw map rows would make the browser
+                // re-implement it in another language, where it would drift. So an UNRESTRICTED
+                // Category is simply omitted, and the frontend rule collapses to "no entry means no
+                // restriction".
+                //
+                // Note this does NOT filter the Thrusts list above -- that stays complete, because a
+                // form still needs the full list to render an already-selected value (RCA section 4).
+                var categoryToPap = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking().ToListAsync(cancellationToken);
+                var thrustsByCategory = categoryToPap
+                    .GroupBy(m => m.CategoryId)
+                    .Where(g => !g.Any(x => x.PAPKey == -1)
+                             && g.Any(x => thrusts.Any(t => t.PAPKey == x.PAPKey)))
+                    .Select(g => new
+                    {
+                        CategoryId = g.Key,
+                        PAPKeys = g.Select(x => x.PAPKey).Distinct().OrderBy(k => k).ToList()
+                    })
+                    .ToList();
+
+                // 2026-09-11: lets the FE filter the Thrust dropdown by the selected Category
+                // without a per-keystroke round trip. Same table already used server-side by
+                // ValidateProjectDetailsLookups (ProjectHelper.cs:331-338) -- PAPKey=-1 is a
+                // wildcard, and a Category with zero rows here is unrestricted (same convention).
+                var categoryThrustMap = await _db.tOptionProjectCategoryToPAPMap.AsNoTracking()
+                    .Select(x => new { x.CategoryId, x.PAPKey }).ToListAsync(cancellationToken);
+
                 return Ok(new
                 {
                     Tiers = tiers,
 
                     Categories = categories,
                     Thrusts = thrusts,
+                    ThrustsByCategory = thrustsByCategory,
+                    CategoryThrustMap = categoryThrustMap,
 
                     Provinces = provinces,
                     Cities = cities,
@@ -258,6 +300,32 @@ namespace WebAPI.Controllers.Projects
                                 result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
+                }
+
+                /*  MARK THE LUMP SUM PROJECTS ON THIS PAGE, so the list can send them to
+                    the Lump Sum module instead of the project form. One keyed IN query
+                    on tProjects for the page's ids — never per row, and never through
+                    vLumpSumSet, whose ROW_NUMBER CTE defeats predicate pushdown and has
+                    produced an 11 GB plan on a point lookup before (lump-sum-v2.md,
+                    known gap 5). A Lump Sum Project is ProjectType 'LS' with no parent;
+                    its itemized children are 'LS' with one, and remain ordinary projects.
+                    vProjectLatest.Id is tProjects.Id, the same key vLumpSumSet exposes,
+                    which is what makes the flag enough for the frontend to route on. */
+                if (result.Data.lists.Count > 0)
+                {
+                    var PageIds = result.Data.lists.Select(x => x.Id).ToList();
+                    var LumpSumIds = await _db.tProjects
+                        .AsNoTracking()
+                        .Where(p => PageIds.Contains(p.Id) && p.ProjectType == "LS" && p.ParentProjectId == null)
+                        .Select(p => p.Id)
+                        .ToListAsync(cancellationToken);
+
+                    if (LumpSumIds.Count > 0)
+                    {
+                        var LumpSumSet = LumpSumIds.ToHashSet();
+                        foreach (var Row in result.Data.lists)
+                            Row.IsLumpSum = LumpSumSet.Contains(Row.Id);
+                    }
                 }
 
                 return Ok(result.Data);
@@ -455,6 +523,20 @@ namespace WebAPI.Controllers.Projects
             {
                 DateTime CurrentDate = Functions.CurrentDate();
                 string UserId = _Session.UserId;
+
+                /*  Lump Sum Projects are created by CreateLumpSum, which sets up the
+                    allocation component and its funding line in one transaction.
+                    Reaching one through here would produce a project that the Lump
+                    Sum module lists and offers to itemize, but with nothing to
+                    itemize against. */
+                if (LumpSumGuard.WouldCreateLumpSum(dto.ProjectType, dto.IslandCode))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "A Lump Sum Project cannot be created here. Use the Lump Sum module.",
+                        Title = LumpSumGuard.RefusalTitle
+                    });
+                }
 
                 #region Validate Program
                 var ValidateProgram = await _db.ValidateProgramId(new ProgramHelperParams
@@ -709,11 +791,27 @@ namespace WebAPI.Controllers.Projects
                 #endregion
 
                 var HasViewPermission = await _db.vUserViewPermission.AnyAsync(x => x.RouteName == "RevisionDetails" && x.UserId == _Session.UserId && x.IsActive);
-                var HasAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "ReviseProject" && x.UserId == _Session.UserId && x.IsActive);
+                var HasReviseAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "ReviseProject" && x.UserId == _Session.UserId && x.IsActive);
+                var HasUpdateAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "UpdateProjectDetails" && x.UserId == _Session.UserId && x.IsActive);
+
+                // Revise vs Update is state-based, not just permission-based, and the two must be
+                // mutually exclusive. Mirrors the exact IsPublished + fOpenRevision checks
+                // RequestRevision already enforces server-side (RevisionController.cs:947,1009) --
+                // this is not a new rule, just surfacing the existing one here so the buttons agree
+                // with what the write action will actually allow, instead of each deriving its own
+                // approximation. Both booleans below are derived from ONE state check (IsRevisable),
+                // so they cannot both be true for the same project.
+                var HasOpenRevision = await _db.fOpenRevision
+                    .FromSqlInterpolated($"SELECT * FROM fOpenRevision({ProjectFK})")
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
+                bool IsRevisable = ProjectParent.IsPublished && HasOpenRevision == null;
+
                 return Ok(new
                 {
                     IsActive = CurrentProgramVersion != null && ProgramLatest.Status != "Approved",
-                    CanRevise = HasAPIPermission && HasViewPermission,
+                    CanRevise = IsRevisable && HasReviseAPIPermission && HasViewPermission,
+                    CanUpdate = !IsRevisable && HasUpdateAPIPermission,
                     ProgramDetails = Program,
                     ProjectDetails = ProjectRevisions,
                     FundingProfile = Funding,
@@ -745,6 +843,31 @@ namespace WebAPI.Controllers.Projects
                 string StageName = dto.ProjectDetails.StageName;
                 string UserId = _Session.UserId;
                 string ProjectId = dto.ProjectDetails.ProjectId;
+
+                /*  A Lump Sum Project is edited in the Lump Sum module and nowhere
+                    else. It is an ordinary tProjects row, so without this it would
+                    save here like any other project — bypassing the stage gate, the
+                    allocation arithmetic and the identity rules that module owns.
+
+                    BEFORE ValidateProjectId, deliberately. That path reads
+                    fProjectDetails, which throws SqlNullValueException on a Lump Sum
+                    Project — its Region, Province and DEO are legitimately null. So
+                    a guard placed after it never runs: the request dies on the way
+                    in with an exception instead of a refusal.
+
+                    Itemized CHILDREN are not covered: they are ordinary projects and
+                    this is where they are edited. IsLumpSumParent tests
+                    ParentProjectId for exactly that reason. */
+                var LumpSumCandidate = await _db.tProjects.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ProjectPK == ProjectId, cancellationToken);
+                if (LumpSumGuard.IsLumpSumParent(LumpSumCandidate))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = LumpSumGuard.RefusalMessage(ProjectId, "edited"),
+                        Title = LumpSumGuard.RefusalTitle
+                    });
+                }
 
                 #region Project
                 var ValidateProjectId = await _db.ValidateProjectId(new ValidateProjectIdParams
@@ -824,6 +947,12 @@ namespace WebAPI.Controllers.Projects
                     DetailedDesign = dto.ProjectDetails.DetailedDesign,
                     DetailedDesignDate = dto.ProjectDetails.DetailedDesignDate,
                     Thrust = dto.ProjectDetails.Thrust,
+                    // 2026-09-11 fix: grandfathers an unchanged Thrust past the Category-mapping
+                    // check (see ProjectHelper.cs's ThrustIsChanging gate) -- ProjectRevision is
+                    // already loaded above (line ~773), no extra query.
+                    PreviousThrust = ProjectRevision.Thrust,
+                    // 2026-09-12: the gate watches both fields -- see ValidateThrustForCategoryAsync.
+                    PreviousCategory = ProjectRevision.Category,
                 };
                 var ValidateProjectLookUps = await _db.ValidateProjectDetailsLookups(pLookup, cancellationToken);
                 if (!ValidateProjectLookUps.IsValid)
@@ -1394,21 +1523,41 @@ namespace WebAPI.Controllers.Projects
                 }
 
 
-                if (ProjectRevision.MYId != dto.ProjectDetails?.MYId)
+                // 2026-09-11 fix: previously compared/assigned MYId against ProjectRevision, which
+                // is an AsNoTracking() result from a raw-SQL fProjectDetails() call
+                // (ValidateProjectId -> Helpers/ProjectHelper.cs:102) -- mutating it has zero
+                // effect on SaveChangesAsync, so an MYId edit silently never persisted. Unlike
+                // AlternateId (which genuinely lives on tProjectRevisions, hence the tracked
+                // `Project` entity below it works), MYId actually lives on the PARENT tProjects
+                // table (DBHelper/Models/Table/Project/Projects.cs) -- confirmed by build error
+                // when this fix first tried `Project.MYId` (tProjectRevisions has no such column).
+                // ValidateProjectId's own ProjectParent (Helpers/ProjectHelper.cs:94) is ALSO
+                // AsNoTracking(), so it can't be reused here either -- a fresh tracked query is
+                // required, matching the same pattern used for `Project` just above.
+                var ProjectHeader = await _db.tProjects.FirstOrDefaultAsync(x => x.ProjectPK == ProjectParent.ProjectPK, cancellationToken);
+                if (ProjectHeader == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Project details could not be found for '{ProjectId}'. Please refresh the page and try again.",
+                        Title = "Project Not Found"
+                    });
+                }
+                if (ProjectHeader.MYId != dto.ProjectDetails?.MYId)
                 {
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
                         ReferenceId = TransactionReferenceId,
                         TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tProjectRevisions",
+                        AffectedTable = "tProjects",
                         AffectedColumn = "MYId",
                         NewValue = $"Stage: {StageName} Value: {dto.ProjectDetails?.MYId!}",
-                        OldValue = $"Stage: {StageName} Value: {ProjectRevision.MYId!}",
+                        OldValue = $"Stage: {StageName} Value: {ProjectHeader.MYId!}",
                         CreatedBy = UserId,
                         CreatedDate = CurrentDate
                     });
-                    ProjectRevision.MYId = dto.ProjectDetails!.MYId;
+                    ProjectHeader.MYId = dto.ProjectDetails!.MYId;
                 }
                 if (Project.AlternateId != dto.ProjectDetails?.AlternateId)
                 {
@@ -1444,25 +1593,18 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Category != dto.ProjectDetails?.Category)
                 {
-                    var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentDate.Year || x.ValidUntil == 0).FirstOrDefaultAsync(x => x.CategoryId == dto.ProjectDetails!.Category);
-                    if (Category == null)
+                    // Category is permanently baked into this project's already-generated,
+                    // never-regenerated ProjectId (Helpers/ProjectHelper.cs:GenerateProjectID
+                    // allocates a Category-specific numeric range via dbo.pReserveProjectIdBlock,
+                    // called exactly once, at AddProject, for the life of the project). Changing
+                    // Category after creation would permanently desync the ID from its own
+                    // meaning with no way to regenerate and fix it. See
+                    // documents/docs/engineering/MYPS_CATEGORY_LOCKED_POST_CREATION_AND_SUBCATEGORY_FIX.md.
+                    return new BadRequestObjectResult(new
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.ProjectDetails!.Category}' is not valid.", Title = "Invalid Category" });
-                    }
-                    var OldCategory = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == Project.Category);
-                    hasUpdated = true;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        ReferenceId = TransactionReferenceId,
-                        TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tProjectRevisions",
-                        AffectedColumn = "Category",
-                        NewValue = $"Stage: {StageName} Value: {Category.CategoryName}",
-                        OldValue = $"Stage: {StageName} Value: {OldCategory?.CategoryName}",
-                        CreatedBy = UserId,
-                        CreatedDate = CurrentDate
+                        Message = "Category cannot be changed after a Project has been created — it determines part of the Project's ID and cannot be modified.",
+                        Title = "Category Locked"
                     });
-                    Project.Category = dto.ProjectDetails!.Category;
                 }
                 if (Project.Thrust != dto.ProjectDetails?.Thrust)
                 {
@@ -4341,7 +4483,10 @@ namespace WebAPI.Controllers.Projects
                     return new BadRequestObjectResult(new { Message = "No file uploaded.", Title = "File Upload Error" });
                 }
                 string SupportingDocsDir = Path.Combine(Appsetting.Resources.SupportingDocs, ProjectRevision.ProjectId!);
-                string FilePath = Path.Combine(SupportingDocsDir, dto.File.Name);
+                // 2026-09-11 fix: dto.File.Name is client-supplied and was used directly in
+                // Path.Combine -- a crafted filename (e.g. containing "..\") could resolve
+                // outside SupportingDocsDir. Path.GetFileName strips any directory component.
+                string FilePath = Path.Combine(SupportingDocsDir, Path.GetFileName(dto.File.Name));
 
                 if (!dto.File.ValidateFileSize(50))
                 {
@@ -4377,7 +4522,29 @@ namespace WebAPI.Controllers.Projects
 
                 await transaction.CommitAsync();
 
-                return Ok(new { Message = "Supporting Docs added successfully.", Title = "Add Success." });
+                // 2026-09-11 fix: previously returned no document data at all, so the frontend
+                // fabricated a placeholder row (FilePath set to the file's base64 data: URL used
+                // for the upload preview) to show immediately -- clicking view/download on that
+                // row opened the raw base64 blob instead of the real server file, until a page
+                // refresh replaced it with the real data. Returning the actual persisted row lets
+                // the frontend use real values instead of guessing.
+                return Ok(new
+                {
+                    Message = "Supporting Docs added successfully.",
+                    Title = "Add Success.",
+                    Data = new
+                    {
+                        AddSupporting.Id,
+                        AddSupporting.DocTypeFK,
+                        AddSupporting.DocTypeName,
+                        AddSupporting.FileName,
+                        AddSupporting.FileExtension,
+                        AddSupporting.FilePath,
+                        AddSupporting.Description,
+                        AddSupporting.CreatedBy,
+                        AddSupporting.CreatedDate,
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -4417,7 +4584,12 @@ namespace WebAPI.Controllers.Projects
 
                 int ProjectRevisionFK = ProjectRevision.Id;
                 string ProjectId = ProjectRevision.ProjectId;
-                var Note = await _db.tProjectSupportingDocs.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                // 2026-09-11 fix: previously looked up by Id alone -- any caller authorized for
+                // ANY project (to pass ValidateProjectId above) could delete a completely
+                // different, unrelated project's supporting doc and its physical file (IDOR).
+                // Scoped to the caller's own authorized revision, matching every other write in
+                // this method.
+                var Note = await _db.tProjectSupportingDocs.FirstOrDefaultAsync(x => x.Id == dto.Id && x.ProjectRevisionFK == ProjectRevisionFK);
                 if(Note == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Supporting Doc not found.", Title = "Project Not Found" });

@@ -18,6 +18,12 @@ export interface ErrorResponse {
     Message?: string;
     Title?: string;
     Status: number;
+    /**
+     * The response body as the server sent it, for callers that need more than
+     * Message/Title — e.g. an import rejection's Errors[] and ErrorFileName. The
+     * interceptor has already toasted Message by the time this reaches a catch.
+     */
+    Data?: unknown;
 }
 
 export interface RequestConfig extends AxiosRequestConfig {
@@ -129,7 +135,8 @@ class HttpClient {
                     const errorResponse: ErrorResponse = {
                         Message: error.response?.data?.Message || 'Resource not found',
                         Title: error.response?.data?.Title || 'Not Found',
-                        Status: 404
+                        Status: 404,
+                        Data: error.response?.data
                     };
 
                     if (this.toastCallback) {
@@ -162,7 +169,8 @@ class HttpClient {
                     const errorResponse: ErrorResponse = {
                         Message: error.response.data.Message,
                         Title: error.response.data.Title,
-                        Status: error.response.status
+                        Status: error.response.status,
+                        Data: error.response.data
                     };
                     throw errorResponse;
                 }

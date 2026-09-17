@@ -113,7 +113,7 @@ const currentPath = (localStorage.getItem('currentPath') != undefined) ? localSt
 				</SidebarItem>
 				<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/lumpsum')?.RouteName || '')} href="/lumpsum" current={currentPath === '/lumpsum'}>
 					<BriefcaseIcon />
-					<SidebarLabel className="text-gray-500">LS Wallet</SidebarLabel>
+					<SidebarLabel className="text-gray-500">Lump Sum</SidebarLabel>
 				</SidebarItem>
 				<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/revision')?.RouteName || '')} href="/revision" current={currentPath === '/revision'}>
 					<ArrowPathIcon />

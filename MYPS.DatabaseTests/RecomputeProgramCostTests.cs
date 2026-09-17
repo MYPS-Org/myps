@@ -39,9 +39,10 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         command.Parameters.Add(new SqlParameter("@ProgramPK", SqlDbType.NVarChar, 200) { Value = "PROGRAM-1" });
         await using SqlDataReader reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
-        Assert.Equal(new[] { "RevisionId", "NewCost" }, Enumerable.Range(0, reader.FieldCount).Select(reader.GetName));
+        Assert.Equal(new[] { "RevisionId", "StageId", "NewCost" }, Enumerable.Range(0, reader.FieldCount).Select(reader.GetName));
         Assert.Equal(1, reader.GetInt32(0));
-        Assert.Equal(100.00m, reader.GetDecimal(1));
+        Assert.Equal(2, reader.GetInt32(1));
+        Assert.Equal(100.00m, reader.GetDecimal(2));
         Assert.False(await reader.ReadAsync());
     }
 
@@ -67,8 +68,10 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync();
         SqlException error = await Assert.ThrowsAsync<SqlException>(() => ExecuteProcedureAsync(connection, null, "MISSING"));
-        Assert.Equal(50001, error.Number);
-        Assert.Contains("Program has no revisions", error.Message, StringComparison.Ordinal);
+        // RAISERROR with an ad hoc message string (not a sys.messages id) always reports 50000 --
+        // the live proc's IF @CurrentRevisionId IS NULL branch uses RAISERROR, not THROW.
+        Assert.Equal(50000, error.Number);
+        Assert.Contains("has no revisions to recompute Cost for", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -135,6 +138,24 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         Assert.Equal(100.00m, await ReadProgramCostAsync(connection, null));
     }
 
+    // ADR-055: the program's Lump Sum appropriations (dbo.vLumpSumSet.OriginalAllocation) add on
+    // top of non-LS project funding. Base project funding here is 100 (PROJECT-NORMAL only --
+    // PROJECT-LS is excluded by ProjectType, PROJECT-OLD by stage); a 500 Lump Sum allocation
+    // against PROGRAM-1 should bring the total to 600.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task Procedure_AddsLumpSumAllocationOnTopOfProjectFunding()
+    {
+        await SeedProgramAsync();
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, "INSERT dbo.vLumpSumSet(ProgramFK, OriginalAllocation) VALUES (N'PROGRAM-1', 500);");
+
+        await ExecuteProcedureAsync(connection, null, "PROGRAM-1");
+
+        Assert.Equal(600.00m, await ReadProgramCostAsync(connection, null));
+    }
+
     private async Task SeedProgramAsync()
     {
         const string sql = """
@@ -186,6 +207,10 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         CREATE TABLE dbo.tProjects(ProjectPK nvarchar(200) NOT NULL PRIMARY KEY, ProjectType nvarchar(20) NOT NULL);
         CREATE TABLE dbo.tProjectStages(Id int IDENTITY PRIMARY KEY, ProjectFK nvarchar(200) NOT NULL, ProgramFK nvarchar(200) NOT NULL, RevisionId int NOT NULL, StageId int NOT NULL);
         CREATE TABLE dbo.tProjectFundingProfile(Id int IDENTITY PRIMARY KEY, ProjectRevisionFK int NOT NULL, Amount decimal(18,5) NOT NULL, IsDeleted bit NOT NULL);
+        -- Minimal stand-in for the live dbo.vLumpSumSet view: pRecomputeProgramCost only ever
+        -- reads ProgramFK/OriginalAllocation from it (ADR-055), so a plain table with just those
+        -- two columns is enough to exercise the real dependency without reproducing the view.
+        CREATE TABLE dbo.vLumpSumSet(ProgramFK nvarchar(200) NOT NULL, OriginalAllocation decimal(18,5) NOT NULL);
         """;
 
     // Minimal, behaviorally-faithful slice of the Formal Revision schema/functions -- just enough
@@ -245,29 +270,55 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         );
         """;
 
+    // 2026-09-15: byte-for-byte the same procedure body now deployed live and checked in at
+    // Main/Resources/LumpSum/SQL/Migration.SchemaAndProgrammability.2026-09-10.sql, not a
+    // hand-maintained parallel implementation. Keeping the two in sync by copy is exactly the
+    // discipline that failed before (RISK-108's fix landed only here for a week while the live
+    // object stayed on the pre-fix join) -- this comment is the trip-wire for whoever edits one
+    // copy without the other next.
     private const string ProcedureSql = """
-        CREATE PROCEDURE dbo.pRecomputeProgramCost @ProgramPK NVARCHAR(200)
+        CREATE PROCEDURE dbo.pRecomputeProgramCost
+            @ProgramPK NVARCHAR(200)
         AS
         BEGIN
-            SET NOCOUNT ON; SET XACT_ABORT ON;
-            DECLARE @CurrentRevisionId INT, @CurrentStageId INT, @NewCost DECIMAL(38,5) = 0;
-            SELECT TOP (1) @CurrentRevisionId = pr.Id FROM dbo.tProgramRevisions pr WHERE pr.ProgramFK = @ProgramPK ORDER BY pr.Id DESC;
-            IF @CurrentRevisionId IS NULL THROW 50001, 'pRecomputeProgramCost: Program has no revisions.', 1;
-            SELECT TOP (1) @CurrentStageId = ps.StageId FROM dbo.tProgramStages ps WHERE ps.RevisionId = @CurrentRevisionId ORDER BY ps.Id DESC;
-            IF @CurrentStageId IS NULL THROW 50002, 'pRecomputeProgramCost: Current program revision has no stage.', 1;
-            -- RISK-108 fix: CROSS APPLY the effective-revision-aware function, not a direct base-table join.
-            SELECT @NewCost = COALESCE(SUM(CONVERT(DECIMAL(38,5), ffp.Amount)), 0)
+            SET NOCOUNT ON;
+
+            DECLARE @CurrentRevisionId INT, @CurrentStageId INT, @NewCost DECIMAL(18,2);
+
+            SELECT TOP 1 @CurrentRevisionId = pgr.Id, @CurrentStageId = pgs.StageId
+            FROM dbo.tProgramRevisions pgr
+            JOIN dbo.tProgramStages pgs ON pgs.RevisionId = pgr.Id
+            WHERE pgr.ProgramFK = @ProgramPK
+            ORDER BY pgr.Id DESC;
+
+            IF @CurrentRevisionId IS NULL
+            BEGIN
+                RAISERROR('pRecomputeProgramCost: program %s has no revisions to recompute Cost for.', 16, 1, @ProgramPK);
+                RETURN;
+            END
+
+            -- RISK-108 fix: CROSS APPLY the effective-revision-aware function so an approved
+            -- Formal Revision's funding overlays base, instead of a direct join that was blind to it.
+            SELECT @NewCost = ISNULL(SUM(fp.Amount), 0)
             FROM dbo.tProjectStages ps
-            INNER JOIN dbo.tProjects p ON p.ProjectPK = ps.ProjectFK
-            CROSS APPLY dbo.fProjectFundingProfile(ps.ProjectFK, ps.StageId) ffp
-            WHERE ps.ProgramFK = @ProgramPK AND ps.StageId = @CurrentStageId AND p.ProjectType <> N'LS' OPTION (RECOMPILE);
-            -- Unconditional UPDATE, matching the live proc exactly (ADR-132 flagged this embedded
-            -- copy as having drifted to a conditional WHERE -- fixed here, not left wrong).
-            UPDATE dbo.tProgramRevisions SET Cost = CONVERT(DECIMAL(18,2), @NewCost)
+            JOIN dbo.tProjects prj ON prj.ProjectPK = ps.ProjectFK
+            CROSS APPLY dbo.fProjectFundingProfile(ps.ProjectFK, ps.StageId) fp
+            WHERE ps.ProgramFK = @ProgramPK
+              AND ps.StageId = @CurrentStageId
+              AND prj.ProjectType <> N'LS';
+
+            -- ADR-055: Program Total = non-LS project funding + the program's Lump Sum
+            -- appropriations. Lump Sum Projects follow their program's stage, so all of
+            -- the program's are the current-stage set.
+            SET @NewCost = @NewCost + ISNULL((SELECT SUM(ls.OriginalAllocation)
+                                              FROM dbo.vLumpSumSet ls
+                                              WHERE ls.ProgramFK = @ProgramPK), 0);
+
+            UPDATE dbo.tProgramRevisions
+            SET Cost = @NewCost
             WHERE Id = @CurrentRevisionId;
-            -- 2-column result (RevisionId, NewCost), matching the live proc's actual output
-            -- contract -- the embedded copy's StageId column was never in the live version.
-            SELECT @CurrentRevisionId AS RevisionId, CONVERT(DECIMAL(18,2), @NewCost) AS NewCost;
-        END;
+
+            SELECT @CurrentRevisionId AS RevisionId, @CurrentStageId AS StageId, @NewCost AS NewCost;
+        END
         """;
 }

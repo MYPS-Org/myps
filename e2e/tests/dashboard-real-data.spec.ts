@@ -6,6 +6,16 @@ import { captureApiCalls, type ApiCallDetails } from './helpers/networkCapture';
 // backward-compatibility, but the frontend now calls eight split endpoints instead — one per
 // section — loaded lazily as each section scrolls into view rather than all at once. See
 // documents/plans/dashboard-modular-data-loading.md.
+//
+// Replaces dashboard-real-data.narrated.spec.ts, which dev-trunk rewrote on 2026-09-13 around
+// Live DB being switched off: its live half asserted Dashboard/Summary calls the page no longer
+// makes, and its demo half clicked perspective tabs that no longer exist. Its central guarantee
+// — Demo Data issues no dashboard query at all — is kept below, and so is its shape: the live
+// tests skip against a constant that tracks the FE switch.
+
+/** Must track LIVE_DB_ENABLED in FE/src/pages/Dashboard/Dashboard.tsx. Flip both together. */
+const LIVE_DB_ENABLED = true;
+
 const DASHBOARD_ENDPOINTS = [
   'Kpis',
   'Trend',
@@ -45,7 +55,47 @@ async function scrollThroughPage(page: import('@playwright/test').Page) {
   }
 }
 
+test.describe('Dashboard — demo data', () => {
+  test('opens on demo data and queries nothing', async ({ page }) => {
+    /*  Counted by URL only, never read: this needs no response body, so there is nothing for a
+        body-parsing helper to stall on. */
+    const dashboardCalls: string[] = [];
+    page.on('request', (req) => {
+      if (req.url().includes('/api/Dashboard/')) dashboardCalls.push(req.url());
+    });
+
+    await login(page);
+    await expect(page.getByText('DPWH Executive Command Center')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Demo data', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Demo data is for demonstration only/i)).toBeVisible();
+
+    // Demo figures are generated in Service.ts without touching the network. Scroll the whole
+    // page first so every lazy section has had its chance to mount and fetch.
+    await scrollThroughPage(page);
+    await expect(page.getByText('Annual Budget & Lump Sum Itemization Trend')).toBeVisible();
+    expect(dashboardCalls, 'Demo Data must not issue any dashboard query').toEqual([]);
+
+    const liveDb = page.getByRole('button', { name: 'Live DB' });
+    await expect(liveDb).toBeVisible();
+    if (!LIVE_DB_ENABLED) {
+      // Switched off: the control stays on screen, refuses, and a forced click reaches nothing.
+      await expect(liveDb).toBeDisabled();
+      await liveDb.click({ force: true });
+      await expect(page.getByText(/Demo data is for demonstration only/i)).toBeVisible();
+      expect(dashboardCalls, 'a forced click on the disabled control must not reach the API').toEqual([]);
+    } else {
+      await expect(liveDb).toBeEnabled();
+    }
+  });
+});
+
 test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)', () => {
+  test.skip(
+    !LIVE_DB_ENABLED,
+    'LIVE_DB_ENABLED is false in FE/src/pages/Dashboard/Dashboard.tsx — the dashboard serves ' +
+      'demo data only. Flip both flags to restore.',
+  );
+
   test('loads Tier-1 KPIs eagerly, lazy-loads the rest on scroll, and reconciles figures across endpoints', async ({ page }) => {
     const apiCalls = captureApiCalls(page, ['/api/Dashboard/']);
 
