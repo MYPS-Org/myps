@@ -108,11 +108,11 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     const kpisCall = callsFor(apiCalls, 'Kpis').at(-1);
     expect(kpisCall?.status, JSON.stringify(kpisCall?.responseBody)).toBe(200);
     const kpis = kpisCall?.responseBody;
-    expect(kpis).toMatchObject({
-      SelectedYear: 2027,
-      AvailableYears: [2027],
-      Kpis: expect.any(Object),
-    });
+    // The page opens on FY2027; the year list is whatever fiscal years have cost data, newest first.
+    expect(kpis).toMatchObject({ SelectedYear: 2027, Kpis: expect.any(Object) });
+    const availableYears = kpis.AvailableYears as number[];
+    expect(availableYears).toContain(2027);
+    expect(availableYears).toEqual([...availableYears].sort((a, b) => b - a));
 
     // Tier 2: the watchlist/activity section is several full-height panels below the fold at a
     // 720px-tall viewport with a 200px lazy-load margin -- it should not have fetched yet.
@@ -160,9 +160,10 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     expect(breakdownBudget).toBeCloseTo(totalBudget, 2);
     expect(regionBudget).toBeCloseTo(totalBudget, 2);
 
-    // The dashboard is currently pinned to FY2027 only server-side, so the trend is a single point.
-    expect(trend?.AnnualTrend).toHaveLength(1);
-    expect(trend?.AnnualTrend[0]).toMatchObject({ Year: 2027, ProjectCount: activeProjects });
+    // The trend spans every fiscal year that has cost data -- one point per available year --
+    // and the selected year's point is the same project count the KPI tile reports.
+    expect(trend?.AnnualTrend.map((row) => row.Year)).toEqual([...availableYears].sort((a, b) => a - b));
+    expect(trend?.AnnualTrend.find((row) => row.Year === 2027)).toMatchObject({ ProjectCount: activeProjects });
 
     // Project rows must show resolved names, not raw provenance/lookup keys.
     const projectsPage = callsFor(apiCalls, 'Projects').at(-1)?.responseBody as
@@ -186,10 +187,15 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     await openDashboardOnLiveDb(page);
     await expect.poll(() => callsFor(apiCalls, 'Kpis').length, { timeout: 30_000 }).toBeGreaterThan(0);
 
-    // Live DB is pinned to FY2027 only right now, so exactly one year button is offered.
-    const yearButton = page.getByRole('button', { name: '2027', exact: true });
-    await expect(yearButton).toBeVisible();
-    await yearButton.click();
+    // One button per fiscal year with data. Switch to a different one and check the KPI request
+    // follows it -- a single switch, to stay inside the fetch budget (see e2e/CLAUDE.md).
+    const availableYears = callsFor(apiCalls, 'Kpis').at(-1)?.responseBody?.AvailableYears as number[];
+    const otherYear = availableYears.find((year) => year !== 2027);
+    test.skip(otherYear === undefined, 'Only FY2027 has cost data in this database.');
+    const beforeSwitch = callsFor(apiCalls, 'Kpis').length;
+    await page.getByRole('button', { name: String(otherYear), exact: true }).click();
+    await expect.poll(() => callsFor(apiCalls, 'Kpis').length, { timeout: 30_000 }).toBeGreaterThan(beforeSwitch);
+    expect(callsFor(apiCalls, 'Kpis').at(-1)?.responseBody?.SelectedYear).toBe(otherYear);
 
     const beforeRefresh = callsFor(apiCalls, 'Kpis').length;
     await page.getByTitle('Refresh dashboard').click();
@@ -200,6 +206,7 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
 
   test('project quick view and KPI detail modals open and close correctly', async ({ page }) => {
     await openDashboardOnLiveDb(page);
+    await scrollThroughPage(page);
     await page.locator('#watchlist-section').scrollIntoViewIfNeeded();
 
     const quickViewButtons = page.getByRole('button', { name: /Quick view/i });
@@ -251,6 +258,8 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     await page.goBack();
     await expect(page.getByText('DPWH Executive Command Center')).toBeVisible({ timeout: 30_000 });
 
+    // #watchlist-section sits inside a LazySection and is not in the DOM until reached.
+    await scrollThroughPage(page);
     await page.locator('#watchlist-section').scrollIntoViewIfNeeded();
     await page.getByRole('button', { name: /Full Repository/i }).click();
     await expect(page).toHaveURL(/\/projects$/);
