@@ -50,6 +50,11 @@ namespace WebAPI.Controllers.Dashboard
         public List<DashboardActivityDTO> Activities { get; set; } = new();
     }
 
+    public class DashboardLsProjectsResponseDTO
+    {
+        public List<DashboardLsProjectDTO> LsProjects { get; set; } = new();
+    }
+
     /// <summary>Pagination filters for the Projects endpoint (search + status/island narrowing).</summary>
     public class ShowDashboardProjectsFilterDTO
     {

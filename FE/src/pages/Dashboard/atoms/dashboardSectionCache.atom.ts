@@ -3,6 +3,7 @@ import type { KpiData } from '../components/DashboardKpiCards';
 import type { StatusSegment, IslandAllocation } from '../components/DashboardCharts';
 import type { ActivityLog } from '../components/DashboardActivityFeed';
 import type { RegionalBreakdownRow } from '../components/DashboardRegionalMatrix';
+import type { DashboardLsProject } from '../components/DashboardKpiDetailModal';
 import type { DashboardRevisionSummary } from '../Service';
 
 /**
@@ -79,3 +80,4 @@ export const statusesCacheAtom = atom<SectionCache<{ statuses: StatusSegment[]; 
 export const regionalBreakdownCacheAtom = atom<SectionCache<RegionalBreakdownRow[]>>(emptySectionCache<RegionalBreakdownRow[]>());
 export const activitiesCacheAtom = atom<SectionCache<ActivityLog[]>>(emptySectionCache<ActivityLog[]>());
 export const revisionsCacheAtom = atom<SectionCache<DashboardRevisionSummary>>(emptySectionCache<DashboardRevisionSummary>());
+export const lsProjectsCacheAtom = atom<SectionCache<DashboardLsProject[]>>(emptySectionCache<DashboardLsProject[]>());

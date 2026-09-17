@@ -1,11 +1,11 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
+using DBHelper.Models.Views.Lumpsum;
 using DBHelper.Models.Views.Project;
 using Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
 using WebAPI.MicroService;
 
 namespace WebAPI.Controllers.Dashboard
@@ -76,6 +76,11 @@ namespace WebAPI.Controllers.Dashboard
                 var activeProjects = flagTotals.Sum(item => item.ProjectCount);
                 var publishedCount = flagTotals.Where(item => item.IsPublished).Sum(item => item.ProjectCount);
 
+                // Real Lump Sum figures, sourced from the V2 views (vLumpSumSet/vLumpSumBalance)
+                // via the same helper the LumpSum endpoint uses — replaces the old hard-coded 0/0
+                // that stood in for the pre-V2 tLSWallets integration once that schema was retired.
+                var lsProjects = await LoadLumpSumProjectsAsync(GetVisibleLumpSumSet(), scope.SelectedYear, cancellationToken);
+
                 var response = new DashboardKpisResponseDTO
                 {
                     SelectedYear = scope.SelectedYear,
@@ -87,10 +92,8 @@ namespace WebAPI.Controllers.Dashboard
                         PublishedProjects = publishedCount,
                         PublishableProjects = flagTotals.Where(item => item.IsPublishable).Sum(item => item.ProjectCount),
                         RevisedProjects = flagTotals.Where(item => item.IsRevised).Sum(item => item.ProjectCount),
-                        // LS Wallet integration is disabled pending schema normalization —
-                        // see the commented-out LoadWalletRows call this file used to make.
-                        LsWalletReleased = 0,
-                        LsWalletTotal = 0,
+                        LsWalletReleased = lsProjects.Sum(item => item.ItemizedAmount),
+                        LsWalletTotal = lsProjects.Sum(item => item.TotalAllocation),
                         PublicationRate = activeProjects == 0
                             ? 0
                             : Math.Round((decimal)publishedCount / activeProjects * 100, 1)
@@ -366,6 +369,30 @@ namespace WebAPI.Controllers.Dashboard
             }
         }
 
+        // ------------------------------------------------------------------
+        // LumpSum — the Dashboard's own Lump Sum Wallet breakdown, sourced from
+        // the same live V2 views (vLumpSumSet/vLumpSumBalance/vLumpSumChildSet)
+        // the /lumpsum module reads. Feeds the KPI detail modal's "Lump Sum" tab;
+        // Kpis derives its LsWalletReleased/LsWalletTotal tile figures from the
+        // same LoadLumpSumProjectsAsync helper this action calls.
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> LumpSum(
+            [FromBody] DashboardRequestDTO? dto,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var scope = await ResolveYearAsync(dto?.Year, cancellationToken);
+                var lsProjects = await LoadLumpSumProjectsAsync(GetVisibleLumpSumSet(), scope.SelectedYear, cancellationToken);
+                return Ok(new DashboardLsProjectsResponseDTO { LsProjects = lsProjects });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId);
+            }
+        }
+
 
         // ------------------------------------------------------------------
         // Summary — kept for backward compatibility. The prior "dashboard-live-data-
@@ -419,6 +446,7 @@ namespace WebAPI.Controllers.Dashboard
 
                 var activities = await GetActivitiesAsync(scoped, cancellationToken);
                 var revisionSummary = await GetRevisionSummaryAsync(visibleProjects, cancellationToken);
+                var lsProjects = await LoadLumpSumProjectsAsync(GetVisibleLumpSumSet(), scope.SelectedYear, cancellationToken);
 
                 var response = new DashboardSummaryDTO
                 {
@@ -431,8 +459,8 @@ namespace WebAPI.Controllers.Dashboard
                         PublishedProjects = publishedCount,
                         PublishableProjects = projects.Count(project => project.IsPublishable),
                         RevisedProjects = projects.Count(project => project.IsRevised),
-                        LsWalletReleased = 0,
-                        LsWalletTotal = 0,
+                        LsWalletReleased = lsProjects.Sum(item => item.ItemizedAmount),
+                        LsWalletTotal = lsProjects.Sum(item => item.TotalAllocation),
                         PublicationRate = projects.Count == 0
                             ? 0
                             : Math.Round((decimal)publishedCount / projects.Count * 100, 1)
@@ -451,7 +479,7 @@ namespace WebAPI.Controllers.Dashboard
                     Statuses = statuses,
                     Islands = islands,
                     Projects = projects,
-                    LsProjects = new List<DashboardLsProjectDTO>(),
+                    LsProjects = lsProjects,
                     Revisions = revisionSummary,
                     Activities = activities
                 };
@@ -623,6 +651,95 @@ namespace WebAPI.Controllers.Dashboard
                     allowedProjects.Any(allowed => allowed.ProjectPK == project.ProjectPK));
             }
             return visibleProjects;
+        }
+
+        /// <summary>
+        /// Lump Sum Projects are program-scoped, not project-scoped, so this mirrors
+        /// <see cref="GetVisibleProjects"/>'s shape but reuses the Lump Sum module's own
+        /// visibility source -- dbo.fUserVisiblePrograms, the same TVF
+        /// LumpsumController.IsLumpSumVisible checks a single record against.
+        /// </summary>
+        private IQueryable<LumpSum> GetVisibleLumpSumSet()
+        {
+            IQueryable<LumpSum> visibleLumpSum = _db.vLumpSumSet.AsNoTracking();
+            if (_Session.ApplyFilter)
+            {
+                var visiblePrograms = _db.fUserVisiblePrograms
+                    .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisiblePrograms({_Session.UserId})");
+                visibleLumpSum = visibleLumpSum.Where(lumpSum =>
+                    visiblePrograms.Any(program => program.ProgramPK == lumpSum.ProgramFK));
+            }
+            return visibleLumpSum;
+        }
+
+        /// <summary>
+        /// One Lump Sum Project per visible row for <paramref name="year"/>, with its live
+        /// balance (falling back to the parent view's own allocation figures when
+        /// vLumpSumBalance has no row for it -- the same fallback BuildLumpSumDetailsAsync
+        /// uses) and its itemized children, batch-loaded rather than N+1.
+        /// </summary>
+        private async Task<List<DashboardLsProjectDTO>> LoadLumpSumProjectsAsync(
+            IQueryable<LumpSum> visibleLumpSum,
+            int year,
+            CancellationToken cancellationToken)
+        {
+            var parents = await visibleLumpSum
+                .Where(lumpSum => lumpSum.StartYear == year)
+                .ToListAsync(cancellationToken);
+
+            if (parents.Count == 0)
+            {
+                return new List<DashboardLsProjectDTO>();
+            }
+
+            var parentIds = parents.Select(lumpSum => lumpSum.Id).ToArray();
+            var balances = await _db.vLumpSumBalance.AsNoTracking()
+                .Where(balance => parentIds.Contains(balance.WalletId))
+                .ToDictionaryAsync(balance => balance.WalletId, cancellationToken);
+
+            var parentProjectIds = parents.Select(lumpSum => lumpSum.ProjectId).ToArray();
+            var children = await _db.vLumpSumChildSet.AsNoTracking()
+                .Where(child => child.ParentProjectId != null && parentProjectIds.Contains(child.ParentProjectId))
+                .ToListAsync(cancellationToken);
+            var childrenByParent = children
+                .GroupBy(child => child.ParentProjectId!)
+                .ToDictionary(group => group.Key, group => group.ToList());
+
+            return parents
+                .Select(lumpSum =>
+                {
+                    balances.TryGetValue(lumpSum.Id, out var balance);
+                    childrenByParent.TryGetValue(lumpSum.ProjectId, out var lumpSumChildren);
+
+                    return new DashboardLsProjectDTO
+                    {
+                        Id = lumpSum.Id,
+                        ProjectPK = lumpSum.ProjectPK,
+                        ProjectId = lumpSum.ProjectId,
+                        Description = lumpSum.Description,
+                        ProgramName = lumpSum.ProgramName ?? UnrecordedLabel,
+                        StageName = lumpSum.StageName ?? UnstagedLabel,
+                        TotalAllocation = balance?.Total ?? lumpSum.OriginalAllocation ?? 0m,
+                        ItemizedAmount = balance?.Itemized ?? lumpSum.ItemizedTotal,
+                        RemainingAmount = balance?.Remaining ?? lumpSum.Remaining,
+                        ItemizedCount = lumpSum.ItemizedCount,
+                        Children = (lumpSumChildren ?? new List<LumpSumChild>())
+                            .Select(child => new DashboardLsChildProjectDTO
+                            {
+                                Id = child.Id,
+                                ProjectPK = child.ProjectPK,
+                                ProjectId = child.ProjectId,
+                                Description = child.Description,
+                                StageName = child.StageName ?? UnstagedLabel,
+                                FundingTotal = child.FundingTotal,
+                                ComponentCostTotal = child.ComponentCostTotal,
+                                IsPublished = child.IsPublished
+                            })
+                            .ToList()
+                    };
+                })
+                .OrderByDescending(lumpSum => lumpSum.TotalAllocation)
+                .ToList();
         }
 
         private static string IslandName(string? islandCode) => islandCode switch
@@ -867,114 +984,6 @@ namespace WebAPI.Controllers.Dashboard
         private sealed record YearScopedProjects(
             List<DashboardProjectDTO> Projects,
             List<(DashboardProjectDTO Project, string UpdatedBy)> Rows);
-
-        private async Task<List<DashboardWalletRow>> LoadWalletRows(CancellationToken cancellationToken)
-        {
-            var connection = _db.Database.GetDbConnection();
-            var shouldClose = connection.State != ConnectionState.Open;
-            if (shouldClose)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
-
-            try
-            {
-                var hasLatestView = false;
-                await using (var schemaCommand = connection.CreateCommand())
-                {
-                    schemaCommand.CommandText = "SELECT CASE WHEN OBJECT_ID(N'dbo.vLSWalletLatest', N'V') IS NULL THEN 0 ELSE 1 END";
-                    hasLatestView = Convert.ToInt32(await schemaCommand.ExecuteScalarAsync(cancellationToken)) == 1;
-                }
-
-                var visibilityClause = _Session.ApplyFilter
-                    ? " AND EXISTS (SELECT 1 FROM dbo.fUserVisiblePrograms(@UserId) visible WHERE visible.ProgramPK = wallet.ProgramFK)"
-                    : string.Empty;
-                var sql = hasLatestView
-                    ? $@"
-SELECT wallet.Id,
-       wallet.ProgramFK AS ProjectPK,
-       wallet.ProgramId AS ProjectId,
-       COALESCE(wallet.SubCategoryName, wallet.CategoryName, wallet.ProgramName) AS Description,
-       wallet.ProgramName,
-       COALESCE(wallet.CurrentStage, wallet.ProgramStageName) AS StageName,
-       wallet.YearStart AS [Year],
-       wallet.Total,
-       wallet.Used,
-       wallet.Available,
-       wallet.ProjectCount,
-       wallet.CreatedBy,
-       wallet.CreatedDate,
-       wallet.UpdatedBy,
-       wallet.UpdatedDate
-FROM dbo.vLSWalletLatest wallet
-WHERE wallet.YearStart BETWEEN {MinimumFiscalYear} AND {MaximumFiscalYear}{visibilityClause}"
-                    : $@"
-SELECT wallet.Id,
-       wallet.ProgramFK AS ProjectPK,
-       program.ProgramId AS ProjectId,
-       program.Name AS Description,
-       program.Name AS ProgramName,
-       COALESCE(wallet.CurrentStage, program.StageName) AS StageName,
-       program.StartYear AS [Year],
-       COALESCE(balance.Total, wallet.Amount) AS Total,
-       COALESCE(balance.Used, 0) AS Used,
-       COALESCE(balance.Available, wallet.Amount) AS Available,
-       (SELECT COUNT_BIG(1) FROM dbo.vLSWalletProjectSet child WHERE child.ParentWalletId = wallet.Id) AS ProjectCount,
-       wallet.CreatedBy,
-       wallet.CreatedDate,
-       wallet.UpdatedBy,
-       wallet.UpdatedDate
-FROM dbo.tLSWallets wallet
-INNER JOIN dbo.vProgramLatest program ON program.ProgramPK = wallet.ProgramFK
-LEFT JOIN dbo.vLSWalletBalance balance ON balance.WalletId = wallet.Id
-WHERE wallet.IsDeleted = 0
-  AND program.StartYear BETWEEN {MinimumFiscalYear} AND {MaximumFiscalYear}{visibilityClause}";
-
-                var rows = new List<DashboardWalletRow>();
-                await using var command = connection.CreateCommand();
-                command.CommandText = sql;
-                if (_Session.ApplyFilter)
-                {
-                    var userParameter = command.CreateParameter();
-                    userParameter.ParameterName = "@UserId";
-                    userParameter.Value = _Session.UserId;
-                    command.Parameters.Add(userParameter);
-                }
-
-                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-                while (await reader.ReadAsync(cancellationToken))
-                {
-                    rows.Add(new DashboardWalletRow
-                    {
-                        Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                        ProjectPK = reader.GetString(reader.GetOrdinal("ProjectPK")),
-                        ProjectId = reader.GetString(reader.GetOrdinal("ProjectId")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? null : reader.GetString(reader.GetOrdinal("Description")),
-                        ProgramName = reader.IsDBNull(reader.GetOrdinal("ProgramName")) ? null : reader.GetString(reader.GetOrdinal("ProgramName")),
-                        StageName = reader.IsDBNull(reader.GetOrdinal("StageName")) ? null : reader.GetString(reader.GetOrdinal("StageName")),
-                        Year = reader.GetInt32(reader.GetOrdinal("Year")),
-                        Total = reader.GetDecimal(reader.GetOrdinal("Total")),
-                        Used = reader.GetDecimal(reader.GetOrdinal("Used")),
-                        Available = reader.GetDecimal(reader.GetOrdinal("Available")),
-                        ItemizedCount = Convert.ToInt64(reader.GetValue(reader.GetOrdinal("ProjectCount"))),
-                        CreatedBy = reader.GetString(reader.GetOrdinal("CreatedBy")),
-                        CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                        UpdatedBy = reader.IsDBNull(reader.GetOrdinal("UpdatedBy")) ? null : reader.GetString(reader.GetOrdinal("UpdatedBy")),
-                        UpdatedDate = reader.IsDBNull(reader.GetOrdinal("UpdatedDate")) ? null : reader.GetDateTime(reader.GetOrdinal("UpdatedDate"))
-                    });
-                }
-
-                return rows;
-            }
-            finally
-            {
-                if (shouldClose)
-                {
-                    await connection.CloseAsync();
-                }
-            }
-        }
-
 
         // ------------------------------------------------------------------
         // Year scoping
@@ -1420,26 +1429,5 @@ WHERE wallet.IsDeleted = 0
                         .OrderBy(source => source)));
         }
 
-        private sealed class DashboardWalletRow
-        {
-            public int Id { get; init; }
-            public string ProjectPK { get; init; } = string.Empty;
-            public string ProjectId { get; init; } = string.Empty;
-            public string? Description { get; init; }
-            public string? ProgramName { get; init; }
-            public string? StageName { get; init; }
-            public int Year { get; init; }
-            public decimal Total { get; init; }
-            public decimal Used { get; init; }
-            public decimal Available { get; init; }
-            public decimal OriginalAllocation => Total;
-            public decimal ItemizedTotal => Used;
-            public decimal Remaining => Available;
-            public long ItemizedCount { get; init; }
-            public string CreatedBy { get; init; } = string.Empty;
-            public DateTime CreatedDate { get; init; }
-            public string? UpdatedBy { get; init; }
-            public DateTime? UpdatedDate { get; init; }
-        }
     }
 }

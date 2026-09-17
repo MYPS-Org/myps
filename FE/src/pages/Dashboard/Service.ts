@@ -407,6 +407,11 @@ function resolveYear(year?: number): number {
 // backend for the dashboard-live-data-integrity e2e contract, but nothing on the
 // frontend calls it anymore.)
 //
+// LumpSum (added 2026-09-17) is the one exception to "every section has its own
+// hook": it's fetched eagerly alongside Kpis/Revisions rather than lazily on
+// scroll — see the Tier 1 group in Dashboard.tsx — because the dataset is tiny
+// (a handful of Lump Sum Projects) and the KPI tile needs its total immediately.
+//
 // All of these pass `silent: true`. httpClient's default is a global, page-blocking
 // overlay (fixed inset-0 + backdrop-blur) shown for any request carrying a
 // preloaderMessage — which is the right treatment for a single foreground action, but
@@ -531,6 +536,18 @@ export async function fetchDashboardRevisions(year: number | undefined, useBench
   const response = await httpClient.post<DashboardRevisionSummary>(
     '/Dashboard/Revisions',
     null,
+    { silent: true }
+  );
+  return response.Data;
+}
+
+export async function fetchDashboardLsProjects(year: number | undefined, useBenchmark: boolean) {
+  if (useBenchmark) {
+    return { LsProjects: getBenchmarkSummary(resolveYear(year)).LsProjects };
+  }
+  const response = await httpClient.post<{ LsProjects: DashboardSummary['LsProjects'] }>(
+    '/Dashboard/LumpSum',
+    { Year: resolveYear(year) },
     { silent: true }
   );
   return response.Data;

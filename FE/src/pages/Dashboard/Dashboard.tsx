@@ -21,7 +21,7 @@ import DashboardTrajectoryChart from './components/DashboardTrajectoryChart';
 const DashboardRegionalMatrix = lazy(() => import('./components/DashboardRegionalMatrix'));
 import DashboardProjectWatchlist, { type WatchlistProject } from './components/DashboardProjectWatchlist';
 import DashboardActivityFeed from './components/DashboardActivityFeed';
-import DashboardKpiDetailModal, { type DashboardKpiType, type DashboardLsProject } from './components/DashboardKpiDetailModal';
+import DashboardKpiDetailModal, { type DashboardKpiType } from './components/DashboardKpiDetailModal';
 import ProjectQuickDetailModal from './components/ProjectQuickDetailModal';
 
 import { useDashboardKpis } from './hooks/useDashboardKpis';
@@ -31,6 +31,7 @@ import { useDashboardStatuses } from './hooks/useDashboardStatuses';
 import { useDashboardRegionalBreakdown } from './hooks/useDashboardRegionalBreakdown';
 import { useDashboardActivities } from './hooks/useDashboardActivities';
 import { useDashboardRevisions } from './hooks/useDashboardRevisions';
+import { useDashboardLsProjects } from './hooks/useDashboardLsProjects';
 import {
   kpisCacheAtom,
   trendCacheAtom,
@@ -96,14 +97,13 @@ const DashboardContent: React.FC = () => {
     }
   }, [dataSourceMode]);
 
-  // LS Wallet integration is disabled server-side (see DashboardController.cs) -- always empty
-  // until that ships, so there's no section hook for it.
-  const lsProjects: DashboardLsProject[] = [];
-
-  // Tier 1 -- eager on mount. Always-visible KPI row; two independent requests (the revision
-  // tile resolves on its own without blocking the rest of the cards).
+  // Tier 1 -- eager on mount. Always-visible KPI row; three independent requests (the revision
+  // and Lump Sum tiles each resolve on their own without blocking the rest of the cards). Lump
+  // Sum is eager rather than viewport-gated like Tier 2 below because the KPI tile needs its
+  // total immediately and the dataset is tiny (a handful of Lump Sum Projects).
   const kpis = useDashboardKpis(selectedYear, sourceMode, true);
   const revisions = useDashboardRevisions(selectedYear, sourceMode, true);
+  const lsProjectsSection = useDashboardLsProjects(selectedYear, sourceMode, true);
 
   const liveAvailableYears = useAtomValue(liveAvailableYearsAtom);
   const availableYears = sourceMode === 'benchmark'
@@ -454,7 +454,7 @@ const DashboardContent: React.FC = () => {
         selectedYear={selectedYear}
         dataSourceMode={sourceMode}
         kpiData={kpis.data?.kpis ?? undefined}
-        lsProjects={lsProjects}
+        lsProjects={lsProjectsSection.data ?? []}
         revisions={revisions.data ?? undefined}
         onClose={() => setSelectedKpi(null)}
         onOpenProject={() => {
