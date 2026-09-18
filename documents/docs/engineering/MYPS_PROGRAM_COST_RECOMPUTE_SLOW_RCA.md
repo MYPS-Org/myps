@@ -57,6 +57,8 @@ On the largest program this left out ₱9,255,367,949.41, the Total of its 34 pa
 
 `dbo.fProgramStages`, the program list's copy of the rule, carries the same rule.
 
+**What this gives up relative to `dev-trunk`.** The ordinary-project rule is the per-year basis deployed on 2026-09-15, which reads the base `tProjectComponentCost*` tables only. `dev-trunk`'s funding-based body read funding through `fProjectFundingProfile`, which overlays a fully approved Formal Revision (the RISK-108 fix). Approving a revision writes only to the `tRevision*` tables. So after this branch merges, an approved revision that changes a project's cost does not change its program's cost, even though `RevisionController` still recomputes on approval. This was already true on `myps_db_dev_200` since 2026-09-15. Restoring it is item 4 of `documents/plans/program-cost-review-remediation.md`.
+
 ## The fix
 
 - **Procedure.** The ordinary projects are put into a keyed table variable once. The per-year rule runs over that set only. Both size-dependent statements use `OPTION (RECOMPILE)`, so no program reuses another program's plan. The Lump Sum parents are read from `tProjects` with a `TOP 1` latest-revision lookup per parent, the same shape `vLumpSumSet` uses.
