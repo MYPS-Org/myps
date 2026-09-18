@@ -360,7 +360,7 @@ Full CRUD + delete-dialog for component costs. Key methods:
 | `add(cost, costPerYear?)` | Appends to atom |
 | `update(componentId, updated, costPerYear?)` | Replaces matching item |
 | `remove(componentId)` | Hard-removes from atom |
-| `removeByIndex(index)` | Soft-deletes (sets `IsDeleted=true`) |
+| `removeByIndex(index)` | Hard-removes if `Id<=0` (unsaved), else soft-deletes (sets `IsDeleted=true`) |
 | `confirmDelete()` | Cascades: soft/hard-deletes component + per-year rows + major items + locations |
 | `openDelete(component, index)` | Opens delete confirmation dialog |
 | `total()` | Sums all non-deleted component totals |

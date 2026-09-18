@@ -265,8 +265,27 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     // (e.g. "CW1", "CW2"). Every other component type (ROW, DR, EAO, EXC, SAV, CWD, ...)
     // is single-use per project — block re-adding one that's already present.
     if (value.toLowerCase() === 'civil works') {
-      const matchingCount = componentCosts.filter(item => item.ComponentType === value && !item.IsDeleted).length;
-      generatedId = `${selectedComponent.ComponentId}${matchingCount + 1}`;
+      const prefix = selectedComponent.ComponentId || '';
+      // Reuse the lowest free number instead of count+1, so deleting e.g. CW1 (soft
+      // delete: the row stays with IsDeleted=true, see handleDeleteComponentCost)
+      // frees that number back up rather than leaving a gap and colliding with the
+      // next-highest still-active number (e.g. CW2) when a new one is generated.
+      const usedNumbers = new Set(
+        componentCosts
+          .filter(item =>
+            item.ComponentType === value &&
+            !item.IsDeleted &&
+            !(mode === 'edit' && item === editingCost) &&
+            item.ComponentId?.startsWith(prefix)
+          )
+          .map(item => parseInt(item.ComponentId!.slice(prefix.length), 10))
+          .filter(n => !isNaN(n))
+      );
+      let nextNumber = 1;
+      while (usedNumbers.has(nextNumber)) {
+        nextNumber++;
+      }
+      generatedId = `${prefix}${nextNumber}`;
     } else {
       const isDuplicate = componentCosts.some(
         item => item.ComponentType === value && !item.IsDeleted && !(mode === 'edit' && item === editingCost)
