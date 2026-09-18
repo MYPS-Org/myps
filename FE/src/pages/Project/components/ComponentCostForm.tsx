@@ -50,8 +50,11 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   // Calculate related major items count for the selected component
   const relatedMajorItemsCount = useMemo(() => {
     if (!deletingComponent || !majorItems) return 0;
+    // Correlate on ComponentId, not ComponentCostFK/Id: every unsaved component
+    // shares Id 0, so matching on Id would pull in major items from any other
+    // unsaved component too. ComponentId (e.g. "CW1") is unique per active component.
     return majorItems.filter(
-      item => item.ComponentCostFK === deletingComponent.Id && !item.IsDeleted
+      item => item.ComponentId === deletingComponent.ComponentId && !item.IsDeleted
     ).length;
   }, [deletingComponent, majorItems]);
 
@@ -319,7 +322,10 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           onSave={handleSaveCost}
           editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
           editingCostPerYear={editingIndex !== null && componentCosts[editingIndex] ?
-            componentCostPerYear.filter(cost => cost.ComponentCostFK === componentCosts[editingIndex].Id && !cost.IsDeleted) :
+            // Correlate on ComponentId, not ComponentCostFK/Id: every unsaved component
+            // shares Id 0, so matching on Id would pull in per-year rows from any other
+            // unsaved component too. ComponentId (e.g. "CW1") is unique per active component.
+            componentCostPerYear.filter(cost => cost.ComponentId === componentCosts[editingIndex].ComponentId && !cost.IsDeleted) :
             []}
           mode={modalMode}
           componentTypes={componentTypes}
