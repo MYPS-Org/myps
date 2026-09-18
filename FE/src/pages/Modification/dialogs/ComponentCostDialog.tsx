@@ -369,12 +369,27 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     
     // Only add number increment if the component type is "Civil Works"
     if (value.toLowerCase() === 'civil works') {
-      // Count how many existing componentCosts have the same ComponentType
-      console.log('Selected component:', componentCosts);
-      const matchingCount = componentCosts.filter(item => item.ComponentType === value && !item.IsDeleted).length;
-      
-      // Create the new ID: "CW1", "CW2", etc.
-      generatedId = `${selectedComponent.ComponentId}${matchingCount + 1}`;
+      const prefix = selectedComponent.ComponentId || '';
+      // Reuse the lowest free number instead of count+1, so deleting e.g. CW1 (soft
+      // delete: the row stays with IsDeleted=true) frees that number back up rather
+      // than leaving a gap and colliding with the next-highest still-active number
+      // (e.g. CW2) when a new one is generated.
+      const usedNumbers = new Set(
+        componentCosts
+          .filter(item =>
+            item.ComponentType === value &&
+            !item.IsDeleted &&
+            !(mode === 'edit' && item === editingCost) &&
+            item.ComponentId?.startsWith(prefix)
+          )
+          .map(item => parseInt(item.ComponentId!.slice(prefix.length), 10))
+          .filter(n => !isNaN(n))
+      );
+      let nextNumber = 1;
+      while (usedNumbers.has(nextNumber)) {
+        nextNumber++;
+      }
+      generatedId = `${prefix}${nextNumber}`;
     }
     // Save into formData so it's actually submitted
     handleChange('ComponentId', generatedId);

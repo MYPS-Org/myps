@@ -53,9 +53,14 @@ export function useComponentCosts() {
   }, [setCosts]);
 
   const removeByIndex = useCallback((index: number) => {
-    setCosts(prev => prev.map((cost, i) => 
-      i === index ? { ...cost, IsDeleted: true } : cost
-    ));
+    setCosts(prev => {
+      const cost = prev[index];
+      if (cost && (!cost.Id || cost.Id <= 0)) {
+        // Unsaved row: hard-remove rather than leaving an IsDeleted ghost behind.
+        return prev.filter((_, i) => i !== index);
+      }
+      return prev.map((c, i) => i === index ? { ...c, IsDeleted: true } : c);
+    });
   }, [setCosts]);
 
   const total = useCallback(() => (costs || []).reduce((s, c) => s + (c.Total || 0), 0), [costs]);
