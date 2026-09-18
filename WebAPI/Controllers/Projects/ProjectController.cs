@@ -4413,20 +4413,13 @@ namespace WebAPI.Controllers.Projects
 
                 if (HasCostUpdate)
                 {
-                    var ComputedCostResults =
-                        await _db.pRecomputeProgramCost
-                            .FromSqlInterpolated(
-                                $"EXEC dbo.pRecomputeProgramCost @ProgramPK={ProgramFK}")
-                            .AsNoTracking()
-                            .ToListAsync(cancellationToken);
-
-
                     var ComputedCost =
-                        ComputedCostResults.FirstOrDefault();
+                        await _db.RecomputeProgramCostAsync(
+                            ProgramFK, cancellationToken);
 
 
                     ProgramRevision.Cost =
-                        ComputedCost?.NewCost ?? 0;
+                        ComputedCost ?? 0;
 
 
                     await _db.SaveChangesAsync(

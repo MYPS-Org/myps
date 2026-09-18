@@ -2403,10 +2403,7 @@ namespace WebAPI.Controllers.Revision
                     .FirstOrDefaultAsync(cancellationToken);
                 if (approvalStatusAfterSave?.IsFullyApproved == 1)
                 {
-                    await _db.pRecomputeProgramCost
-                        .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={SelectedProjectRevision.ProgramFK}")
-                        .AsNoTracking()
-                        .ToListAsync(cancellationToken);
+                    await _db.RecomputeProgramCostAsync(SelectedProjectRevision.ProgramFK, cancellationToken);
                 }
 
                 await transaction.CommitAsync(cancellationToken);

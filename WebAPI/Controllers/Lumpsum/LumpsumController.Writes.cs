@@ -357,10 +357,7 @@ namespace WebAPI.Controllers.Lumpsum
                 // (ADR-055), so the program has to recompute the moment it exists — otherwise
                 // Program Details shows a stale total until an unrelated project edit happens
                 // to touch the same ProgramFK.
-                await _db.pRecomputeProgramCost
-                    .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={Program.ProgramPK}")
-                    .AsNoTracking()
-                    .ToListAsync(cancellationToken);
+                await _db.RecomputeProgramCostAsync(Program.ProgramPK, cancellationToken);
 
                 await transaction.CommitAsync(cancellationToken);
 
@@ -642,6 +639,13 @@ namespace WebAPI.Controllers.Lumpsum
                     });
                 }
 
+                /*  THE ALLOCATION BEFORE THIS SAVE (2026-09-18). A Lump Sum parent adds
+                    exactly this Total to its program's cost, so it is the one figure that
+                    decides whether the program must be recomputed below. Read now, before
+                    anything is written: LsRow is tracked, and SyncLSToFundingAsync mutates
+                    this same instance later. */
+                decimal AllocationBefore = LsRow.Total;
+
                 /*  Count and type are already enforced above, so exactly one row is live. */
                 var LiveCost = dto.ComponentCosts.First(x => !x.IsDeleted);
 
@@ -787,12 +791,23 @@ namespace WebAPI.Controllers.Lumpsum
 
                 await _db.SaveChangesAsync(cancellationToken);
 
-                // This project's allocation may have just changed; the parent Program's Cost
-                // (ADR-055) has to follow, or Program Details shows a stale total.
-                await _db.pRecomputeProgramCost
-                    .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={LumpSumProject.ProgramFK}")
+                /*  RECOMPUTE ONLY WHEN THE ALLOCATION MOVED (2026-09-18), the way
+                    ProjectController gates on HasCostUpdate. A parent contributes its LS
+                    component Total to the program's cost and nothing else of it counts:
+                    not its per-year balance, not its details, not its children. So a save
+                    that leaves the Total where it was cannot change the program's cost,
+                    and pays nothing. Read back from the database, after the flush above,
+                    so the comparison sees what the merge and the sync actually wrote. */
+                decimal AllocationAfter = await _db.tProjectComponentCost
                     .AsNoTracking()
-                    .ToListAsync(cancellationToken);
+                    .Where(x => x.Id == LsRow.Id)
+                    .Select(x => x.Total)
+                    .FirstAsync(cancellationToken);
+
+                bool HasCostUpdate = AllocationAfter != AllocationBefore;
+
+                if (HasCostUpdate)
+                    await _db.RecomputeProgramCostAsync(LumpSumProject.ProgramFK, cancellationToken);
 
                 await transaction.CommitAsync(cancellationToken);
 
@@ -1063,10 +1078,7 @@ namespace WebAPI.Controllers.Lumpsum
 
                 // The top-up just raised this project's allocation; the parent Program's Cost
                 // (ADR-055) has to follow, or Program Details shows a stale total.
-                await _db.pRecomputeProgramCost
-                    .FromSqlInterpolated($"EXEC dbo.pRecomputeProgramCost @ProgramPK={LumpSumProject.ProgramFK}")
-                    .AsNoTracking()
-                    .ToListAsync(cancellationToken);
+                await _db.RecomputeProgramCostAsync(LumpSumProject.ProgramFK, cancellationToken);
 
                 await transaction.CommitAsync(cancellationToken);
 
