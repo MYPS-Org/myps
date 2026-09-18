@@ -85,14 +85,17 @@ On the largest program this left out ₱9,255,367,949.41, the Total of its 34 pa
 
 The new `NewCost` is the old figure plus exactly the 34 parents' Totals. The ordinary part is unchanged.
 
-`fProgramStages` on the same program, with application settings:
+`fProgramStages` on the same program, run as the API sends it (a parameterised `SELECT TOP(1) … WHERE StageName = @p1`, application settings):
 
 | | Old live function | New function |
 |---|---|---|
-| One stage (`ProgramHelper` path) | 790–860 ms | 580–730 ms |
-| All five stages (`ProgramController` path) | 7,400–7,600 ms | 1,100–4,900 ms |
+| One stage, HGAB (`ProgramHelper` path, every project save) | 326–404 ms | 397–428 ms |
+| One stage, GAA-R (16,524 projects) | 1,104–1,529 ms | 933–1,263 ms |
+| All five stages | 4,114–4,556 ms | 2,561–4,497 ms |
 
-The all-stages read still spills a hash join to disk on a cold plan. It is faster than before but remains a follow-up.
+A first cut of the function joined the project set into the per-year rows before grouping. It was faster over all stages but up to three times slower on the one-stage read the API runs on every project save, which the plan cache showed at about 4 seconds per call. The adopted body groups the per-year figures first, then joins, and is at or under the old body on both paths. The all-stages read still takes seconds on the largest programs.
+
+One all-stages read of a 248-project program took 459 seconds once, with the same plan that otherwise runs in 35 ms, and could not be reproduced. SQL Server's memory target on this machine was 2.3 GB at the time against a 12 GB maximum, so the likeliest cause is a memory-grant wait, not the query.
 
 ## Verification
 
@@ -109,6 +112,7 @@ Not yet done: the manual UI check (Replenish, then Program Details) and the opti
 - The indexes are additive and safe on any server. `tProjectComponentCostPerYear` has about 5.6 million rows, so its index takes on the order of a minute to build.
 - The procedure and function must move together. On the shared server they replace a funding-based body. `fix/program-details-cost-computation` carries `Migration.ProgramCostPerYearRule.Shared200.2026-09-15.sql`; if that is ever deployed, re-cut it from the new section 11 first.
 - Never run `Migration.ProgramCostLSParentAnyStage.Dev200.2026-09-18.sql` on the shared server. Its guard refuses every database except `myps_db_dev_200`.
+- `ProgramCost.Objects.2026-09-18.sql`, beside it, is the standalone update for any other database: the three indexes and the two objects only, refusing only `myps_db`. Capture the target's current definitions before running it; it has no rollback of its own outside `myps_db_dev_200`.
 - Program Details reads the stored cost, which moves to the new rule only when a write recomputes that program. Section 5 of the deploy script backfills every program when `@RunBackfill` is set to 1. It reports and skips the program group that overflows `decimal(18,5)`.
 
 ## Follow-ups

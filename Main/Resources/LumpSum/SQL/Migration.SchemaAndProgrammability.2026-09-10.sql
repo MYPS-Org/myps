@@ -856,12 +856,16 @@ RETURN
             writes into tProgramRevisions.Cost (section 11 header).
 
             Part one: the ORDINARY projects at this stage - the latest revision of
-            each, no Lump Sum parent, no itemized child - on the per-year rule. One
-            grouped pass driven by that filtered set, so a parent's or a child's
-            per-year rows are never read. Correlated per stage row on purpose:
-            ProgramHelper reads ONE stage of this function on every project
-            validation, and a correlated subquery is evaluated only for the rows
-            that survive the caller's WHERE.
+            each, no Lump Sum parent, no itemized child - on the per-year rule. The
+            per-year figures are grouped ONCE for every revision at the stage (agg,
+            restricted by EXISTS to this program and stage) and then joined to the
+            filtered project set, so a parent's or a child's figures never reach the
+            sum. Grouping first, rather than joining the project set into the
+            per-year rows, is what keeps ProgramHelper's one-stage read - run on
+            every project validation - at or under the 2026-09-15 body's time on
+            the largest programs (measured 2026-09-18). Correlated per stage row on
+            purpose: a correlated subquery is evaluated only for the rows that
+            survive the caller's WHERE.
 
             pgy re-reads the program year INSIDE this scope on purpose. Writing
             pg.StartYear here is refused: SQL Server will not aggregate an
@@ -869,34 +873,38 @@ RETURN
             @ProgramPK is a parameter, not an outer column, so the seek is allowed,
             and it is one row on the key. */
         ISNULL((
-            SELECT SUM(CASE WHEN agg.[Years] <= 1 THEN agg.AmountAllYears
-                            ELSE agg.AmountAtProgramYear END)
+            SELECT SUM(CASE WHEN ISNULL(agg.[Years], 0) <= 1 THEN ISNULL(agg.AmountAllYears, 0)
+                            ELSE ISNULL(agg.AmountAtProgramYear, 0) END)
             FROM (
-                SELECT sr.RevisionId,
+                SELECT ps3.ProjectFK, ps3.RevisionId,
+                       ROW_NUMBER() OVER (PARTITION BY ps3.ProjectFK ORDER BY ps3.RevisionId DESC) AS rn
+                FROM dbo.tProjectStages ps3
+                WHERE ps3.ProgramFK = @ProgramPK
+                  AND ps3.StageId   = pgs.StageId
+            ) sr
+            JOIN dbo.tProjects prj
+              ON prj.ProjectPK = sr.ProjectFK
+            LEFT JOIN (
+                SELECT cc.ProjectRevisionFK,
                        COUNT(DISTINCT y.[Year])                                     AS [Years],
                        SUM(y.Amount)                                                AS AmountAllYears,
                        SUM(CASE WHEN y.[Year] = pgy.StartYear THEN y.Amount END)    AS AmountAtProgramYear
-                FROM (
-                    SELECT ps3.ProjectFK, ps3.RevisionId,
-                           ROW_NUMBER() OVER (PARTITION BY ps3.ProjectFK ORDER BY ps3.RevisionId DESC) AS rn
-                    FROM dbo.tProjectStages ps3
-                    WHERE ps3.ProgramFK = @ProgramPK
-                      AND ps3.StageId   = pgs.StageId
-                ) sr
-                JOIN dbo.tProjects prj
-                  ON prj.ProjectPK = sr.ProjectFK
-                JOIN dbo.tProjectComponentCost cc
-                  ON cc.ProjectRevisionFK = sr.RevisionId AND cc.IsDeleted = 0
+                FROM dbo.tProjectComponentCost cc
                 JOIN dbo.tProjectComponentCostPerYear y
                   ON y.ComponentCostFK = cc.Id AND y.IsDeleted = 0
                 CROSS JOIN (SELECT TOP 1 pgx.StartYear
                             FROM dbo.tPrograms pgx
                             WHERE pgx.ProgramPK = @ProgramPK) pgy
-                WHERE sr.rn = 1
-                  AND prj.ParentProjectId IS NULL
-                  AND (prj.ProjectType <> N'LS' OR prj.ProjectType IS NULL)
-                GROUP BY sr.RevisionId
-            ) agg
+                WHERE cc.IsDeleted = 0
+                  AND EXISTS (SELECT 1 FROM dbo.tProjectStages ps5
+                              WHERE ps5.RevisionId = cc.ProjectRevisionFK
+                                AND ps5.ProgramFK  = @ProgramPK
+                                AND ps5.StageId    = pgs.StageId)
+                GROUP BY cc.ProjectRevisionFK
+            ) agg ON agg.ProjectRevisionFK = sr.RevisionId
+            WHERE sr.rn = 1
+              AND prj.ParentProjectId IS NULL
+              AND (prj.ProjectType <> N'LS' OR prj.ProjectType IS NULL)
         ), 0)
         /*  Part two: the program's Lump Sum parents, ALL of them at ANY stage -
             the same figure on every stage row. */

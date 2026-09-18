@@ -221,3 +221,5 @@ Not done:
 
 - The manual UI check and a running-API check of the `UpdateLumpSum` gate.
 - The optional backfill (`@RunBackfill = 1`).
+
+**2026-09-18, later.** Added `Main/Resources/Internal/SQLScripts/ProgramCost.Objects.2026-09-18.sql`, a standalone update of the three indexes and the two objects for any database except `myps_db`, cut byte-for-byte from section 11. While verifying it, the API's one-stage `fProgramStages` read on the largest program measured up to three times slower than the old body. `fProgramStages` now groups the per-year figures before joining the project set; figures are unchanged, and both read paths are at or under the old body. Redeployed to `myps_db_dev_200`; 30 of 30 tests pass and the procedure agrees with the list on 72 of 73 programs, as before.
