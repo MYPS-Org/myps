@@ -112,6 +112,7 @@ Not yet done: the manual UI check (Replenish, then Program Details) and the opti
 - The indexes are additive and safe on any server. `tProjectComponentCostPerYear` has about 5.6 million rows, so its index takes on the order of a minute to build.
 - The procedure and function must move together. On the shared server they replace a funding-based body. `fix/program-details-cost-computation` carries `Migration.ProgramCostPerYearRule.Shared200.2026-09-15.sql`; if that is ever deployed, re-cut it from the new section 11 first.
 - Never run `Migration.ProgramCostLSParentAnyStage.Dev200.2026-09-18.sql` on the shared server. Its guard refuses every database except `myps_db_dev_200`.
+- `Migration.ProgramCostLSParentAnyStage.Shared200.2026-09-18.sql` is the shared-server version, written but not run. It refuses any database but `myps_db_dev`, prints the server's current definitions as the rollback, and stops on the known overflow group unless told otherwise.
 - `ProgramCost.Objects.2026-09-18.sql`, beside it, is the standalone update for any other database: the three indexes and the two objects only, refusing only `myps_db`. Capture the target's current definitions before running it; it has no rollback of its own outside `myps_db_dev_200`.
 - Program Details reads the stored cost, which moves to the new rule only when a write recomputes that program. Section 5 of the deploy script backfills every program when `@RunBackfill` is set to 1. It reports and skips the program group that overflows `decimal(18,5)`.
 
