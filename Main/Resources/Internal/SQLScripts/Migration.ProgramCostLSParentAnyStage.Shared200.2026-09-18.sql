@@ -17,7 +17,10 @@
        whatever the year; several count only the program year;
      - a Lump Sum parent counts ONLY the Total of its live 'LS' component on its
        latest live revision, at ANY stage - never its per-year rows;
-     - an itemized child never counts.
+     - an itemized child never counts;
+     - at GAA-R only, an ordinary project with an effective approved Formal
+       Revision is read from that revision's tRevision* per-year rows instead of
+       its base ones (RISK-108, 2026-09-20).
 
    READ THIS BEFORE RUNNING IT HERE. As last captured (2026-09-15), this server
    runs the FUNDING-BASED rule with the RISK-108 fix: program cost is the sum of
@@ -26,8 +29,11 @@
      - program cost moves from funding profiles to per-year costs on every
        program, so figures change (the 2026-09-15 comparison moved 29 of 41
        program groups);
-     - an approved Formal Revision no longer changes program cost, because
-       revision approval writes only to the tRevision* tables;
+     - an approved Formal Revision still changes program cost, but at GAA-R only
+       (2026-09-20). The funding-based body applied the overlay at every stage,
+       which can only ever differ at GAA-R: the Revision module admits no other
+       stage. Section 2 lists the projects it moves, and by how much, before
+       anything changes;
      - one program group carries doubled per-year rows and computes above what
        tProgramRevisions.Cost (decimal(18,5)) can hold. Section 2 stops the
        deployment on it unless you accept it; see there.
@@ -173,26 +179,51 @@ DECLARE @MaxCost DECIMAL(38,5) = 9999999999999.99999;   -- decimal(18,5) ceiling
 
 ;WITH cur AS (
     SELECT pg.ProgramPK, pg.StartYear, pgr.Id AS PgRev, pgs.StageId,
+           CASE WHEN st.[Name] = N'GAA-R' THEN 1 ELSE 0 END AS AtGaaR,
            ROW_NUMBER() OVER (PARTITION BY pg.ProgramPK ORDER BY pgr.Id DESC) AS rn
     FROM   dbo.tPrograms pg
     JOIN   dbo.tProgramRevisions pgr ON pgr.ProgramFK  = pg.ProgramPK
     JOIN   dbo.tProgramStages   pgs ON pgs.RevisionId = pgr.Id
+    LEFT   JOIN dbo.tOptionProgramStage st ON st.NameId = pgs.StageId
     WHERE  pg.IsDeleted = 0
 ),
 sr AS (
-    SELECT c.ProgramPK, c.StartYear, ps.ProjectFK, ps.RevisionId,
+    SELECT c.ProgramPK, c.StartYear, c.StageId, c.AtGaaR, ps.ProjectFK, ps.RevisionId,
            ROW_NUMBER() OVER (PARTITION BY c.ProgramPK, ps.ProjectFK ORDER BY ps.RevisionId DESC) AS rn
     FROM   cur c
     JOIN   dbo.tProjectStages ps ON ps.ProgramFK = c.ProgramPK AND ps.StageId = c.StageId
     WHERE  c.rn = 1
 ),
 ordinary AS (          -- no Lump Sum parent, no itemized child
-    SELECT sr.ProgramPK, sr.StartYear, sr.RevisionId
+    SELECT sr.ProgramPK, sr.StartYear, sr.StageId, sr.AtGaaR, sr.ProjectFK, sr.RevisionId
     FROM   sr
     JOIN   dbo.tProjects prj ON prj.ProjectPK = sr.ProjectFK
     WHERE  sr.rn = 1
       AND  prj.ParentProjectId IS NULL
       AND  (prj.ProjectType <> N'LS' OR prj.ProjectType IS NULL)
+),
+eff AS (               -- at GAA-R only: the approved Formal Revision a project is read from
+    SELECT o.RevisionId, x.RevisionDetailId
+    FROM   ordinary o
+    JOIN   dbo.tProjects prj ON prj.ProjectPK = o.ProjectFK
+    CROSS  APPLY (
+        SELECT TOP (1) rd.Id AS RevisionDetailId
+        FROM   dbo.tRevisionDetails rd
+        WHERE  rd.ProjectRevisionFK = o.RevisionId
+          AND  EXISTS (SELECT 1 FROM dbo.tRevisionApprovals ra
+                       WHERE ra.RevisionDetailFK = rd.Id AND ra.Level = N'RO' AND ra.Status = 1)
+          AND  EXISTS (SELECT 1 FROM dbo.tRevisionApprovals ra
+                       WHERE ra.RevisionDetailFK = rd.Id AND ra.Level = N'CO' AND ra.Status = 1)
+        ORDER  BY rd.CreatedDate DESC, rd.Id DESC
+    ) x
+    WHERE  o.AtGaaR = 1
+      AND  ISNULL(prj.IsPublished, 0) = 1
+      AND  NOT EXISTS (SELECT 1
+                       FROM   dbo.tProjectStages s2
+                       JOIN   dbo.tOptionProgramStage h2 ON h2.Id = s2.StageId
+                       JOIN   dbo.tOptionProgramStage h1 ON h1.NameId = o.StageId
+                       WHERE  s2.ProjectFK = o.ProjectFK
+                         AND  h2.StageHierarchy > h1.StageHierarchy)
 ),
 py AS (
     SELECT o.ProgramPK, o.RevisionId,
@@ -200,8 +231,22 @@ py AS (
            SUM(y.Amount)                                             AS AllYears,
            SUM(CASE WHEN y.[Year] = o.StartYear THEN y.Amount END)   AS AtYear
     FROM   ordinary o
+    LEFT   JOIN eff e ON e.RevisionId = o.RevisionId
     JOIN   dbo.tProjectComponentCost cc ON cc.ProjectRevisionFK = o.RevisionId AND cc.IsDeleted = 0
     JOIN   dbo.tProjectComponentCostPerYear y ON y.ComponentCostFK = cc.Id AND y.IsDeleted = 0
+    WHERE  e.RevisionDetailId IS NULL
+    GROUP  BY o.ProgramPK, o.RevisionId
+
+    UNION  ALL
+
+    SELECT o.ProgramPK, o.RevisionId,
+           COUNT(DISTINCT y.[Year]),
+           SUM(y.Amount),
+           SUM(CASE WHEN y.[Year] = o.StartYear THEN y.Amount END)
+    FROM   ordinary o
+    JOIN   eff e ON e.RevisionId = o.RevisionId
+    JOIN   dbo.tRevisionProjectComponentCost rcc ON rcc.RevisionDetailFK = e.RevisionDetailId AND rcc.IsDeleted = 0
+    JOIN   dbo.tRevisionProjectComponentCostPerYear y ON y.RevisionComponentCostFK = rcc.Id AND y.IsDeleted = 0
     GROUP  BY o.ProgramPK, o.RevisionId
 ),
 ordinary_cost AS (
@@ -251,6 +296,72 @@ ELSE
     PRINT 'PREFLIGHT: no program overflows tProgramRevisions.Cost under the new rule.';
 
 DROP TABLE IF EXISTS #NewRule;
+GO
+
+PRINT '--- GAA-R: projects whose figure the revision overlay moves (RISK-108, 2026-09-20) ---';
+/*  Read-only. Every ordinary project at a program's CURRENT stage, where that stage
+    is GAA-R, that has an effective approved Formal Revision - the predicate section
+    11 states - with its base figure beside its revision figure under the same
+    per-year rule. A row where they differ is a program cost that will move. */
+;WITH cur AS (
+    SELECT pgs.ProgramFK, pgs.StageId,
+           ROW_NUMBER() OVER (PARTITION BY pgs.ProgramFK ORDER BY pgs.RevisionId DESC) AS rn
+    FROM   dbo.tProgramStages pgs
+), gaar AS (
+    SELECT cur.ProgramFK, cur.StageId
+    FROM   cur
+    JOIN   dbo.tOptionProgramStage st ON st.NameId = cur.StageId AND st.[Name] = N'GAA-R'
+    WHERE  cur.rn = 1
+), stage_rev AS (
+    SELECT g.ProgramFK, ps.ProjectFK, ps.RevisionId,
+           ROW_NUMBER() OVER (PARTITION BY g.ProgramFK, ps.ProjectFK ORDER BY ps.RevisionId DESC) AS rn
+    FROM   gaar g
+    JOIN   dbo.tProjectStages ps ON ps.ProgramFK = g.ProgramFK AND ps.StageId = g.StageId
+    JOIN   dbo.tProjects prj ON prj.ProjectPK = ps.ProjectFK
+    WHERE  prj.ParentProjectId IS NULL
+      AND  (prj.ProjectType <> N'LS' OR prj.ProjectType IS NULL)
+), eff AS (
+    SELECT sr.ProgramFK, sr.ProjectFK, sr.RevisionId, x.RevisionDetailId
+    FROM   stage_rev sr
+    JOIN   dbo.tProjects prj ON prj.ProjectPK = sr.ProjectFK
+    CROSS  APPLY (
+        SELECT TOP (1) rd.Id AS RevisionDetailId
+        FROM   dbo.tRevisionDetails rd
+        WHERE  rd.ProjectRevisionFK = sr.RevisionId
+          AND  EXISTS (SELECT 1 FROM dbo.tRevisionApprovals ra
+                       WHERE ra.RevisionDetailFK = rd.Id AND ra.Level = N'RO' AND ra.Status = 1)
+          AND  EXISTS (SELECT 1 FROM dbo.tRevisionApprovals ra
+                       WHERE ra.RevisionDetailFK = rd.Id AND ra.Level = N'CO' AND ra.Status = 1)
+        ORDER  BY rd.CreatedDate DESC, rd.Id DESC
+    ) x
+    WHERE  sr.rn = 1
+      AND  ISNULL(prj.IsPublished, 0) = 1
+      AND  NOT EXISTS (SELECT 1
+                       FROM   dbo.tProjectStages s2
+                       JOIN   dbo.tOptionProgramStage h2 ON h2.Id = s2.StageId
+                       JOIN   dbo.tOptionProgramStage h1 ON h1.NameId = (SELECT StageId FROM gaar WHERE gaar.ProgramFK = sr.ProgramFK)
+                       WHERE  s2.ProjectFK = sr.ProjectFK
+                         AND  h2.StageHierarchy > h1.StageHierarchy)
+)
+SELECT e.ProgramFK, e.ProjectFK, e.RevisionDetailId,
+       b.Figure AS BaseFigure, r.Figure AS RevisionFigure,
+       r.Figure - b.Figure AS Movement
+FROM   eff e
+/*  StartYear is read INSIDE each apply: an aggregate may not mix an outer column
+    with the query's own (Msg 8124), the same reason fProgramStages re-reads it. */
+CROSS  APPLY (SELECT CASE WHEN COUNT(DISTINCT y.[Year]) <= 1 THEN ISNULL(SUM(y.Amount), 0)
+                          ELSE ISNULL(SUM(CASE WHEN y.[Year] = pgy.StartYear THEN y.Amount END), 0) END AS Figure
+              FROM   dbo.tProjectComponentCost cc
+              JOIN   dbo.tProjectComponentCostPerYear y ON y.ComponentCostFK = cc.Id AND y.IsDeleted = 0
+              CROSS  JOIN (SELECT TOP 1 pg2.StartYear FROM dbo.tPrograms pg2 WHERE pg2.ProgramPK = e.ProgramFK) pgy
+              WHERE  cc.ProjectRevisionFK = e.RevisionId AND cc.IsDeleted = 0) b
+CROSS  APPLY (SELECT CASE WHEN COUNT(DISTINCT y.[Year]) <= 1 THEN ISNULL(SUM(y.Amount), 0)
+                          ELSE ISNULL(SUM(CASE WHEN y.[Year] = pgy.StartYear THEN y.Amount END), 0) END AS Figure
+              FROM   dbo.tRevisionProjectComponentCost rcc
+              JOIN   dbo.tRevisionProjectComponentCostPerYear y ON y.RevisionComponentCostFK = rcc.Id AND y.IsDeleted = 0
+              CROSS  JOIN (SELECT TOP 1 pg2.StartYear FROM dbo.tPrograms pg2 WHERE pg2.ProgramPK = e.ProgramFK) pgy
+              WHERE  rcc.RevisionDetailFK = e.RevisionDetailId AND rcc.IsDeleted = 0) r
+ORDER  BY ABS(r.Figure - b.Figure) DESC, e.ProgramFK, e.ProjectFK;
 GO
 
 /* =============================================================================
@@ -321,6 +432,20 @@ GO
      revision it has at that stage, from dbo.tProjectComponentCostPerYear: when
      it holds ONE distinct Year, that year's amount whatever the year is; when it
      holds SEVERAL, only the program year (dbo.tPrograms.StartYear).
+
+   - AT GAA-R, AND ONLY THERE (2026-09-20, RISK-108): an ordinary project with an
+     effective approved Formal Revision is read from that revision's
+     tRevisionProjectComponentCost / tRevisionProjectComponentCostPerYear rows
+     instead of its base ones, under the same per-year rule. Formal Revisions exist
+     only at GAA-R (the Revision module admits nothing else), so every other stage
+     reads the base tables only. "Effective" is exactly what
+     dbo.fProjectFundingProfile and dbo.fProjectComponentCost use: the latest
+     tRevisionDetails row on the project's stage revision (CreatedDate, then Id)
+     that RO and CO have both approved (Status 1), the project published, and no
+     stage row of the project at a higher StageHierarchy. Keep the three aligned.
+     The predicate is inlined here, not applied through those functions: they are
+     correlated per project and join snapshots, PCMA status and users, and applied
+     across a 16,000-project stage they are the shape that took seconds.
 
    - A LUMP SUM PARENT (ProjectType 'LS', no ParentProjectId) counts the Total of
      its live 'LS' component (tProjectComponentCost, ComponentId = 'LS') on its
@@ -398,10 +523,21 @@ RETURN
             pg.StartYear here is refused: SQL Server will not aggregate an
             expression mixing an outer column with the query's own (Msg 8124).
             @ProgramPK is a parameter, not an outer column, so the seek is allowed,
-            and it is one row on the key. */
+            and it is one row on the key.
+
+            AT THE GAA-R ROW ONLY, eff finds a project's effective approved Formal
+            Revision - the predicate pRecomputeProgramCost's step 1b states, inlined
+            the same way - and ragg reads that revision's tRevision* per-year rows in
+            place of the base ones. Both are gated on the stage row's own Name
+            (ss, joined below) and on eff having found one, so every other stage
+            row, and every project without a revision, never evaluates them. */
         ISNULL((
-            SELECT SUM(CASE WHEN ISNULL(agg.[Years], 0) <= 1 THEN ISNULL(agg.AmountAllYears, 0)
-                            ELSE ISNULL(agg.AmountAtProgramYear, 0) END)
+            SELECT SUM(CASE WHEN eff.RevisionDetailId IS NULL
+                            THEN CASE WHEN ISNULL(agg.[Years], 0) <= 1 THEN ISNULL(agg.AmountAllYears, 0)
+                                      ELSE ISNULL(agg.AmountAtProgramYear, 0) END
+                            ELSE CASE WHEN ISNULL(ragg.[Years], 0) <= 1 THEN ISNULL(ragg.AmountAllYears, 0)
+                                      ELSE ISNULL(ragg.AmountAtProgramYear, 0) END
+                       END)
             FROM (
                 SELECT ps3.ProjectFK, ps3.RevisionId,
                        ROW_NUMBER() OVER (PARTITION BY ps3.ProjectFK ORDER BY ps3.RevisionId DESC) AS rn
@@ -411,6 +547,38 @@ RETURN
             ) sr
             JOIN dbo.tProjects prj
               ON prj.ProjectPK = sr.ProjectFK
+            OUTER APPLY (
+                SELECT TOP (1) rd.Id AS RevisionDetailId
+                FROM dbo.tRevisionDetails rd
+                WHERE ss.[Name]           = N'GAA-R'
+                  AND prj.IsPublished     = 1
+                  AND rd.ProjectRevisionFK = sr.RevisionId
+                  AND EXISTS (SELECT 1 FROM dbo.tRevisionApprovals ra
+                              WHERE ra.RevisionDetailFK = rd.Id AND ra.Level = N'RO' AND ra.Status = 1)
+                  AND EXISTS (SELECT 1 FROM dbo.tRevisionApprovals ra
+                              WHERE ra.RevisionDetailFK = rd.Id AND ra.Level = N'CO' AND ra.Status = 1)
+                  AND NOT EXISTS (SELECT 1
+                                  FROM dbo.tProjectStages s2
+                                  JOIN dbo.tOptionProgramStage h2 ON h2.Id = s2.StageId
+                                  JOIN dbo.tOptionProgramStage h1 ON h1.Id = pgs.StageId
+                                  WHERE s2.ProjectFK = sr.ProjectFK
+                                    AND h2.StageHierarchy > h1.StageHierarchy)
+                ORDER BY rd.CreatedDate DESC, rd.Id DESC
+            ) eff
+            OUTER APPLY (
+                SELECT COUNT(DISTINCT y.[Year])                                     AS [Years],
+                       SUM(y.Amount)                                                AS AmountAllYears,
+                       SUM(CASE WHEN y.[Year] = pgy.StartYear THEN y.Amount END)    AS AmountAtProgramYear
+                FROM dbo.tRevisionProjectComponentCost rcc
+                JOIN dbo.tRevisionProjectComponentCostPerYear y
+                  ON y.RevisionComponentCostFK = rcc.Id AND y.IsDeleted = 0
+                CROSS JOIN (SELECT TOP 1 pgx.StartYear
+                            FROM dbo.tPrograms pgx
+                            WHERE pgx.ProgramPK = @ProgramPK) pgy
+                WHERE eff.RevisionDetailId IS NOT NULL
+                  AND rcc.RevisionDetailFK = eff.RevisionDetailId
+                  AND rcc.IsDeleted = 0
+            ) ragg
             LEFT JOIN (
                 SELECT cc.ProjectRevisionFK,
                        COUNT(DISTINCT y.[Year])                                     AS [Years],
@@ -482,7 +650,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @CurrentRevisionId INT, @CurrentStageId INT, @StartYear INT,
+    DECLARE @CurrentRevisionId INT, @CurrentStageId INT, @StartYear INT, @AtGaaR BIT,
             @OrdinaryCost DECIMAL(38,5), @LumpSumCost DECIMAL(38,5), @NewCost DECIMAL(18,2);
 
     SELECT TOP 1 @CurrentRevisionId = pgr.Id, @CurrentStageId = pgs.StageId
@@ -510,6 +678,13 @@ BEGIN
         RETURN;
     END
 
+    /*  IS THE CURRENT STAGE GAA-R? Only there can an approved Formal Revision count
+        (section 11 header). Matched on the stage's Name, through NameId as
+        fProgramStages joins it - never on a literal id. */
+    SET @AtGaaR = CASE WHEN EXISTS (SELECT 1 FROM dbo.tOptionProgramStage st
+                                    WHERE st.NameId = @CurrentStageId AND st.[Name] = N'GAA-R')
+                       THEN 1 ELSE 0 END;
+
     /*  1. THE ORDINARY PROJECTS AT THE CURRENT STAGE, materialised ONCE.
 
         tProjectStages carries one row per revision, so the latest revision of each
@@ -528,10 +703,10 @@ BEGIN
         to 17,500, and a table variable carries no statistics. A plan cached for the
         first program called would be reused for all of them. Recompiling two small
         statements costs milliseconds. */
-    DECLARE @Ordinary TABLE (RevisionId INT NOT NULL PRIMARY KEY);
+    DECLARE @Ordinary TABLE (RevisionId INT NOT NULL PRIMARY KEY, ProjectFK NVARCHAR(200) NOT NULL);
 
-    INSERT @Ordinary (RevisionId)
-    SELECT sr.RevisionId
+    INSERT @Ordinary (RevisionId, ProjectFK)
+    SELECT sr.RevisionId, MIN(sr.ProjectFK)
     FROM (
         SELECT ps.ProjectFK, ps.RevisionId,
                ROW_NUMBER() OVER (PARTITION BY ps.ProjectFK ORDER BY ps.RevisionId DESC) AS rn
@@ -546,7 +721,73 @@ BEGIN
     GROUP BY sr.RevisionId
     OPTION (RECOMPILE);
 
-    /*  2. THE PER-YEAR RULE over those projects, grouped once per revision.
+    /*  1b. AT GAA-R ONLY: WHICH PROJECTS READ AN APPROVED FORMAL REVISION.
+
+        The predicate is fProjectFundingProfile's / fProjectComponentCost's, inlined:
+        the latest tRevisionDetails row on the project's stage revision (CreatedDate,
+        then Id) that is RO- AND CO-approved; the project published; and no stage row
+        of the project at a higher StageHierarchy. The two EXISTS equal
+        fRevisionApprovalStatus's ROStatus = 1 AND COStatus = 1 because
+        UQ_tRevisionApprovals_Level allows one row per level.
+
+        Inlined, not applied: those functions are correlated per project and join
+        snapshots, PCMA status and users; applied across a stage they are the shape
+        that took seconds. Skipped outright at every other stage.
+
+        The revised projects MOVE out of @Ordinary into @Revised, so step 2 stays
+        the statement it was, plan included (measured 2026-09-20 on 16,592 projects
+        at GAA-R): folding the revision rows into it as a UNION ALL turned its
+        parallel hash plan into 14,557 serial seeks, and running the published and
+        later-stage checks together with the revision lookup made the optimizer
+        check every project, 390,000 reads. So the revision lookup runs first and
+        leaves a handful of rows, and the project checks run on those alone - the
+        same result, since published and later-stage are facts of the project, not
+        of which revision was picked. */
+    DECLARE @Revised TABLE (RevisionId INT NOT NULL PRIMARY KEY, RevisionDetailId INT NOT NULL);
+
+    IF @AtGaaR = 1
+    BEGIN
+        /*  Driven from tRevisionDetails, not from @Ordinary: revisions are few and
+            projects many, and a per-project TOP 1 seek cost 14,557 seeks on that
+            program. ROW_NUMBER picks the same row the functions' TOP (1) does. */
+        INSERT @Revised (RevisionId, RevisionDetailId)
+        SELECT x.ProjectRevisionFK, x.RevisionDetailId
+        FROM (
+            SELECT rd.ProjectRevisionFK, rd.Id AS RevisionDetailId,
+                   ROW_NUMBER() OVER (PARTITION BY rd.ProjectRevisionFK
+                                      ORDER BY rd.CreatedDate DESC, rd.Id DESC) AS rn
+            FROM   dbo.tRevisionDetails rd
+            WHERE  EXISTS (SELECT 1 FROM @Ordinary o WHERE o.RevisionId = rd.ProjectRevisionFK)
+              AND  EXISTS (SELECT 1 FROM dbo.tRevisionApprovals ra
+                           WHERE ra.RevisionDetailFK = rd.Id AND ra.Level = N'RO' AND ra.Status = 1)
+              AND  EXISTS (SELECT 1 FROM dbo.tRevisionApprovals ra
+                           WHERE ra.RevisionDetailFK = rd.Id AND ra.Level = N'CO' AND ra.Status = 1)
+        ) x
+        WHERE x.rn = 1
+        OPTION (RECOMPILE);
+
+        IF EXISTS (SELECT 1 FROM @Revised)
+        BEGIN
+            DELETE r
+            FROM   @Revised r
+            JOIN   @Ordinary o ON o.RevisionId = r.RevisionId
+            JOIN   dbo.tProjects prj ON prj.ProjectPK = o.ProjectFK
+            WHERE  ISNULL(prj.IsPublished, 0) <> 1
+               OR  EXISTS (SELECT 1
+                           FROM   dbo.tProjectStages s2
+                           JOIN   dbo.tOptionProgramStage h2 ON h2.Id = s2.StageId
+                           JOIN   dbo.tOptionProgramStage h1 ON h1.Id = @CurrentStageId
+                           WHERE  s2.ProjectFK = o.ProjectFK
+                             AND  h2.StageHierarchy > h1.StageHierarchy);
+
+            DELETE o
+            FROM   @Ordinary o
+            WHERE  EXISTS (SELECT 1 FROM @Revised r WHERE r.RevisionId = o.RevisionId);
+        END
+    END
+
+    /*  2. THE PER-YEAR RULE over the projects read from the base tables, grouped
+        once per revision.
 
         ONE distinct Year: its amount counts whatever the year is. SEVERAL: only the
         program year. "One" means one distinct Year, not one row - two components
@@ -568,6 +809,26 @@ BEGIN
         GROUP BY o.RevisionId
     ) agg
     OPTION (RECOMPILE);
+
+    /*  2b. THE SAME RULE over the revised projects (1b), read from their approved
+        revision's tRevision* rows INSTEAD of their base rows - the revision is the
+        whole project, as in fProjectComponentCost. Empty everywhere but GAA-R. */
+    IF EXISTS (SELECT 1 FROM @Revised)
+        SELECT @OrdinaryCost = @OrdinaryCost + ISNULL(SUM(
+            CASE WHEN agg.[Years] <= 1 THEN agg.AmountAllYears
+                 ELSE agg.AmountAtProgramYear END), 0)
+        FROM (
+            SELECT r.RevisionId,
+                   COUNT(DISTINCT y.[Year])                                    AS [Years],
+                   SUM(y.Amount)                                               AS AmountAllYears,
+                   SUM(CASE WHEN y.[Year] = @StartYear THEN y.Amount END)      AS AmountAtProgramYear
+            FROM @Revised r
+            JOIN dbo.tRevisionProjectComponentCost rcc
+              ON rcc.RevisionDetailFK = r.RevisionDetailId AND rcc.IsDeleted = 0
+            JOIN dbo.tRevisionProjectComponentCostPerYear y
+              ON y.RevisionComponentCostFK = rcc.Id AND y.IsDeleted = 0
+            GROUP BY r.RevisionId
+        ) agg;
 
     /*  3. THE LUMP SUM PARENTS OF THE PROGRAM - all of them, at ANY stage.
 
