@@ -549,6 +549,46 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project category with id {data.Id} is not found, please select another project category."
                         });
                     }
+                    // RISK-072 fix (2026-09-19): ProjectId digits (D5 sequence) never encode
+                    // CategoryId -- uniqueness across categories depends entirely on no two
+                    // active categories' [Minimum,Maximum] ranges overlapping, and nothing
+                    // previously enforced that (confirmed live: dozens of active categories
+                    // already overlap). Scoped to active categories only per operator decision --
+                    // an inactive category can't mint new IDs, so it neither needs checking nor
+                    // blocks anything else.
+                    // Only re-validate when the range is actually changing (or a category is being
+                    // (re)activated) -- pre-existing overlaps already live in the data (confirmed:
+                    // several active categories already overlap each other) must not block an
+                    // unrelated edit, like fixing a typo in CategoryName, to a category that
+                    // happens to already sit in one of those overlaps.
+                    bool isRangeOrActivationChange = dto.TransactionType == CodeTransactionType.Create
+                        || (CheckUpdate != null && (CheckUpdate.Minimum != data.Minimum || CheckUpdate.Maximum != data.Maximum || (!CheckUpdate.IsActive && data.IsActive)));
+                    if (isRangeOrActivationChange)
+                    {
+                        if (data.Minimum > data.Maximum)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Invalid Project Category Range",
+                                Message = $"Minimum ({data.Minimum}) cannot be greater than Maximum ({data.Maximum})."
+                            });
+                        }
+                        if (data.IsActive)
+                        {
+                            var OverlappingCategory = await _db.tOptionProjectCategory.AsNoTracking()
+                                .Where(x => x.Id != data.Id && x.IsActive
+                                    && x.Minimum <= data.Maximum && data.Minimum <= x.Maximum)
+                                .FirstOrDefaultAsync();
+                            if (OverlappingCategory != null)
+                            {
+                                return new BadRequestObjectResult(new
+                                {
+                                    Title = "Project Category Range Overlap",
+                                    Message = $"The range {data.Minimum}-{data.Maximum} overlaps with active category '{OverlappingCategory.CategoryName}' (range {OverlappingCategory.Minimum}-{OverlappingCategory.Maximum}). ProjectId sequence digits do not encode which category generated them, so overlapping ranges between active categories can produce duplicate ProjectIds."
+                                });
+                            }
+                        }
+                    }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {

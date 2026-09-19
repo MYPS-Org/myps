@@ -141,6 +141,20 @@ namespace Helpers
                 CategoryId = categoryId;
             }
         }
+
+        // RISK-072 follow-up (2026-09-19): raised when the block dbo.pReserveProjectIdBlock
+        // reserved produces a ProjectId that already exists in tProjects.ProjectPK -- the
+        // allocator's counter is behind rows already present for that bucket. Distinct from
+        // ProjectIdRangeExhaustedException (that one means the bucket is fully used up; this one
+        // means the counter itself is desynced from real data).
+        public sealed class ProjectIdCollisionException : InvalidOperationException
+        {
+            public string ProjectId { get; }
+            public ProjectIdCollisionException(string projectId, string message) : base(message)
+            {
+                ProjectId = projectId;
+            }
+        }
         // RISK-105/RISK-111 fix (2026-08-31): rewired off dbo.pGenerateThirdSegment (unlocked
         // check-then-act loop, and its own post-generation duplicate check had been deleted by
         // commit 446d6318) onto dbo.pReserveProjectIdBlock (ADR-043's atomic hi-lo block
@@ -172,73 +186,95 @@ namespace Helpers
                     $"Project ID generation failed: CategoryId '{request.CategoryId}' does not exist in tOptionProjectCategory.");
             }
 
-            var parameters = new DynamicParameters();
-            parameters.Add("@CategoryId", request.CategoryId, DbType.Int32, ParameterDirection.Input);
-            parameters.Add("@Suffix", FirstSegment, DbType.String, ParameterDirection.Input);
-            parameters.Add("@IslandCode", request.IslandCode ?? string.Empty, DbType.String, ParameterDirection.Input);
-            parameters.Add("@YearStart", request.YearStart, DbType.Int32, ParameterDirection.Input);
-            parameters.Add("@Count", 1, DbType.Int32, ParameterDirection.Input);
-            parameters.Add("@RangeStart", dbType: DbType.Int32, direction: ParameterDirection.Output);
-            parameters.Add("@RangeEnd", dbType: DbType.Int32, direction: ParameterDirection.Output);
+            // RISK-072 fix (2026-09-19): this reservation MUST NOT share the caller's ambient
+            // transaction. dbo.pReserveProjectIdBlock has no BEGIN TRAN/COMMIT of its own, so
+            // running it on _db's connection/transaction meant a later transaction.RollbackAsync()
+            // in AddProject's catch block (e.g. triggered by the duplicate check below) silently
+            // undid the counter's own increment -- re-issuing the identical already-used value on
+            // every subsequent retry, forever. A hi-lo allocator's reservation must be durable
+            // even when the surrounding business operation fails; a harmless gap from an unused
+            // reservation is fine, re-issuing a consumed value is not. Use a dedicated connection
+            // so this call commits independently, outside of _db's transaction entirely.
+            await using var reservationConnection = new SqlConnection(_db.Database.GetConnectionString());
+            await reservationConnection.OpenAsync(cancellationToken);
 
-            var connection = _db.Database.GetDbConnection();
-            bool shouldCloseConnection = connection.State != ConnectionState.Open;
-            try
+            // RISK-072 fix (2026-09-19): retry past a collision instead of failing outright.
+            // Each pReserveProjectIdBlock call durably advances the counter by exactly 1 (see the
+            // dedicated-connection note above), so a retry always evaluates a genuinely new value
+            // -- e.g. a project whose stage-advance swap already took P01012345LZ no longer blocks
+            // a new project, which simply advances to P01012346LZ. The cap is deliberately small:
+            // once the counter is durable and category ranges don't overlap, needing more than one
+            // retry means live concurrent contention, not stale data. Range exhaustion is NOT
+            // caught here -- it propagates, so the category's real Maximum stays the terminal
+            // condition and needs no separate logic.
+            const int maxAttempts = 3;
+            string collidedProjectId = string.Empty;
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                if (shouldCloseConnection)
+                var parameters = new DynamicParameters();
+                parameters.Add("@CategoryId", request.CategoryId, DbType.Int32, ParameterDirection.Input);
+                parameters.Add("@Suffix", FirstSegment, DbType.String, ParameterDirection.Input);
+                parameters.Add("@IslandCode", request.IslandCode ?? string.Empty, DbType.String, ParameterDirection.Input);
+                parameters.Add("@YearStart", request.YearStart, DbType.Int32, ParameterDirection.Input);
+                parameters.Add("@Count", 1, DbType.Int32, ParameterDirection.Input);
+                parameters.Add("@RangeStart", dbType: DbType.Int32, direction: ParameterDirection.Output);
+                parameters.Add("@RangeEnd", dbType: DbType.Int32, direction: ParameterDirection.Output);
+
+                try
                 {
-                    await connection.OpenAsync(cancellationToken);
+                    var command = new CommandDefinition(
+                        commandText: "dbo.pReserveProjectIdBlock",
+                        parameters: parameters,
+                        commandTimeout: 120,
+                        commandType: CommandType.StoredProcedure,
+                        cancellationToken: cancellationToken);
+
+                    await reservationConnection.ExecuteAsync(command);
+                }
+                catch (SqlException ex) when (ex.Message.Contains("PROJECTID_RANGE_EXHAUSTED:"))
+                {
+                    throw new ProjectIdRangeExhaustedException(
+                        request.CategoryId,
+                        $"Project ID generation failed: Category {request.CategoryId}'s ID range has been fully exhausted. Contact an administrator to expand the range.");
                 }
 
-                var transaction = _db.Database.CurrentTransaction?.GetDbTransaction();
+                int rangeStart = parameters.Get<int>("@RangeStart");
+                int rangeEnd = parameters.Get<int>("@RangeEnd");
 
-                var command = new CommandDefinition(
-                    commandText: "dbo.pReserveProjectIdBlock",
-                    parameters: parameters,
-                    transaction: transaction,
-                    commandTimeout: 120,
-                    commandType: CommandType.StoredProcedure,
-                    cancellationToken: cancellationToken);
-
-                await connection.ExecuteAsync(command);
-            }
-            catch (SqlException ex) when (ex.Message.Contains("PROJECTID_RANGE_EXHAUSTED:"))
-            {
-                throw new ProjectIdRangeExhaustedException(
-                    request.CategoryId,
-                    $"Project ID generation failed: Category {request.CategoryId}'s ID range has been fully exhausted. Contact an administrator to expand the range.");
-            }
-            finally
-            {
-                if (shouldCloseConnection)
+                if (rangeStart <= 0 || rangeEnd < rangeStart)
                 {
-                    await connection.CloseAsync();
+                    throw new InvalidOperationException(
+                        "Project ID generation failed: dbo.pReserveProjectIdBlock returned an invalid range.");
                 }
+
+                string ThirdSegment = rangeStart.ToString("D5");
+                string ProjectId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{request.IslandCode}";
+
+                // RISK-072 fix (2026-09-19): check BOTH tables, not just tProjects.ProjectPK.
+                // ProgramController's stage-advance swap rewrites tProjectRevisions.ProjectId to
+                // the P-prefixed form but never updates tProjects.ProjectPK, so a swapped value is
+                // invisible to a tProjects-only check -- letting a later unrelated AddProject mint
+                // a real duplicate. Mirrors the two-table shape ProgramController's own swap
+                // collision check already uses.
+                bool duplicateExists = await _db.tProjects
+                    .AsNoTracking()
+                    .AnyAsync(x => x.ProjectPK == ProjectId, cancellationToken)
+                    || await _db.tProjectRevisions
+                    .AsNoTracking()
+                    .AnyAsync(x => x.ProjectId == ProjectId && !x.IsDeleted, cancellationToken);
+
+                if (!duplicateExists)
+                {
+                    return ProjectId;
+                }
+
+                collidedProjectId = ProjectId;
             }
 
-            int rangeStart = parameters.Get<int>("@RangeStart");
-            int rangeEnd = parameters.Get<int>("@RangeEnd");
-
-            if (rangeStart <= 0 || rangeEnd < rangeStart)
-            {
-                throw new InvalidOperationException(
-                    "Project ID generation failed: dbo.pReserveProjectIdBlock returned an invalid range.");
-            }
-
-            string ThirdSegment = rangeStart.ToString("D5");
-            string ProjectId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{request.IslandCode}";
-
-            bool duplicateExists = await _db.tProjects
-                .AsNoTracking()
-                .AnyAsync(x => x.ProjectPK == ProjectId, cancellationToken);
-
-            if (duplicateExists)
-            {
-                throw new InvalidOperationException(
-                    $"Project ID generation failed: generated ProjectId '{ProjectId}' already exists in tProjects.ProjectPK. The allocator counter may be out of sync; verify dbo.pReserveProjectIdBlock and dbo.tProjectIdSequence before retrying.");
-            }
-
-            return ProjectId;
+            throw new ProjectIdCollisionException(
+                collidedProjectId,
+                $"Project ID generation failed: still colliding after {maxAttempts} attempts (last tried '{collidedProjectId}'). The allocator counter is likely out of sync with existing data -- verify dbo.tProjectIdSequence against dbo.tProjects/dbo.tProjectRevisions for this category, suffix, island and year before retrying.");
         }
         public static string GenerateProjec1stSegment(this string StageName)
         {

@@ -174,6 +174,162 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
         Assert.Contains("exhausted", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    // RISK-072 follow-up (2026-09-19): the operator's exact scenario -- an existing project's
+    // stage-advance swap already claims a value (or, as here, a plain pre-existing tProjects row
+    // occupies it), so the very next reservation must NOT fail; it should transparently advance to
+    // the next sequence. Proves the retry loop added to GenerateProjectID.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_AutoAdvancesPastASingleCollisionInsteadOfFailing()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        // Pre-occupy the exact ID the first reservation for this bucket would produce -- e.g. the
+        // operator's scenario: an existing project's stage-advance swap already claims
+        // P01012345LZ-shaped territory. The new project must land on the NEXT value, not fail.
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        var request = new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1,
+            StageName = "BP",
+            IslandCode = "LZ",
+            YearStart = 2026
+        };
+
+        string projectId = await db.GenerateProjectID(request, CancellationToken.None);
+        Assert.Equal("BP01000002LZ", projectId);
+    }
+
+    // RISK-072 follow-up (2026-09-19): the swap gap this session found -- ProgramController's
+    // stage-advance swap rewrites tProjectRevisions.ProjectId but never tProjects.ProjectPK, so a
+    // duplicate check that only reads tProjects would miss it entirely and silently mint a real
+    // duplicate. Proves the second half of GenerateProjectID's duplicate check.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_DetectsACollisionThatOnlyExistsInProjectRevisions()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        // No tProjects row at all -- only tProjectRevisions.ProjectId holds the swapped value,
+        // exactly as the BP->P swap leaves it (tProjects.ProjectPK keeps the original BP- value).
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjectRevisions (ProjectFK, ProjectId, IsDeleted) VALUES (N'BP01000001LZ', N'BP01000001LZ', 0);");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        var request = new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1,
+            StageName = "BP",
+            IslandCode = "LZ",
+            YearStart = 2026
+        };
+
+        // A tProjects-only check (the pre-fix behavior) would miss this and return BP01000001LZ
+        // as if it were free. The fix must detect it via tProjectRevisions and advance past it.
+        string projectId = await db.GenerateProjectID(request, CancellationToken.None);
+        Assert.Equal("BP01000002LZ", projectId);
+    }
+
+    // A soft-deleted revision must NOT block a value -- it's no longer a live record.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_IgnoresASoftDeletedProjectRevisionsRow()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjectRevisions (ProjectFK, ProjectId, IsDeleted) VALUES (N'BP01000001LZ', N'BP01000001LZ', 1);");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        var request = new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1,
+            StageName = "BP",
+            IslandCode = "LZ",
+            YearStart = 2026
+        };
+
+        string projectId = await db.GenerateProjectID(request, CancellationToken.None);
+        Assert.Equal("BP01000001LZ", projectId);
+    }
+
+    // RISK-072 follow-up (2026-09-19): the retry cap is a deliberate, small circuit breaker (3
+    // attempts, not 100) -- once it's exhausted, GenerateProjectID must still fail loudly with the
+    // dedicated exception (not hang, not silently mint a duplicate), naming the last value tried.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_ThrowsProjectIdCollisionExceptionAfterExhaustingTheRetryCap()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        // Occupy all 3 values the retry loop will try (sequence 1, 2, 3) so every attempt collides.
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ'), (N'BP01000002LZ'), (N'BP01000003LZ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        var request = new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1,
+            StageName = "BP",
+            IslandCode = "LZ",
+            YearStart = 2026
+        };
+
+        var ex = await Assert.ThrowsAsync<ProjectHelper.ProjectIdCollisionException>(
+            () => db.GenerateProjectID(request, CancellationToken.None));
+        Assert.Equal("BP01000003LZ", ex.ProjectId);
+        Assert.Contains("still colliding after 3 attempts", ex.Message);
+    }
+
+    // The core regression test for the 2026-09-19 durability fix, adapted for the retry loop:
+    // dbo.pReserveProjectIdBlock's counter increment previously shared the caller's ambient EF
+    // transaction (no BEGIN TRAN/COMMIT of its own in the proc), so a later
+    // transaction.RollbackAsync() silently undid every attempted reservation -- meaning even after
+    // exhausting the retry cap and rolling back, the NEXT call would repeat the exact same 3
+    // already-tried values forever. The fix runs each reservation on its own dedicated connection.
+    // Proves it: exhaust the retry cap inside an ambient transaction that then rolls back, then
+    // confirm the next call gets a genuinely fresh value (all 3 prior attempts stayed durable).
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_AllRetriedReservationsSurviveCallerTransactionRollback()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ'), (N'BP01000002LZ'), (N'BP01000003LZ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        var request = new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1,
+            StageName = "BP",
+            IslandCode = "LZ",
+            YearStart = 2026
+        };
+
+        // Simulate AddProject: an ambient transaction is open when GenerateProjectID is called
+        // (and exhausts its retry cap), and gets rolled back in the catch block when it throws.
+        await using (var db = new MYPSDbContext(options))
+        {
+            await using var ambientTransaction = await db.Database.BeginTransactionAsync();
+            await Assert.ThrowsAsync<ProjectHelper.ProjectIdCollisionException>(
+                () => db.GenerateProjectID(request, CancellationToken.None));
+            await ambientTransaction.RollbackAsync();
+        }
+
+        // If any of the 3 attempted reservations were rolled back too (the bug), this next call
+        // would repeat one of BP01000001LZ/2LZ/3LZ. With the fix, all 3 advanced independently.
+        await using var db2 = new MYPSDbContext(options);
+        string nextId = await db2.GenerateProjectID(request, CancellationToken.None);
+        Assert.Equal("BP01000004LZ", nextId);
+    }
+
     // The structural defect this pass found, live on myps_db_dev (ADR-134): a BP-form project's
     // stage-advance swap reuses its own digits with the new prefix and no collision check. This
     // proves the detection query ProgramController.cs's collision check now runs (tProjects.ProjectPK
