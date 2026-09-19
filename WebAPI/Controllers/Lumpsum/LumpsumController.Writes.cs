@@ -1833,6 +1833,28 @@ namespace WebAPI.Controllers.Lumpsum
                     .Select(x => x.ComponentName)
                     .FirstOrDefaultAsync(cancellationToken);
 
+                /*  THE COMPONENT ID IS NOT THE PAYLOAD'S EITHER (2026-09-20, finding 1
+                    of the post-rebase review).
+
+                    This used to copy dto's own ComponentId on top, which made the
+                    payload the author of a column NOTHING validates: the count and type
+                    checks resolve ComponentType, and the allocation-row check matches by
+                    ComponentType's NAME, so a body sending ComponentId '' or 'X' passed
+                    every guard and committed. The Lump Sum module never noticed -
+                    vLumpSumSet, FindLSComponentAsync, Replenish and the import all find
+                    the row by name - but PROGRAM COST matches cc.ComponentId = N'LS'
+                    (section 11 of Migration.SchemaAndProgrammability.2026-09-10.sql), so
+                    the parent's whole appropriation silently left its program's cost. Not
+                    at once, either: the recompute below is gated on Total, which such a
+                    save does not move, so the loss appeared at the next unrelated
+                    recompute of that program.
+
+                    The code resolved above IS tOptionProjectComponentType.ComponentId -
+                    'LS' here, since ValidateRequiredFieldsAsync admits no other type - so
+                    the server writes it and the payload's value is ignored. A row on its
+                    way OUT keeps what it has: its ComponentType was never resolved (the
+                    "LS" above is a placeholder, not a lookup), so there is nothing
+                    trustworthy to write, and a deleted row is read by nothing. */
                 if (Cost.Id == 0)
                 {
                     if (Cost.IsDeleted) continue;
@@ -1841,7 +1863,7 @@ namespace WebAPI.Controllers.Lumpsum
                     {
                         ProjectRevisionFK = revisionId,
                         ComponentType = ComponentName ?? ComponentType,
-                        ComponentId = Cost.ComponentId ?? string.Empty,
+                        ComponentId = ComponentType,
                         Description = Cost.Description,
                         Total = Cost.Total,
                         CreatedBy = userId,
@@ -1857,7 +1879,7 @@ namespace WebAPI.Controllers.Lumpsum
                 if (Row == null) continue;
 
                 Row.ComponentType = ComponentName ?? ComponentType;
-                Row.ComponentId = Cost.ComponentId ?? string.Empty;
+                if (!Cost.IsDeleted) Row.ComponentId = ComponentType;
                 Row.Description = Cost.Description;
                 Row.Total = Cost.Total;
                 Row.IsDeleted = Cost.IsDeleted;
