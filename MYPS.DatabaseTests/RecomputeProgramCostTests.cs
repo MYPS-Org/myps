@@ -13,6 +13,9 @@ namespace MYPS.DatabaseTests;
       - an ordinary project counts at the program's current stage, on its latest revision
         there: one distinct Year of per-year rows counts whatever the year; several count only
         the program year (tPrograms.StartYear);
+      - at GAA-R only, an ordinary project with an effective approved Formal Revision (RO and CO
+        approved, project published, no later stage) is read from that revision's tRevision*
+        per-year rows instead of the base ones (RISK-108, rule of 2026-09-20);
       - a Lump Sum parent counts ONLY the Total of its live 'LS' component on its latest live
         revision, at ANY stage -- never its per-year rows;
       - an itemized child never counts.
@@ -363,6 +366,133 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
     }
 
     // ---------------------------------------------------------------------------------------
+    // GAA-R: an approved Formal Revision replaces the base figures (rule of 2026-09-20)
+    // ---------------------------------------------------------------------------------------
+
+    // The revision's per-year rows replace the base ones outright, and the program-year rule
+    // applies to them unchanged: 400 at 2026 counts, 50 at 2027 does not, and the deleted 5000
+    // row is out. Base alone would have been 100.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GaaR_EffectiveRevisionReplacesTheBaseFigures()
+    {
+        await SeedGaaRProgramAsync();
+
+        await AssertCostAsync(400.00m, stageId: GaaRStageId);
+    }
+
+    // The revision branch has its own one-year rule: a single revision row off the program year
+    // still counts in full.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GaaR_RevisionWithOneYearCountsItWhateverTheYear()
+    {
+        await SeedGaaRProgramAsync();
+        await ExecuteAsync("""
+            UPDATE dbo.tRevisionProjectComponentCostPerYear SET IsDeleted = 1 WHERE RevisionComponentCostFK = 3001;
+            INSERT dbo.tRevisionProjectComponentCostPerYear(RevisionComponentCostFK, Amount, [Year], IsDeleted) VALUES (3001, 70, 2030, 0);
+            """);
+
+        await AssertCostAsync(70.00m, stageId: GaaRStageId);
+    }
+
+    // RO approval alone is not approval. CO is still For Approval (0), so the base counts.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GaaR_RevisionApprovedByROOnlyIsNotRead()
+    {
+        await SeedGaaRProgramAsync();
+        await ExecuteAsync("UPDATE dbo.tRevisionApprovals SET Status = 0 WHERE RevisionDetailFK = 1 AND Level = N'CO';");
+
+        await AssertCostAsync(100.00m, stageId: GaaRStageId);
+    }
+
+    // An unpublished project never takes its revision, as in fProjectFundingProfile.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GaaR_UnpublishedProjectReadsTheBase()
+    {
+        await SeedGaaRProgramAsync();
+        await ExecuteAsync("UPDATE dbo.tProjects SET IsPublished = 0 WHERE ProjectPK = N'PROJECT-REV';");
+
+        await AssertCostAsync(100.00m, stageId: GaaRStageId);
+    }
+
+    // A project that already has a row at a later stage (TF) is past its revision, as in
+    // fProjectFundingProfile: the base counts at GAA-R.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GaaR_ProjectWithALaterStageRowReadsTheBase()
+    {
+        await SeedGaaRProgramAsync();
+        await ExecuteAsync("INSERT dbo.tProjectStages(ProjectFK, ProgramFK, RevisionId, StageId) VALUES (N'PROJECT-REV', N'PROGRAM-1', 202, 12);");
+
+        await AssertCostAsync(100.00m, stageId: GaaRStageId);
+    }
+
+    // Of several approved revisions the latest by CreatedDate (then Id) wins, and a still newer
+    // one that is not approved is ignored.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GaaR_LatestApprovedRevisionWins()
+    {
+        await SeedGaaRProgramAsync();
+        await ExecuteAsync("""
+            INSERT dbo.tRevisionDetails(Id, ProjectRevisionFK, CreatedDate) VALUES
+                (2, 201, '2026-09-05'),
+                (3, 201, '2026-09-09');
+            INSERT dbo.tRevisionApprovals(RevisionDetailFK, Level, Status) VALUES
+                (2, N'RO', 1), (2, N'CO', 1),
+                (3, N'RO', 1), (3, N'CO', 0);
+            INSERT dbo.tRevisionProjectComponentCost(Id, RevisionDetailFK, ComponentId, Total, IsDeleted) VALUES
+                (3002, 2, N'CW1', 250, 0),
+                (3003, 3, N'CW1', 9999, 0);
+            INSERT dbo.tRevisionProjectComponentCostPerYear(RevisionComponentCostFK, Amount, [Year], IsDeleted) VALUES
+                (3002, 250, 2026, 0), (3002, 1, 2027, 0),
+                (3003, 9999, 2026, 0), (3003, 1, 2027, 0);
+            """);
+
+        await AssertCostAsync(250.00m, stageId: GaaRStageId);
+    }
+
+    // The overlay belongs to GAA-R alone. The same approved, published revision on a project at
+    // any other stage (here the baseline program at stage 2) leaves the base figure in place.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task Stage_RevisionOutsideGaaRIsNeverRead()
+    {
+        await SeedProgramAsync();
+        await ExecuteAsync("""
+            UPDATE dbo.tProjects SET IsPublished = 1 WHERE ProjectPK = N'PROJECT-MULTI';
+            INSERT dbo.tRevisionDetails(Id, ProjectRevisionFK, CreatedDate) VALUES (1, 101, '2026-09-01');
+            INSERT dbo.tRevisionApprovals(RevisionDetailFK, Level, Status) VALUES (1, N'RO', 1), (1, N'CO', 1);
+            INSERT dbo.tRevisionProjectComponentCost(Id, RevisionDetailFK, ComponentId, Total, IsDeleted) VALUES (3001, 1, N'CW1', 400, 0);
+            INSERT dbo.tRevisionProjectComponentCostPerYear(RevisionComponentCostFK, Amount, [Year], IsDeleted) VALUES (3001, 400, 2026, 0), (3001, 50, 2027, 0);
+            """);
+
+        await AssertCostAsync(100.00m);
+    }
+
+    // An itemized child is an ordinary project to the Revision module, so it can carry an approved
+    // revision. It still never counts (RISK-009): the overlay does not bring it back.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GaaR_ItemizedChildWithAnApprovedRevisionStillNeverCounts()
+    {
+        await SeedGaaRProgramAsync();
+        await ExecuteAsync("""
+            INSERT dbo.tProjects(ProjectPK, ProgramFK, ProjectType, ParentProjectId, IsPublished) VALUES (N'PROJECT-REV-CHILD', N'PROGRAM-1', N'LS', N'P-PARENT-ID', 1);
+            INSERT dbo.tProjectStages(ProjectFK, ProgramFK, RevisionId, StageId) VALUES (N'PROJECT-REV-CHILD', N'PROGRAM-1', 210, 7);
+            INSERT dbo.tRevisionDetails(Id, ProjectRevisionFK, CreatedDate) VALUES (10, 210, '2026-09-01');
+            INSERT dbo.tRevisionApprovals(RevisionDetailFK, Level, Status) VALUES (10, N'RO', 1), (10, N'CO', 1);
+            INSERT dbo.tRevisionProjectComponentCost(Id, RevisionDetailFK, ComponentId, Total, IsDeleted) VALUES (3010, 10, N'LS', 300, 0);
+            INSERT dbo.tRevisionProjectComponentCostPerYear(RevisionComponentCostFK, Amount, [Year], IsDeleted) VALUES (3010, 300, 2026, 0);
+            """);
+
+        await AssertCostAsync(400.00m, stageId: GaaRStageId);
+    }
+
+    // ---------------------------------------------------------------------------------------
     // Fixtures
     // ---------------------------------------------------------------------------------------
 
@@ -421,16 +551,46 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
             """);
     }
 
+    /*  A program at GAA-R (stage 7), year 2026, with one published project carrying an effective
+        approved Formal Revision.
+
+        PROJECT-REV   base: 100 at 2026, 900 at 2027 -- 100 would count.
+                      revision 1 (RO and CO approved): 400 at 2026, 50 at 2027, and a deleted
+                      5000 at 2026 -- 400 counts.  */
+    private async Task SeedGaaRProgramAsync()
+    {
+        await ExecuteAsync("""
+            INSERT dbo.tPrograms(ProgramPK, StartYear, IsDeleted) VALUES (N'PROGRAM-1', 2026, 0);
+            INSERT dbo.tProgramRevisions(Id, ProgramFK, Cost) VALUES (1, N'PROGRAM-1', 0);
+            INSERT dbo.tProgramStages(ProgramFK, RevisionId, StageId, StageName) VALUES (N'PROGRAM-1', 1, 7, N'GAA-R');
+            INSERT dbo.tProjects(ProjectPK, ProgramFK, ProjectType, ParentProjectId, IsPublished) VALUES (N'PROJECT-REV', N'PROGRAM-1', N'LZ', NULL, 1);
+            INSERT dbo.tProjectStages(ProjectFK, ProgramFK, RevisionId, StageId) VALUES (N'PROJECT-REV', N'PROGRAM-1', 201, 7);
+            INSERT dbo.tProjectComponentCost(Id, ProjectRevisionFK, ComponentId, Total, IsDeleted) VALUES (2001, 201, N'CW1', 1000, 0);
+            INSERT dbo.tProjectComponentCostPerYear(ComponentCostFK, Amount, [Year], IsDeleted) VALUES
+                (2001, 100, 2026, 0),
+                (2001, 900, 2027, 0);
+            INSERT dbo.tRevisionDetails(Id, ProjectRevisionFK, CreatedDate) VALUES (1, 201, '2026-09-01');
+            INSERT dbo.tRevisionApprovals(RevisionDetailFK, Level, Status) VALUES (1, N'RO', 1), (1, N'CO', 1);
+            INSERT dbo.tRevisionProjectComponentCost(Id, RevisionDetailFK, ComponentId, Total, IsDeleted) VALUES (3001, 1, N'CW1', 450, 0);
+            INSERT dbo.tRevisionProjectComponentCostPerYear(RevisionComponentCostFK, Amount, [Year], IsDeleted) VALUES
+                (3001, 400, 2026, 0),
+                (3001, 50, 2027, 0),
+                (3001, 5000, 2026, 1);
+            """);
+    }
+
     // ---------------------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------------------
 
+    private const int GaaRStageId = 7;
+
     /// <summary>
     /// Runs the procedure for PROGRAM-1 and asserts that BOTH paths report
     /// <paramref name="expected"/>: the stored tProgramRevisions.Cost, and fProgramStages' Cost
-    /// at the current stage (2).
+    /// at the program's current stage, <paramref name="stageId"/>.
     /// </summary>
-    private async Task AssertCostAsync(decimal expected)
+    private async Task AssertCostAsync(decimal expected, int stageId = 2)
     {
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync();
@@ -438,7 +598,7 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         await ExecuteProcedureAsync(connection, null, "PROGRAM-1");
 
         Assert.Equal(expected, await ReadStoredCostAsync(connection, null));
-        Assert.Equal(expected, await ReadListCostAsync(connection, stageId: 2));
+        Assert.Equal(expected, await ReadListCostAsync(connection, stageId));
     }
 
     private async Task ExecuteAsync(string sql)
@@ -525,19 +685,34 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         here: this is a behavioural harness for one rule, not a copy of the schema.
 
         tProgramRevisions.Cost is decimal(18,5), the live type. StartYear is nullable here, unlike
-        live, only so the NULL guard can be exercised.  */
+        live, only so the NULL guard can be exercised.
+
+        tOptionProgramStage carries the live Id/NameId/Name/StageHierarchy of the stages the tests
+        use (Id = NameId on every live row). tRevisionApprovals keeps the live unique key on
+        (RevisionDetailFK, Level): it is what makes two EXISTS checks equal to
+        fRevisionApprovalStatus.  */
     private const string SchemaSql = """
         CREATE TABLE dbo.tPrograms(ProgramPK nvarchar(200) NOT NULL PRIMARY KEY, StartYear int NULL, IsDeleted bit NOT NULL,
                                    [Type] nvarchar(50) NULL, UserGroup nvarchar(1000) NULL, DataSecurityGroup nvarchar(1000) NULL);
         CREATE TABLE dbo.tProgramRevisions(Id int NOT NULL PRIMARY KEY, ProgramFK nvarchar(200) NOT NULL, ProgramId nvarchar(255) NULL, Cost decimal(18,5) NULL);
         CREATE TABLE dbo.tProgramStages(Id int IDENTITY PRIMARY KEY, ProgramFK nvarchar(200) NOT NULL, RevisionId int NOT NULL, StageId int NOT NULL, StageName nvarchar(100) NULL);
         CREATE TABLE dbo.tOptionProgramType(NameId nvarchar(50) NOT NULL, [Name] nvarchar(50) NULL);
-        CREATE TABLE dbo.tOptionProgramStage(NameId int NOT NULL, DisplayName nvarchar(100) NULL);
+        CREATE TABLE dbo.tOptionProgramStage(Id int NOT NULL PRIMARY KEY, NameId int NOT NULL, [Name] nvarchar(50) NOT NULL, DisplayName nvarchar(100) NULL,
+                                             StageHierarchy decimal(7,5) NOT NULL);
+        INSERT dbo.tOptionProgramStage(Id, NameId, [Name], DisplayName, StageHierarchy) VALUES
+            (1, 1, N'BP', NULL, 1.0), (2, 2, N'NEP', NULL, 1.1), (6, 6, N'GAA', NULL, 1.5),
+            (7, 7, N'GAA-R', N'GAA-Revisions', 1.6), (12, 12, N'TF', NULL, 2.1);
         -- ParentProjectId is what separates an itemized child from its Lump Sum parent; both carry ProjectType 'LS'.
-        CREATE TABLE dbo.tProjects(ProjectPK nvarchar(200) NOT NULL PRIMARY KEY, ProgramFK nvarchar(200) NOT NULL, ProjectType nvarchar(20) NULL, ParentProjectId nvarchar(100) NULL);
+        CREATE TABLE dbo.tProjects(ProjectPK nvarchar(200) NOT NULL PRIMARY KEY, ProgramFK nvarchar(200) NOT NULL, ProjectType nvarchar(20) NULL, ParentProjectId nvarchar(100) NULL,
+                                   IsPublished bit NOT NULL DEFAULT 0);
         CREATE TABLE dbo.tProjectRevisions(Id int NOT NULL PRIMARY KEY, ProjectFK nvarchar(200) NOT NULL, IsDeleted bit NOT NULL);
         CREATE TABLE dbo.tProjectStages(Id int IDENTITY PRIMARY KEY, ProjectFK nvarchar(200) NOT NULL, ProgramFK nvarchar(200) NOT NULL, RevisionId int NOT NULL, StageId int NOT NULL);
         CREATE TABLE dbo.tProjectComponentCost(Id int NOT NULL PRIMARY KEY, ProjectRevisionFK int NOT NULL, ComponentId nvarchar(10) NULL, Total decimal(18,5) NOT NULL, IsDeleted bit NOT NULL);
         CREATE TABLE dbo.tProjectComponentCostPerYear(Id int IDENTITY PRIMARY KEY, ComponentCostFK int NOT NULL, Amount decimal(18,5) NOT NULL, [Year] int NOT NULL, IsDeleted bit NOT NULL);
+        CREATE TABLE dbo.tRevisionDetails(Id int NOT NULL PRIMARY KEY, ProjectRevisionFK int NOT NULL, CreatedDate datetime NOT NULL);
+        CREATE TABLE dbo.tRevisionApprovals(Id int IDENTITY PRIMARY KEY, RevisionDetailFK int NOT NULL, Level nvarchar(10) NOT NULL, Status int NOT NULL,
+                                            CONSTRAINT UQ_tRevisionApprovals_Level UNIQUE (RevisionDetailFK, Level));
+        CREATE TABLE dbo.tRevisionProjectComponentCost(Id int NOT NULL PRIMARY KEY, RevisionDetailFK int NOT NULL, ComponentId nvarchar(10) NOT NULL, Total decimal(18,5) NOT NULL, IsDeleted bit NOT NULL);
+        CREATE TABLE dbo.tRevisionProjectComponentCostPerYear(Id int IDENTITY PRIMARY KEY, RevisionComponentCostFK int NOT NULL, Amount decimal(18,5) NOT NULL, [Year] int NOT NULL, IsDeleted bit NOT NULL);
         """;
 }
