@@ -49,7 +49,7 @@ Every command below is written for that file's current target.
 ### Step 1 — Schema and programmability
 
 ```
-sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -i Main/Resources/LumpSum/SQL/Migration.SchemaAndProgrammability.2026-09-10.sql
+sqlcmd -S localhost -d myps_db_dev_200 -U sa -P <pw> -C -b -i Main/Resources/LumpSum/SQL/Migration.SchemaAndProgrammability.2026-09-10.sql
 ```
 
 One file, idempotent, covering everything in the table above except the isolation flag. It

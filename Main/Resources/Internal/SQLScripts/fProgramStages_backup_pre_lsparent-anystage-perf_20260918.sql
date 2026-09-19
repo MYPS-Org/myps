@@ -29,7 +29,8 @@ GO
 IF DB_NAME() <> N'myps_db_dev_200'
 BEGIN
     DECLARE @db NVARCHAR(128) = DB_NAME();
-    RAISERROR('REFUSED: this rollback is for localhost myps_db_dev_200 only. Connected to %s.', 20, 1, @db) WITH LOG;
+    RAISERROR('REFUSED: this rollback is for localhost myps_db_dev_200 only. Connected to %s. Nothing below will execute; run SET NOEXEC OFF or reconnect before reusing this session.', 16, 1, @db);
+    SET NOEXEC ON;
 END
 GO
 

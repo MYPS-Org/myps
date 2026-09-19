@@ -51,13 +51,22 @@ GO
 /* =============================================================================
    0. GUARD - refuse to run anywhere but localhost myps_db_dev_200
    -----------------------------------------------------------------------------
-   Severity 20 ends the connection, so the rest of the file cannot run even
-   without -b or SQLCMD mode.
+   Severity 16 + SET NOEXEC ON, so the rest of the file is parsed but not
+   executed, whoever runs it and whether or not -b is given (2026-09-20).
+
+   This was RAISERROR(..., 20, 1) WITH LOG, which ends the connection only for a
+   sysadmin. Measured on localhost: for any other login it raises Msg 2778
+   ("Only System Administrator can specify WITH LOG") at severity 16 and
+   execution CONTINUES - the next statement in the same batch included - so the
+   indexes and both objects landed on whatever database was connected. Without
+   WITH LOG it is Msg 2754, with the same outcome. NOEXEC is a runtime setting
+   and needs no privilege, so it holds for everyone.
    ============================================================================= */
 IF DB_NAME() <> N'myps_db_dev_200'
 BEGIN
     DECLARE @db NVARCHAR(128) = DB_NAME();
-    RAISERROR('REFUSED: this script is for localhost myps_db_dev_200 only. Connected to %s.', 20, 1, @db) WITH LOG;
+    RAISERROR('REFUSED: this script is for localhost myps_db_dev_200 only. Connected to %s. Nothing below will execute; run SET NOEXEC OFF or reconnect before reusing this session.', 16, 1, @db);
+    SET NOEXEC ON;
 END
 GO
 

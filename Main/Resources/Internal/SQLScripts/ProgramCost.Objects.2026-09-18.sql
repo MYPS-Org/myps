@@ -66,7 +66,8 @@ GO
    ============================================================================= */
 IF DB_NAME() = N'myps_db'
 BEGIN
-    RAISERROR('REFUSED: this script will not run against myps_db, the retired production database name. Point it at a dev database.', 20, 1) WITH LOG;
+    RAISERROR('REFUSED: this script will not run against myps_db, the retired production database name. Point it at a dev database. Nothing below will execute; run SET NOEXEC OFF or reconnect before reusing this session.', 16, 1);
+    SET NOEXEC ON;
 END
 GO
 
