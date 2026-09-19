@@ -790,6 +790,11 @@ namespace Hangfire.Services
                     // Dictionary (not a HashSet) because different rows can belong to different
                     // exhausted categories and need their own message.
                     var ExhaustedProjectIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    // RISK-072 follow-up (2026-09-19): same collect-then-disregard-once pattern as
+                    // ExhaustedProjectIds above, for the sibling ProjectIdCollisionException (the
+                    // allocator's counter was behind a row already present in tProjects) -- a
+                    // separate dictionary because the two failure reasons need different messages.
+                    var CollidedProjectIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                     foreach (var Item in ValidProjectDetails.Concat(WarningProjectDetails))
                     {
@@ -801,6 +806,11 @@ namespace Hangfire.Services
                         catch (ProjectHelper.ProjectIdRangeExhaustedException ex)
                         {
                             ExhaustedProjectIds[Item.ProjectId] = ex.Message;
+                            continue;
+                        }
+                        catch (ProjectHelper.ProjectIdCollisionException ex)
+                        {
+                            CollidedProjectIds[Item.ProjectId] = ex.Message;
                             continue;
                         }
 
@@ -858,6 +868,13 @@ namespace Hangfire.Services
                     DisregardProjectRows(
                         new HashSet<string>(ExhaustedProjectIds.Keys, StringComparer.OrdinalIgnoreCase),
                         item => ExhaustedProjectIds.TryGetValue(item.ProjectId, out var msg) ? msg : "Import: Project ID's range was exhausted and the row was disregarded.");
+
+                    // RISK-072 follow-up (2026-09-19): same reasoning as the ExhaustedProjectIds
+                    // call above, for ProjectIdCollisionException rows -- disregard them without
+                    // aborting the rest of the batch.
+                    DisregardProjectRows(
+                        new HashSet<string>(CollidedProjectIds.Keys, StringComparer.OrdinalIgnoreCase),
+                        item => CollidedProjectIds.TryGetValue(item.ProjectId, out var msg) ? msg : "Import: Project ID collided with an existing project and the row was disregarded.");
 
                     jobCancellationToken.ThrowIfCancellationRequested();
                     // ── Funding Profile ────────────────────────────────────────

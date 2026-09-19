@@ -591,6 +591,23 @@ namespace WebAPI.Controllers.Projects
 
                 #region Generate ProjectId
                 string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : ValidateProjectLookUps.Data!;
+                // RISK-072 fix (2026-09-19): IslandCode was previously unvalidated -- the old
+                // 3-value whitelist here was commented out with no replacement. Live consequence:
+                // 35+ existing rows carry IslandCode='LZx' (3 characters instead of 2), which
+                // breaks every fixed-width parser over ProjectId strings (confirmed against
+                // dbo.vGetProjectCategoryVersions). Validate against the real, live set from
+                // tOptionAdminAreaRegion rather than a hardcoded list, so a future island grouping
+                // doesn't need a code change here.
+                bool IsValidIslandCode = await _db.tOptionAdminAreaRegion.AsNoTracking()
+                    .AnyAsync(x => x.IslandCode == FourthSegment, cancellationToken);
+                if (!IsValidIslandCode)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Invalid Island Code",
+                        Message = $"Island Code '{FourthSegment}' is not valid."
+                    });
+                }
                 GenerateProjectIDParams p = new GenerateProjectIDParams()
                 {
                     CategoryId = dto.Category,
@@ -688,6 +705,11 @@ namespace WebAPI.Controllers.Projects
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new BadRequestObjectResult(new { Title = "Project ID Range Exhausted", Message = ex.Message });
+            }
+            catch (ProjectIdCollisionException ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return new BadRequestObjectResult(new { Title = "Project ID Collision Detected", Message = ex.Message });
             }
             catch (Exception ex)
             {
