@@ -127,6 +127,14 @@ namespace WebAPI.Controllers.Lumpsum
         /// </summary>
         [MaxLength(100)]
         public string? ComponentType { get; set; }
+        /// <summary>
+        /// IGNORED ON SAVE (2026-09-20). Kept so the page can round-trip what it
+        /// read, but the server writes the code it resolved from ComponentType
+        /// instead: program cost finds a Lump Sum parent's appropriation by
+        /// tProjectComponentCost.ComponentId, and nothing validated this field.
+        /// See SaveLumpSumChildrenAsync, "THE COMPONENT ID IS NOT THE PAYLOAD'S
+        /// EITHER".
+        /// </summary>
         [MaxLength(10)]
         public string? ComponentId { get; set; }
         public string? Description { get; set; }

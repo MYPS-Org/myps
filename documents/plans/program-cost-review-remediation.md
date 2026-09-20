@@ -104,6 +104,17 @@ review.
 
 ### 4. Revision-aware per-year and Lump Sum reads
 
+> **Done for the per-year read (2026-09-20, branch `fix/program-cost-recompute-perf`), scoped to
+> GAA-R.** A Formal Revision exists only at GAA-R — the Revision module admits no other stage — so
+> the overlay applies there and nowhere else, and every other stage keeps the base-only read and
+> its cost. Built as this item asks: set-based, one pass, driven from `tRevisionDetails`, not a
+> per-project `CROSS APPLY` of the overlay functions. The predicate copied is
+> `fProjectFundingProfile`'s / `fProjectComponentCost`'s rather than `fProjectEffectiveRevision`'s,
+> and it is inlined rather than extracted into `dbo.fStageEffectiveRevisions` — the extraction
+> below is still open, as is the Lump Sum part (a parent never enters Revisions, so nothing is
+> known to be lost there). Reads on the 16,592-project GAA-R program: 102,513 against 102,634.
+> Eight facts in `MYPS.DatabaseTests/RecomputeProgramCostTests.cs`, each through both paths.
+
 Replace the base-table CTEs (`component_total`, `per_year` in the procedure; their function
 equivalents) with a set-based overlay reproducing `dbo.fProjectEffectiveRevision`'s rule for
 every project at the stage in one pass — **not** a per-project `CROSS APPLY

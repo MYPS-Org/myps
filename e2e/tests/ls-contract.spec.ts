@@ -992,6 +992,65 @@ test.describe('Lump Sum V2 — API contract', () => {
     await expectAllocationInvariant(page, owner.lumpSumId, 'after the balance row was replaced');
   });
 
+  /*  FINDING 1 OF THE 2026-09-20 REVIEW — THE COMPONENT ID IS THE SERVER'S.
+
+      A Lump Sum parent adds its appropriation to its program's cost, and the
+      rule finds that row by tProjectComponentCost.ComponentId = 'LS' (section 11
+      of Migration.SchemaAndProgrammability.2026-09-10.sql). Every OTHER reader —
+      vLumpSumSet, FindLSComponentAsync, Replenish, the import — finds it by the
+      component type's NAME. Two markers on one row, and the save validated only
+      the second: ComponentType was resolved and checked, while ComponentId was
+      copied from the payload, defaulting to ''.
+
+      So a body sending ComponentId '' or 'X' was accepted, the module went on
+      looking healthy, and the parent's whole appropriation dropped out of
+      program cost. Silently, and late: the recompute is gated on the
+      allocation's Total, which such a save does not move, so the figure only
+      fell at the next unrelated recompute of that program.
+
+      The page always sends 'LS' (the dialog pins it), so this is the API
+      caller's shape, like the phantom component and the per-year UACS hijack
+      above. The server now writes the code it resolved from ComponentType and
+      ignores the field. */
+  test('the allocation component keeps its LS ComponentId whatever the payload says', async ({ page }) => {
+    await apiLogin(page);
+    const owner = await provisionLumpSum(page, 4_000_000, `${TAG} component id`);
+    created.push(owner.lumpSumId);
+
+    const before = await post(page, '/api/Lumpsum/LumpSumDetails', { LumpSumId: owner.lumpSumId });
+    const lsCost = before.body.ComponentCosts.find((c: any) => !c.IsDeleted);
+    expect(String(lsCost.ComponentId), 'created with the code').toBe('LS');
+
+    const savedWith = async (componentId: unknown, label: string) => {
+      const sent = await post(page, '/api/Lumpsum/UpdateLumpSum', echoUpdate(owner, before.body, {
+        ComponentCosts: [{
+          Id: lsCost.Id, CostId: 'c1', ComponentType: 'LS', ComponentId: componentId,
+          Description: lsCost.Description, Total: lsCost.Total, IsDeleted: false,
+        }],
+      }));
+      expect(sent.status, `${label} is accepted: ${JSON.stringify(sent.body).slice(0, 250)}`).toBe(200);
+
+      const now = await post(page, '/api/Lumpsum/LumpSumDetails', { LumpSumId: owner.lumpSumId });
+      const row = now.body.ComponentCosts.find((c: any) => !c.IsDeleted);
+      expect(String(row.ComponentId), `${label}: the server kept 'LS'`).toBe('LS');
+      /*  The per-year row duplicates its parent's code, so it must not drift
+          either — a replacement balance row inherits whatever the cost carries. */
+      const year = now.body.ComponentCostPerYear.find((y: any) => !y.IsDeleted);
+      expect(String(year.ComponentId), `${label}: and so did the balance row`).toBe('LS');
+      return now;
+    };
+
+    await savedWith('', 'an empty ComponentId');
+    await savedWith('XX', 'a foreign ComponentId');
+    await savedWith(null, 'a missing ComponentId');
+
+    /*  And the project still counts where it is read by that code: the module
+        view still shows the appropriation, which is what program cost sums. */
+    const row = await lumpSum(page, owner.lumpSumId);
+    expect(Number(row.OriginalAllocation), 'the appropriation is still readable by code').toBe(4_000_000);
+    await expectAllocationInvariant(page, owner.lumpSumId, 'after three payloads lied about ComponentId');
+  });
+
   /*  FINDING 1 OF THE 2026-09-10 REVIEW. There is no project-level UACS column:
       the storage is tProjectComponentCostPerYear.UACS, the details form's Uacs
       is fanned out across every live row, and vLumpSumSet reads the first row
