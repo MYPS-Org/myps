@@ -1949,10 +1949,6 @@ namespace WebAPI.Controllers.Programs
                         restrictedProjectIds);
 
 
-                Console.WriteLine(
-                    $">>> pAllowProjectPublishing ProjectIds = {projectIdsJson}");
-
-
                 // ====================================================================
                 // TRANSACTION
                 // ====================================================================
@@ -2207,6 +2203,10 @@ namespace WebAPI.Controllers.Programs
         [HttpPost]
         public async Task<IActionResult> BatchDelete([FromBody] BatchUnpublishTaggingDTO dto, CancellationToken cancellationToken)
         {
+            // 2026-09-21: the delete and the program cost recompute below must land together.
+            // An early-return validation failure disposes the transaction without a commit,
+            // which rolls back -- nothing has been written by then anyway.
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 if (dto == null)
@@ -2359,6 +2359,15 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
+                // 2026-09-21: a deleted project no longer counts toward its program's Cost
+                // (pRecomputeProgramCost counts ordinary projects on their latest live revision
+                // at the current stage), and Program Details reads the STORED
+                // tProgramRevisions.Cost -- so without this the header kept the pre-delete
+                // figure until some other write recomputed it. Same helper every other
+                // project-mutating action uses (Helpers/ProgramCostRecompute.cs).
+                await _db.RecomputeProgramCostAsync(programDetails.ProgramPK, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
                 if (missingProjectIds.Length > 0)
                 {
                     return Ok(new
@@ -2382,6 +2391,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -2444,7 +2454,13 @@ namespace WebAPI.Controllers.Programs
                 // via tProjectStages, so we can restore projects regardless of which stage they were deleted on.
 
 
-                var latestDeletedRevisionsQuery =
+                // 2026-09-21: materialized ONCE, before the update. This used to be a deferred
+                // IQueryable that was re-evaluated three times synchronously -- and the two
+                // evaluations AFTER the ExecuteUpdate below saw `IsDeleted = 0` rows, i.e. nothing:
+                // restoredSet came back empty (every id reported "not found") and `.Count() > 0`
+                // was false, so the action answered "No Projects Restored" and let the transaction
+                // dispose without a commit, rolling its own restore back. It could never succeed.
+                var latestDeletedRevisions = await (
                     from revision in _db.tProjectRevisions
                     where revision.ProjectId != null
                           && projectIds.Contains(revision.ProjectId)
@@ -2455,8 +2471,9 @@ namespace WebAPI.Controllers.Programs
                     {
                         ProjectId = revisionGroup.Key,
                         Id = revisionGroup.Max(x => x.Id)
-                    };
-                HashSet<int> ProjectRevisionIds = latestDeletedRevisionsQuery.Select(x => x.Id).ToHashSet();
+                    })
+                    .ToListAsync(cancellationToken);
+                HashSet<int> ProjectRevisionIds = latestDeletedRevisions.Select(x => x.Id).ToHashSet();
                 var projectsToRestore = await _db.tProjectRevisions.Where(x => ProjectRevisionIds.Contains(x.Id))
                     .ExecuteUpdateAsync(
                         setters => setters.SetProperty(
@@ -2466,7 +2483,7 @@ namespace WebAPI.Controllers.Programs
 
 
                 var restoredSet = new HashSet<string>(
-                    latestDeletedRevisionsQuery.Select(x => x.ProjectId),
+                    latestDeletedRevisions.Select(x => x.ProjectId!),
                     StringComparer.OrdinalIgnoreCase
                 );
 
@@ -2474,10 +2491,11 @@ namespace WebAPI.Controllers.Programs
                     .Where(x => !restoredSet.Contains(x))
                     .ToArray();
 
-                if (latestDeletedRevisionsQuery.Count() > 0)
+                if (latestDeletedRevisions.Count > 0)
                 {
-                    await _db.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync();
+                    // ExecuteUpdateAsync bypasses the change tracker, so there is nothing for
+                    // SaveChangesAsync to flush; the commit is what persists the restore.
+                    await transaction.CommitAsync(cancellationToken);
 
                     return Ok(new
                     {

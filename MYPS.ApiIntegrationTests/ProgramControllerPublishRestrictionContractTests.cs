@@ -91,6 +91,65 @@ public sealed class ProgramControllerPublishRestrictionContractTests
         Assert.Contains("missingProjectIds", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchDelete_RecomputesProgramCostInsideTransaction()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchDelete");
+
+        // 2026-09-21: deleting a project changes what its program's Cost should be, and Program
+        // Details reads the STORED tProgramRevisions.Cost (fProgramDetails), not a live sum -- so
+        // this action must recompute, like every other project-mutating write path does, and the
+        // delete and the recompute must commit together.
+        Assert.Contains("BeginTransactionAsync", method, StringComparison.Ordinal);
+        Assert.Contains("RecomputeProgramCostAsync", method, StringComparison.Ordinal);
+        Assert.Contains("CommitAsync", method, StringComparison.Ordinal);
+        Assert.Contains("RollbackAsync", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchActions_LeaveNoConsoleDebugOutput()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+
+        foreach (string actionName in new[]
+                 {
+                     "BatchAllowPublish", "BatchRestrictPublish", "BatchDelete", "BatchAddExistingProject",
+                 })
+        {
+            Assert.DoesNotContain(
+                "Console.WriteLine",
+                ExtractMethod(source, actionName),
+                StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchAddExistingProject_MaterializesItsRevisionLookupBeforeUpdating()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAddExistingProject");
+
+        // 2026-09-21: this lookup was a deferred IQueryable evaluated three times -- twice AFTER
+        // the ExecuteUpdateAsync that clears IsDeleted, so those evaluations matched nothing, the
+        // action reported "No Projects Restored" and returned without committing, rolling its own
+        // restore back. It must be materialized once, before the update.
+        Assert.Contains("latestDeletedRevisions", method, StringComparison.Ordinal);
+        Assert.Contains("ToListAsync", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("latestDeletedRevisionsQuery", method, StringComparison.Ordinal);
+
+        int lookupIndex = method.IndexOf("latestDeletedRevisions", StringComparison.Ordinal);
+        int updateIndex = method.IndexOf("ExecuteUpdateAsync", StringComparison.Ordinal);
+        Assert.True(lookupIndex >= 0 && updateIndex > lookupIndex,
+            "The revision lookup must be materialized before the update that changes IsDeleted.");
+    }
+
     private static MethodInfo GetPublicAction(string actionName)
     {
         return typeof(ProgramController)

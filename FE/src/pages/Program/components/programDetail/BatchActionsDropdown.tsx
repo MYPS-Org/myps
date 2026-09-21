@@ -58,8 +58,9 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
       }
       await onRefresh();
     } catch (error) {
+      // httpClient's interceptor has already toasted the API's own message (e.g. which
+      // project IDs were not found); a second generic toast here only hid that reason.
       console.error(`Error performing batch ${action}:`, error);
-      showToast({ type: 'error', message: `Failed to ${action} projects. Please try again.` });
     } finally {
       onLoadingChange(false);
     }
