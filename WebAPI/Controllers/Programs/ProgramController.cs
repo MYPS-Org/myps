@@ -2306,7 +2306,23 @@ namespace WebAPI.Controllers.Programs
                         requestedProjectIds.Contains(x.ProjectId))
                     .Select(x => new
                     {
-                        x.Id,
+                        // 2026-09-21 (RISK: wrong-row delete): this used to select x.Id and
+                        // feed it to tProjectRevisions.Id below. vProjectLatest.Id is
+                        // tProjects.Id; the revision key is vProjectLatest.RevisionId. The two
+                        // are DIFFERENT for all 115,350 rows on myps_db_dev_200 -- never equal
+                        // by construction, since they are identities of different tables.
+                        //
+                        // Measured on that database, over the 115,350 projects a user could
+                        // paste in: the old key hit ANOTHER project's revision 112,115 times
+                        // (97%), hit nothing 2,064 times, and hit its own only 1,171 times by
+                        // coincidence of numbering. So Batch Delete either flagged an unrelated
+                        // project -- in another program, invisibly -- or silently did nothing
+                        // and still answered 200, which the UI shows as a success toast. Against
+                        // the project LIST (fProgramProjects, which joins tProjectStages
+                        // .RevisionId) the old key matched 0 of 109,790 listed rows and the new
+                        // one matches 109,788, so the deleted row could never have left the
+                        // table. That is the "batch delete does nothing" report.
+                        x.RevisionId,
                         x.ProjectId
                     })
                     .ToListAsync(cancellationToken);
@@ -2321,7 +2337,7 @@ namespace WebAPI.Controllers.Programs
                     .ToArray();
 
                 var revisionIds = projectRevisions
-                    .Select(x => x.Id)
+                    .Select(x => x.RevisionId)
                     .Distinct()
                     .ToArray();
 

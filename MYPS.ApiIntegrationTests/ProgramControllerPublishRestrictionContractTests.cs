@@ -112,6 +112,25 @@ public sealed class ProgramControllerPublishRestrictionContractTests
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Program")]
+    public void BatchDelete_FlagsTheRevisionKey_NotTheProjectKey()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchDelete");
+
+        // 2026-09-21: the revision ids fed to tProjectRevisions MUST come from
+        // vProjectLatest.RevisionId. vProjectLatest.Id is tProjects.Id -- a different table's
+        // identity, never equal to the revision's (0 of 115,350 rows agree on myps_db_dev_200).
+        // Selecting x.Id here meant Batch Delete flagged ANOTHER project's revision 97% of the
+        // time and nothing at all the rest, while still answering 200. Against the project list
+        // it matched 0 of 109,790 listed rows, so a "deleted" project never left the table.
+        Assert.Contains("x.RevisionId", method, StringComparison.Ordinal);
+        Assert.Contains(".Select(x => x.RevisionId)", method, StringComparison.Ordinal);
+        Assert.DoesNotContain(".Select(x => x.Id)", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
     public void BatchActions_LeaveNoConsoleDebugOutput()
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");

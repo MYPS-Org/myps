@@ -35,6 +35,8 @@ await login(page); // uses E2E_USERNAME/E2E_PASSWORD env vars, falls back to tes
 
 It navigates to `/login`, fills `input#username` / `input#password`, clicks `Sign In`, and waits for the redirect to `/dashboard`. Credentials come from `E2E_USERNAME`/`E2E_PASSWORD` — set them in `e2e/.env` (see `.env.example`) or export them in the shell before running tests. Falls back to `testuser`/`password` if unset. Can also be overridden per-call: `login(page, user, pass)`.
 
+**Never call both `apiLogin()` and `login()` in the same test.** `apiLogin` signs the BROWSER in, not just an API client — `page.request` shares the context's cookie jar — so once fixtures are built the session already exists. `login()` then goes to `/login`, the app redirects an authenticated visitor straight to `/dashboard`, and the `fill()` on a username box that never renders hangs until the test budget runs out. It surfaces as a bare 120s timeout with the dashboard in the screenshot and a stack pointing at whatever teardown was pending, which looks nothing like its cause; the trace is what shows the truth (`fill` pending for the whole run). A spec that builds fixtures through `apiLogin` should just `page.goto()` the route it wants.
+
 ## Selector convention
 
 **No `data-testid` attributes exist anywhere in `FE/src`** (verified by grep across the whole tree). Specs therefore rely on text and role-based locators — e.g. `page.locator('text=Project Details')`, `button:has-text("Save")`. This is a known fragility: these break silently if UI copy changes. If `data-testid` attributes get added to FE components in the future, prefer them over text selectors for new specs.
@@ -99,7 +101,8 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 | Dashboard | `tests/dashboard-real-data.spec.ts` | Yes — the demo path asserts the page issues **no `/api/Dashboard/` request at all**; the live path (skipped against `LIVE_DB_ENABLED`) asserts eager KPIs, lazy per-section loading on scroll, and that the split endpoints reconcile with each other. See *The dashboard's Live DB switch* |
 | UserManagement | — | No |
 | InfraManagement | — | No |
-| ProgramList / ProgramDetails | — | No |
+| ProgramList | — | No |
+| ProgramDetails — Batch Actions | `tests/program-detail-batch-actions.spec.ts` | **Partly** — the batch menu only. Batch Delete removes the row from the table **with no page reload**, which is the assertion the pre-fix build fails; the publish actions are asserted hidden until the program is Approved, and Restrict Publishing is asserted to re-query the table after its own call. Uses the approval fixture program, the only one the suite may approve. The rest of the page (header form, stage advance, publish to PCMA) is still uncovered |
 | ProjectDetails | — | No |
 | RevisionList / RevisionView / RevisionDetails | — | No |
 | ProjectGroupList / ProjectGroupDetails | — | No |
