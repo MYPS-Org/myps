@@ -258,6 +258,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       ComponentId: formData.ComponentId,
       Amount: 0,
       Year: baseYear + nonDeletedCosts.length,
+      UACS: '',
       StartDate: null,
       EndDate: null,
       CreatedBy: user?.Name || '',
@@ -685,7 +686,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             {componentCostPerYear.map((cost, index) => {
                                 if (cost.IsDeleted) return null;
                                 return (
-                                    <div key={index} className="grid grid-cols-[120px_1fr_1fr_1fr_auto] gap-3 items-end p-3 bg-gray-50 rounded border">
+                                    <div key={index} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr_auto] gap-3 items-end p-3 bg-gray-50 rounded border">
                                         <div>
                                             <label className="block text-xs font-medium text-gray-700 mb-1">
                                                 Year
@@ -698,6 +699,19 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 placeholder={String(programDetails?.StartYear || new Date().getFullYear())}
                                                 min={programDetails?.StartYear?.toString() || '2000'}
                                                 max={programDetails?.YearEnd?.toString() || '2100'}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                OA Project Code (UACS)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={cost.UACS || ''}
+                                                onChange={(e) => handleEditPerYearCost(index, 'UACS', e.target.value)}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                placeholder="UACS code"
+                                                maxLength={50}
                                             />
                                         </div>
                                         <div>
