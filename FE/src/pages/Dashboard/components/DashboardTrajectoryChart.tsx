@@ -31,6 +31,8 @@ interface Props {
   onSelectYear?: (year: number) => void;
   isBenchmark?: boolean;
   liveData?: Array<{ year: number; projects: number; budget: number }>;
+  /** Only meaningful in Live DB mode — Demo Data renders from BENCHMARK_TRAJECTORY_DATA instantly. */
+  isLoading?: boolean;
 }
 
 export const DashboardTrajectoryChart: React.FC<Props> = ({
@@ -38,6 +40,7 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
   onSelectYear,
   isBenchmark = false,
   liveData = [],
+  isLoading = false,
 }) => {
   const { isLight } = useDashboardTheme();
   const trajectoryData: TrajectoryYear[] = isBenchmark
@@ -58,6 +61,13 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
   const avgProjects = trajectoryData.length > 0
     ? Math.round(trajectoryData.reduce((sum, item) => sum + item.projects, 0) / trajectoryData.length)
     : 0;
+  // Same reason as DashboardCharts' trend row: Live DB supplies one point per fiscal year with
+  // data (16 today), not the five this sparkline's fixed gaps were sized for. Tighten spacing so
+  // a long series stays inside the card instead of pushing its year labels out of it.
+  const isDenseTrajectory = trajectoryData.length > 8;
+  const trajectoryRowGap = isDenseTrajectory ? 'gap-1 sm:gap-2' : 'gap-3 sm:gap-6';
+  const trajectoryLabelSize = isDenseTrajectory ? 'text-[9px]' : 'text-[11px]';
+
   const yearRange = trajectoryData.length > 0
     ? `${trajectoryData[0].year} to ${trajectoryData[trajectoryData.length - 1].year}`
     : 'No fiscal years';
@@ -108,7 +118,13 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
         </div>
 
         {/* Trajectory Cards Grid */}
-        {trajectoryData.length === 0 ? (
+        {isLoading && !isBenchmark ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className={`h-24 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
+            ))}
+          </div>
+        ) : trajectoryData.length === 0 ? (
           <div className={`mt-6 py-16 text-center text-sm ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
             No project trajectory records are available in the database.
           </div>
@@ -201,15 +217,24 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
           <span>Period Avg: <strong className={isLight ? 'text-slate-800' : 'text-white'}>{avgProjects.toLocaleString()}</strong> projects</span>
         </div>
 
-        <div className={`h-28 flex items-end gap-3 sm:gap-6 px-2 pt-2 border-b ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
-          {trajectoryData.map((item) => {
+        <div className={`h-28 flex items-end ${trajectoryRowGap} px-2 pt-2 border-b ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+          {isLoading && !isBenchmark
+            ? Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
+                  <div
+                    className={`w-full max-w-[40px] rounded-t-lg animate-pulse ${isLight ? 'bg-slate-200' : 'bg-slate-800'}`}
+                    style={{ height: `${30 + (index % 3) * 20}%` }}
+                  />
+                </div>
+              ))
+            : trajectoryData.map((item) => {
             const heightPercent = (item.projects / maxProjects) * 100;
             const isSelected = selectedYear === item.year;
 
             return (
               <div
                 key={item.year}
-                className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer"
+                className="flex-1 min-w-0 flex flex-col items-center justify-end h-full group relative cursor-pointer"
                 onClick={() => onSelectYear?.(item.year)}
               >
                 {/* Tooltip on hover */}
@@ -233,7 +258,7 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
                   }`}
                 />
                 <span
-                  className={`text-[11px] font-bold mt-1.5 ${
+                  className={`${trajectoryLabelSize} font-bold mt-1.5 ${
                     isSelected
                       ? isLight ? 'text-blue-700' : 'text-amber-400'
                       : isLight ? 'text-slate-500' : 'text-slate-400'

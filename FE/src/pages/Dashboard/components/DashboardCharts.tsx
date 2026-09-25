@@ -33,6 +33,10 @@ interface Props {
   monthlyData: MonthlyTrend[];
   statusData: StatusSegment[];
   islandData: IslandAllocation[];
+  /** Trend comes from a separate fetch (useDashboardTrend) than statuses/islands, so it gets its own flag. */
+  isTrendLoading?: boolean;
+  /** Statuses and islands share one fetch (useDashboardStatuses). */
+  isStatusesLoading?: boolean;
   onStatusSelect?: (name: string | null) => void;
   activeStatusFilter?: string | null;
   onSelectIsland?: (island: string | null) => void;
@@ -54,6 +58,8 @@ export const DashboardCharts: React.FC<Props> = ({
   monthlyData,
   statusData,
   islandData,
+  isTrendLoading = false,
+  isStatusesLoading = false,
   onStatusSelect,
   activeStatusFilter,
   onSelectIsland,
@@ -63,6 +69,21 @@ export const DashboardCharts: React.FC<Props> = ({
   const [hoveredTrend, setHoveredTrend] = useState<MonthlyTrend | null>(null);
 
   const maxTrend = Math.max(1, ...monthlyData.flatMap((item) => [item.budget || 0, item.actual || 0]));
+
+  // Live DB returns one point per fiscal year that has cost data -- 16 of them today, and one
+  // more every budget cycle. The bar/gap sizing below was written for the five-year Demo Data
+  // series and cannot shrink past its fixed widths, so beyond ~8 years the row overflowed the
+  // card and the trailing year labels spilled over the panel next to it. Tighten spacing (and
+  // let the bars flex) once the series gets long, instead of capping the series or scrolling it.
+  const isDenseTrend = monthlyData.length > 8;
+  const trendRowGap = isDenseTrend ? 'gap-1 sm:gap-2' : 'gap-3 sm:gap-6';
+  const trendBarGap = isDenseTrend ? 'gap-0.5 sm:gap-1' : 'gap-1.5';
+  // flex-1 + max-w lets a bar shrink when the year count grows but keeps the original width
+  // when the series is short; min-w keeps a bar visible rather than collapsing it to nothing.
+  const trendBarWidth = isDenseTrend
+    ? 'flex-1 min-w-[3px] max-w-[10px]'
+    : 'flex-1 min-w-[8px] max-w-4 sm:max-w-6';
+  const trendLabelSize = isDenseTrend ? 'text-[10px] px-0' : 'text-xs';
   const visibleStatuses = statusData.filter((s) => s.count > 0);
   const displayStatuses = visibleStatuses.length > 0 ? visibleStatuses : statusData;
   const totalStatuses = displayStatuses.reduce((sum, item) => sum + item.count, 0);
@@ -110,12 +131,27 @@ export const DashboardCharts: React.FC<Props> = ({
             </div>
           </div>
 
-          {monthlyData.length === 0 ? (
+          {isTrendLoading ? (
+            <div className="mt-6 h-64 flex items-end gap-3 sm:gap-6 px-3 pb-1">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="relative flex-1 h-full flex items-end gap-1.5 justify-center">
+                  <div
+                    className={`w-4 sm:w-6 rounded-t-md animate-pulse ${isLight ? 'bg-slate-200' : 'bg-slate-800'}`}
+                    style={{ height: `${30 + (index % 3) * 20}%` }}
+                  />
+                  <div
+                    className={`w-4 sm:w-6 rounded-t-md animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`}
+                    style={{ height: `${20 + (index % 4) * 15}%` }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : monthlyData.length === 0 ? (
             <div className={`h-64 grid place-items-center text-sm ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               No historical budget records available in database.
             </div>
           ) : (
-            <div className={`mt-6 h-64 flex items-end gap-3 sm:gap-6 border-b px-3 pb-1 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+            <div className={`mt-6 h-64 flex items-end ${trendRowGap} border-b px-3 pb-1 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
               {monthlyData.map((item) => {
                 const isSelected = Number(item.month) === selectedYear;
                 const bVal = item.budget || 0;
@@ -126,7 +162,7 @@ export const DashboardCharts: React.FC<Props> = ({
                 return (
                   <div
                     key={item.month}
-                    className="relative flex-1 h-full flex flex-col justify-end group cursor-pointer"
+                    className="relative flex-1 min-w-0 h-full flex flex-col justify-end group cursor-pointer"
                     onMouseEnter={() => setHoveredTrend(item)}
                     onMouseLeave={() => setHoveredTrend(null)}
                   >
@@ -140,12 +176,12 @@ export const DashboardCharts: React.FC<Props> = ({
                     )}
 
                     {/* Bars */}
-                    <div className="flex items-end justify-center gap-1.5 h-[200px]">
+                    <div className={`flex items-end justify-center ${trendBarGap} h-[200px]`}>
                       <motion.div
                         initial={{ height: 0 }}
                         animate={{ height: `${budgetHeight}%` }}
                         transition={{ duration: 0.9, ease: 'easeOut' }}
-                        className={`w-4 sm:w-6 rounded-t-md transition-all ${
+                        className={`${trendBarWidth} rounded-t-md transition-all ${
                           isSelected
                             ? 'bg-gradient-to-t from-blue-700 to-blue-500 shadow-md shadow-blue-500/30'
                             : isLight
@@ -157,7 +193,7 @@ export const DashboardCharts: React.FC<Props> = ({
                         initial={{ height: 0 }}
                         animate={{ height: `${actualHeight}%` }}
                         transition={{ duration: 0.9, ease: 'easeOut', delay: 0.1 }}
-                        className={`w-4 sm:w-6 rounded-t-md transition-all ${
+                        className={`${trendBarWidth} rounded-t-md transition-all ${
                           isSelected
                             ? 'bg-gradient-to-t from-amber-500 to-amber-300 shadow-md shadow-amber-400/30'
                             : isLight
@@ -168,7 +204,7 @@ export const DashboardCharts: React.FC<Props> = ({
                     </div>
 
                     <div
-                      className={`text-center text-xs py-2 transition-colors ${
+                      className={`text-center ${trendLabelSize} py-2 transition-colors ${
                         isSelected
                           ? isLight
                             ? 'font-black text-blue-700 bg-blue-50 rounded-b border border-blue-200'
@@ -226,7 +262,11 @@ export const DashboardCharts: React.FC<Props> = ({
           </div>
 
           <div className="mt-4 space-y-2">
-            {displayStatuses.length === 0 ? (
+            {isStatusesLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className={`h-14 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
+              ))
+            ) : displayStatuses.length === 0 ? (
               <div className={`py-12 text-center text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 No staged projects recorded for FY {selectedYear}.
               </div>
@@ -336,7 +376,11 @@ export const DashboardCharts: React.FC<Props> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
-          {islandData.length === 0 ? (
+          {isStatusesLoading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className={`h-28 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
+            ))
+          ) : islandData.length === 0 ? (
             <p className={`text-xs py-6 text-center col-span-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               No geographic allocation data recorded for this year.
             </p>

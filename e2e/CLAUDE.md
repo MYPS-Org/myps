@@ -96,7 +96,7 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 |---|---|---|
 | ProjectList (`/projects`) | `tests/project-list.spec.ts` | Yes — asserts the list request came back **200** with rows, and that the first ProjectId is on screen. It previously died on `text=Projects` (three matches) and never ran past line 14 |
 | AddProject (`/projects/addproject`) | `tests/project-form.spec.ts` | Yes — both dropdown endpoints must answer 200, not merely be requested |
-| Dashboard | `tests/dashboard-real-data.narrated.spec.ts` | **Yes, for the demo path — which is all that ships today.** Live DB was switched off on 2026-09-13 (`LIVE_DB_ENABLED` in `Dashboard.tsx`), so the spec asserts the page opens on Demo Data, renders its panels, and **issues no `Dashboard/Summary` query at all**. The live-path test is kept whole in the same file and skipped against the same flag. See *The dashboard is demo-only for now* |
+| Dashboard | `tests/dashboard-real-data.spec.ts` | Yes — the demo path asserts the page issues **no `/api/Dashboard/` request at all**; the live path (skipped against `LIVE_DB_ENABLED`) asserts eager KPIs, lazy per-section loading on scroll, and that the split endpoints reconcile with each other. See *The dashboard's Live DB switch* |
 | UserManagement | — | No |
 | InfraManagement | — | No |
 | ProgramList / ProgramDetails | — | No |
@@ -146,8 +146,9 @@ Expected (whole suite, counted 2026-09-13 against `localhost/myps_db_dev_200`):
 
 All four skips are honest and self-clearing:
 
-- `dashboard-real-data` › *live database* — while `LIVE_DB_ENABLED` is false (see
-  *The dashboard is demo-only for now*). Its demo half runs.
+- `dashboard-real-data` › *live database* — skipped at the time of that count, while
+  `LIVE_DB_ENABLED` was false. It was re-enabled on 2026-09-17 (see *The dashboard's Live DB
+  switch*), so on a current checkout this skip no longer applies.
 - three KNOWN GAP data-security cases, which carry their gaps rather than deleting them.
 
 That run was the first green one on this lineage. The one before it was **9 failed, 30 passed,
@@ -182,31 +183,37 @@ sample fixture could not run and the module started empty:
   did not, stranding a parent holding 200,000,000 of a program's allocation, which is exactly
   the figure other specs assert on. **If a spec rewrites a Description, keep the marker.**
 
-### The dashboard is demo-only for now
+### The dashboard's Live DB switch
 
-**Live DB is switched off** (2026-09-13, maintainer's call). `FE/src/pages/Dashboard/Dashboard.tsx`
-exports `LIVE_DB_ENABLED = false`: the page opens on Demo Data, the Live DB control renders
-disabled, and no `Dashboard/Summary` request is issued. Nothing was deleted — `fetchDashboardSummary`,
-`mapSummary` and every panel are intact behind the flag.
+`FE/src/pages/Dashboard/Dashboard.tsx` exports `LIVE_DB_ENABLED`, and
+`tests/dashboard-real-data.spec.ts` carries a constant that must track it — flip both together.
+While it is false the Live DB control renders disabled, every section hook is routed to Demo
+Data, and the live describe is skipped.
 
-The reason is cost: `Dashboard/Summary` returns every visible project uncapped
-(`DashboardController.cs`, `Projects = projects`, no `Take`) — on `myps_db_dev_200` that is
-**56,722 rows, 33.5 MB, ~14 s** per load, for a watchlist that shows a handful. Making it
-pageable is backend work.
+**History.** It was switched off on 2026-09-13 (maintainer's call) because the page then made one
+`Dashboard/Summary` call that returned every visible project uncapped — on `myps_db_dev_200`
+**56,722 rows, 33.5 MB, ~14 s** per load, for a watchlist that shows a handful. It was switched
+back on on 2026-09-17, once that call was gone: the page now loads each section from its own
+endpoint (`Kpis`, `Trend`, `BudgetBreakdown`, `Statuses`, `RegionalBreakdown`, `Projects`,
+`Activities`, `Revisions`) only when the section is scrolled into view, aggregates are computed
+in SQL, and the watchlist pages server-side. `Dashboard/Summary` still exists on the backend but
+nothing on the page calls it. See `documents/plans/dashboard-modular-data-loading.md`.
 
-So the spec has two halves. The demo half runs and asserts, above all, that the page queries
-**nothing**. The live half is kept whole and `test.skip`ped against a constant that must track
-the FE flag — flip both to bring it back.
+The spec has two halves. The demo half runs regardless and asserts, above all, that Demo Data
+issues **no** `/api/Dashboard/` request. The live half asserts eager KPIs, lazy loading, and
+cross-endpoint reconciliation.
 
-Three things that half already paid for, if you do:
+Three things the 2026-09-13 rewrite paid for, which still hold:
 
-- **Detect fetches with `waitForResponse`, never `captureApiCalls`.** That helper `await`s
-  `response.json()` inside its handler and swallows what it throws; on a 33.5 MB body it is slow
-  enough to look exactly like "the button did nothing". That is how the rewrite first failed.
+- **Prefer `waitForResponse` (or a URL-only `page.on('request')` count) over `captureApiCalls`.**
+  That helper `await`s `response.json()` inside its handler and swallows what it throws; on the
+  old 33.5 MB body it was slow enough to look exactly like "the button did nothing". Split
+  responses are now a few KB, so the live half's existing use of it works, but do not reach for
+  it on anything large.
 - **Read payloads with `page.request`, not the `request` fixture.** The fixture has its own
   cookie jar, is not signed in, and answers 401.
-- **Budget three fetches**, not sixteen. Clicking every fiscal-year button cannot fit the 120 s
-  timeout at 14 s a call.
+- **Budget fetches against the timeout.** Clicking every fiscal-year button is sixteen rounds of
+  lazy section loads; pick two or three years.
 
 ### Resolve the program, do not name it
 

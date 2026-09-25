@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   ArrowRightIcon,
   EyeIcon,
@@ -11,9 +11,19 @@ import type { WatchlistProject } from './ProjectQuickDetailModal';
 export type { WatchlistProject } from './ProjectQuickDetailModal';
 import { formatCompactMoney } from './AnimatedCounter';
 import { useDashboardTheme } from '../DashboardTheme';
+import { usePagination } from '../../../hooks/usePagination';
+import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
+import { fetchDashboardProjects, type DashboardProjectsFilter } from '../Service';
 
 interface Props {
-  projects: WatchlistProject[];
+  year: number;
+  dataSourceMode: 'real' | 'benchmark';
+  /** Gates the first fetch — pass viewport visibility so this section only loads once reached. */
+  enabled: boolean;
+  /** Bump this (e.g. on the header Refresh click) to force a refetch of the current page/filters —
+   *  this component's pagination state isn't atom-backed like the other sections', so the parent
+   *  can't just clear a cache atom to trigger it. */
+  refreshSignal?: number;
   activeStatusFilter?: string | null;
   activeIslandFilter?: string | null;
   onClearFilters?: () => void;
@@ -21,8 +31,14 @@ interface Props {
   onViewAll: () => void;
 }
 
+// Debounce delay for the search box — avoids firing a server request per keystroke.
+const SEARCH_DEBOUNCE_MS = 300;
+
 export const DashboardProjectWatchlist: React.FC<Props> = ({
-  projects,
+  year,
+  dataSourceMode,
+  enabled,
+  refreshSignal = 0,
   activeStatusFilter,
   activeIslandFilter,
   onClearFilters,
@@ -30,35 +46,54 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
   onViewAll,
 }) => {
   const { isLight } = useDashboardTheme();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const filtered = useMemo(() => {
-    return projects.filter((project) => {
-      if (activeStatusFilter && project.stageName !== activeStatusFilter) return false;
-      if (activeIslandFilter && project.island !== activeIslandFilter) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const idMatch = project.projectId?.toLowerCase().includes(q);
-        const descMatch = project.description?.toLowerCase().includes(q);
-        const regMatch = project.region?.toLowerCase().includes(q);
-        if (!idMatch && !descMatch && !regMatch) return false;
-      }
-      return true;
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(searchInput), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
+
+  const fetchFn = useCallback(
+    (params: Parameters<typeof fetchDashboardProjects>[0]) =>
+      fetchDashboardProjects(params, year, dataSourceMode === 'benchmark'),
+    [year, dataSourceMode]
+  );
+
+  // enabled: false — this component drives every fetch itself (below), keyed off viewport
+  // visibility plus search/filter/year/mode changes, rather than usePagination's own one-shot
+  // mount fetch (which can't react to those changes on its own).
+  const pagination = usePagination<DashboardProjectsFilter, WatchlistProject>(fetchFn, {
+    limit: 10,
+    enabled: false,
+  });
+
+  useEffect(() => {
+    if (!enabled) return;
+    pagination.applyFilters({
+      Search: debouncedSearch || undefined,
+      Island: activeIslandFilter ?? undefined,
+      Status: activeStatusFilter ?? undefined,
     });
-  }, [activeStatusFilter, activeIslandFilter, searchQuery, projects]);
+    // pagination.applyFilters is stable unless year/dataSourceMode change (it's rebuilt from
+    // fetchFn, which depends on those) — safe to omit here, matching usePagination.ts's own
+    // mount-effect convention.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, year, dataSourceMode, refreshSignal, debouncedSearch, activeIslandFilter, activeStatusFilter]);
 
-  const totalFilteredBudget = useMemo(() => {
-    return filtered.reduce((sum, p) => sum + p.allocatedBudget, 0);
-  }, [filtered]);
+  const projects = pagination.data.lists;
+  const totalRegions = pagination.data.total ?? 0;
+  const pageBudget = projects.reduce((sum, project) => sum + project.allocatedBudget, 0);
+  const isInitialLoad = pagination.isLoading && projects.length === 0;
 
   const getSubtitle = () => {
     if (activeIslandFilter) {
-      return `Filtered: ${activeIslandFilter} Group (${filtered.length} Regions · Total: ${formatCompactMoney(totalFilteredBudget)})`;
+      return `Filtered: ${activeIslandFilter} Group (${totalRegions} Regions)`;
     }
     if (activeStatusFilter) {
-      return `Filtered: Stage ${activeStatusFilter} (${filtered.length} Regions · Total: ${formatCompactMoney(totalFilteredBudget)})`;
+      return `Filtered: Stage ${activeStatusFilter} (${totalRegions} Regions)`;
     }
-    return `Strategic Regional Capital Investment Portfolio (${filtered.length} Regions · Grand Total: ${formatCompactMoney(totalFilteredBudget)})`;
+    return `Strategic Regional Capital Investment Portfolio (${totalRegions} Regions)`;
   };
 
   return (
@@ -96,8 +131,8 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
               <MagnifyingGlassIcon className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-slate-500'}`} />
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search region..."
                 className={`pl-7 pr-3 py-1.5 text-xs rounded-xl border focus:outline-none focus:ring-2 transition-all w-32 sm:w-40 ${
                   isLight
@@ -105,9 +140,9 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
                     : 'bg-slate-950 border-slate-700 text-slate-100 placeholder-slate-500 focus:ring-amber-500/30 focus:border-amber-500'
                 }`}
               />
-              {searchQuery && (
+              {searchInput && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => setSearchInput('')}
                   className={`absolute right-2 top-1/2 -translate-y-1/2 ${isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}
                 >
                   <XMarkIcon className="w-3 h-3" />
@@ -129,12 +164,12 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
         </div>
 
         {/* Active Filter Chips */}
-        {(activeStatusFilter || activeIslandFilter || searchQuery) && (
+        {(activeStatusFilter || activeIslandFilter || searchInput) && (
           <div className={`flex items-center gap-2 px-6 py-2.5 border-b text-xs flex-wrap ${isLight ? 'bg-slate-50/80 border-slate-100' : 'bg-slate-950/80 border-slate-800'}`}>
             <span className={`font-medium text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Active Filter:</span>
             {activeIslandFilter && (
               <span className={`px-2.5 py-0.5 rounded-full border font-bold text-[11px] ${isLight ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'}`}>
-                {activeIslandFilter} Island Group ({filtered.length} Regions · {formatCompactMoney(totalFilteredBudget)})
+                {activeIslandFilter} Island Group ({totalRegions} Regions)
               </span>
             )}
             {activeStatusFilter && (
@@ -142,17 +177,20 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
                 Stage: {activeStatusFilter}
               </span>
             )}
-            {searchQuery && (
+            {searchInput && (
               <span className={`px-2 py-0.5 rounded-full border font-semibold text-[10px] ${isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'}`}>
-                "{searchQuery}"
+                "{searchInput}"
               </span>
             )}
             {onClearFilters && (
               <button
-                onClick={onClearFilters}
+                onClick={() => {
+                  setSearchInput('');
+                  onClearFilters();
+                }}
                 className={`ml-auto text-[11px] font-bold underline ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}
               >
-                Reset Filter (Show All 17 Regions)
+                Reset Filter
               </button>
             )}
           </div>
@@ -171,12 +209,21 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
               </tr>
             </thead>
             <tbody className={`divide-y ${isLight ? 'divide-slate-100 bg-white' : 'divide-slate-800/80 bg-slate-900/40'}`}>
-              {filtered.map((project, idx) => (
+              {isInitialLoad ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index}>
+                    <td className="pl-6 pr-4 py-3.5" colSpan={5}>
+                      <div className={`h-6 rounded animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                projects.map((project, idx) => (
                 <tr key={project.id} className={`transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/60'}`}>
                   <td className="pl-6 pr-4 py-3.5 max-w-[260px] sm:max-w-sm">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`text-[10px] font-black px-1.5 py-0.2 rounded border ${isLight ? 'bg-slate-100 text-slate-800 border-slate-200' : 'bg-slate-900 text-amber-400 border-slate-700'}`}>
-                        #{idx + 1}
+                        #{(pagination.data.page - 1) * pagination.data.limit + idx + 1}
                       </span>
                       <span className={`font-bold font-mono tracking-tight text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}>
                         {project.region}
@@ -228,25 +275,41 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
                     </button>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
 
-          {filtered.length === 0 && (
+          {!isInitialLoad && projects.length === 0 && (
             <div className={`px-6 py-12 text-center text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               No regional programs match the selected search and filter criteria.
             </div>
           )}
+
+          <div className="px-4">
+            <PaginationBar
+              currentPage={pagination.data.page}
+              totalPages={pagination.data.totalPages}
+              hasPrevious={pagination.hasPrevious}
+              hasNext={pagination.hasNext}
+              onGoToPage={pagination.goToPage}
+              onNext={pagination.goNext}
+              onPrevious={pagination.goPrevious}
+              onFirst={pagination.goFirst}
+              onLast={pagination.goLast}
+              isLoading={pagination.isLoading}
+            />
+          </div>
         </div>
       </div>
 
       <div className={`px-6 py-3.5 border-t text-[11px] flex items-center justify-between font-medium ${isLight ? 'border-slate-100 bg-slate-50/50 text-slate-600' : 'border-slate-800 bg-slate-950/50 text-slate-400'}`}>
         <span className="flex items-center gap-1.5">
           <CheckBadgeIcon className="w-4 h-4 text-emerald-600" />
-          Showing <strong>{filtered.length}</strong> regions accounted
+          Showing <strong>{projects.length}</strong> of <strong>{totalRegions}</strong> regions
         </span>
         <span className="text-xs font-black">
-          Total Sum: <span className={isLight ? 'text-blue-700' : 'text-amber-400'}>{formatCompactMoney(totalFilteredBudget)}</span>
+          Page Total: <span className={isLight ? 'text-blue-700' : 'text-amber-400'}>{formatCompactMoney(pageBudget)}</span>
         </span>
       </div>
     </section>
