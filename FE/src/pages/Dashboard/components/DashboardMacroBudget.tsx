@@ -181,6 +181,8 @@ interface Props {
   selectedYear?: number;
   isBenchmark?: boolean;
   liveBreakdown?: Array<{ name: string; budget: number; projectCount: number }>;
+  /** Only meaningful in Live DB mode — Demo Data renders from the static table above instantly. */
+  isLoading?: boolean;
 }
 
 const LIVE_SEGMENT_COLORS = [
@@ -192,6 +194,7 @@ export const DashboardMacroBudget: React.FC<Props> = ({
   selectedYear = 2027,
   isBenchmark = false,
   liveBreakdown = [],
+  isLoading = false,
 }) => {
   const { isLight } = useDashboardTheme();
   const benchmarkData = MACRO_BUDGET_BY_YEAR[selectedYear] ?? MACRO_BUDGET_BY_YEAR[2027];
@@ -290,6 +293,18 @@ export const DashboardMacroBudget: React.FC<Props> = ({
       </div>
 
       {/* Main Grid: Interactive Donut on Left (4 cols), 2-Column Pillars Grid on Right (8 cols) */}
+      {isLoading && !isBenchmark ? (
+        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
+          <div className="lg:col-span-4 flex items-center justify-center">
+            <div className={`w-52 h-52 rounded-full animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`} />
+          </div>
+          <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className={`h-16 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
+            ))}
+          </div>
+        </div>
+      ) : (
       <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
         {/* Donut Chart & Active Pillar Card (4 cols) */}
         <div className="lg:col-span-4 flex flex-col items-center justify-center">
@@ -478,6 +493,7 @@ export const DashboardMacroBudget: React.FC<Props> = ({
           })}
         </div>
       </div>
+      )}
     </div>
   );
 };
