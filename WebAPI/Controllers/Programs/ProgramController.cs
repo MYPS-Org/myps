@@ -243,14 +243,6 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Year Start '{dto.YearStart}' cannot be earlier than the current year ({Functions.CurrentDate().Year}).", Title = "Invalid Year" });
                 }
-                // 2026-09-19: sibling to the lower-bound check above -- YearStart previously had no
-                // upper bound at all, e.g. 2099 passed cleanly. Projects inherit this value as-is
-                // for GenerateProjectID's YearOffset segment (ProjectController.cs), so this single
-                // check covers Project creation too; Projects never set YearStart independently.
-                if (dto.YearStart > Functions.CurrentDate().Year + 1)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Year Start '{dto.YearStart}' cannot be later than next year ({Functions.CurrentDate().Year + 1}).", Title = "Invalid Year" });
-                }
                 // 2026-09-05: an empty array previously passed both checks below vacuously (an
                 // empty .Where() always yields zero invalid items), silently saving a program
                 // with no Data Security Group / UserGroup at all. A program saved with a blank
