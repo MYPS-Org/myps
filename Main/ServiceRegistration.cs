@@ -50,6 +50,7 @@ namespace Main
                 Services.AddHangfireServer();
             }
 
+            Services.AddSingleton<ISqlExecutor>(new SqlExecutor());
             return Services;
         }
         public static IServiceCollection AddCookieAuthentication(this IServiceCollection Services)
