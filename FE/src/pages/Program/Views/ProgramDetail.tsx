@@ -240,10 +240,19 @@ const ProgramDetail: React.FC = () => {
   // The projects table is sourced separately from the program header (usePagination +
   // ShowProjectsInProgram, since b11ed1b4) — fetchProgramDetail alone never touches it. Every
   // action that mutates project rows must call this after it, or the table keeps showing the
-  // pre-action rows/flags until a full page reload. applyFilters (page 1, cursors cleared) rather
-  // than pagination.refresh(): after a delete the current page's keyset cursor may no longer exist.
-  const refreshProjects = () => {
-    pagination.applyFilters(pagination.currentFilters ?? { ProjectId: '' });
+  // pre-action rows/flags until a full page reload.
+  //
+  // By default the user stays on the page they are on (pagination.refresh()): Restrict/Allow
+  // Publishing, Restore and Publish Program only change flags or add rows, and throwing someone
+  // on page 7 back to page 1 hides the very row they just changed. A delete passes
+  // resetToFirstPage, which goes through applyFilters (page 1, cursors cleared) instead: the
+  // current page's keyset cursor may point at a row that no longer exists.
+  const refreshProjects = (resetToFirstPage = false) => {
+    if (resetToFirstPage) {
+      pagination.applyFilters(pagination.currentFilters ?? { ProjectId: '' });
+      return;
+    }
+    pagination.refresh();
   };
 
   const handleBatchRestoreSubmit = async (programId: string, projectIds: string) => {
@@ -676,11 +685,12 @@ const ProgramDetail: React.FC = () => {
               isActive={programEnums.IsActive}
               isTerminalStage={isTerminalStage}
               defaultStatus={defaultProgramEnums.Details.Status}
-              onRefresh={async () => {
+              onRefresh={async (action) => {
                 await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
                 // Batch Delete / Restrict / Allow change project rows and flags — the table
-                // must be re-fetched too, or it keeps showing the pre-action state.
-                refreshProjects();
+                // must be re-fetched too, or it keeps showing the pre-action state. Only a
+                // delete removes rows, so only a delete goes back to page 1.
+                refreshProjects(action === 'delete');
               }}
               onLoadingChange={setIsLoading}
             />

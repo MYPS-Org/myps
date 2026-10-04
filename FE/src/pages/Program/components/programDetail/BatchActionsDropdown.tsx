@@ -10,7 +10,8 @@ interface BatchActionsDropdownProps {
   isActive: boolean;
   isTerminalStage: boolean;
   defaultStatus: number;
-  onRefresh: () => Promise<void>;
+  /** Told which action just ran: only a delete removes rows, so only it resets the table to page 1. */
+  onRefresh: (action: 'tag' | 'delete' | 'unpublish' | 'publish') => Promise<void>;
   onLoadingChange: (loading: boolean) => void;
 }
 
@@ -56,7 +57,7 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
         default:
           showToast({ type: 'success', message: 'Tags applied successfully to all projects.' });
       }
-      await onRefresh();
+      await onRefresh(action);
     } catch (error) {
       // httpClient's interceptor has already toasted the API's own message (e.g. which
       // project IDs were not found); a second generic toast here only hid that reason.
