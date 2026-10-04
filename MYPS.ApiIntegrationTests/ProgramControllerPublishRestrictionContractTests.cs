@@ -131,6 +131,39 @@ public sealed class ProgramControllerPublishRestrictionContractTests
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Program")]
+    public void BatchDelete_OpensItsTransactionAfterValidation()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchDelete");
+
+        // 2026-10-04: a rejected request must not open a transaction, and the validation reads
+        // must not run inside one. The transaction begins after the last validation refusal
+        // ("Projects Not Found") and before the first write.
+        int begin = method.IndexOf("BeginTransactionAsync", StringComparison.Ordinal);
+        int lastRefusal = method.IndexOf("Projects Not Found", StringComparison.Ordinal);
+        int firstWrite = method.IndexOf("ExecuteUpdateAsync", StringComparison.Ordinal);
+
+        Assert.True(lastRefusal >= 0 && firstWrite >= 0, "BatchDelete's shape changed; revisit this test.");
+        Assert.InRange(begin, lastRefusal, firstWrite);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchAddExistingProject_ScopesItsRevisionLookupToTheProgram()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAddExistingProject");
+
+        // 2026-10-04: without this an id from ANOTHER program is un-deleted there and reported as
+        // restored here. ProgramFK, not ProgramId: a revision keeps the ProgramId of the stage it
+        // was written on, so ProgramId would miss revisions deleted on an earlier stage.
+        Assert.Contains("revision.ProgramFK == ProgramParent.ProgramPK", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
     public void BatchActions_LeaveNoConsoleDebugOutput()
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Newtonsoft.Json;
 using System.Security.Claims;
 using WebAPI.MicroService;
@@ -2204,9 +2205,10 @@ namespace WebAPI.Controllers.Programs
         public async Task<IActionResult> BatchDelete([FromBody] BatchUnpublishTaggingDTO dto, CancellationToken cancellationToken)
         {
             // 2026-09-21: the delete and the program cost recompute below must land together.
-            // An early-return validation failure disposes the transaction without a commit,
-            // which rolls back -- nothing has been written by then anyway.
-            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            // 2026-10-04: opened just before the first write rather than here. Everything above
+            // that point is validation and read-only lookups, and a rejected request should not
+            // pay for a transaction or hold those reads inside one.
+            IDbContextTransaction? transaction = null;
             try
             {
                 if (dto == null)
@@ -2352,6 +2354,8 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
+                transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
                 var updatedCount = await _db.tProjectRevisions
                     .Where(x =>
                         revisionIds.Contains(x.Id) &&
@@ -2407,8 +2411,18 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(cancellationToken);
+                if (transaction != null)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                }
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+            finally
+            {
+                if (transaction != null)
+                {
+                    await transaction.DisposeAsync();
+                }
             }
         }
 
@@ -2466,9 +2480,16 @@ namespace WebAPI.Controllers.Programs
                     .Select(x => x.Trim())
                     .ToArray();
 
-                // Resolve the revision IDs that belong to this program across all of its stages
-                // via tProjectStages, so we can restore projects regardless of which stage they were deleted on.
-
+                // Resolve the deleted revisions that belong to THIS program, across all of its
+                // stages, so a project is restored regardless of which stage it was deleted on.
+                //
+                // 2026-10-04 (RISK: cross-program restore): the lookup below used to filter on
+                // ProjectId and IsDeleted alone, so an id belonging to another program was
+                // un-deleted there and reported as restored here. That was harmless only while
+                // this action could never commit (see the 2026-09-21 note below); once it could,
+                // the scope became load-bearing. ProgramFK rather than ProgramId: a revision
+                // keeps the ProgramId of the stage it was written on, which differs from the
+                // program's current one, while ProgramFK is the same on every stage.
 
                 // 2026-09-21: materialized ONCE, before the update. This used to be a deferred
                 // IQueryable that was re-evaluated three times synchronously -- and the two
@@ -2478,7 +2499,8 @@ namespace WebAPI.Controllers.Programs
                 // dispose without a commit, rolling its own restore back. It could never succeed.
                 var latestDeletedRevisions = await (
                     from revision in _db.tProjectRevisions
-                    where revision.ProjectId != null
+                    where revision.ProgramFK == ProgramParent.ProgramPK
+                          && revision.ProjectId != null
                           && projectIds.Contains(revision.ProjectId)
                           && revision.IsDeleted
                     group revision by revision.ProjectId
