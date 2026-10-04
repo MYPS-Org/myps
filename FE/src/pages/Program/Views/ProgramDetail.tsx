@@ -243,10 +243,10 @@ const ProgramDetail: React.FC = () => {
   // pre-action rows/flags until a full page reload.
   //
   // By default the user stays on the page they are on (pagination.refresh()): Restrict/Allow
-  // Publishing, Restore and Publish Program only change flags or add rows, and throwing someone
-  // on page 7 back to page 1 hides the very row they just changed. A delete passes
-  // resetToFirstPage, which goes through applyFilters (page 1, cursors cleared) instead: the
-  // current page's keyset cursor may point at a row that no longer exists.
+  // Publishing and Publish Program only change flags, and throwing someone on page 7 back to
+  // page 1 hides the very row they just changed. An action that changes WHICH rows exist
+  // (Batch Delete, Batch Restore) passes resetToFirstPage, which goes through applyFilters
+  // (page 1, cursors cleared) instead: the cached keyset cursors no longer describe the pages.
   const refreshProjects = (resetToFirstPage = false) => {
     if (resetToFirstPage) {
       pagination.applyFilters(pagination.currentFilters ?? { ProjectId: '' });
@@ -264,7 +264,7 @@ const ProgramDetail: React.FC = () => {
         message: 'Projects restored successfully.',
       });
       await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
-      refreshProjects();
+      refreshProjects(true);
     } catch (error) {
       // httpClient's interceptor has already toasted the API's own message.
       console.error('Error restoring projects:', error);
