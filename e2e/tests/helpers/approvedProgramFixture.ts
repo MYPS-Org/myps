@@ -70,6 +70,19 @@ const asFixture = (row: any): FixtureProgram => ({
   StartYear: Number(row.StartYear ?? new Date().getFullYear()),
 });
 
+/**
+ * A donor's group list with its blank members dropped.
+ *
+ * Migrated programs can carry one: on myps_db_dpwh_2025 four of the 27 GAA-R
+ * programs hold `[" ", "OI10"]` in DataSecurityGroup, and the first of them is
+ * the donor the lookup below lands on. AddProgram validates every member
+ * against vAdminImplementingOffice and refuses the blank
+ * ("Security Group ' ' is not valid."), so copying the list verbatim made the
+ * fixture uncreatable there — for a reason unrelated to anything a spec tests.
+ */
+const withoutBlanks = (groups: unknown): unknown[] =>
+  (Array.isArray(groups) ? groups : []).filter((g) => String(g ?? '').trim() !== '');
+
 /** The fixture program by name, or null. */
 export const findFixtureProgram = async (
   page: Page,
@@ -119,8 +132,8 @@ export const ensureFixtureProgram = async (
       Type: 1,
       Name: name,
       YearStart: new Date().getFullYear(),
-      DataSecurityGroup: donor.DataSecurityGroup,
-      UserGroup: donor.UserGroup,
+      DataSecurityGroup: withoutBlanks(donor.DataSecurityGroup),
+      UserGroup: withoutBlanks(donor.UserGroup),
       IsSkipped: false,
     });
     if (added.status !== 200) {
