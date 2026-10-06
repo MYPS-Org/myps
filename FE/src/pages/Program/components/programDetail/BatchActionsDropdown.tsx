@@ -10,7 +10,8 @@ interface BatchActionsDropdownProps {
   isActive: boolean;
   isTerminalStage: boolean;
   defaultStatus: number;
-  onRefresh: () => Promise<void>;
+  /** Told which action just ran: only a delete removes rows, so only it resets the table to page 1. */
+  onRefresh: (action: 'tag' | 'delete' | 'unpublish' | 'publish') => Promise<void>;
   onLoadingChange: (loading: boolean) => void;
 }
 
@@ -56,10 +57,17 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
         default:
           showToast({ type: 'success', message: 'Tags applied successfully to all projects.' });
       }
-      await onRefresh();
+      await onRefresh(action);
     } catch (error) {
       console.error(`Error performing batch ${action}:`, error);
-      showToast({ type: 'error', message: `Failed to ${action} projects. Please try again.` });
+      // httpClient's interceptor toasts the API's own message (e.g. which project IDs were not
+      // found) and then rethrows it as an ErrorResponse carrying that Message; a second toast
+      // would only hide that reason. It toasts nothing for a network error or a 401/403/500
+      // without a Message body, and rethrows the raw error, so without this the user saw no
+      // feedback at all.
+      if (!(error as { Message?: string } | undefined)?.Message) {
+        showToast({ type: 'error', message: `Failed to ${action} projects. Please try again.` });
+      }
     } finally {
       onLoadingChange(false);
     }

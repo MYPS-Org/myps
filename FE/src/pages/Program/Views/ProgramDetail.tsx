@@ -237,6 +237,24 @@ const ProgramDetail: React.FC = () => {
   //   setIsBatchRestoreDialogOpen(true);
   // };
 
+  // The projects table is sourced separately from the program header (usePagination +
+  // ShowProjectsInProgram, since b11ed1b4) — fetchProgramDetail alone never touches it. Every
+  // action that mutates project rows must call this after it, or the table keeps showing the
+  // pre-action rows/flags until a full page reload.
+  //
+  // By default the user stays on the page they are on (pagination.refresh()): Restrict/Allow
+  // Publishing and Publish Program only change flags, and throwing someone on page 7 back to
+  // page 1 hides the very row they just changed. An action that changes WHICH rows exist
+  // (Batch Delete, Batch Restore) passes resetToFirstPage, which goes through applyFilters
+  // (page 1, cursors cleared) instead: the cached keyset cursors no longer describe the pages.
+  const refreshProjects = (resetToFirstPage = false) => {
+    if (resetToFirstPage) {
+      pagination.applyFilters(pagination.currentFilters ?? { ProjectId: '' });
+      return;
+    }
+    pagination.refresh();
+  };
+
   const handleBatchRestoreSubmit = async (programId: string, projectIds: string) => {
     try {
       setIsLoading(true);
@@ -246,12 +264,10 @@ const ProgramDetail: React.FC = () => {
         message: 'Projects restored successfully.',
       });
       await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
+      refreshProjects(true);
     } catch (error) {
+      // httpClient's interceptor has already toasted the API's own message.
       console.error('Error restoring projects:', error);
-      showToast({
-        type: 'error',
-        message: 'Failed to restore projects. Please try again.',
-      });
     } finally {
       setIsLoading(false);
     }
@@ -399,10 +415,8 @@ const ProgramDetail: React.FC = () => {
       });
       await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
       // Re-fetch the projects list so the Published/Publishable columns reflect the
-      // statuses PCMA just flipped server-side — fetchProgramDetail alone only refreshes
-      // the program header, not this separately-sourced table (same pattern as the
-      // mount-time [id] effect above).
-      pagination.applyFilters(pagination.currentFilters ?? { ProjectId: '' });
+      // statuses PCMA just flipped server-side (see refreshProjects).
+      refreshProjects();
     } catch (error) {
       console.error('Error publishing program to PCMA:', error);
       showToast({
@@ -671,7 +685,13 @@ const ProgramDetail: React.FC = () => {
               isActive={programEnums.IsActive}
               isTerminalStage={isTerminalStage}
               defaultStatus={defaultProgramEnums.Details.Status}
-              onRefresh={() => fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName)}
+              onRefresh={async (action) => {
+                await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
+                // Batch Delete / Restrict / Allow change project rows and flags — the table
+                // must be re-fetched too, or it keeps showing the pre-action state. Only a
+                // delete removes rows, so only a delete goes back to page 1.
+                refreshProjects(action === 'delete');
+              }}
               onLoadingChange={setIsLoading}
             />
             <ActionsDropdown

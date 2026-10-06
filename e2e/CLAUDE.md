@@ -23,6 +23,11 @@ npm run test:report         # opens the last HTML report
 
 Config: `playwright.config.ts` — 120s test timeout, 10s expect timeout, trace/video/screenshot captured `on` failure only, HTML report to `playwright-report/`. `import 'dotenv/config'` at the top of `playwright.config.ts` loads `e2e/.env` into `process.env` before tests run; `.env` is gitignored, `.env.example` is the committed template.
 
+Two opt-in flags, both off by default because each one writes something a run cannot undo:
+
+- **`E2E_RUN_MANUAL=1`** — includes `tests/zz-manual-*.spec.ts`, which `testIgnore` otherwise excludes. These are one-off scripts in a `test()` wrapper, not tests (e.g. `zz-manual-cleanup` fires `DeleteProgram` at hard-coded names). Until 2026-10-06 nothing excluded them and every plain `npx playwright test` ran them.
+- **`E2E_ALLOW_ORPHANS=1`** — runs tests that must strand a program, because they advance one past BP and nothing can delete it afterwards. Today that is only the rule #2 test in `batch-delete-restore-cross-stage.spec.ts`. Its program is named `e2e-crossstage-orphan-<ISO>`.
+
 ## Login flow
 
 Use `login()` from `tests/helpers/auth.ts` — don't re-implement it inline in a spec:
@@ -34,6 +39,8 @@ await login(page); // uses E2E_USERNAME/E2E_PASSWORD env vars, falls back to tes
 ```
 
 It navigates to `/login`, fills `input#username` / `input#password`, clicks `Sign In`, and waits for the redirect to `/dashboard`. Credentials come from `E2E_USERNAME`/`E2E_PASSWORD` — set them in `e2e/.env` (see `.env.example`) or export them in the shell before running tests. Falls back to `testuser`/`password` if unset. Can also be overridden per-call: `login(page, user, pass)`.
+
+**Never call both `apiLogin()` and `login()` in the same test.** `apiLogin` signs the BROWSER in, not just an API client — `page.request` shares the context's cookie jar — so once fixtures are built the session already exists. `login()` then goes to `/login`, the app redirects an authenticated visitor straight to `/dashboard`, and the `fill()` on a username box that never renders hangs until the test budget runs out. It surfaces as a bare 120s timeout with the dashboard in the screenshot and a stack pointing at whatever teardown was pending, which looks nothing like its cause; the trace is what shows the truth (`fill` pending for the whole run). A spec that builds fixtures through `apiLogin` should just `page.goto()` the route it wants.
 
 ## Selector convention
 
@@ -99,7 +106,10 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 | Dashboard | `tests/dashboard-real-data.spec.ts` | Yes — the demo path asserts the page issues **no `/api/Dashboard/` request at all**; the live path (skipped against `LIVE_DB_ENABLED`) asserts eager KPIs, lazy per-section loading on scroll, and that the split endpoints reconcile with each other. See *The dashboard's Live DB switch* |
 | UserManagement | — | No |
 | InfraManagement | — | No |
-| ProgramList / ProgramDetails | — | No |
+| ProgramList | — | No |
+| ProgramDetails — Batch Actions | `tests/program-detail-batch-actions.spec.ts` | **Partly** — the batch menu only. Batch Delete removes the row from the table **with no page reload**, which is the assertion the pre-fix build fails; the publish actions are asserted hidden until the program is Approved, and Restrict Publishing is asserted to re-query the table after its own call. Uses the approval fixture program, the only one the suite may approve. The rest of the page (header form, stage advance, publish to PCMA) is still uncovered |
+| ProgramDetails — Batch Delete / Restore across stages | `tests/batch-delete-restore-cross-stage.spec.ts` | **Partly** — API level. Default test: on the cross-stage fixture program, a delete at NEP leaves the project listed at BP (rule #1), a restore lists it at NEP again, and a second restore is refused. The true rule #2 test (restore after the program moved on) is **opt-in** (`E2E_ALLOW_ORPHANS=1`) and **fails today on a real product defect**; see *The cross-stage fixture program* |
+| — (not a test) | `tests/zz-manual-cleanup.spec.ts` | One-off cleanup script from 2026-10-05, excluded by `testIgnore`; runs only with `E2E_RUN_MANUAL=1` |
 | ProjectDetails | — | No |
 | RevisionList / RevisionView / RevisionDetails | — | No |
 | ProjectGroupList / ProjectGroupDetails | — | No |
@@ -254,6 +264,10 @@ just an assertion. Three fields caught these specs out:
   dialog pins it to the program's start year, and calendar-year rows drift out of range.
 - **`StartDate` / `EndDate`** — round-trip them too. **Omitting them NULLs them**, and the
   Component Cost dialog then refuses to save that project until they are re-entered.
+- **`UpdateProgramStage`'s `Name`** — send the program's name. The advance writes the new
+  program revision with `Name = dto.Name`, so an advance without it **blanks the program's
+  name**, and every later find-by-name misses it (program 71 on `myps_db_dpwh_2025`,
+  2026-10-06). The UI's `nextStage` always sends it.
 
 The rule generalises: if the form cannot produce a value, a spec should not send one.
 
@@ -348,6 +362,41 @@ Two consequences for every other spec:
   GAA-R program is Approved the helper throws and says so.
 - The sweeper sets the fixture programs back to **Working before it sweeps**. A run that
   aborts while one is Approved would otherwise leave parents `DeleteLumpSum` refuses forever.
+
+### The cross-stage fixture program — `tests/helpers/crossStageFixture.ts`
+
+A project exists on two stages only after its program is **advanced**, and **a program past BP
+can never be deleted**: `DeleteProgram`'s `StagesToCheck` guard refuses it, by design, and no
+other endpoint removes one. So a spec that advances a program must not make a new one per run.
+Before 2026-10-06 the cross-stage spec did, and stranded four programs on `myps_db_dev` and
+one on `myps_db_dpwh_2025`. They are listed in the RCA. Like the approval fixture,
+**"E2E batch delete/restore cross-stage fixture"** is created once, at BP with one ordinary
+project, advanced to NEP, and found by name after that. Every run leaves it as it found it, and
+`ensureCrossStageFixture` heals a run that died between its delete and its restore.
+`programOnStage` skips it and the `e2e-crossstage-orphan-*` programs.
+
+**The program has two identifiers, and the endpoints disagree on which one they want:**
+
+| | Changes? | Wanted by |
+|---|---|---|
+| `ProgramPK` | Never | `ShowProjectsInProgram`. Its field is called `ProgramId`, but it is passed to `fProgramProjects`' `@ProgramPK` |
+| `ProgramId` | **Regenerated on every stage advance** (`<host>_<MMddyyyy>_<HHmmss>` of the advance) | `BatchDelete`, `BatchAddExistingProject`, `UpdateProgramStage` (matched against `vProgramLatest.ProgramId`) |
+
+The two are equal only until the first advance. **Re-read the program by `ProgramPK` after
+every advance** (`advanceProgram` does). A spec that keeps the BP-era `ProgramId` passes only
+when create and advance land in the same second. That is how the old spec passed on
+`myps_db_dev` and failed on `myps_db_dpwh_2025`. The BP→NEP advance also rewrites each
+project's id (`BP01000002LZ` → `P01000002LZ`, `GenerateProjec1stSegment`); `nepProjectId`
+derives it.
+
+**The opt-in rule #2 test fails, and it is right to.** It deletes project A at NEP, advances
+the program to NEP-E, restores A, and expects A listed at NEP but not at NEP-E. On
+`myps_db_dev` (2026-10-06) A was listed at NEP-E too, as a revision **created by the advance**
+under its **BP-era id**. Once A's NEP revision is flagged, `vProjectLatest` falls back to A's
+still-live BP revision, and `UpdateProgramStage` copies every row `vProjectLatest` returns. So
+**a Batch Delete is undone by the next stage advance**, whether or not anyone restores. That
+is a product defect awaiting a decision (see the RCA), not a test bug. Don't loosen the
+assertion to make it pass.
 
 ### Row-level data security — `tests/ls-data-security.spec.ts`
 

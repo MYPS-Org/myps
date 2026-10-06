@@ -1,0 +1,215 @@
+// =============================================================================
+// program-detail-batch-actions.spec.ts — Program Details › Batch Actions act on
+// the table the user is looking at.
+//
+// WHAT THIS PINS. Two independent defects made the menu look dead, and this
+// file failed against each of them in turn:
+//
+//   1. BatchDelete fed vProjectLatest.Id (a tProjects identity) to
+//      tProjectRevisions.Id (a revision identity). It matched 0 of 109,790
+//      listed rows, so a deleted project never left the table — and on 97% of
+//      projects it flagged ANOTHER project's revision instead, answering 200
+//      either way. This test found it: it kept failing after defect 2 was fixed.
+//   2. Since b11ed1b4 (2026-08-08) the projects table is fetched separately from
+//      the program header (usePagination + ShowProjectsInProgram), and
+//      BatchActionsDropdown's onRefresh only reloaded the header, so the screen
+//      kept the pre-action rows and flags until a full page reload.
+//
+// See documents/docs/engineering/MYPS_PROGRAM_DETAIL_BATCH_ACTIONS_RCA.md.
+//
+// So every assertion here is deliberately made WITHOUT reloading the page. A
+// spec that navigated again would pass against the broken build.
+//
+// WHY THE FIXTURE PROGRAM. The publish actions are gated on the program being
+// Approved (ProgramDetail.tsx: isActive && isTerminalStage && Status === 1), and
+// approving a program at GAA-R runs dbo.pRecomputeProjectPublishable over every
+// project it holds, which can DEMOTE real projects. approvedProgramFixture.ts
+// exists for exactly this and is the only program the suite may approve — see
+// e2e/CLAUDE.md, "The approval fixture program".
+//
+// DO NOT ADD login() TO THIS FILE. apiLogin() signs the BROWSER in, not just an
+// API client — page.request shares the context's cookie jar — so by the time the
+// fixtures are built the session already exists. login() then navigates to
+// /login, the app redirects an authenticated visitor straight to /dashboard, and
+// the fill() on a username box that never renders hangs until the test budget
+// runs out. It fails as a 120s timeout with the dashboard in the screenshot,
+// which looks nothing like its cause.
+//
+// WHY THE Publishable CELL IS NOT ASSERTED. Every Lump Sum parent on this
+// database is already IsPublishable = 0 (123 of 123), so Restrict Publishing
+// cannot produce a VISIBLE change on one — and Allow Publishing could not
+// restore it either, because pAllowProjectPublishing only ever GRANTS, and only
+// to a project that satisfies all seven GAA-R rules. Asserting a cell flip would
+// therefore be asserting the fixture's data, not the refresh. The publish path
+// is pinned at the network layer instead: the table must be re-queried after the
+// batch call. Batch Delete carries the visible half — a deleted row disappears.
+// =============================================================================
+
+import { test, expect, type Page } from '@playwright/test';
+import { captureApiCalls } from './helpers/networkCapture';
+import { apiLogin, provisionLumpSum, type ProvisionedLumpSum } from './helpers/lumpSumFixture';
+import { withFixtureProgram, type FixtureProgram } from './helpers/approvedProgramFixture';
+
+/** ProgramDetail's route param is `${ProgramPK}:${StageName}` — see Program.tsx's handleViewDetails. */
+const detailUrl = (program: FixtureProgram) =>
+  `/programs/programdetails/${program.ProgramPK}:${program.StageName}`;
+
+/** The row for one ProjectId in the projects table, by its first cell. */
+const projectRow = (page: Page, projectId: string) =>
+  page.locator('tbody tr').filter({ has: page.getByRole('button', { name: projectId, exact: true }) });
+
+/**
+ * Open the Batch Actions menu and pick one item.
+ *
+ * `exact`, because the menu item and the dialog button that follows it share
+ * their wording ("Restrict Publishing"), as does the confirm button that
+ * follows both ("Yes, Restrict Publishing") under a substring match.
+ */
+const openBatchAction = async (page: Page, item: string) => {
+  await page.getByRole('button', { name: 'Batch Actions' }).click();
+  await page.getByRole('button', { name: item, exact: true }).click();
+};
+
+test.describe('Program Details — batch actions', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test('batch delete removes the row from the table without a reload', async ({ page }) => {
+    await apiLogin(page);
+
+    await withFixtureProgram(page, async ({ program }) => {
+      /*  Provisioned while the program is Working: CreateLumpSum is refused on an
+          Approved one. This parent is the program's only project, and batch
+          deleting it IS its cleanup — the revision ends up soft-deleted either
+          way, which is what the sweeper would have achieved. */
+      const parent: ProvisionedLumpSum = await provisionLumpSum(
+        page,
+        1_000_000,
+        'batch actions delete target',
+        { programPK: program.ProgramPK },
+      );
+
+      await page.goto(detailUrl(program)); // already authenticated — see the header
+
+      const row = projectRow(page, parent.projectId);
+      await expect(row, 'the provisioned project is listed before the delete').toBeVisible();
+
+      await openBatchAction(page, 'Batch Delete');
+      await page.locator('textarea#projectIds').fill(parent.projectId);
+      await page.getByRole('button', { name: 'Delete Projects', exact: true }).click();
+
+      /*  The confirm dialog asks for the word, then repeats the action in its own
+          words. `exact`, because placeholder matching is case-INSENSITIVE and a
+          substring by default, so a bare 'DELETE' also matches the ID textarea
+          behind it ("Enter project IDs to delete..."). */
+      await page.getByPlaceholder('DELETE', { exact: true }).fill('DELETE');
+      await page.getByRole('button', { name: 'Yes, Delete Projects', exact: true }).click();
+
+      /*  THE ASSERTION. No goto, no reload: the row must leave the table on its
+          own, because the batch handler re-queried the list.
+
+          WHY ONE evaluate() AND NOT A PAIR OF LOCATOR ASSERTIONS.
+          onLoadingChange flips isLoading, and ProgramDetail returns a skeleton
+          for the WHOLE page while the request is in flight — so for a second or
+          two there is no table at all, however broken the handler is. Two forms
+          of this assertion were caught passing against the PRE-FIX build:
+            - a bare toBeHidden() on the row, satisfied outright by the skeleton;
+            - "heading visible AND row count 0" as two sequential awaits, which
+              sample two different instants and straddle the skeleton's edge.
+          Both were verified green with the fix reverted, which is how they were
+          found. So the page is read ONCE, atomically, and reports `loading`
+          explicitly — a state that can never be mistaken for `absent`.
+
+          "Rendered" is the Projects <h2>, which exists only when ProgramDetail
+          is past its skeleton. Do NOT test for '.animate-pulse' instead: the
+          GLOBAL Preloader carries that class too and stays in the DOM, so the
+          page reads as loading for ever and the poll times out whether the build
+          is fixed or not — which it duly did, on both. */
+      await expect
+        .poll(
+          () =>
+            page.evaluate((projectId) => {
+              const rendered = Array.from(document.querySelectorAll('h2')).some(
+                (h) => h.textContent?.trim() === 'Projects',
+              );
+              if (!rendered) return 'loading';
+              const rows = Array.from(document.querySelectorAll('tbody tr'));
+              return rows.some((r) => r.textContent?.includes(projectId)) ? 'present' : 'absent';
+            }, parent.projectId),
+          {
+            timeout: 60_000,
+            message: 'the deleted row is gone once the page has re-rendered, with no reload',
+          },
+        )
+        .toBe('absent');
+    });
+  });
+
+  test('the publish actions appear only once the program is Approved, and re-query the table', async ({ page }) => {
+    await apiLogin(page);
+
+    await withFixtureProgram(page, async ({ program, approve }) => {
+      const parent = await provisionLumpSum(
+        page,
+        1_000_000,
+        'batch actions publish target',
+        { programPK: program.ProgramPK },
+      );
+
+      await page.goto(detailUrl(program)); // already authenticated — see the header
+      await expect(projectRow(page, parent.projectId)).toBeVisible();
+
+      /*  Working: Batch Delete is offered, the two publish actions are not.
+          showPublishActions needs Status === Approved. */
+      await page.getByRole('button', { name: 'Batch Actions' }).click();
+      await expect(page.getByRole('button', { name: 'Batch Delete', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Restrict Publishing', exact: true })).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Allow Publishing', exact: true })).toBeHidden();
+      await page.keyboard.press('Escape');
+
+      await approve();
+      await page.goto(detailUrl(program)); // re-read the program: its Status changed server-side
+
+      const calls = captureApiCalls(page, [
+        '/api/Program/BatchRestrictPublish',
+        '/api/Program/ShowProjectsInProgram',
+      ]);
+
+      await openBatchAction(page, 'Restrict Publishing');
+      await page.locator('textarea#projectIds').fill(parent.projectId);
+      await page.getByRole('button', { name: 'Restrict Publishing', exact: true }).click();
+      await page.getByRole('button', { name: 'Yes, Restrict Publishing', exact: true }).click();
+
+      /*  The server accepted it, and the table was re-queried AFTERWARDS. The
+          ordering is the point: before the fix the only ShowProjectsInProgram
+          calls were the ones from page load, and none followed the batch call. */
+      await expect
+        .poll(() => calls.filter((c) => c.url.includes('BatchRestrictPublish')).length, {
+          timeout: 30_000,
+        })
+        .toBe(1);
+
+      const batchCall = calls.find((c) => c.url.includes('BatchRestrictPublish'))!;
+      expect(batchCall.status, JSON.stringify(batchCall.responseBody)).toBe(200);
+
+      const batchIndex = calls.indexOf(batchCall);
+      await expect
+        .poll(
+          () =>
+            calls
+              .slice(batchIndex + 1)
+              .filter((c) => c.url.includes('ShowProjectsInProgram') && c.status === 200).length,
+          { timeout: 30_000 },
+        )
+        .toBeGreaterThan(0);
+
+      test.info().attach('batch-restrict-api-calls', {
+        body: JSON.stringify(calls, null, 2),
+        contentType: 'application/json',
+      });
+
+      /*  Tidy up while the program is still Approved only in this block —
+          withFixtureProgram restores Working in its own finally, and the sweeper
+          removes the parent by its (e2e …) marker. */
+    });
+  });
+});

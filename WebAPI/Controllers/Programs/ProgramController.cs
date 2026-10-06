@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Newtonsoft.Json;
 using System.Security.Claims;
 using WebAPI.MicroService;
@@ -1949,10 +1950,6 @@ namespace WebAPI.Controllers.Programs
                         restrictedProjectIds);
 
 
-                Console.WriteLine(
-                    $">>> pAllowProjectPublishing ProjectIds = {projectIdsJson}");
-
-
                 // ====================================================================
                 // TRANSACTION
                 // ====================================================================
@@ -2207,6 +2204,11 @@ namespace WebAPI.Controllers.Programs
         [HttpPost]
         public async Task<IActionResult> BatchDelete([FromBody] BatchUnpublishTaggingDTO dto, CancellationToken cancellationToken)
         {
+            // 2026-09-21: the delete and the program cost recompute below must land together.
+            // 2026-10-04: opened just before the first write rather than here. Everything above
+            // that point is validation and read-only lookups, and a rejected request should not
+            // pay for a transaction or hold those reads inside one.
+            IDbContextTransaction? transaction = null;
             try
             {
                 if (dto == null)
@@ -2306,7 +2308,23 @@ namespace WebAPI.Controllers.Programs
                         requestedProjectIds.Contains(x.ProjectId))
                     .Select(x => new
                     {
-                        x.Id,
+                        // 2026-09-21 (RISK: wrong-row delete): this used to select x.Id and
+                        // feed it to tProjectRevisions.Id below. vProjectLatest.Id is
+                        // tProjects.Id; the revision key is vProjectLatest.RevisionId. The two
+                        // are DIFFERENT for all 115,350 rows on myps_db_dev_200 -- never equal
+                        // by construction, since they are identities of different tables.
+                        //
+                        // Measured on that database, over the 115,350 projects a user could
+                        // paste in: the old key hit ANOTHER project's revision 112,115 times
+                        // (97%), hit nothing 2,064 times, and hit its own only 1,171 times by
+                        // coincidence of numbering. So Batch Delete either flagged an unrelated
+                        // project -- in another program, invisibly -- or silently did nothing
+                        // and still answered 200, which the UI shows as a success toast. Against
+                        // the project LIST (fProgramProjects, which joins tProjectStages
+                        // .RevisionId) the old key matched 0 of 109,790 listed rows and the new
+                        // one matches 109,788, so the deleted row could never have left the
+                        // table. That is the "batch delete does nothing" report.
+                        x.RevisionId,
                         x.ProjectId
                     })
                     .ToListAsync(cancellationToken);
@@ -2321,7 +2339,7 @@ namespace WebAPI.Controllers.Programs
                     .ToArray();
 
                 var revisionIds = projectRevisions
-                    .Select(x => x.Id)
+                    .Select(x => x.RevisionId)
                     .Distinct()
                     .ToArray();
 
@@ -2335,6 +2353,8 @@ namespace WebAPI.Controllers.Programs
                         MissingProjectIds = missingProjectIds
                     });
                 }
+
+                transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
                 var updatedCount = await _db.tProjectRevisions
                     .Where(x =>
@@ -2359,6 +2379,15 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
+                // 2026-09-21: a deleted project no longer counts toward its program's Cost
+                // (pRecomputeProgramCost counts ordinary projects on their latest live revision
+                // at the current stage), and Program Details reads the STORED
+                // tProgramRevisions.Cost -- so without this the header kept the pre-delete
+                // figure until some other write recomputed it. Same helper every other
+                // project-mutating action uses (Helpers/ProgramCostRecompute.cs).
+                await _db.RecomputeProgramCostAsync(programDetails.ProgramPK, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
                 if (missingProjectIds.Length > 0)
                 {
                     return Ok(new
@@ -2382,7 +2411,30 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
+                if (transaction != null)
+                {
+                    // 2026-10-06: CancellationToken.None, not the request's token. When the
+                    // request is cancelled mid-write, `ex` is that cancellation, and a rollback
+                    // handed the same token throws again here, inside the catch, so the error
+                    // never reached _exceptionHandler and went out as a raw 500, unlogged.
+                    // A rollback that fails for any other reason must not mask `ex` either;
+                    // DisposeAsync in the finally still rolls back an uncommitted transaction.
+                    try
+                    {
+                        await transaction.RollbackAsync(CancellationToken.None);
+                    }
+                    catch
+                    {
+                    }
+                }
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+            finally
+            {
+                if (transaction != null)
+                {
+                    await transaction.DisposeAsync();
+                }
             }
         }
 
@@ -2440,13 +2492,27 @@ namespace WebAPI.Controllers.Programs
                     .Select(x => x.Trim())
                     .ToArray();
 
-                // Resolve the revision IDs that belong to this program across all of its stages
-                // via tProjectStages, so we can restore projects regardless of which stage they were deleted on.
+                // Resolve the deleted revisions that belong to THIS program, across all of its
+                // stages, so a project is restored regardless of which stage it was deleted on.
+                //
+                // 2026-10-04 (RISK: cross-program restore): the lookup below used to filter on
+                // ProjectId and IsDeleted alone, so an id belonging to another program was
+                // un-deleted there and reported as restored here. That was harmless only while
+                // this action could never commit (see the 2026-09-21 note below); once it could,
+                // the scope became load-bearing. ProgramFK rather than ProgramId: a revision
+                // keeps the ProgramId of the stage it was written on, which differs from the
+                // program's current one, while ProgramFK is the same on every stage.
 
-
-                var latestDeletedRevisionsQuery =
+                // 2026-09-21: materialized ONCE, before the update. This used to be a deferred
+                // IQueryable that was re-evaluated three times synchronously -- and the two
+                // evaluations AFTER the ExecuteUpdate below saw `IsDeleted = 0` rows, i.e. nothing:
+                // restoredSet came back empty (every id reported "not found") and `.Count() > 0`
+                // was false, so the action answered "No Projects Restored" and let the transaction
+                // dispose without a commit, rolling its own restore back. It could never succeed.
+                var latestDeletedRevisions = await (
                     from revision in _db.tProjectRevisions
-                    where revision.ProjectId != null
+                    where revision.ProgramFK == ProgramParent.ProgramPK
+                          && revision.ProjectId != null
                           && projectIds.Contains(revision.ProjectId)
                           && revision.IsDeleted
                     group revision by revision.ProjectId
@@ -2455,8 +2521,9 @@ namespace WebAPI.Controllers.Programs
                     {
                         ProjectId = revisionGroup.Key,
                         Id = revisionGroup.Max(x => x.Id)
-                    };
-                HashSet<int> ProjectRevisionIds = latestDeletedRevisionsQuery.Select(x => x.Id).ToHashSet();
+                    })
+                    .ToListAsync(cancellationToken);
+                HashSet<int> ProjectRevisionIds = latestDeletedRevisions.Select(x => x.Id).ToHashSet();
                 var projectsToRestore = await _db.tProjectRevisions.Where(x => ProjectRevisionIds.Contains(x.Id))
                     .ExecuteUpdateAsync(
                         setters => setters.SetProperty(
@@ -2466,7 +2533,7 @@ namespace WebAPI.Controllers.Programs
 
 
                 var restoredSet = new HashSet<string>(
-                    latestDeletedRevisionsQuery.Select(x => x.ProjectId),
+                    latestDeletedRevisions.Select(x => x.ProjectId!),
                     StringComparer.OrdinalIgnoreCase
                 );
 
@@ -2474,10 +2541,11 @@ namespace WebAPI.Controllers.Programs
                     .Where(x => !restoredSet.Contains(x))
                     .ToArray();
 
-                if (latestDeletedRevisionsQuery.Count() > 0)
+                if (latestDeletedRevisions.Count > 0)
                 {
-                    await _db.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync();
+                    // ExecuteUpdateAsync bypasses the change tracker, so there is nothing for
+                    // SaveChangesAsync to flush; the commit is what persists the restore.
+                    await transaction.CommitAsync(cancellationToken);
 
                     return Ok(new
                     {
