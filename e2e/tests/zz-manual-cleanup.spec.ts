@@ -18,9 +18,11 @@
 // WHY THIS IS NOT PICKED UP AS A REAL TEST. It has no assertions -- it is a
 // fire-and-log script wearing a `test()` wrapper only because that is the
 // simplest way to get an authenticated `page.request` context from Playwright.
-// Running it is always a deliberate, manual, one-off action
-// (`npx playwright test zz-manual-cleanup.spec.ts`), never part of a normal
-// suite run.
+// playwright.config.ts excludes `zz-manual-*.spec.ts` through testIgnore, so
+// it never runs as part of a suite. Running it is always deliberate:
+// `E2E_RUN_MANUAL=1 npx playwright test zz-manual-cleanup.spec.ts`.
+// (Until 2026-10-06 nothing excluded it, and every plain
+// `npx playwright test` ran it, despite what this comment then said.)
 //
 // WHY THESE 3 SPECIFIC PROGRAMS NEEDED A SECOND PASS.
 // `DeleteProgram` (ProgramController.cs) refuses a program that has

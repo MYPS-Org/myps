@@ -4,6 +4,14 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
 
+  /*  MANUAL SCRIPTS ARE NOT TESTS. A `zz-manual-*.spec.ts` file is a one-off
+      tool wearing a test() wrapper only to get a signed-in page.request — e.g.
+      zz-manual-cleanup.spec.ts fires DeleteProgram at hard-coded program names.
+      Inside testDir with nothing excluding it, every plain `npx playwright test`
+      ran it against whatever E2E_API_URL pointed at (found 2026-10-06). It runs
+      only on purpose now: E2E_RUN_MANUAL=1 npx playwright test zz-manual-cleanup. */
+  testIgnore: process.env.E2E_RUN_MANUAL ? [] : ['**/zz-manual-*.spec.ts'],
+
   /*  SWEEP WHATEVER HAPPENED. globalTeardown runs after the whole run —
       passed, failed, or aborted mid-file — which is exactly what afterAll does
       not do. A run whose first request times out against a cold API abandons
