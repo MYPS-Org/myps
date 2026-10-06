@@ -59,9 +59,15 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
       }
       await onRefresh(action);
     } catch (error) {
-      // httpClient's interceptor has already toasted the API's own message (e.g. which
-      // project IDs were not found); a second generic toast here only hid that reason.
       console.error(`Error performing batch ${action}:`, error);
+      // httpClient's interceptor toasts the API's own message (e.g. which project IDs were not
+      // found) and then rethrows it as an ErrorResponse carrying that Message; a second toast
+      // would only hide that reason. It toasts nothing for a network error or a 401/403/500
+      // without a Message body, and rethrows the raw error, so without this the user saw no
+      // feedback at all.
+      if (!(error as { Message?: string } | undefined)?.Message) {
+        showToast({ type: 'error', message: `Failed to ${action} projects. Please try again.` });
+      }
     } finally {
       onLoadingChange(false);
     }
