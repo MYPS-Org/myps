@@ -243,7 +243,10 @@ test.describe('Program Details — batch actions', () => {
 
       /*  Go to page 2 and take whichever project the table put there — the
           list's sort order is the server's business, not this test's. */
-      await page.getByRole('button', { name: '2', exact: true }).click();
+      // The pager labels its buttons `Page ${n}` (tailwindui/pagination.tsx), so the
+      // accessible name is "Page 2", not "2" — a bare '2' never matches and the click
+      // waits out the whole test budget on page 1.
+      await page.getByRole('button', { name: 'Page 2', exact: true }).click();
       const firstRowButton = page.locator('tbody tr').first().getByRole('button').first();
       await expect(firstRowButton).toBeVisible();
       const pageTwoProjectId = (await firstRowButton.innerText()).trim();

@@ -36,12 +36,28 @@ import { execSync } from 'child_process';
 
 const TAG = `e2e-publishguard-${Date.now()}`;
 
+// The direct SQL step must hit the SAME database the API under test
+// (E2E_API_URL) is wired to, or the flip lands somewhere else and the skip
+// assertions fail for an environment reason. There is no safe default: a
+// committed server/credential would silently target a shared server. Set
+// these in e2e/.env (gitignored) to the API's MYPSDb connection:
+//
+//   E2E_SQL_SERVER=localhost
+//   E2E_SQL_DB=myps_db_dev
+//   E2E_SQL_USER=sa            # omit USER/PASSWORD to use Windows auth (-E)
+//   E2E_SQL_PASSWORD=...
+//
+// Without E2E_SQL_SERVER and E2E_SQL_DB the file skips, loudly.
+const SQL_SERVER = process.env.E2E_SQL_SERVER;
+const SQL_DB = process.env.E2E_SQL_DB;
+const SQL_USER = process.env.E2E_SQL_USER;
+const SQL_PASSWORD = process.env.E2E_SQL_PASSWORD;
+
 const SQLCMD = [
   'sqlcmd',
-  '-S', '192.168.50.200',
-  '-d', 'myps_db_dev',
-  '-U', 'sa',
-  '-P', '"***REMOVED***"',
+  '-S', SQL_SERVER ?? '',
+  '-d', SQL_DB ?? '',
+  ...(SQL_USER ? ['-U', SQL_USER, '-P', `"${SQL_PASSWORD ?? ''}"`] : ['-E']),
   '-C', '-y', '0', '-Y', '0',
 ].join(' ');
 
@@ -51,6 +67,11 @@ function runSql(query: string): string {
 }
 
 test.describe('Batch Restrict/Allow Publishing skip already-published projects', () => {
+  test.skip(
+    !SQL_SERVER || !SQL_DB,
+    'E2E_SQL_SERVER and E2E_SQL_DB must name the database the API under test uses (see file header)'
+  );
+
   let programId = '';
   let programPK = '';
   let unpublishedProjectId = '';
