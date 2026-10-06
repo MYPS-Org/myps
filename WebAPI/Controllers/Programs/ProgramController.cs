@@ -1569,17 +1569,23 @@ namespace WebAPI.Controllers.Programs
                  * Correct SQL membership query.
                  * Do not serialize requestedProjectIds into JSON manually.
                  */
-                var projectRevisions = await _db.vProjectLatest
-                    .AsNoTracking()
-                    .Where(x =>
-                        x.ProgramId == dto.ProgramId &&
-                        x.StageName == programDetails.StageName &&
-                        x.ProjectId != null &&
-                        requestedProjectIds.Contains(x.ProjectId))
-                    .Select(x => new
+                var projectRevisions = await (
+                    from revision in _db.vProjectLatest.AsNoTracking()
+
+                    join project in _db.tProjects.AsNoTracking()
+                        on revision.ProjectPK equals project.ProjectPK
+
+                    where
+                        revision.ProgramId == dto.ProgramId &&
+                        revision.StageName == programDetails.StageName &&
+                        revision.ProjectId != null &&
+                        requestedProjectIds.Contains(revision.ProjectId)
+
+                    select new
                     {
-                        x.ProjectId,
-                        x.ProjectPK
+                        revision.ProjectId,
+                        revision.ProjectPK,
+                        project.IsPublished
                     })
                     .ToListAsync(cancellationToken);
 
@@ -1592,8 +1598,19 @@ namespace WebAPI.Controllers.Programs
                     .Where(id => !existingProjectIds.Contains(id))
                     .ToArray();
 
+                // 2026-10-05: once a project is published to PCMA, it is never published
+                // again through this action -- re-publishing only happens through a
+                // separate revision function/module, out of scope here. Skip already-
+                // published projects rather than touching their IsPublishable flag, and
+                // process the rest of the batch normally (operator-confirmed behavior).
+                var alreadyPublishedProjectIds = projectRevisions
+                    .Where(x => x.IsPublished && !string.IsNullOrWhiteSpace(x.ProjectId))
+                    .Select(x => x.ProjectId!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
                 var projectPks = projectRevisions
-                    .Where(x => !string.IsNullOrWhiteSpace(x.ProjectPK))
+                    .Where(x => !x.IsPublished && !string.IsNullOrWhiteSpace(x.ProjectPK))
                     .Select(x => x.ProjectPK!)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
@@ -1603,9 +1620,14 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new
                     {
                         Message =
-                            "None of the supplied project IDs were found.",
+                            alreadyPublishedProjectIds.Length > 0
+                                ? "None of the supplied project IDs were updated. The matched " +
+                                  "project(s) are already published and are never restricted " +
+                                  "through this action."
+                                : "None of the supplied project IDs were found.",
                         Title = "Projects Not Found",
-                        MissingProjectIds = missingProjectIds
+                        MissingProjectIds = missingProjectIds,
+                        SkippedAlreadyPublishedProjectIds = alreadyPublishedProjectIds
                     });
                 }
 
@@ -1627,16 +1649,18 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
-                if (missingProjectIds.Length > 0)
+                if (missingProjectIds.Length > 0 || alreadyPublishedProjectIds.Length > 0)
                 {
                     return Ok(new
                     {
                         Message =
                             $"{updatedCount} project(s) were excluded from automatic " +
-                            "publication to PCMA. Some project IDs were not found.",
+                            "publication to PCMA. Some project IDs were not found or " +
+                            "were skipped because they are already published.",
                         Title = "Restrict Publishing Partially Successful",
                         UpdatedCount = updatedCount,
-                        MissingProjectIds = missingProjectIds
+                        MissingProjectIds = missingProjectIds,
+                        SkippedAlreadyPublishedProjectIds = alreadyPublishedProjectIds
                     });
                 }
 
@@ -1646,7 +1670,8 @@ namespace WebAPI.Controllers.Programs
                         $"{updatedCount} project(s) were excluded from automatic publication to PCMA.",
                     Title = "Restrict Publishing Successful",
                     UpdatedCount = updatedCount,
-                    MissingProjectIds = Array.Empty<string>()
+                    MissingProjectIds = Array.Empty<string>(),
+                    SkippedAlreadyPublishedProjectIds = Array.Empty<string>()
                 });
             }
             catch (Exception ex)
@@ -1804,7 +1829,8 @@ namespace WebAPI.Controllers.Programs
                     {
                         ProjectId = revision.ProjectId,
                         ProjectPK = project.ProjectPK,
-                        project.IsPublishable
+                        project.IsPublishable,
+                        project.IsPublished
                     })
                     .ToListAsync(cancellationToken);
 
@@ -1831,13 +1857,30 @@ namespace WebAPI.Controllers.Programs
 
 
                 // ====================================================================
+                // PROJECTS ALREADY PUBLISHED TO PCMA
+                //
+                // 2026-10-05: once a project is published, it is never published again
+                // through this action -- re-publishing only happens through a separate
+                // revision function/module, out of scope here. Skip them rather than
+                // sending them to pAllowProjectPublishing, and process the rest of the
+                // batch normally (operator-confirmed behavior).
+                // ====================================================================
+
+                var alreadyPublishedProjectIds = matchedProjects
+                    .Where(x => x.IsPublished && !string.IsNullOrWhiteSpace(x.ProjectId))
+                    .Select(x => x.ProjectId!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+
+                // ====================================================================
                 // PROJECTS ALREADY PUBLISHABLE
                 //
                 // No need to send these to pAllowProjectPublishing.
                 // ====================================================================
 
                 var alreadyAllowedProjectIds = matchedProjects
-                    .Where(x => x.IsPublishable)
+                    .Where(x => x.IsPublishable && !x.IsPublished)
                     .Select(x => x.ProjectId!)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
@@ -1849,11 +1892,14 @@ namespace WebAPI.Controllers.Programs
                 // IMPORTANT:
                 //
                 // pAllowProjectPublishing accepts PROJECT IDS, not ProjectPK values.
+                // Already-published projects are excluded here too (see above) so they
+                // are never sent to the SP at all.
                 // ====================================================================
 
                 var restrictedProjectIds = matchedProjects
                     .Where(x =>
                         !x.IsPublishable
+                        && !x.IsPublished
                         && !string.IsNullOrWhiteSpace(x.ProjectId))
                     .Select(x => x.ProjectId!)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1878,13 +1924,16 @@ namespace WebAPI.Controllers.Programs
                             0,
 
                         MissingProjectIds =
-                            missingProjectIds
+                            missingProjectIds,
+
+                        SkippedAlreadyPublishedProjectIds =
+                            Array.Empty<string>()
                     });
                 }
 
 
                 // ====================================================================
-                // EVERYTHING ALREADY ALLOWED
+                // EVERYTHING ALREADY ALLOWED, OR ONLY ALREADY-PUBLISHED PROJECTS MATCHED
                 // ====================================================================
 
                 if (restrictedProjectIds.Length == 0)
@@ -1892,8 +1941,11 @@ namespace WebAPI.Controllers.Programs
                     return Ok(new
                     {
                         Message =
-                            "No changes were required because all matching projects " +
-                            "are already allowed for automatic publication to PCMA.",
+                            alreadyPublishedProjectIds.Length > 0 && alreadyAllowedProjectIds.Length == 0
+                                ? "No changes were made. The matched project(s) are already " +
+                                  "published and are never re-validated through this action."
+                                : "No changes were required because all matching projects " +
+                                  "are already allowed for automatic publication to PCMA.",
 
                         Title =
                             "No Changes Required",
@@ -1905,7 +1957,10 @@ namespace WebAPI.Controllers.Programs
                             missingProjectIds,
 
                         AlreadyAllowedProjectIds =
-                            alreadyAllowedProjectIds
+                            alreadyAllowedProjectIds,
+
+                        SkippedAlreadyPublishedProjectIds =
+                            alreadyPublishedProjectIds
                     });
                 }
 
@@ -1917,6 +1972,7 @@ namespace WebAPI.Controllers.Programs
                 var beforeStatuses = matchedProjects
                     .Where(x =>
                         !x.IsPublishable
+                        && !x.IsPublished
                         && !string.IsNullOrWhiteSpace(x.ProjectId))
                     .ToDictionary(
                         x => x.ProjectPK,
@@ -2091,7 +2147,10 @@ namespace WebAPI.Controllers.Programs
                             missingProjectIds,
 
                         AlreadyAllowedProjectIds =
-                            alreadyAllowedProjectIds
+                            alreadyAllowedProjectIds,
+
+                        SkippedAlreadyPublishedProjectIds =
+                            alreadyPublishedProjectIds
                     });
                 }
 
@@ -2124,7 +2183,10 @@ namespace WebAPI.Controllers.Programs
                             missingProjectIds,
 
                         AlreadyAllowedProjectIds =
-                            alreadyAllowedProjectIds
+                            alreadyAllowedProjectIds,
+
+                        SkippedAlreadyPublishedProjectIds =
+                            alreadyPublishedProjectIds
                     });
                 }
 
@@ -2158,7 +2220,10 @@ namespace WebAPI.Controllers.Programs
                             missingProjectIds,
 
                         AlreadyAllowedProjectIds =
-                            alreadyAllowedProjectIds
+                            alreadyAllowedProjectIds,
+
+                        SkippedAlreadyPublishedProjectIds =
+                            alreadyPublishedProjectIds
                     });
                 }
 
@@ -2189,7 +2254,10 @@ namespace WebAPI.Controllers.Programs
                         Array.Empty<string>(),
 
                     AlreadyAllowedProjectIds =
-                        alreadyAllowedProjectIds
+                        alreadyAllowedProjectIds,
+
+                    SkippedAlreadyPublishedProjectIds =
+                        alreadyPublishedProjectIds
                 });
             }
             catch (Exception ex)

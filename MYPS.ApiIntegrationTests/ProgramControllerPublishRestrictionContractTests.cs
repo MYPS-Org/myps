@@ -26,9 +26,33 @@ public sealed class ProgramControllerPublishRestrictionContractTests
         string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
         string method = ExtractMethod(source, "BatchRestrictPublish");
 
-        Assert.Contains("x.ProgramId == dto.ProgramId", method, StringComparison.Ordinal);
-        Assert.Contains("x.StageName == programDetails.StageName", method, StringComparison.Ordinal);
-        Assert.Contains("requestedProjectIds.Contains(x.ProjectId)", method, StringComparison.Ordinal);
+        // 2026-10-05: switched from a flat Where() on vProjectLatest to a join against
+        // tProjects, so the already-published guard (see
+        // BatchRestrictPublish_SkipsAlreadyPublishedProjects below) can read IsPublished
+        // in the same query. The scoping this test protects -- ProgramId + current Stage
+        // + the requested ProjectIds -- is unchanged, just read through the join's
+        // "revision" range variable instead of a bare "x".
+        Assert.Contains("revision.ProgramId == dto.ProgramId", method, StringComparison.Ordinal);
+        Assert.Contains("revision.StageName == programDetails.StageName", method, StringComparison.Ordinal);
+        Assert.Contains("requestedProjectIds.Contains(revision.ProjectId)", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchRestrictPublish_SkipsAlreadyPublishedProjects()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchRestrictPublish");
+
+        // 2026-10-05 fix (operator-confirmed): a project that is already published to PCMA
+        // (tProjects.IsPublished = 1) is never restricted through this action -- re-publishing
+        // only happens through a separate revision function/module. Guards that this method
+        // excludes IsPublished projects from the update set rather than flipping IsPublishable
+        // on them, and reports which ones were skipped.
+        Assert.Contains("alreadyPublishedProjectIds", method, StringComparison.Ordinal);
+        Assert.Contains("!x.IsPublished", method, StringComparison.Ordinal);
+        Assert.Contains("SkippedAlreadyPublishedProjectIds", method, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -42,6 +66,22 @@ public sealed class ProgramControllerPublishRestrictionContractTests
         Assert.Contains("revision.ProgramId == dto.ProgramId", method, StringComparison.Ordinal);
         Assert.Contains("revision.StageName == programDetails.StageName", method, StringComparison.Ordinal);
         Assert.Contains("requestedProjectIds.Contains(revision.ProjectId)", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchAllowPublish_SkipsAlreadyPublishedProjects()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAllowPublish");
+
+        // 2026-10-05 fix (operator-confirmed): same guard as BatchRestrictPublish. An
+        // already-published project is never sent to pAllowProjectPublishing and never
+        // included in restrictedProjectIds -- it is reported as skipped instead.
+        Assert.Contains("alreadyPublishedProjectIds", method, StringComparison.Ordinal);
+        Assert.Contains("!x.IsPublished", method, StringComparison.Ordinal);
+        Assert.Contains("SkippedAlreadyPublishedProjectIds", method, StringComparison.Ordinal);
     }
 
     [Fact]
