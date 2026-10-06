@@ -7,7 +7,7 @@
 // live project forward as a new revision). Once a program is past BP nothing can
 // delete it: DeleteProgram's StagesToCheck guard refuses it unconditionally, by
 // design. A per-run program is therefore a permanent orphan. Before 2026-10-06 the
-// spec made one per run, and four were stranded on each of myps_db_dev and
+// spec made one per run, stranding four on myps_db_dev and one on
 // myps_db_dpwh_2025. So, like the approval fixture (approvedProgramFixture.ts),
 // this program is created once, found by an unmistakable name, and every run
 // leaves it exactly as it found it.

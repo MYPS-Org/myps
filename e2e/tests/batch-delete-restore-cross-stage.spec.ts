@@ -24,7 +24,8 @@
 //     every run strands a program. It runs only with E2E_ALLOW_ORPHANS=1, and
 //     its program is named `e2e-crossstage-orphan-<ISO>` so it can be found later.
 //
-// Before 2026-10-06 this file created a fresh program per run and "cleaned up"
+// Before 2026-10-06 this file created a fresh program per run (stranding four on
+// myps_db_dev and one on myps_db_dpwh_2025) and "cleaned up"
 // in an afterAll that could never succeed: it used the unauthenticated `request`
 // fixture against a hard-coded :5015, and DeleteProgram refuses a program past
 // BP anyway. It also reused the BP-era ProgramId after the advance, which

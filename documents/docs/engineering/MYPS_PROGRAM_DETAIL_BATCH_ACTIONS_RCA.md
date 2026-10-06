@@ -90,6 +90,30 @@ The spec does not assert that the Publishable cell changes value. Every Lump Sum
 
 The delete is a flag, so nothing is gone. Wrongly flagged rows are `tProjectRevisions` with `IsDeleted = 1` whose project the operator did not name. Two ways to find them: the transaction log around the time the action was used, and the arithmetic of the defect itself — for a project the operator did name, the row that was wrongly flagged is the revision whose `Id` equals that project's `tProjects.Id`. Clearing the flag on those rows restores them. This has not been done on any database; `myps_db_dev_200` carries only rows this investigation created and deleted deliberately.
 
+**Checked 2026-10-06, read-only:** the production copy `localhost/myps_db_dpwh` (snapshot 2026-09-20) holds **zero** deleted project revisions, so the defect never ran there and nothing needs clearing. `myps_db_dpwh_2025`'s six are all e2e fixtures. Live production may have changed since the snapshot; one `SELECT COUNT(*) FROM tProjectRevisions WHERE IsDeleted = 1` there before the release cut settles it.
+
+## Follow-up review, 2026-10-06
+
+Branch `fix/batch-delete-restore-cross-stage-verification`; plan `documents/plans/batch-delete-cross-stage-review-fixes.md`.
+
+**A Batch Delete is undone by the next stage advance. Open; needs a decision.** Found by the opt-in rule #2 test in `e2e/tests/batch-delete-restore-cross-stage.spec.ts` on `myps_db_dev`. Batch Delete flags a project's revision at the program's current stage only. `vProjectLatest` then resolves the project to its next older live revision, typically the one on the previous stage. `UpdateProgramStage` copies forward every project `vProjectLatest` returns, so on the next advance the deleted project reappears at the new stage, carrying the older revision's content and id. Observed: project A deleted at NEP; the NEP→NEP-E advance created revision 130421 at NEP-E with ProjectId `BP01000002LZ`, its BP-stage id. Nobody restored it. Either the advance must skip projects whose current-stage revision is deleted, or Batch Delete must flag every live revision of the project in that program. The second changes what Batch Delete means on the 54,776 multi-revision projects counted on 2026-10-04. Restore must be the inverse of whichever is chosen. This is S3 of `documents/plans/program-detail-batch-actions-review-remediation.md`, now demonstrated rather than suspected.
+
+**`ProgramId` is regenerated on every stage advance; only `ProgramPK` is stable.** `UpdateProgramStage` assigns `<host>_<MMddyyyy>_<HHmmss>` at the time of the advance. `BatchDelete`, `BatchAddExistingProject` and `UpdateProgramStage` match the *current* `ProgramId`; `ShowProjectsInProgram` takes the `ProgramPK` (in a field called `ProgramId`). The UI passes the right one to each. The branch's first cross-stage spec did not, and passed only when create and advance fell in the same second.
+
+**`UpdateProgramStage` takes the program's name from the request** (`Name = dto.Name` on the new program revision). An API caller that omits it blanks the name. The UI always sends it. Recorded here, not changed.
+
+**Batch Restore (`BatchAddExistingProject`) is deferred to its own fix**, `documents/plans/batch-add-existing-project-restore-fixes.md`. The main item is that a committed restore does not recompute the program cost. It also revives Lump Sum soft-deletes, and its dialog is handed `ProgramPK` where the API wants `ProgramId`. Its menu entry stays commented out until then.
+
+**Test programs that cannot be removed.** Each was advanced past BP, so no endpoint can delete it. (`myps_db_dpwh_2025`'s `DESKTOP-EV51R65_10042026_*` programs are the two approval fixture programs. They are intended, and not in this table.)
+
+| Database | Program | Why it exists |
+|---|---|---|
+| `myps_db_dev` | `DESKTOP-OCATGDI_10052026_162906`, `…_162946`, `…_162959`, `…_163112` | Per-run programs of the first cross-stage spec (2026-10-05); see `e2e/tests/zz-manual-cleanup.spec.ts` |
+| `myps_db_dev` | "E2E batch delete/restore cross-stage fixture" (Id 36) | **Intended**: the reusable fixture, kept forever |
+| `myps_db_dev` | `e2e-crossstage-orphan-2026-10-06T02:49:08.475Z` (Id 37) | The one opt-in rule #2 run that found the defect above |
+| `myps_db_dpwh_2025` | Id 71, `DESKTOP-EV51R65_10062026_084228`, name blanked | Per-run program of the first cross-stage spec (2026-10-06), whose advance sent no `Name`. The only unintended one on this database |
+| `myps_db_dpwh_2025` | "E2E batch delete/restore cross-stage fixture" (Id 72) | **Intended**: the reusable fixture |
+
 ## For whoever meets this next
 
 Two lessons, and the second is the one that generalises.

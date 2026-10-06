@@ -15,7 +15,9 @@
 
 All API calls go through `httpClient` (`src/services/httpClient.ts`).
 
-**Do not add toast calls in `catch` blocks for expected API errors.** The `httpClient` interceptor already shows error toasts automatically for 400 and other error responses using the message from the API. Adding a `showToast` in the component `catch` produces a duplicate toast.
+**Do not add toast calls in `catch` blocks for expected API errors.** The `httpClient` interceptor already shows an error toast, using the API's message, for **a 400, or any error response whose body carries a `Message`**. It then rethrows an `ErrorResponse` with that `Message`. Adding a `showToast` in the component `catch` for those produces a duplicate toast.
+
+The interceptor shows **nothing** for a network error (no response), or for a 401/403/500 without a `Message` body. It rethrows the raw error, with no `Message`. A `catch` that only logs leaves the user with no feedback at all in those cases.
 
 Correct pattern:
 
@@ -23,12 +25,16 @@ Correct pattern:
 try {
   const response = await someFn(payload);
   // handle success
-} catch {
-  // httpClient interceptor already showed the API error toast
+} catch (error) {
+  // The interceptor toasted (and set Message) for any API error that carried one.
+  // Toast only when it stayed silent:
+  if (!(error as { Message?: string } | undefined)?.Message) {
+    showToast({ type: 'error', message: 'Failed to <action>. Please try again.' });
+  }
 }
 ```
 
-Only show a manual `showToast` for errors that come from *frontend* validation (before the API call).
+Otherwise, only show a manual `showToast` for errors that come from *frontend* validation (before the API call). Example: `BatchActionsDropdown.tsx`.
 
 ### Frontend validation before submit
 
