@@ -32,7 +32,7 @@
 
 import { test, expect } from '@playwright/test';
 import { post, apiLogin, listPrograms } from './helpers/lumpSumFixture';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const TAG = `e2e-publishguard-${Date.now()}`;
 
@@ -53,17 +53,23 @@ const SQL_DB = process.env.E2E_SQL_DB;
 const SQL_USER = process.env.E2E_SQL_USER;
 const SQL_PASSWORD = process.env.E2E_SQL_PASSWORD;
 
-const SQLCMD = [
-  'sqlcmd',
+// No shell: the query, the ProjectPK and the credentials go to sqlcmd as
+// argv entries, so quotes and metacharacters in any of them cannot re-parse
+// the command. The password travels in SQLCMDPASSWORD (which sqlcmd reads
+// natively) rather than on the command line, where every process listing
+// would show it.
+const SQLCMD_ARGS = [
   '-S', SQL_SERVER ?? '',
   '-d', SQL_DB ?? '',
-  ...(SQL_USER ? ['-U', SQL_USER, '-P', `"${SQL_PASSWORD ?? ''}"`] : ['-E']),
+  ...(SQL_USER ? ['-U', SQL_USER] : ['-E']),
   '-C', '-y', '0', '-Y', '0',
-].join(' ');
+];
 
 function runSql(query: string): string {
-  const cmd = `${SQLCMD} -Q "${query.replace(/"/g, '\\"')}"`;
-  return execSync(cmd, { encoding: 'utf-8' });
+  return execFileSync('sqlcmd', [...SQLCMD_ARGS, '-Q', query], {
+    encoding: 'utf-8',
+    env: SQL_USER ? { ...process.env, SQLCMDPASSWORD: SQL_PASSWORD ?? '' } : process.env,
+  });
 }
 
 test.describe('Batch Restrict/Allow Publishing skip already-published projects', () => {
