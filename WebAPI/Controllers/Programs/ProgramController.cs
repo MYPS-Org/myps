@@ -2413,7 +2413,19 @@ namespace WebAPI.Controllers.Programs
             {
                 if (transaction != null)
                 {
-                    await transaction.RollbackAsync(cancellationToken);
+                    // 2026-10-06: CancellationToken.None, not the request's token. When the
+                    // request is cancelled mid-write, `ex` is that cancellation, and a rollback
+                    // handed the same token throws again here, inside the catch, so the error
+                    // never reached _exceptionHandler and went out as a raw 500, unlogged.
+                    // A rollback that fails for any other reason must not mask `ex` either;
+                    // DisposeAsync in the finally still rolls back an uncommitted transaction.
+                    try
+                    {
+                        await transaction.RollbackAsync(CancellationToken.None);
+                    }
+                    catch
+                    {
+                    }
                 }
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }

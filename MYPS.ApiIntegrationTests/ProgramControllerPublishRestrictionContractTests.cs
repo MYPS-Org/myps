@@ -150,6 +150,23 @@ public sealed class ProgramControllerPublishRestrictionContractTests
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Program")]
+    public void BatchDelete_RollsBackWithoutTheRequestToken()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchDelete");
+
+        // 2026-10-06: a cancelled request reaches the catch with that cancellation as `ex`; a
+        // rollback handed the same token throws again inside the catch, so _exceptionHandler never
+        // sees the error and it goes out as a raw, unlogged 500. BatchAddExistingProject still has
+        // the old line (deferred: batch-add-existing-project-restore-fixes.md, RS3), so this is
+        // scoped to BatchDelete -- copying Restore's catch back here is exactly what it guards.
+        Assert.DoesNotContain("RollbackAsync(cancellationToken)", method, StringComparison.Ordinal);
+        Assert.Contains("RollbackAsync(CancellationToken.None)", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
     public void BatchAddExistingProject_ScopesItsRevisionLookupToTheProgram()
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
