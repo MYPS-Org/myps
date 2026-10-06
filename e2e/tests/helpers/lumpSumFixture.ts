@@ -35,7 +35,13 @@ const ITEMIZABLE = /^GAA-R$/;
     or a parent provisioned there would freeze under the other spec's feet. */
 export const APPROVAL_FIXTURE_PROGRAM = 'E2E LS approval fixture';
 export const APPROVAL_FIXTURE_PROGRAM_GAA = 'E2E LS approval fixture (GAA)';
-const FIXTURE_PROGRAMS = new Set([APPROVAL_FIXTURE_PROGRAM, APPROVAL_FIXTURE_PROGRAM_GAA]);
+/*  The Batch Delete/Restore cross-stage fixture (crossStageFixture.ts, 2026-10-06).
+    It sits at NEP, so programOnStage(false) would otherwise hand it out, and a
+    parent provisioned there breaks its "exactly one project" invariant. Its
+    opt-in orphans carry CROSS_STAGE_ORPHAN_PREFIX and are excluded the same way. */
+export const CROSS_STAGE_FIXTURE_PROGRAM = 'E2E batch delete/restore cross-stage fixture';
+export const CROSS_STAGE_ORPHAN_PREFIX = 'e2e-crossstage-orphan-';
+const FIXTURE_PROGRAMS = new Set([APPROVAL_FIXTURE_PROGRAM, APPROVAL_FIXTURE_PROGRAM_GAA, CROSS_STAGE_FIXTURE_PROGRAM]);
 
 /*  WHERE THE API IS.
 
@@ -131,6 +137,7 @@ export const programOnStage = async (page: Page, onRevisionStage: boolean) => {
   return programs.find(
     (p) => ITEMIZABLE.test(String(p.StageName ?? '')) === onRevisionStage
       && !FIXTURE_PROGRAMS.has(String(p.Name ?? ''))
+      && !String(p.Name ?? '').startsWith(CROSS_STAGE_ORPHAN_PREFIX)
       && !(onRevisionStage && String(p.Status ?? '') === 'Approved'),
   ) ?? null;
 };

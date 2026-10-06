@@ -79,8 +79,9 @@ const asFixture = (row: any): FixtureProgram => ({
  * against vAdminImplementingOffice and refuses the blank
  * ("Security Group ' ' is not valid."), so copying the list verbatim made the
  * fixture uncreatable there — for a reason unrelated to anything a spec tests.
+ * Exported: every helper that copies a donor's groups into AddProgram needs it.
  */
-const withoutBlanks = (groups: unknown): unknown[] =>
+export const withoutBlanks = (groups: unknown): unknown[] =>
   (Array.isArray(groups) ? groups : []).filter((g) => String(g ?? '').trim() !== '');
 
 /** The fixture program by name, or null. */
