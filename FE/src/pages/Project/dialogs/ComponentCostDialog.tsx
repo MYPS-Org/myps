@@ -432,6 +432,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             CreatedBy: cost.CreatedBy || user?.Name || '',
             UpdatedBy: user?.Name || '',
             UpdatedDate: new Date().toISOString(),
+            UACS: cost.UACS?.trim() || null,
             StartDate: cost.StartDate || null,
             EndDate: cost.EndDate || null,
           }));

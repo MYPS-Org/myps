@@ -204,6 +204,14 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     return fieldPermissionsMap[field] === true;
   }, [fieldPermissionsMap]);
 
+  // Per-year rows are governed by ComponentCostYearRules, not ComponentCostRules. A row the user
+  // is adding right now (no Id yet) or any row while adding a component is always editable; an
+  // existing row follows the UACS rule.
+  const isPerYearUacsEditable = useCallback((cost: ComponentCostPerYear) => {
+    if (mode === 'add' || !cost.Id || cost.Id <= 0) return true;
+    return permissionState.fieldRules?.ComponentCostYearRules?.Fields?.UACS === true;
+  }, [mode, permissionState.fieldRules]);
+
   // Save button is enabled if:
   // - mode is 'add' (always allowed)
   // - OR any field under ComponentCostRules.Fields or ComponentCostPerYearRules.Fields is true
@@ -490,6 +498,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             CreatedBy: cost.CreatedBy || user?.Name || '',
             UpdatedBy: user?.Name || '',
             UpdatedDate: new Date().toISOString(),
+            UACS: cost.UACS?.trim() || null,
             StartDate: cost.StartDate || null,
             EndDate: cost.EndDate || null,
           }));
@@ -709,7 +718,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 type="text"
                                                 value={cost.UACS || ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'UACS', e.target.value)}
-                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                disabled={!isPerYearUacsEditable(cost)}
+                                                title={isPerYearUacsEditable(cost) ? undefined : 'UACS is not editable for this revision'}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                                                 placeholder="UACS code"
                                                 maxLength={50}
                                             />
