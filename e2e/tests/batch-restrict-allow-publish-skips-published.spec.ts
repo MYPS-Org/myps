@@ -72,6 +72,19 @@ function runSql(query: string): string {
   });
 }
 
+// An UPDATE that matches nothing succeeds silently, which would leave a test
+// asserting against a fixture that was never set up (or a revert that never
+// happened). Every write goes through here so that case throws instead.
+function updateOneProject(setClause: string, projectPK: string): void {
+  const out = runSql(
+    `SET NOCOUNT OFF; SET QUOTED_IDENTIFIER ON; UPDATE dbo.tProjects SET ${setClause} ` +
+    `WHERE ProjectPK = '${projectPK}';`
+  );
+  if (!/\(1 rows? affected\)/.test(out)) {
+    throw new Error(`expected to update exactly 1 tProjects row for ProjectPK '${projectPK}', sqlcmd said: ${out.trim()}`);
+  }
+}
+
 test.describe('Batch Restrict/Allow Publishing skip already-published projects', () => {
   test.skip(
     !SQL_SERVER || !SQL_DB,
@@ -167,9 +180,12 @@ test.describe('Batch Restrict/Allow Publishing skip already-published projects',
 
     const [first, second] = projectRows;
     unpublishedProjectId = first.ProjectId;
-    unpublishedProjectPK = first.ProjectPK ?? first.ProjectId;
+    unpublishedProjectPK = first.ProjectPK;
     publishedProjectId = second.ProjectId;
-    publishedProjectPK = second.ProjectPK ?? second.ProjectId;
+    publishedProjectPK = second.ProjectPK;
+    // No fallback to ProjectId: it is a different key, so the SQL below would
+    // match nothing and the failure would surface far from its cause.
+    expect(unpublishedProjectPK && publishedProjectPK, `ShowProjectsInProgram rows carry no ProjectPK: ${JSON.stringify(first)}`).toBeTruthy();
 
     // Mark the second project published, directly, the only way available
     // (see file header). Also forces IsPublishable=1 first, matching this
@@ -178,10 +194,7 @@ test.describe('Batch Restrict/Allow Publishing skip already-published projects',
     // silently recomputed -- the live proof already run manually this
     // session for the SP; this proves the two C# endpoints hold the same
     // invariant.
-    runSql(
-      `SET QUOTED_IDENTIFIER ON; UPDATE dbo.tProjects SET IsPublished = 1, IsPublishable = 1 ` +
-      `WHERE ProjectPK = '${publishedProjectPK}';`
-    );
+    updateOneProject('IsPublished = 1, IsPublishable = 1', publishedProjectPK);
 
     await page.close();
   });
@@ -192,16 +205,21 @@ test.describe('Batch Restrict/Allow Publishing skip already-published projects',
     // Revert the direct-SQL flip before the program delete, defensively --
     // DeleteProgram's own guard only cares about BP-stage status, but
     // leaving no trace of the manual flip is the safer default regardless.
+    // A failed revert (sqlcmd missing, connection dropped) must not stop the
+    // delete, or each failed run strands a program holding a published project.
+    let revertError: unknown;
     if (publishedProjectPK) {
-      runSql(
-        `SET QUOTED_IDENTIFIER ON; UPDATE dbo.tProjects SET IsPublished = 0, IsPublishable = 0 ` +
-        `WHERE ProjectPK = '${publishedProjectPK}';`
-      );
+      try {
+        updateOneProject('IsPublished = 0, IsPublishable = 0', publishedProjectPK);
+      } catch (err) {
+        revertError = err;
+      }
     }
     if (programId) {
       await post(page, '/api/Program/DeleteProgram', { ProgramId: programId, StageName: 'BP' });
     }
     await page.close();
+    if (revertError) throw revertError;
   });
 
   test('BatchRestrictPublish skips the published project, restricts the rest', async ({ page }) => {
@@ -239,10 +257,7 @@ test.describe('Batch Restrict/Allow Publishing skip already-published projects',
     // Restore the unpublished project's flag to false first (the previous
     // test set it false already; this is just making the precondition
     // explicit and independent of test execution order).
-    runSql(
-      `SET QUOTED_IDENTIFIER ON; UPDATE dbo.tProjects SET IsPublishable = 0 ` +
-      `WHERE ProjectPK = '${unpublishedProjectPK}';`
-    );
+    updateOneProject('IsPublishable = 0', unpublishedProjectPK);
 
     const res = await post(page, '/api/Program/BatchAllowPublish', {
       ProgramId: programId,
@@ -254,6 +269,18 @@ test.describe('Batch Restrict/Allow Publishing skip already-published projects',
       res.body?.SkippedAlreadyPublishedProjectIds ?? [],
       'published project should be reported as skipped'
     ).toContain(publishedProjectId);
+
+    // The rest of the batch must still be processed: the unpublished project
+    // is handed to pAllowProjectPublishing, so it shows up as restored or as
+    // failed-validation (this fixture has no components, so either is valid),
+    // and is never reported as skipped.
+    const processed = [
+      ...(res.body?.RestoredProjectIds ?? []),
+      ...(res.body?.NotRestoredProjectIds ?? []),
+    ];
+    expect(processed, 'unpublished project should have been processed, not skipped').toContain(unpublishedProjectId);
+    expect(processed, 'published project must not be processed').not.toContain(publishedProjectId);
+    expect(res.body?.SkippedAlreadyPublishedProjectIds ?? []).not.toContain(unpublishedProjectId);
 
     // The published project's flag must still read whatever it already was
     // (true, from beforeAll) -- untouched by this call either.

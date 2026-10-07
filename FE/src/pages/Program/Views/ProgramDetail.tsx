@@ -266,8 +266,12 @@ const ProgramDetail: React.FC = () => {
       await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
       refreshProjects(true);
     } catch (error) {
-      // httpClient's interceptor has already toasted the API's own message.
       console.error('Error restoring projects:', error);
+      // The interceptor toasted (and set Message) for any API error that carried one;
+      // toast only when it stayed silent (network error, 401/403/500 without a Message).
+      if (!(error as { Message?: string } | undefined)?.Message) {
+        showToast({ type: 'error', message: 'Failed to restore projects. Please try again.' });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -686,11 +690,12 @@ const ProgramDetail: React.FC = () => {
               isTerminalStage={isTerminalStage}
               defaultStatus={defaultProgramEnums.Details.Status}
               onRefresh={async (action) => {
-                await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
                 // Batch Delete / Restrict / Allow change project rows and flags — the table
                 // must be re-fetched too, or it keeps showing the pre-action state. Only a
-                // delete removes rows, so only a delete goes back to page 1.
+                // delete removes rows, so only a delete goes back to page 1. The table refresh
+                // runs first so a failed header refetch can't leave it stale.
                 refreshProjects(action === 'delete');
+                await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
               }}
               onLoadingChange={setIsLoading}
             />

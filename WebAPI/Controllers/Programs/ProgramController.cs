@@ -1615,24 +1615,38 @@ namespace WebAPI.Controllers.Programs
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
 
-                if (projectPks.Length == 0)
+                if (projectRevisions.Count == 0)
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message =
-                            alreadyPublishedProjectIds.Length > 0
-                                ? "None of the supplied project IDs were updated. The matched " +
-                                  "project(s) are already published and are never restricted " +
-                                  "through this action."
-                                : "None of the supplied project IDs were found.",
+                        Message = "None of the supplied project IDs were found.",
                         Title = "Projects Not Found",
+                        MissingProjectIds = missingProjectIds,
+                        SkippedAlreadyPublishedProjectIds = Array.Empty<string>()
+                    });
+                }
+
+                // Mirrors BatchAllowPublish: matched-but-all-published is a neutral 200,
+                // not an error -- the projects were found and skipped by design.
+                if (projectPks.Length == 0)
+                {
+                    return Ok(new
+                    {
+                        Message =
+                            "No changes were made. The matched project(s) are already " +
+                            "published and are never restricted through this action.",
+                        Title = "No Changes Required",
+                        UpdatedCount = 0,
                         MissingProjectIds = missingProjectIds,
                         SkippedAlreadyPublishedProjectIds = alreadyPublishedProjectIds
                     });
                 }
 
+                // !IsPublished is repeated here (not just in the read above) so the guard
+                // is atomic: a project published between the read and this write is left
+                // untouched, and updatedCount only counts rows actually changed.
                 var updatedCount = await _db.tProjects
-                    .Where(x => projectPks.Contains(x.ProjectPK))
+                    .Where(x => projectPks.Contains(x.ProjectPK) && !x.IsPublished)
                     .ExecuteUpdateAsync(
                         setters => setters.SetProperty(
                             project => project.IsPublishable,
@@ -1651,12 +1665,17 @@ namespace WebAPI.Controllers.Programs
 
                 if (missingProjectIds.Length > 0 || alreadyPublishedProjectIds.Length > 0)
                 {
+                    var notes = new List<string>();
+                    if (missingProjectIds.Length > 0)
+                        notes.Add($"Not found: {string.Join(", ", missingProjectIds)}.");
+                    if (alreadyPublishedProjectIds.Length > 0)
+                        notes.Add($"Skipped (already published): {string.Join(", ", alreadyPublishedProjectIds)}.");
+
                     return Ok(new
                     {
                         Message =
                             $"{updatedCount} project(s) were excluded from automatic " +
-                            "publication to PCMA. Some project IDs were not found or " +
-                            "were skipped because they are already published.",
+                            $"publication to PCMA. {string.Join(" ", notes)}",
                         Title = "Restrict Publishing Partially Successful",
                         UpdatedCount = updatedCount,
                         MissingProjectIds = missingProjectIds,
