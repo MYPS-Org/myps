@@ -3,6 +3,8 @@ export interface BatchActionResponse {
 	Title: string;
 	UpdatedCount: number;
 	MissingProjectIds: string[];
+	/** Publish actions only: matched projects left untouched because they are already published. */
+	SkippedAlreadyPublishedProjectIds?: string[];
 }
 export interface ProgramModel {
 	Id: number;

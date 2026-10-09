@@ -212,4 +212,96 @@ test.describe('Program Details — batch actions', () => {
           removes the parent by its (e2e …) marker. */
     });
   });
+
+  /*  PAGE POSITION AFTER A BATCH ACTION (AC9).
+
+      The two tests above run on a one-page table, where "stay on the current
+      page" and "go back to page 1" are the same request — so reverting
+      refreshProjects to always reset would still pass them. This one needs a
+      SECOND page: the table pages at 10 (ProgramDetail's usePagination limit),
+      so the fixture program holds 11 projects.
+
+      The page is read from the REQUEST, not the DOM: pagination.refresh() on
+      page 2 sends Navigation.Page (4) with page 2, applyFilters sends
+      Navigation.First (0) with page 1, and those are the only two outcomes.
+      Nav values mirror usePagination.ts. */
+  test('flag-only actions keep the current page; a delete returns to page 1', async ({ page }) => {
+    test.setTimeout(300_000); // 11 provisions + approval + two batch round-trips
+
+    await apiLogin(page);
+
+    await withFixtureProgram(page, async ({ program, approve }) => {
+      const PAGE_SIZE = 10;
+      for (let i = 0; i <= PAGE_SIZE; i++) {
+        await provisionLumpSum(page, 1_000_000, `batch actions paging ${i}`, {
+          programPK: program.ProgramPK,
+        });
+      }
+
+      await approve();
+      await page.goto(detailUrl(program));
+
+      /*  Go to page 2 and take whichever project the table put there — the
+          list's sort order is the server's business, not this test's. */
+      // The pager labels its buttons `Page ${n}` (tailwindui/pagination.tsx), so the
+      // accessible name is "Page 2", not "2" — a bare '2' never matches and the click
+      // waits out the whole test budget on page 1.
+      await page.getByRole('button', { name: 'Page 2', exact: true }).click();
+      const firstRowButton = page.locator('tbody tr').first().getByRole('button').first();
+      await expect(firstRowButton).toBeVisible();
+      const pageTwoProjectId = (await firstRowButton.innerText()).trim();
+      expect(pageTwoProjectId, 'page 2 lists a project').not.toBe('');
+
+      const calls = captureApiCalls(page, [
+        '/api/Program/BatchRestrictPublish',
+        '/api/Program/BatchDelete',
+        '/api/Program/ShowProjectsInProgram',
+      ]);
+
+      /** The first table query that finished after the named batch call did. */
+      const tableQueryAfter = async (batchUrl: string) => {
+        let found: (typeof calls)[number] | undefined;
+        await expect
+          .poll(
+            () => {
+              const batchIndex = calls.findIndex((c) => c.url.includes(batchUrl));
+              if (batchIndex < 0) return false;
+              found = calls
+                .slice(batchIndex + 1)
+                .find((c) => c.url.includes('ShowProjectsInProgram') && c.status === 200);
+              return !!found;
+            },
+            { timeout: 30_000, message: `the table is re-queried after ${batchUrl}` },
+          )
+          .toBe(true);
+        return found!.requestBody;
+      };
+
+      // Flag-only action: the user must stay on page 2.
+      await openBatchAction(page, 'Restrict Publishing');
+      await page.locator('textarea#projectIds').fill(pageTwoProjectId);
+      await page.getByRole('button', { name: 'Restrict Publishing', exact: true }).click();
+      await page.getByRole('button', { name: 'Yes, Restrict Publishing', exact: true }).click();
+
+      const afterRestrict = await tableQueryAfter('BatchRestrictPublish');
+      expect(afterRestrict.page, 'Restrict Publishing re-reads the page the user is on').toBe(2);
+      expect(afterRestrict.Navigation, 'by page cursor, not a reset to the first page').toBe(4);
+
+      // Delete changes which rows exist: the cached cursors are stale, so back to page 1.
+      await openBatchAction(page, 'Batch Delete');
+      await page.locator('textarea#projectIds').fill(pageTwoProjectId);
+      await page.getByRole('button', { name: 'Delete Projects', exact: true }).click();
+      await page.getByPlaceholder('DELETE', { exact: true }).fill('DELETE');
+      await page.getByRole('button', { name: 'Yes, Delete Projects', exact: true }).click();
+
+      const afterDelete = await tableQueryAfter('BatchDelete');
+      expect(afterDelete.page, 'Batch Delete returns to page 1').toBe(1);
+      expect(afterDelete.Navigation, 'as a fresh first-page query').toBe(0);
+
+      test.info().attach('paging-api-calls', {
+        body: JSON.stringify(calls, null, 2),
+        contentType: 'application/json',
+      });
+    });
+  });
 });

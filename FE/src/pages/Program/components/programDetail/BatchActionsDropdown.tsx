@@ -36,6 +36,7 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
   };
 
   const handleBatchTagSubmit = async (pid: string, projectIds: string, action: 'tag' | 'delete' | 'unpublish' | 'publish') => {
+    let actionSucceeded = false;
     try {
       onLoadingChange(true);
       switch (action) {
@@ -57,7 +58,7 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
         default:
           showToast({ type: 'success', message: 'Tags applied successfully to all projects.' });
       }
-      await onRefresh(action);
+      actionSucceeded = true;
     } catch (error) {
       console.error(`Error performing batch ${action}:`, error);
       // httpClient's interceptor toasts the API's own message (e.g. which project IDs were not
@@ -68,9 +69,19 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
       if (!(error as { Message?: string } | undefined)?.Message) {
         showToast({ type: 'error', message: `Failed to ${action} projects. Please try again.` });
       }
-    } finally {
-      onLoadingChange(false);
     }
+
+    // Refresh is separate from the action: once the batch call has succeeded, a failed reload
+    // must not be reported as "Failed to <action>" -- the user would wrongly retry it.
+    if (actionSucceeded) {
+      try {
+        await onRefresh(action);
+      } catch (error) {
+        console.error(`Error refreshing after batch ${action}:`, error);
+        showToast({ type: 'warning', message: 'The action completed, but the page failed to refresh. Please reload to see the latest data.' });
+      }
+    }
+    onLoadingChange(false);
   };
 
   const showPublishActions = isActive && isTerminalStage && defaultStatus === 1;
