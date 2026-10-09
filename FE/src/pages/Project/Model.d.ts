@@ -317,7 +317,7 @@ export interface ComponentCostPerYear {
 	ComponentId: string;
 	Amount?: number;
 	Year?: number;
-	UACS?: string;
+	UACS?: string | null;
 	StartDate?: string | null;
 	EndDate?: string | null;
 	DateOfApproval?: string;
