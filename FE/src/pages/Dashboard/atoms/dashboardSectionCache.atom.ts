@@ -1,15 +1,14 @@
 import { atom } from 'jotai';
 import type { KpiData } from '../components/DashboardKpiCards';
 import type { StatusSegment, IslandAllocation } from '../components/DashboardCharts';
-import type { ActivityLog } from '../components/DashboardActivityFeed';
 import type { RegionalBreakdownRow } from '../components/DashboardRegionalMatrix';
 import type { DashboardLsProject } from '../components/DashboardKpiDetailModal';
 import type { DashboardRevisionSummary } from '../Service';
 
 /**
  * Lazy-loading + cache convention for this page: each section owns one atom here, keyed by
- * `${dataSourceMode}:${year}`. A section's hook (see ../hooks) renders straight from the atom
- * when the key matches the current year+mode — no fetch, no skeleton — and only fetches when
+ * `${dataSourceMode}:${year}:${categoryId}`. A section's hook (see ../hooks) renders straight from
+ * the atom when the key matches the current mode+year+category — no fetch, no skeleton — and only fetches when
  * the key changes or the section becomes visible for the first time. This is what lets switching
  * tabs, or scrolling a section out of view and back, skip a refetch: unlike component state,
  * atoms live at module scope and survive the section unmounting. See documents/plans/
@@ -34,8 +33,8 @@ export function emptySectionCache<T>(): SectionCache<T> {
     return { key: null, data: null, status: 'idle', error: null };
 }
 
-export function sectionCacheKey(dataSourceMode: 'real' | 'benchmark', year: number): string {
-    return `${dataSourceMode}:${year}`;
+export function sectionCacheKey(dataSourceMode: 'real' | 'benchmark', year: number, categoryId: number | null): string {
+    return `${dataSourceMode}:${year}:${categoryId ?? 'all'}`;
 }
 
 export interface TrendRow {
@@ -78,6 +77,5 @@ export const statusesCacheAtom = atom<SectionCache<{ statuses: StatusSegment[]; 
   emptySectionCache<{ statuses: StatusSegment[]; islands: IslandAllocation[] }>()
 );
 export const regionalBreakdownCacheAtom = atom<SectionCache<RegionalBreakdownRow[]>>(emptySectionCache<RegionalBreakdownRow[]>());
-export const activitiesCacheAtom = atom<SectionCache<ActivityLog[]>>(emptySectionCache<ActivityLog[]>());
 export const revisionsCacheAtom = atom<SectionCache<DashboardRevisionSummary>>(emptySectionCache<DashboardRevisionSummary>());
 export const lsProjectsCacheAtom = atom<SectionCache<DashboardLsProject[]>>(emptySectionCache<DashboardLsProject[]>());

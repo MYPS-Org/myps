@@ -10,12 +10,18 @@ function mapBudgetBreakdown(raw: Awaited<ReturnType<typeof fetchDashboardBudgetB
   }));
 }
 
-export function useDashboardBudgetBreakdown(year: number, dataSourceMode: 'real' | 'benchmark', enabled: boolean) {
+export function useDashboardBudgetBreakdown(
+  year: number,
+  categoryId: number | null,
+  dataSourceMode: 'real' | 'benchmark',
+  enabled: boolean
+) {
   return useSectionData({
     atom: budgetBreakdownCacheAtom,
     fetchFn: fetchDashboardBudgetBreakdown,
     map: mapBudgetBreakdown,
     year,
+    categoryId,
     dataSourceMode,
     enabled,
   });

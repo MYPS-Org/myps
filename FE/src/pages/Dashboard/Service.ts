@@ -58,14 +58,6 @@ export interface DashboardSummary {
       IsPublished: boolean;
     }>;
   }>;
-  Activities: Array<{
-    Id: string;
-    Type: 'revision' | 'lswallet' | 'project';
-    Title: string;
-    Description: string;
-    Timestamp: string;
-    User: string;
-  }>;
   Revisions: DashboardRevisionSummary;
 }
 
@@ -309,24 +301,6 @@ function getBenchmarkSummary(year: number): DashboardSummary {
     ],
     Projects: projects,
     LsProjects: BENCHMARK_LS_PROJECTS,
-    Activities: [
-      {
-        Id: 'act-1',
-        Type: 'project',
-        Title: 'Region IV-A (CALABARZON) ₱60.44B Package milestone updated',
-        Description: 'Arterial bypass network entered NEP Stage Schedule.',
-        Timestamp: '2026-08-28T14:30:00Z',
-        User: 'Engr. J. Santos (DPWH R4A)',
-      },
-      {
-        Id: 'act-2',
-        Type: 'revision',
-        Title: 'Region V (Bicol Region) ₱34.47B Allocation revised',
-        Description: 'Approved Component Cost adjustment for NEP-Errata.',
-        Timestamp: '2026-08-26T11:20:00Z',
-        User: 'Planning Division (Central)',
-      },
-    ],
     Revisions: getBenchmarkRevisions(),
   };
 }
@@ -400,9 +374,10 @@ function resolveYear(year?: number): number {
 // ---------------------------------------------------------------------------
 // Split endpoints — one per dashboard section, replacing the old single
 // /Dashboard/Summary call so each section can load (and lazy-load) independently.
-// Every real-mode call posts { Year } and the backend scopes its aggregate to that
-// fiscal year; the year list the switcher offers comes back from /Dashboard/Kpis as
-// AvailableYears. Benchmark mode still supports any year in REGIONAL_TOTAL_BY_YEAR
+// Every real-mode call posts { Year, CategoryId } and the backend scopes its aggregate to
+// that fiscal year's programs (and the category, when one is chosen); the year list the
+// switcher offers comes back from /Dashboard/Kpis as AvailableYears. Demo Data ignores the
+// category: its figures are presentation samples with no real categories behind them. Benchmark mode still supports any year in REGIONAL_TOTAL_BY_YEAR
 // for the Demo Data experience. (/Dashboard/Summary itself still exists on the
 // backend for the dashboard-live-data-integrity e2e contract, but nothing on the
 // frontend calls it anymore.)
@@ -441,51 +416,51 @@ export interface DashboardProjectsFilter {
   Status?: string;
 }
 
-export async function fetchDashboardKpis(year: number | undefined, useBenchmark: boolean) {
+export async function fetchDashboardKpis(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
   if (useBenchmark) {
     const summary = getBenchmarkSummary(resolveYear(year));
     return { SelectedYear: summary.SelectedYear, AvailableYears: summary.AvailableYears, Kpis: summary.Kpis };
   }
   const response = await httpClient.post<{ SelectedYear: number; AvailableYears: number[]; Kpis: DashboardSummary['Kpis'] }>(
     '/Dashboard/Kpis',
-    { Year: resolveYear(year) },
+    { Year: resolveYear(year), CategoryId: categoryId },
     { silent: true }
   );
   return response.Data;
 }
 
-export async function fetchDashboardTrend(year: number | undefined, useBenchmark: boolean) {
+export async function fetchDashboardTrend(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
   if (useBenchmark) {
     return { AnnualTrend: getBenchmarkSummary(resolveYear(year)).AnnualTrend };
   }
   const response = await httpClient.post<{ AnnualTrend: DashboardTrendRow[] }>(
     '/Dashboard/Trend',
-    { Year: resolveYear(year) },
+    { Year: resolveYear(year), CategoryId: categoryId },
     { silent: true }
   );
   return response.Data;
 }
 
-export async function fetchDashboardBudgetBreakdown(year: number | undefined, useBenchmark: boolean) {
+export async function fetchDashboardBudgetBreakdown(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
   if (useBenchmark) {
     return { BudgetBreakdown: getBenchmarkSummary(resolveYear(year)).BudgetBreakdown };
   }
   const response = await httpClient.post<{ BudgetBreakdown: DashboardSummary['BudgetBreakdown'] }>(
     '/Dashboard/BudgetBreakdown',
-    { Year: resolveYear(year) },
+    { Year: resolveYear(year), CategoryId: categoryId },
     { silent: true }
   );
   return response.Data;
 }
 
-export async function fetchDashboardStatuses(year: number | undefined, useBenchmark: boolean) {
+export async function fetchDashboardStatuses(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
   if (useBenchmark) {
     const summary = getBenchmarkSummary(resolveYear(year));
     return { Statuses: summary.Statuses, Islands: summary.Islands };
   }
   const response = await httpClient.post<{ Statuses: DashboardSummary['Statuses']; Islands: DashboardSummary['Islands'] }>(
     '/Dashboard/Statuses',
-    { Year: resolveYear(year) },
+    { Year: resolveYear(year), CategoryId: categoryId },
     { silent: true }
   );
   return response.Data;
@@ -505,49 +480,42 @@ function getBenchmarkRegionalBreakdown(year: number): DashboardRegionRow[] {
     .sort((a, b) => b.Budget - a.Budget);
 }
 
-export async function fetchDashboardRegionalBreakdown(year: number | undefined, useBenchmark: boolean) {
+export async function fetchDashboardRegionalBreakdown(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
   if (useBenchmark) {
     return { Regions: getBenchmarkRegionalBreakdown(resolveYear(year)) };
   }
   const response = await httpClient.post<{ Regions: DashboardRegionRow[] }>(
     '/Dashboard/RegionalBreakdown',
-    { Year: resolveYear(year) },
+    { Year: resolveYear(year), CategoryId: categoryId },
     { silent: true }
   );
   return response.Data;
 }
 
-export async function fetchDashboardActivities(year: number | undefined, useBenchmark: boolean) {
-  if (useBenchmark) {
-    return { Activities: getBenchmarkSummary(resolveYear(year)).Activities };
-  }
-  const response = await httpClient.post<{ Activities: DashboardSummary['Activities'] }>(
-    '/Dashboard/Activities',
-    { Year: resolveYear(year) },
-    { silent: true }
-  );
-  return response.Data;
-}
-
-export async function fetchDashboardRevisions(year: number | undefined, useBenchmark: boolean): Promise<DashboardRevisionSummary> {
+export async function fetchDashboardRevisions(
+  year: number | undefined,
+  useBenchmark: boolean,
+  categoryId: number | null = null
+): Promise<DashboardRevisionSummary> {
   if (useBenchmark) {
     return getBenchmarkSummary(resolveYear(year)).Revisions;
   }
   const response = await httpClient.post<DashboardRevisionSummary>(
     '/Dashboard/Revisions',
-    null,
+    // The queue is not fiscal-year scoped; only the category narrows it.
+    { CategoryId: categoryId },
     { silent: true }
   );
   return response.Data;
 }
 
-export async function fetchDashboardLsProjects(year: number | undefined, useBenchmark: boolean) {
+export async function fetchDashboardLsProjects(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
   if (useBenchmark) {
     return { LsProjects: getBenchmarkSummary(resolveYear(year)).LsProjects };
   }
   const response = await httpClient.post<{ LsProjects: DashboardSummary['LsProjects'] }>(
     '/Dashboard/LumpSum',
-    { Year: resolveYear(year) },
+    { Year: resolveYear(year), CategoryId: categoryId },
     { silent: true }
   );
   return response.Data;
@@ -631,7 +599,8 @@ function paginateBenchmarkProjects(
 export async function fetchDashboardProjects(
   request: PaginatedRequest<DashboardProjectsFilter>,
   year: number | undefined,
-  useBenchmark: boolean
+  useBenchmark: boolean,
+  categoryId: number | null = null
 ): Promise<{ Data: PaginationResponse<WatchlistProject> }> {
   if (useBenchmark) {
     const projects = getBenchmarkSummary(resolveYear(year)).Projects.map(mapProjectDtoToWatchlist);
@@ -639,8 +608,25 @@ export async function fetchDashboardProjects(
   }
   const response = await httpClient.post<PaginationResponse<DashboardSummary['Projects'][number]>>(
     '/Dashboard/Projects',
-    { ...request, Year: resolveYear(year) },
+    { ...request, Year: resolveYear(year), CategoryId: categoryId },
     { silent: true }
   );
   return { Data: { ...response.Data, lists: response.Data.lists.map(mapProjectDtoToWatchlist) } };
+}
+
+export interface DashboardCategoryOption {
+  CategoryId: number;
+  CategoryName: string;
+  /** False for a retired category; still selectable because older projects carry it. */
+  IsActive: boolean;
+}
+
+/** Every project category, sorted by name, for the header picker (a short, fixed list). */
+export async function fetchDashboardCategories(): Promise<DashboardCategoryOption[]> {
+  const response = await httpClient.post<{ Categories: DashboardCategoryOption[] }>(
+    '/Dashboard/Categories',
+    { Query: '' },
+    { silent: true }
+  );
+  return response.Data?.Categories ?? [];
 }

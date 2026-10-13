@@ -13,12 +13,18 @@ function mapTrend(raw: Awaited<ReturnType<typeof fetchDashboardTrend>>): TrendRo
 
 /** Feeds both DashboardCharts (monthlyData) and DashboardTrajectoryChart (liveData) — they
  *  derive their own shapes from this one shared TrendRow[] rather than each fetching it. */
-export function useDashboardTrend(year: number, dataSourceMode: 'real' | 'benchmark', enabled: boolean) {
+export function useDashboardTrend(
+  year: number,
+  categoryId: number | null,
+  dataSourceMode: 'real' | 'benchmark',
+  enabled: boolean
+) {
   return useSectionData({
     atom: trendCacheAtom,
     fetchFn: fetchDashboardTrend,
     map: mapTrend,
     year,
+    categoryId,
     dataSourceMode,
     enabled,
   });

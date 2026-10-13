@@ -17,6 +17,8 @@ import { fetchDashboardProjects, type DashboardProjectsFilter } from '../Service
 
 interface Props {
   year: number;
+  /** Header category filter (tOptionProjectCategory.CategoryId); null for all categories. */
+  categoryId: number | null;
   dataSourceMode: 'real' | 'benchmark';
   /** Gates the first fetch — pass viewport visibility so this section only loads once reached. */
   enabled: boolean;
@@ -36,6 +38,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 export const DashboardProjectWatchlist: React.FC<Props> = ({
   year,
+  categoryId,
   dataSourceMode,
   enabled,
   refreshSignal = 0,
@@ -56,8 +59,8 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
 
   const fetchFn = useCallback(
     (params: Parameters<typeof fetchDashboardProjects>[0]) =>
-      fetchDashboardProjects(params, year, dataSourceMode === 'benchmark'),
-    [year, dataSourceMode]
+      fetchDashboardProjects(params, year, dataSourceMode === 'benchmark', categoryId),
+    [year, dataSourceMode, categoryId]
   );
 
   // enabled: false — this component drives every fetch itself (below), keyed off viewport
@@ -75,25 +78,27 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
       Island: activeIslandFilter ?? undefined,
       Status: activeStatusFilter ?? undefined,
     });
-    // pagination.applyFilters is stable unless year/dataSourceMode change (it's rebuilt from
-    // fetchFn, which depends on those) — safe to omit here, matching usePagination.ts's own
+    // pagination.applyFilters is stable unless year/dataSourceMode/categoryId change (it's rebuilt
+    // from fetchFn, which depends on those) — safe to omit here, matching usePagination.ts's own
     // mount-effect convention.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, year, dataSourceMode, refreshSignal, debouncedSearch, activeIslandFilter, activeStatusFilter]);
+  }, [enabled, year, categoryId, dataSourceMode, refreshSignal, debouncedSearch, activeIslandFilter, activeStatusFilter]);
 
   const projects = pagination.data.lists;
-  const totalRegions = pagination.data.total ?? 0;
+  // The server's total is a count of projects, one row each (QA read it as regions: "8460 Regions?").
+  const totalProjects = pagination.data.total ?? 0;
+  const projectCountLabel = `${totalProjects.toLocaleString()} ${totalProjects === 1 ? 'project' : 'projects'}`;
   const pageBudget = projects.reduce((sum, project) => sum + project.allocatedBudget, 0);
   const isInitialLoad = pagination.isLoading && projects.length === 0;
 
   const getSubtitle = () => {
     if (activeIslandFilter) {
-      return `Filtered: ${activeIslandFilter} Group (${totalRegions} Regions)`;
+      return `Filtered: ${activeIslandFilter} Group (${projectCountLabel})`;
     }
     if (activeStatusFilter) {
-      return `Filtered: Stage ${activeStatusFilter} (${totalRegions} Regions)`;
+      return `Filtered: Stage ${activeStatusFilter} (${projectCountLabel})`;
     }
-    return `Strategic Regional Capital Investment Portfolio (${totalRegions} Regions)`;
+    return `Strategic Regional Capital Investment Portfolio (${projectCountLabel})`;
   };
 
   return (
@@ -133,7 +138,7 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search region..."
+                placeholder="Search project or region..."
                 className={`pl-7 pr-3 py-1.5 text-xs rounded-xl border focus:outline-none focus:ring-2 transition-all w-32 sm:w-40 ${
                   isLight
                     ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:ring-blue-500/30 focus:border-blue-500'
@@ -169,7 +174,7 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
             <span className={`font-medium text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Active Filter:</span>
             {activeIslandFilter && (
               <span className={`px-2.5 py-0.5 rounded-full border font-bold text-[11px] ${isLight ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'}`}>
-                {activeIslandFilter} Island Group ({totalRegions} Regions)
+                {activeIslandFilter} Island Group ({projectCountLabel})
               </span>
             )}
             {activeStatusFilter && (
@@ -282,7 +287,7 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
 
           {!isInitialLoad && projects.length === 0 && (
             <div className={`px-6 py-12 text-center text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              No regional programs match the selected search and filter criteria.
+              No projects match the selected search and filter criteria.
             </div>
           )}
 
@@ -306,7 +311,7 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
       <div className={`px-6 py-3.5 border-t text-[11px] flex items-center justify-between font-medium ${isLight ? 'border-slate-100 bg-slate-50/50 text-slate-600' : 'border-slate-800 bg-slate-950/50 text-slate-400'}`}>
         <span className="flex items-center gap-1.5">
           <CheckBadgeIcon className="w-4 h-4 text-emerald-600" />
-          Showing <strong>{projects.length}</strong> of <strong>{totalRegions}</strong> regions
+          Showing <strong>{projects.length}</strong> of <strong>{totalProjects.toLocaleString()}</strong> {totalProjects === 1 ? 'project' : 'projects'}
         </span>
         <span className="text-xs font-black">
           Page Total: <span className={isLight ? 'text-blue-700' : 'text-amber-400'}>{formatCompactMoney(pageBudget)}</span>

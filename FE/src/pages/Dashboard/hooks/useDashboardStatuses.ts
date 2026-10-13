@@ -22,12 +22,18 @@ function mapStatuses(raw: Awaited<ReturnType<typeof fetchDashboardStatuses>>): {
   };
 }
 
-export function useDashboardStatuses(year: number, dataSourceMode: 'real' | 'benchmark', enabled: boolean) {
+export function useDashboardStatuses(
+  year: number,
+  categoryId: number | null,
+  dataSourceMode: 'real' | 'benchmark',
+  enabled: boolean
+) {
   return useSectionData({
     atom: statusesCacheAtom,
     fetchFn: fetchDashboardStatuses,
     map: mapStatuses,
     year,
+    categoryId,
     dataSourceMode,
     enabled,
   });

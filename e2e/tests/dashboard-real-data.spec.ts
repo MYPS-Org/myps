@@ -3,7 +3,7 @@ import { login } from './helpers/auth';
 import { captureApiCalls, type ApiCallDetails } from './helpers/networkCapture';
 
 // Dashboard/Summary (the old monolithic endpoint) still exists on the backend for
-// backward-compatibility, but the frontend now calls eight split endpoints instead — one per
+// backward-compatibility, but the frontend now calls seven split endpoints instead — one per
 // section — loaded lazily as each section scrolls into view rather than all at once. See
 // documents/plans/dashboard-modular-data-loading.md.
 //
@@ -23,7 +23,6 @@ const DASHBOARD_ENDPOINTS = [
   'Statuses',
   'RegionalBreakdown',
   'Projects',
-  'Activities',
   'Revisions',
 ] as const;
 
@@ -74,6 +73,8 @@ test.describe('Dashboard — demo data', () => {
     await scrollThroughPage(page);
     await expect(page.getByText('Annual Budget & Lump Sum Itemization Trend')).toBeVisible();
     expect(dashboardCalls, 'Demo Data must not issue any dashboard query').toEqual([]);
+    // Demo figures have no real categories behind them, so the category filter is off there.
+    await expect(page.getByRole('combobox', { name: 'Filter by category' })).toBeDisabled();
 
     const liveDb = page.getByRole('button', { name: 'Live DB' });
     await expect(liveDb).toBeVisible();
@@ -114,10 +115,9 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     expect(availableYears).toContain(2027);
     expect(availableYears).toEqual([...availableYears].sort((a, b) => b - a));
 
-    // Tier 2: the watchlist/activity section is several full-height panels below the fold at a
+    // Tier 2: the watchlist section is several full-height panels below the fold at a
     // 720px-tall viewport with a 200px lazy-load margin -- it should not have fetched yet.
     expect(callsFor(apiCalls, 'Projects').length).toBe(0);
-    expect(callsFor(apiCalls, 'Activities').length).toBe(0);
 
     // Scroll through the page in increments so every lazy section actually crosses the viewport
     // on the way down (see scrollThroughPage), then confirm every split endpoint has fired.
@@ -125,6 +125,8 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     for (const endpoint of DASHBOARD_ENDPOINTS) {
       await expect.poll(() => callsFor(apiCalls, endpoint).length, { timeout: 15_000 }).toBeGreaterThan(0);
     }
+    // The Live Audit Feed was removed, and its endpoint with it.
+    expect(apiCalls.filter((call) => call.url.endsWith('/Dashboard/Activities'))).toHaveLength(0);
 
     // Reconcile the independently-fetched sections against each other -- same intent as the old
     // single-payload reconciliation, just split across endpoints now.
@@ -160,10 +162,14 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     expect(breakdownBudget).toBeCloseTo(totalBudget, 2);
     expect(regionBudget).toBeCloseTo(totalBudget, 2);
 
-    // The trend spans every fiscal year that has cost data -- one point per available year --
-    // and the selected year's point is the same project count the KPI tile reports.
-    expect(trend?.AnnualTrend.map((row) => row.Year)).toEqual([...availableYears].sort((a, b) => a - b));
-    expect(trend?.AnnualTrend.find((row) => row.Year === 2027)).toMatchObject({ ProjectCount: activeProjects });
+    // A fiscal year is a program year: the switcher offers every year with programs, and the
+    // trend plots the years whose programs have budget-stage cost in that year -- so every trend
+    // year is an available year, and the selected year's point is the KPI tile's project count.
+    for (const row of trend?.AnnualTrend ?? []) {
+      expect(availableYears).toContain(row.Year);
+    }
+    const selectedPoint = trend?.AnnualTrend.find((row) => row.Year === kpis.SelectedYear);
+    expect(selectedPoint?.ProjectCount ?? 0).toBe(activeProjects);
 
     // Project rows must show resolved names, not raw provenance/lookup keys.
     const projectsPage = callsFor(apiCalls, 'Projects').at(-1)?.responseBody as
@@ -231,7 +237,7 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     }
   });
 
-  test('project stage and activity filters can be applied and cleared', async ({ page }) => {
+  test('project stage filter can be applied and cleared', async ({ page }) => {
     await openDashboardOnLiveDb(page);
     // Project Stages lives inside DashboardCharts, above the watchlist -- scroll incrementally
     // (not straight to #watchlist-section) so that section actually mounts on the way down.
@@ -243,10 +249,82 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
       await stageButtons.first().click();
       await stageButtons.first().click();
     }
+  });
 
-    for (const name of ['All', 'Projects', 'Revisions', 'LS Wallet']) {
-      await page.getByRole('button', { name, exact: true }).click();
-    }
+  test('category picker lists every category on focus, narrows as you type, and filters every section', async ({ page }) => {
+    const apiCalls = captureApiCalls(page, ['/api/Dashboard/']);
+    const categoryCalls = () => apiCalls.filter((call) => call.url.endsWith('/Dashboard/Categories'));
+    await openDashboardOnLiveDb(page);
+    await expect.poll(() => callsFor(apiCalls, 'Kpis').length, { timeout: 30_000 }).toBeGreaterThan(0);
+
+    const combobox = page.getByRole('combobox', { name: 'Filter by category' });
+    await expect(combobox).toBeEnabled();
+
+    // Focusing the empty box lists every category, without typing anything.
+    await combobox.click();
+    const options = page.getByRole('option');
+    await expect(options.first()).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => categoryCalls().length).toBeGreaterThan(0);
+    const allCategories = (categoryCalls().at(-1)?.responseBody?.Categories ?? []) as Array<{ CategoryName: string }>;
+    expect(allCategories.length).toBeGreaterThan(8);
+    await expect(options).toHaveCount(allCategories.length);
+
+    // Typing narrows the list in the browser: no further request.
+    const requestsBeforeTyping = categoryCalls().length;
+    await combobox.fill('OO1');
+    await expect(options).toHaveCount(allCategories.filter((c) => c.CategoryName.toLowerCase().includes('oo1')).length);
+    expect(categoryCalls().length).toBe(requestsBeforeTyping);
+
+    // Choosing one refetches the KPIs for that category...
+    const beforeChoose = callsFor(apiCalls, 'Kpis').length;
+    await options.first().click();
+    await expect.poll(() => callsFor(apiCalls, 'Kpis').length, { timeout: 30_000 }).toBeGreaterThan(beforeChoose);
+    const chosenCategoryId = callsFor(apiCalls, 'Kpis').at(-1)?.requestBody?.CategoryId;
+    expect(typeof chosenCategoryId).toBe('number');
+
+    // ...and clearing it returns to all categories.
+    const beforeClear = callsFor(apiCalls, 'Kpis').length;
+    await page.getByRole('button', { name: 'Clear category filter' }).click();
+    await expect.poll(() => callsFor(apiCalls, 'Kpis').length, { timeout: 30_000 }).toBeGreaterThan(beforeClear);
+    expect(callsFor(apiCalls, 'Kpis').at(-1)?.requestBody?.CategoryId ?? null).toBeNull();
+    await expect(combobox).toHaveValue('');
+  });
+
+  test('the filter header stays pinned on screen while scrolling', async ({ page }) => {
+    await openDashboardOnLiveDb(page);
+    const pinned = page.locator('[data-pinned="true"]');
+    await expect(pinned).toHaveCount(0);
+
+    await scrollThroughPage(page);
+    // Pinned: still showing the filters, and still within the viewport after a long scroll.
+    await expect(pinned).toHaveCount(1);
+    await expect(pinned.getByRole('combobox', { name: 'Filter by category' })).toBeVisible();
+    await expect(pinned.getByRole('button', { name: '2027', exact: true })).toBeVisible();
+    await expect(pinned).toBeInViewport();
+
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(pinned).toHaveCount(0);
+    await expect(page.getByText('National Expenditure Program & Portfolio Matrix')).toBeVisible();
+  });
+
+  test('annual budget bars select their fiscal year like the project trajectory', async ({ page }) => {
+    const apiCalls = captureApiCalls(page, ['/api/Dashboard/']);
+    await openDashboardOnLiveDb(page);
+    await scrollThroughPage(page);
+    await expect.poll(() => callsFor(apiCalls, 'Trend').length, { timeout: 30_000 }).toBeGreaterThan(0);
+
+    const trendYears = (callsFor(apiCalls, 'Trend').at(-1)?.responseBody?.AnnualTrend ?? []) as Array<{ Year: number }>;
+    const selectedYear = callsFor(apiCalls, 'Kpis').at(-1)?.responseBody?.SelectedYear as number;
+    const otherYear = trendYears.map((row) => row.Year).find((year) => year !== selectedYear);
+    test.skip(otherYear === undefined, 'The trend has only one fiscal year in this database.');
+
+    const bar = page.getByRole('button', { name: new RegExp(`^FY ${otherYear}: budget`) });
+    await bar.scrollIntoViewIfNeeded();
+    const before = callsFor(apiCalls, 'Kpis').length;
+    await bar.click();
+    await expect.poll(() => callsFor(apiCalls, 'Kpis').length, { timeout: 30_000 }).toBeGreaterThan(before);
+    expect(callsFor(apiCalls, 'Kpis').at(-1)?.responseBody?.SelectedYear).toBe(otherYear);
+    await expect(bar).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('repository entry points navigate to the project list', async ({ page }) => {

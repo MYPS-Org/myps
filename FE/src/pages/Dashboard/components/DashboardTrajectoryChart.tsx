@@ -213,7 +213,7 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
       {/* Visual Comparison Chart Bar Area */}
       <div className={`mt-6 pt-5 border-t ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
         <div className={`flex items-center justify-between text-xs mb-2 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-          <span>Relative Volume Density (Max: {maxProjects.toLocaleString()})</span>
+          <span>Relative Project Count (Max: {maxProjects.toLocaleString()} projects)</span>
           <span>Period Avg: <strong className={isLight ? 'text-slate-800' : 'text-white'}>{avgProjects.toLocaleString()}</strong> projects</span>
         </div>
 
