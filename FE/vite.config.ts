@@ -47,6 +47,23 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_API_BASE_URL,
           changeOrigin: true,
           secure: false,
+        },
+        // SignalR hubs are referenced as same-origin relative paths in the client code
+        // (src/main.tsx, Reports.tsx) so a misconfigured/placeholder VITE_API_BASE_URL in a
+        // built bundle can't silently break them the way it did in prod (see
+        // MYPS_REPORT_DOWNLOAD_PROD_RCA.md) -- that same-origin assumption only holds in dev
+        // if these proxy entries exist too, with `ws: true` for the websocket upgrade.
+        '/notificationHub': {
+          target: env.VITE_API_BASE_URL,
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+        },
+        '/hubs': {
+          target: env.VITE_API_BASE_URL,
+          changeOrigin: true,
+          secure: false,
+          ws: true,
         }
       }
     },

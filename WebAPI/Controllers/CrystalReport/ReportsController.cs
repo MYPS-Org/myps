@@ -220,7 +220,8 @@ namespace WebAPI.Controllers.CrystalReport
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.JobId == jobId, ct);
 
-            if (job == null)
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (job == null || job.RequestedBy != userId)
                 return NotFound(new { Message = "Report job not found." });
 
             return Ok(new

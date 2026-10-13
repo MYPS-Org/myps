@@ -214,6 +214,14 @@ const Reports: React.FC = () => {
 
     const { jobId } = currentJob;
     let settled = false;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
+
+    const stopPolling = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = undefined;
+      }
+    };
 
     const applyStatus = (event: ReportStatusEvent) => {
       if (event.JobId !== jobId || settled) return;
@@ -227,6 +235,7 @@ const Reports: React.FC = () => {
 
       if (event.Status === 'Completed' || event.Status === 'Failed' || event.Status === 'Cancelled') {
         settled = true;
+        stopPolling();
         setIsGenerating(false);
         if (event.Status === 'Failed' || event.Status === 'Cancelled') {
           showToast({ type: 'error', message: event.Message });
@@ -251,8 +260,13 @@ const Reports: React.FC = () => {
     // this job only. Kept separate from the shared notification hub
     // connection (src/services/signalrService.ts) since that hub has no
     // JoinJobGroup/LeaveJobGroup handlers of its own.
+    //
+    // Same-origin relative path -- not built from VITE_API_BASE_URL -- so a
+    // placeholder/misconfigured value in a built bundle can't silently break this
+    // connection the way it did in prod (see MYPS_REPORT_DOWNLOAD_PROD_RCA.md). The dev
+    // server proxies this path to VITE_API_BASE_URL itself (vite.config.ts).
     const connection = new HubConnectionBuilder()
-      .withUrl(`${import.meta.env.VITE_API_BASE_URL}/hubs/report`, { withCredentials: true })
+      .withUrl('/hubs/report', { withCredentials: true })
       .withAutomaticReconnect()
       .build();
 
@@ -267,6 +281,14 @@ const Reports: React.FC = () => {
         .catch((error) => console.error('Error rejoining report status hub:', error));
     });
 
+    // withAutomaticReconnect() gives up for good after its last retry delay —
+    // for a long-running Crystal report, a reverse proxy/App Pool can idle out
+    // the websocket well before the job finishes, and once reconnection is
+    // exhausted no hub event (not even onreconnected) fires again. Poll on an
+    // interval as a backstop so a lost connection can't leave the UI stuck on
+    // "Generating…" for a job that actually finished.
+    pollTimer = setInterval(checkStatus, 8000);
+
     connection
       .start()
       .then(() => connection.invoke('JoinJobGroup', jobId))
@@ -278,6 +300,7 @@ const Reports: React.FC = () => {
       .catch((error) => console.error('Error connecting to report status hub:', error));
 
     return () => {
+      stopPolling();
       connection.stop().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
