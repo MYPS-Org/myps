@@ -1,3 +1,96 @@
+# UserManual.md — Changelog v3.11 → v3.12 (FE/UserManual.md)
+
+**Date:** October 14, 2026
+**Branch:** main (uncommitted, on top of `966de3eb`)
+**Source:** QA concerns document `myps_concerns.docx` (seven Dashboard findings, screenshots SS1–SS5) and the user's request to add a Category filter beside the year switcher. Implemented under `documents/plans/dashboard-tester-concerns-fy-scope-category-filter.md`. The manual text describes the behaviour as built and verified against `myps_db_dev`, not the plan wording.
+
+---
+
+## 1. Document Header
+
+| Field | v3.11 | v3.12 |
+|-------|-------|-------|
+| Version | 3.11 | 3.12 |
+| Date | September 10, 2026 | October 14, 2026 |
+
+A v3.12 row was added to the Revision History table.
+
+---
+
+## 2. Section 5.1 — Dashboard: Purpose
+
+| # | Old | New | Reason |
+|---|-----|-----|--------|
+| 1 | "It provides an overview of the logged-in user's account and system status." | "It summarizes the infrastructure budget of one fiscal year: the total budget, the programs it is spread across, where it goes by region and island group, how it moved over the years, and the projects behind it." | The old text described a user-info dashboard that no longer exists. |
+| 2 | Prerequisites: "Successful login (see Section 3.1)." | Same, plus "The figures cover only the projects your user group is allowed to see." | The dashboard applies the user's project visibility (`fUserVisibleProjects`). |
+
+---
+
+## 3. Section 5.1 — "Dashboard Panels" table replaced
+
+| Old | New |
+|-----|-----|
+| Three panels: **User Info** (username, role, phone), **Account Status** (status, credit balance), **Quick Actions** (system status) | Two tables. **Header Controls**: Live DB / Demo Data, Light / Dark, **Category**, fiscal year buttons, Refresh, Project Repository. **Dashboard Sections**: Summary cards, Total Program Outlays, No. of Infrastructure Projects, Distribution of Budget by Region, Annual Budget & Lump Sum Itemization Trend, Project Stages, Island-Group Allocation, FY Regional Infrastructure Portfolio. |
+
+None of the three old panels exist on the current screen. Within the new tables, these entries record behaviour introduced in this release:
+
+| Item | Documented behaviour | Concern / request |
+|------|----------------------|-------------------|
+| Category control | **New.** Clicking the box lists every project category; typing any part of a name shortens the list; retired categories are marked Inactive. The choice narrows every section and shows as "Category: \<name\>" with × to clear. Live DB only. | User requests: a Category filter beside the year switcher, and the full list on click |
+| Pinned header | **New.** While scrolling, the header stays at the top of the page as one row (Viewing FY, data source, Category, years, Refresh). New step 7 describes it. | User request: keep the filters visible while scrolling |
+| No. of Infrastructure Projects | The comparison bars are labelled **Relative Project Count**. | Concern 3 ("Relative Volume Density has a different meaning") |
+| Annual Budget & Lump Sum Itemization Trend | A year's bars can be **selected** to switch the Dashboard to that year, like the project-count chart. LS Itemized now shows real per-year amounts in Live DB. | Concern 5 ("The bar is not interactive") |
+| FY Regional Infrastructure Portfolio | "The count shown is a number of **projects**." | Concern 7 ("8460 Regions?") |
+| (Live Audit Feed) | **Removed.** It is not listed among the sections. | Concern 7 ("What is the Live Audit Feed for?"); removal was the user's decision |
+
+---
+
+## 4. Section 5.1 — New block "What counts toward a fiscal year (Live DB)"
+
+**New:** five rules plus a sentence stating that every section agrees:
+- only the fiscal year's own programs;
+- only cost scheduled in that year;
+- budget stages only (BP, NEP, NEP-E, HGAB, HGAB-I, GAA, GAA-R, TF, TF-R), with RBP, RDIP and PIP planning proposals excluded;
+- approved formal revisions counted at the revised amount;
+- region and island group taken from the project's Province, and "Unassigned" when there is none.
+
+| Rule | Concern it answers |
+|------|--------------------|
+| Fiscal year's programs and cost year only | Concern 2 (FY2025 listed 2024 programs at ₱0 / 0%) |
+| Budget stages only, RBP/RDIP/PIP excluded | Concern 2 note ("RBPs, RDIP, PIP should not be displayed here"), applied to the whole dashboard by user decision; the stage allow-list was confirmed by the user |
+| Approved formal revision at its revised amount | Concern 1 (FY2026 card showed ₱10M for a project revised to ₱30M) |
+| Region and island from Province | Concerns 4 and 6 (map and island cards showed Luzon/Visayas at 0% and 92% "Unassigned"). The user specified `tProjectRevisions.Province` → `tOptionAdminAreaProvince.Code` → region. |
+
+---
+
+## 5. Section 5.1 — Step-by-Step
+
+| Old | New |
+|-----|-----|
+| 4 steps: log in, Dashboard loads, review user/account panels, use the sidebar | 7 steps: log in; select Live DB; select a fiscal year; *(optional)* click in Category and pick one; review sections, switching years from the header, the project-count chart or the Annual Budget bars; select an island-group or stage card to filter the project list, with **Reset Filter** to clear; scroll with the header pinned |
+
+---
+
+## 6. Section 5.1 — On Success and Common Outcomes
+
+| # | Old | New |
+|---|-----|-----|
+| 1 | On Success: "The Dashboard loads and displays all panels without errors. The sidebar shows only the modules accessible to the logged-in user's role." | "Every section shows the selected fiscal year (and category, if chosen), and their totals agree." |
+| 2 | *(no Common Outcomes table)* | **New** table with four rows: no category matches what was typed; a category with no projects that year (₱0); Demo Data selected (Category unavailable); a project with no province (Unassigned / "Not recorded"). |
+
+---
+
+## 7. Commits Covered
+
+| Commit | Message | Impact |
+|--------|---------|--------|
+| *(uncommitted)* | Dashboard tester concerns: FY scope, region resolution, category filter (plan `dashboard-tester-concerns-fy-scope-category-filter.md`) | Category filter, fiscal-year scoping rule, revised-amount costing, province-based regions, Relative Project Count label, clickable Annual Budget bars, project-count wording, Live Audit Feed removal — Sections 3–6 above |
+| `7b04f69f` | feat: implement Lump Sum data summary in Dashboard with real-time integration | Lump Sum (LS) Itemized summary card, now documented in the Sections table |
+| `8a1c7a2c` | Unpin dashboard from FY2027 and aggregate per year in SQL | Fiscal year buttons offering multiple years, now documented in Header Controls |
+| `5b38fcaf` | Rewire Dashboard.tsx onto the split endpoints and lazy loading | The per-section layout the Sections table describes |
+
+---
+
 # UserManual.md — Changelog v3.10 → v3.11 (FE/UserManual.md)
 
 **Date:** September 10, 2026
