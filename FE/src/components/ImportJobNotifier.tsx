@@ -86,18 +86,58 @@ export const ImportJobNotifier = () => {
     });
   }, [showToast]);
 
+  // Best-effort catch-up check for a terminal status the SignalR group
+  // broadcast may have already missed or will never deliver (lost message,
+  // connection that drops and never reconnects, etc.) — resolves/toasts the
+  // job the same way a live ImportStatusChanged event would.
+  const checkJobStatus = useCallback(async (jobId: string, kind: ImportJobKind) => {
+    try {
+      const response = await getImportJobStatus(jobId);
+      // Re-check membership on the way back out — a live ImportStatusChanged
+      // event (or another in-flight checkJobStatus call, e.g. the periodic
+      // poll racing the post-join check) may have already resolved this job
+      // while this request was in flight, which would otherwise show a
+      // duplicate toast.
+      if (TERMINAL_STATUSES.has(response.Data.Status) && pendingJobsRef.current.some((job) => job.jobId === jobId)) {
+        notify(response.Data, kind);
+        resolveJob(jobId);
+      }
+    } catch (err) {
+      console.error(`[ImportJobNotifier] Failed to check import job ${jobId} status:`, err);
+    }
+  }, [notify, resolveJob]);
+
   // Join the SignalR group for any newly-queued job so this connection starts
   // receiving that job's ImportStatusChanged events.
   useEffect(() => {
-    pendingJobs.forEach(({ jobId }) => {
+    pendingJobs.forEach(({ jobId, kind }) => {
       if (joinedRef.current.has(jobId)) return;
       joinedRef.current.add(jobId);
       console.log('[ImportJobNotifier] joining job group:', jobId);
       invoke('JoinJobGroup', jobId)
-        .then(() => console.log('[ImportJobNotifier] joined job group:', jobId))
+        .then(() => {
+          console.log('[ImportJobNotifier] joined job group:', jobId);
+          // A Hangfire worker can finish the job (especially a small/fast
+          // export) before this join completes — that broadcast would land
+          // in an empty group and be lost for good, so check once for a
+          // status we may have already missed.
+          return checkJobStatus(jobId, kind);
+        })
         .catch((err) => console.error('[ImportJobNotifier] Failed to join import job group:', jobId, err));
     });
-  }, [pendingJobs, invoke]);
+  }, [pendingJobs, invoke, checkJobStatus]);
+
+  // Periodic backstop, independent of the SignalR connection's health: a
+  // connection can drop and, once withAutomaticReconnect() exhausts its
+  // retries, never fire another event again (not even onreconnected/onclose
+  // is handled below) — without this, such a job would stay "pending"
+  // forever even though the backend finished it long ago.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      pendingJobsRef.current.forEach(({ jobId, kind }) => checkJobStatus(jobId, kind));
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [checkJobStatus]);
 
   // Listen once; read the latest pending list via ref so we don't churn the
   // subscription every time a job resolves.
@@ -136,18 +176,13 @@ export const ImportJobNotifier = () => {
       for (const { jobId, kind } of pendingJobsRef.current) {
         try {
           await invoke('JoinJobGroup', jobId);
-          const response = await getImportJobStatus(jobId);
-          console.log('[ImportJobNotifier] reconnect status check:', jobId, response.Data.Status);
-          if (TERMINAL_STATUSES.has(response.Data.Status)) {
-            notify(response.Data, kind);
-            resolveJob(jobId);
-          }
+          await checkJobStatus(jobId, kind);
         } catch (err) {
           console.error(`[ImportJobNotifier] Failed to recheck import job ${jobId} after reconnect:`, err);
         }
       }
     }, 'import');
-  }, [invoke, notify, resolveJob]);
+  }, [invoke, checkJobStatus]);
 
   return null;
 };

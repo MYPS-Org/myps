@@ -107,9 +107,21 @@ if (builder.Environment.IsDevelopment())
 }
 
 // Named HttpClient for the CrystalReportService microservice
+// Validated eagerly at startup rather than left to throw lazily the first time a PDF report job
+// calls CreateClient("ReportService") -- that deferred failure previously surfaced only as a
+// generic "report generation failed" toast with no indication the server was ever misconfigured.
+var reportServiceBaseUrl = builder.Configuration["ReportService:BaseUrl"];
+if (string.IsNullOrWhiteSpace(reportServiceBaseUrl))
+{
+    throw new InvalidOperationException(
+        $"Configuration 'ReportService:BaseUrl' is missing in the '{builder.Environment.EnvironmentName}' environment. " +
+        "It is required for PDF report generation (RBP/AIP/RBP Summary reports call the CrystalReportService at this URL) " +
+        "-- set it in the matching appsettings.{Environment}.json or via an environment variable before starting the app.");
+}
+
 builder.Services.AddHttpClient("ReportService", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ReportService:BaseUrl"]!);
+    client.BaseAddress = new Uri(reportServiceBaseUrl);
     client.Timeout = TimeSpan.FromMinutes(10); // report rendering can be slow
 });
 

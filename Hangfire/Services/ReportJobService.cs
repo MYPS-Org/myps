@@ -99,12 +99,7 @@ namespace Hangfire.Services
                         var errorDetail = await response.Content.ReadAsStringAsync();
                         response.Dispose();
 
-                        jobRecord.Status = "Failed";
-                        jobRecord.Message = "Failed";
-                        jobRecord.CompletedAt = Functions.CurrentDate();
-                        _db.tReportJobResult.Update(jobRecord);
-                        await _db.SaveChangesAsync();
-
+                        await TrySaveTerminalStatusAsync(jobRecord, "Failed", errorDetail);
                         await NotifyClient(payload.JobId, "Failed", errorDetail, null);
                         return;
                     }
@@ -145,6 +140,8 @@ namespace Hangfire.Services
             catch (OperationCanceledException)
             {
                 _logger.LogWarning("Report job {JobId} was cancelled", payload.JobId);
+
+                await TrySaveTerminalStatusAsync(jobRecord, "Cancelled", "Report generation was cancelled.");
                 await NotifyClient(payload.JobId, "Cancelled", "Report generation was cancelled.", null);
             }
             catch (ArgumentException ex)
@@ -153,19 +150,44 @@ namespace Hangfire.Services
                 // handling as a CrystalReportService validation failure.
                 _logger.LogWarning("Report job {JobId} had invalid parameters: {Message}", payload.JobId, ex.Message);
 
-                jobRecord.Status = "Failed";
-                jobRecord.Message = ex.Message;
-                jobRecord.CompletedAt = Functions.CurrentDate();
-                _db.tReportJobResult.Update(jobRecord);
-                await _db.SaveChangesAsync();
-
+                await TrySaveTerminalStatusAsync(jobRecord, "Failed", ex.Message);
                 await NotifyClient(payload.JobId, "Failed", ex.Message, null);
             }
             catch (Exception ex)
             {
+                await TrySaveTerminalStatusAsync(jobRecord, "Failed", ex.Message);
+
                 _ = _exceptionHandler.Handle(ex, payload, payload.RequestedBy);
                 await NotifyClient(payload.JobId, "Failed", ex.Message, null);
                 throw;
+            }
+        }
+
+        private static string TruncateMessage(string message)
+        {
+            const int maxLength = 500;
+            return message.Length > maxLength ? message.Substring(0, maxLength) : message;
+        }
+
+        // Centralizes every terminal-status write (Failed via Crystal-service error/bad
+        // parameters/unexpected exception, or Cancelled) behind one try/catch -- the save
+        // itself can throw (transient DB issue), and letting that escape uncaught would leave
+        // the job stuck at "Processing" forever with nothing ever having recorded why, exactly
+        // the bug class this method exists to close off. Mirrors ImportProjectJobService's
+        // same pattern for its own terminal-status writes.
+        private async Task TrySaveTerminalStatusAsync(DBHelper.Models.Table.ReportJobResult jobRecord, string status, string message)
+        {
+            try
+            {
+                jobRecord.Status = status;
+                jobRecord.Message = TruncateMessage(string.IsNullOrWhiteSpace(message) ? status : message);
+                jobRecord.CompletedAt = Functions.CurrentDate();
+                _db.tReportJobResult.Update(jobRecord);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception saveEx)
+            {
+                _logger.LogError(saveEx, "Failed to save {Status} status for report job {JobId}", status, jobRecord.JobId);
             }
         }
 
