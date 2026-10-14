@@ -185,6 +185,25 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
     });
   };
 
+  // Describes which stages are bypassed when the program starts at a later stage.
+  // The sequential chain is BP (1) → NEP (2) → ... → GAA-R (7); every stage before the selected one is skipped.
+  // NEP-E (3) and HGAB-I (5) are intermediate revisions, so they are left out of the listed stages.
+  const skipMessage = (() => {
+    const selectedStage = Stage.find(stage => stage.NameId === formData.Stage);
+    if (!selectedStage) return null;
+    const skippedStages = Stage
+      .filter(stage => stage.NameId >= 1 && stage.NameId < selectedStage.NameId && stage.NameId <= 7 && stage.NameId !== 3 && stage.NameId !== 5)
+      .sort((a, b) => a.NameId - b.NameId)
+      .map(stage => stage.Name);
+    if (skippedStages.length === 0) {
+      return `The selected program stage is ${selectedStage.Name}. The program will be created directly under this stage.`;
+    }
+    const list = skippedStages.length === 1
+      ? skippedStages[0]
+      : `${skippedStages.slice(0, -1).join(', ')}${skippedStages.length > 2 ? ',' : ''} and ${skippedStages[skippedStages.length - 1]}`;
+    return `The selected program stage is ${selectedStage.Name}. The program will be created directly under this stage, and the preceding ${skippedStages.length === 1 ? 'stage' : 'stages'} (${list}) will be skipped.`;
+  })();
+
   return (
     <Dialog open={isOpen} onClose={handleClose} className="fixed z-10 inset-0 overflow-y-auto">
       {/* Backdrop */}
@@ -298,6 +317,9 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
             <div className="grid grid-cols-2 gap-5 mb-8 bg-red-100 p-3 border border-red-200 rounded-lg">
                 <div className="content-center">
                   <p className="text-sm text-red-600">
+                    {skipMessage}
+                  </p>
+                  <p className="text-sm text-red-600 mt-1">
                     Note: Skipping this step may affect your program's setup.
                   </p>
                 </div>
