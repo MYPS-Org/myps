@@ -21,7 +21,8 @@ namespace WebAPI.Controllers.Programs
     [Route("api/[controller]/[action]")]
     public class ProgramController : CoreController
     {
-        public ProgramController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
+        private readonly ISqlExecutor _sql;
+        public ProgramController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler, ISqlExecutor sql) : base(db, hub, pcma, exceptionHandler) { _sql = sql; }
         #region Program Lists
 
         [HttpPost]
@@ -473,23 +474,12 @@ namespace WebAPI.Controllers.Programs
         [HttpPost]
         public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
                 if (string.IsNullOrEmpty(dto.ProgramId))
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
-                string ProgramId = dto.ProgramId;
-                EnumProgramStage[] StagesToCheck =
-                {
-                    EnumProgramStage.NEP,
-                    EnumProgramStage.NEPE,
-                    EnumProgramStage.HGAB,
-                    EnumProgramStage.HGABI,
-                    EnumProgramStage.GAA,
-                    EnumProgramStage.GAAR,
-                };
                 DateTime CurrentDate = Functions.CurrentDate();
                 var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
                 {
@@ -506,95 +496,51 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
-                var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
-                var ProgramStage = ValidateProgramId.Data.ProgramStage;
-                if (StagesToCheck.Contains(ProgramStage.StageId))
-                {
-                    return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has progressed beyond the BP stage.", Title = "Delete Not Allowed" });
-                }
-                else
-                {
-                    EnumProgramStage[] AllowedStages =
-                    {
-                        EnumProgramStage.BP,
-                        EnumProgramStage.RBP,
-                        EnumProgramStage.RDIP,
-                        EnumProgramStage.PIP
-                    };
-                    if (!AllowedStages.Contains(ProgramStage.StageId))
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it is not in a deletable stage.", Title = "Delete Not Allowed" });
-                    }
-                    if (ProgramDetails.Cost > 0)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has projects associated with it.", Title = "Delete Not Allowed" });
-                    }
-                }
-                // 2026-09-05: this log entry previously claimed AffectedColumn = "IsDeleted",
-                // NewValue = "true" -- but nothing in this action sets that flag; the rows below
-                // are hard-deleted (RemoveRange/Remove), and tProjects/tProjectStages/
-                // tProgramRevisions/tProgramStages don't even have an IsDeleted column to set.
-                // Corrected to describe what actually happens. Converting this to a real
-                // soft-delete is tracked separately (RISK/REC, not part of this fix) -- it needs
-                // schema work (4 missing IsDeleted columns) and updating every consuming view
-                // (vProgramLatest currently has no IsDeleted filter either), not a quick patch.
-                var TransactionLog = new TransactionLog()
-                {
-                    ReferenceId = ProgramId,
-                    TransactionType = EnumTransactionType.Delete.ToString(),
-                    AffectedTable = "tPrograms, tProgramRevisions, tProgramStages, tProjects, tProjectRevisions, tProjectStages",
-                    AffectedColumn = "Row",
-                    NewValue = "Permanently deleted",
-                    OldValue = "Existed",
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate
-                };
-                await _db.tTransactionLog.AddRangeAsync(TransactionLog);
 
-                var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
-                if (ProgramRevisions == null)
+                // Pre-flight eligibility check (read-only, no transaction opened yet).
+                // Replaces the old hardcoded StagesToCheck/AllowedStages lists (RISK-112)
+                // and the cost guard (ProgramDetails.Cost > 0) with one uniform rule:
+                // StageCount(ProgramFK) <= 1 -> Eligible, else Blocked. No stage-name
+                // logic, no cost check (cost is irrelevant -- every child project is force-
+                // deleted as part of the cascade, so "active cost" can never survive).
+                var eligibility = await ProgramHelper.DetermineProgramDeletionEligibilityAsync(
+                    _sql, ProgramParent.ProgramPK, cancellationToken);
+
+                if (eligibility == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Program '{dto.ProgramId}' was not found.",
+                        Title = "Program Not Found"
+                    });
                 }
 
-                var ProjectsInProgram = await _db.tProjects.Where(x => x.ProgramId == ProgramRevisions.ProgramId).AsNoTracking().ToListAsync(cancellationToken);
-                HashSet<string> ReferenceIds = ProjectsInProgram.Select(x => x.ProjectPK).ToHashSet();
-                var ProjectRevisions = await _db.tProjectRevisions.Where(x => ReferenceIds.Contains(x.ProjectFK)).AsNoTracking().ToListAsync(cancellationToken);
-                var ProjectStages = await _db.tProjectStages.Where(x => ReferenceIds.Contains(x.ProjectFK)).AsNoTracking().ToListAsync(cancellationToken);
+                if (eligibility.Eligibility == "Blocked")
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Program {dto.ProgramId} cannot be deleted because it has progressed beyond its initial stage.",
+                        Title = "Delete Not Allowed"
+                    });
+                }
 
-                _db.tProjectStages.RemoveRange(ProjectStages);
-                await _db.SaveChangesAsync(cancellationToken);
-                _db.tProjectRevisions.RemoveRange(ProjectRevisions);
-                await _db.SaveChangesAsync(cancellationToken);
+                // Execute the full cascade: Pass 2 (published-child check) + Pass 3
+                // (force hard-delete every child project) + Pass 4 (program's own rows)
+                // all happen inside pExecuteProgramDeletion's own self-managed transaction.
+                // If ANY child is published, the procedure raises an error and performs
+                // zero writes -- the program and every other child stay untouched.
+                var deletedProjectIds = await ProgramHelper.ExecuteProgramDeletionAsync(
+                    _sql, ProgramParent.ProgramPK, _Session.UserId, CurrentDate, cancellationToken);
 
-                _db.tProjects.RemoveRange(ProjectsInProgram);
-                await _db.SaveChangesAsync(cancellationToken);
-
-                _db.tProgramStages.RemoveRange(ProgramStage);
-                await _db.SaveChangesAsync(cancellationToken);
-                _db.tProgramRevisions.RemoveRange(ProgramRevisions);
-                await _db.SaveChangesAsync(cancellationToken);
-
-                _db.tPrograms.Remove(ProgramParent);
-
-                //_db.tPrograms.Remove(ProgramParent);
-                //_db.tProgramRevisions.RemoveRange(ProgramRevisions);
-                //_db.tProgramStages.RemoveRange(ProgramStage);
-                //_db.tProjects.RemoveRange(ProjectsInProgram);
-                //_db.tProjectRevisions.RemoveRange(ProjectRevisions);
-                //_db.tProjectStages.RemoveRange(ProjectStages);
-
-                await _db.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Program deleted successfully.",
-                    Title = "Delete Complete"
+                    Message = $"Program {dto.ProgramId} and its projects have been permanently deleted.",
+                    Title = "Program Deleted",
+                    DeletedProjects = deletedProjectIds
                 });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
