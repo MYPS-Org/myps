@@ -10,7 +10,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAtomValue } from 'jotai';
 import { componentCostsAtom } from '../atoms/componentCosts.atom';
-import { MajorItemLocationsAtom } from '../atoms/majorItemLocations.atom';
+import { MajorItemLocationsAtom } from '../atoms/majorItemOfWorks.atom';
 import '../../../utils/GlobalFunctions';
 import { generateTempId } from '../../../utils/GlobalFunctions';
 import { autoFillComponentDescription } from '../../Project/Service';
@@ -110,8 +110,11 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       } else {
         showToast({ type: 'info', message: 'No description found for this component.' });
       }
-    } catch {
-      showToast({ type: 'error', message: 'Failed to auto-fill description. Please try again.' });
+    } catch (error) {
+      // The interceptor already toasted any API error that carried a Message; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) {
+        showToast({ type: 'error', message: 'Failed to auto-fill description. Please try again.' });
+      }
     } finally {
       setIsAutoFilling(false);
     }
