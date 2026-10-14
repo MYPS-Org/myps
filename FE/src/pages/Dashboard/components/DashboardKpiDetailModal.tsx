@@ -8,8 +8,14 @@ import {
 } from '@heroicons/react/24/outline';
 import type { WatchlistProject } from './ProjectQuickDetailModal';
 import type { KpiData } from './DashboardKpiCards';
-import type { DashboardRevisionItem, DashboardRevisionSummary, DashboardProjectsFilter } from '../Service';
-import { fetchDashboardProjects } from '../Service';
+import type {
+  DashboardFilters,
+  DashboardProgram,
+  DashboardPublication,
+  DashboardRevisionItem,
+  DashboardRevisionSummary,
+} from '../Service';
+import DashboardProgramGroups from './DashboardProgramGroups';
 
 export type DashboardKpiType = 'budget' | 'projects' | 'lswallet' | 'publication' | 'revisions';
 
@@ -58,22 +64,21 @@ export interface DashboardLsProject {
 interface Props {
   type: DashboardKpiType | null;
   selectedYear: number;
-  /** Header category filter; the modal's project list follows it like every other section. */
-  categoryId: number | null;
+  /** Header filters; the modal's project list follows them like every other section. */
+  filters: DashboardFilters;
   dataSourceMode: 'real' | 'benchmark';
   kpiData?: KpiData;
   lsProjects: DashboardLsProject[];
   revisions?: DashboardRevisionSummary;
   onClose: () => void;
+  /** A row was clicked: open that project. */
   onOpenProject: (project: WatchlistProject) => void;
+  /** The page a project opens, for its link (so it can be opened in a new tab). */
+  projectHref: (project: WatchlistProject) => string;
+  /** The footer's Project Repository button: open the project list. */
+  onOpenRepository: () => void;
   onOpenLsProject: (project: DashboardLsProject) => void;
 }
-
-// Modal tables aren't paginated (no controls for it), so this just fetches one generously-sized
-// page on open — matches backend's FilterDataCursor MaxLimit, and this dataset is now bounded to
-// one fiscal year so it's a reasonable stand-in for "show everything" like the old unpaginated
-// array did.
-const MODAL_PROJECT_FETCH_LIMIT = 200;
 
 // Same badge rules as the /revision list (ModifcationList.tsx) so a revision
 // carries one colour across both screens.
@@ -96,13 +101,15 @@ const money = (value: number) =>
 const DashboardKpiDetailModal: React.FC<Props> = ({
   type,
   selectedYear,
-  categoryId,
+  filters,
   dataSourceMode,
   kpiData,
   lsProjects,
   revisions,
   onClose,
   onOpenProject,
+  projectHref,
+  onOpenRepository,
   onOpenLsProject,
 }) => {
   const [expandedLsIds, setExpandedLsIds] = useState<Set<number>>(new Set());
@@ -112,11 +119,9 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
   const [groupFilter, setGroupFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
 
-  // Dashboard.tsx no longer holds a full project array (the watchlist is paginated), so this
-  // modal fetches its own project list on open, reusing the same paginated Projects endpoint
-  // with a filter matching the selected tab, instead of deriving from a full array prop.
-  const [fetchedProjects, setFetchedProjects] = useState<WatchlistProject[]>([]);
-  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+  // The project cards list their projects per program (DashboardProgramGroups); the programs it
+  // loads also give the exact For Publish count.
+  const [programs, setPrograms] = useState<DashboardProgram[] | null>(null);
 
   // Reopening the modal on a different card must not inherit a stale drill-down.
   useEffect(() => {
@@ -124,6 +129,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
     setOfficeFilter('');
     setGroupFilter('');
     setStatusFilter('');
+    setPrograms(null);
   }, [type]);
 
   useEffect(() => {
@@ -135,44 +141,18 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose, type]);
 
-  useEffect(() => {
-    const needsProjects = type === 'projects' || type === 'budget' || type === 'publication';
-    if (!needsProjects) {
-      setFetchedProjects([]);
-      return;
-    }
-    let active = true;
-    setIsProjectsLoading(true);
-    const filters: DashboardProjectsFilter = {};
-    fetchDashboardProjects(
-      { Filters: filters, limit: MODAL_PROJECT_FETCH_LIMIT, page: 1, Navigation: 0 },
-      selectedYear,
-      dataSourceMode === 'benchmark',
-      categoryId
-    )
-      .then((response) => {
-        if (active) setFetchedProjects(response.Data.lists);
-      })
-      .catch(() => {
-        if (active) setFetchedProjects([]);
-      })
-      .finally(() => {
-        if (active) setIsProjectsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [type, selectedYear, categoryId, dataSourceMode]);
-
   if (!type) return null;
 
   const totalBudget = kpiData?.totalBudget ?? 0;
   const activeCount = kpiData?.activeProjects ?? 0;
   const publishedCount = kpiData?.publishedProjects ?? 0;
   const publicationRate = kpiData?.publicationRate ?? (activeCount ? (publishedCount / activeCount) * 100 : 0);
-  // Approximation: exact "publishable but not yet published" would need its own server count;
-  // publishableProjects and publishedProjects are both already server-exact for the full year.
-  const forPublishCount = Math.max(0, (kpiData?.publishableProjects ?? 0) - publishedCount);
+  // "Publishable but not yet published", exact once the programs have loaded; until then the
+  // tiles' publishable − published, which is only an estimate (a published project need not be
+  // publishable).
+  const forPublishCount = programs
+    ? programs.reduce((sum, program) => sum + program.ForPublishCount, 0)
+    : Math.max(0, (kpiData?.publishableProjects ?? 0) - publishedCount);
 
   const lsItemized = kpiData?.lsWalletReleased ?? lsProjects.reduce((sum, p) => sum + p.itemizedAmount, 0);
   const lsAllocation = kpiData?.lsWalletTotal ?? lsProjects.reduce((sum, p) => sum + p.totalAllocation, 0);
@@ -184,10 +164,10 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
   const pendingCount = reviewCount + approvalCount;
 
   // "For Publish" is the publish backlog: cleared by the GAA-R rules
-  // (ProgramController.BatchAllowPublish) but not yet actually published. Filtered from this
-  // fetch's page rather than a separate server filter — see MODAL_PROJECT_FETCH_LIMIT.
-  const forPublishProjects = fetchedProjects.filter((project) => project.isPublishable && !project.isPublished);
-  const publishedProjects = fetchedProjects.filter((project) => project.isPublished);
+  // (ProgramController.BatchAllowPublish) but not yet actually published. The program lists
+  // filter it on the server (DashboardProjectsFilter.Publication).
+  const publication: DashboardPublication | undefined =
+    type === 'projects' && (projectsTab === 'forpublish' || projectsTab === 'published') ? projectsTab : undefined;
 
   // Revision rows shown under the Active Portfolio tabs, narrowed by the
   // optional Implementing Office / group drill-downs.
@@ -205,14 +185,6 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
 
   const isRevisionTab = type === 'revisions' || (type === 'projects' && (projectsTab === 'review' || projectsTab === 'approval'));
   const visibleRevisions = isRevisionTab ? revisionsForTab(type === 'revisions' ? 'all' : projectsTab) : [];
-
-  const visibleProjects = type !== 'projects'
-    ? fetchedProjects
-    : projectsTab === 'forpublish'
-      ? forPublishProjects
-      : projectsTab === 'published'
-        ? publishedProjects
-        : fetchedProjects;
 
   // Options are derived from the rows actually in scope so a drill-down can
   // never offer a value that yields an empty table.
@@ -430,8 +402,10 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Content Table */}
-        <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
+        {/* Content Table. The gap above it is a margin, not padding: a scroll container's top
+            padding insets where a sticky header sticks, which left a strip above the column
+            headers where scrolled rows showed through. */}
+        <div className="mt-4 min-h-0 flex-1 overflow-auto px-6 pb-4">
           {isRevisionTab ? (
             <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
               <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 uppercase font-bold text-[10px]">
@@ -521,7 +495,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
                                 {project.projectId}
                                 <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 text-blue-600" />
                               </div>
-                              <div className="max-w-md truncate text-slate-600 mt-0.5" title={project.description}>
+                              <div className="max-w-md break-words text-slate-600 mt-0.5">
                                 {project.description}
                               </div>
                               <div className="mt-1 text-[11px] font-semibold text-blue-700">
@@ -531,7 +505,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
                           </div>
                         </td>
                         <td className="px-4 py-3.5">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                          <span className="whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
                             {project.stageName}
                           </span>
                         </td>
@@ -571,12 +545,12 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
                                           <div className="font-bold text-slate-900 font-mono">
                                             {child.projectId}
                                           </div>
-                                          <div className="max-w-md truncate text-slate-600 text-[11px]" title={child.description}>
+                                          <div className="max-w-md break-words text-slate-600 text-[11px]">
                                             {child.description}
                                           </div>
                                         </td>
                                         <td className="px-4 py-2.5">
-                                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                                          <span className="whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
                                             {child.stageName}
                                           </span>
                                         </td>
@@ -612,78 +586,20 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
               </tbody>
             </table>
           ) : (
-            <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 uppercase font-bold text-[10px]">
-                <tr>
-                  <th className="px-4 py-3">Project Title & ID</th>
-                  <th className="px-4 py-3">Stage</th>
-                  <th className="px-4 py-3">Region</th>
-                  {type === 'publication' ? (
-                    <th className="px-4 py-3">Publication State</th>
-                  ) : (
-                    <th className="px-4 py-3">Funding Source</th>
-                  )}
-                  <th className="px-4 py-3 text-right">Allocated FY Budget</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {isProjectsLoading ? (
-                  Array.from({ length: 6 }).map((_, index) => (
-                    <tr key={index}>
-                      <td className="px-4 py-3.5" colSpan={5}>
-                        <div className="h-5 rounded bg-slate-100 animate-pulse" />
-                      </td>
-                    </tr>
-                  ))
-                ) : visibleProjects.map((project) => (
-                  <tr
-                    key={project.id}
-                    onClick={() => onOpenProject(project)}
-                    className="cursor-pointer hover:bg-slate-50 transition-colors"
-                    aria-label={`Open project ${project.projectId}`}
-                  >
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1 font-bold text-slate-900 font-mono">
-                        {project.projectId}
-                        <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 text-blue-600" />
-                      </div>
-                      <div className="max-w-md truncate text-slate-600 text-[11px]" title={project.description}>
-                        {project.description}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
-                        {project.stageName}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-slate-700">{project.region}</td>
-                    {type === 'publication' ? (
-                      <td className="px-4 py-3.5">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                            project.isPublished
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {project.isPublished ? 'Published' : 'Not published'}
-                        </span>
-                      </td>
-                    ) : (
-                      <td className="px-4 py-3.5 text-slate-600">{project.fundingSource}</td>
-                    )}
-                    <td className="px-4 py-3.5 text-right font-black text-slate-900">
-                      {money(project.allocatedBudget)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DashboardProgramGroups
+              key={type}
+              year={selectedYear}
+              filters={filters}
+              dataSourceMode={dataSourceMode}
+              publication={publication}
+              onOpenProject={onOpenProject}
+              projectHref={projectHref}
+              onProgramsLoaded={setPrograms}
+            />
           )}
 
           {((isRevisionTab && visibleRevisions.length === 0) ||
-            (!isRevisionTab && type === 'lswallet' && lsProjects.length === 0) ||
-            (!isRevisionTab && type !== 'lswallet' && !isProjectsLoading && visibleProjects.length === 0)) && (
+            (!isRevisionTab && type === 'lswallet' && lsProjects.length === 0)) && (
             <div className="py-12 text-center text-sm text-slate-400">
               {isRevisionTab
                 ? 'No revisions match this filter. The revision queue only returns rows you created, plus the RO tier if you are in RPC and the CO tier if you are in AUC.'
@@ -695,7 +611,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
         {/* Modal Footer */}
         <div className="flex justify-between items-center border-t border-slate-100 bg-slate-50 px-6 py-4">
           <span className="text-xs text-slate-500">
-            Click any row to browse and inspect active records in the Project Repository.
+            Click a project to open its details.
           </span>
           <div className="flex items-center gap-2.5">
             <button
@@ -705,8 +621,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
               Close
             </button>
             <button
-              onClick={() => visibleProjects[0] && onOpenProject(visibleProjects[0])}
-              disabled={visibleProjects.length === 0}
+              onClick={onOpenRepository}
               className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-md"
             >
               <span>Project Repository</span>

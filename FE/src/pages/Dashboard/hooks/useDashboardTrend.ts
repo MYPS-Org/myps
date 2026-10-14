@@ -1,4 +1,4 @@
-import { fetchDashboardTrend } from '../Service';
+import { fetchDashboardTrend, type DashboardFilters } from '../Service';
 import { trendCacheAtom, type TrendRow } from '../atoms/dashboardSectionCache.atom';
 import { useSectionData } from './useSectionData';
 
@@ -11,11 +11,16 @@ function mapTrend(raw: Awaited<ReturnType<typeof fetchDashboardTrend>>): TrendRo
   }));
 }
 
+/** The trend plots every fiscal year whichever one is selected (Dashboard/Trend ignores the
+ *  year, and so does Demo Data's series), so it is cached under one year: selecting another year
+ *  keeps the chart as it is instead of discarding it and refetching identical data. */
+const TREND_CACHE_YEAR = 0;
+
 /** Feeds both DashboardCharts (monthlyData) and DashboardTrajectoryChart (liveData) — they
- *  derive their own shapes from this one shared TrendRow[] rather than each fetching it. */
+ *  derive their own shapes from this one shared TrendRow[] rather than each fetching it. A header
+ *  filter change keeps the previous series on screen while the new one loads. */
 export function useDashboardTrend(
-  year: number,
-  categoryId: number | null,
+  filters: DashboardFilters,
   dataSourceMode: 'real' | 'benchmark',
   enabled: boolean
 ) {
@@ -23,9 +28,10 @@ export function useDashboardTrend(
     atom: trendCacheAtom,
     fetchFn: fetchDashboardTrend,
     map: mapTrend,
-    year,
-    categoryId,
+    year: TREND_CACHE_YEAR,
+    filters,
     dataSourceMode,
     enabled,
+    keepPreviousData: true,
   });
 }

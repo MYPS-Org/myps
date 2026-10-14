@@ -28,7 +28,7 @@ const BENCHMARK_TRAJECTORY_DATA: TrajectoryYear[] = [
 
 interface Props {
   selectedYear?: number;
-  onSelectYear?: (year: number) => void;
+  onSelectYear?: (year: number, anchor?: Element) => void;
   isBenchmark?: boolean;
   liveData?: Array<{ year: number; projects: number; budget: number }>;
   /** Only meaningful in Live DB mode — Demo Data renders from BENCHMARK_TRAJECTORY_DATA instantly. */
@@ -137,7 +137,7 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
               <motion.button
                 key={item.year}
                 whileHover={{ y: -3 }}
-                onClick={() => onSelectYear?.(item.year)}
+                onClick={(event) => onSelectYear?.(item.year, event.currentTarget)}
                 className={`relative text-left p-3.5 rounded-xl transition-all ${
                   isLight
                     ? isSelected
@@ -235,7 +235,7 @@ export const DashboardTrajectoryChart: React.FC<Props> = ({
               <div
                 key={item.year}
                 className="flex-1 min-w-0 flex flex-col items-center justify-end h-full group relative cursor-pointer"
-                onClick={() => onSelectYear?.(item.year)}
+                onClick={(event) => onSelectYear?.(item.year, event.currentTarget)}
               >
                 {/* Tooltip on hover */}
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-slate-950 text-white text-[10px] font-bold py-1 px-2 rounded border border-slate-700 shadow-xl pointer-events-none whitespace-nowrap z-20">

@@ -1,4 +1,4 @@
-import { fetchDashboardLsProjects } from '../Service';
+import { fetchDashboardLsProjects, type DashboardFilters } from '../Service';
 import type { DashboardSummary } from '../Service';
 import type { DashboardLsProject } from '../components/DashboardKpiDetailModal';
 import { lsProjectsCacheAtom } from '../atoms/dashboardSectionCache.atom';
@@ -31,7 +31,7 @@ function mapLsProjects(raw: Awaited<ReturnType<typeof fetchDashboardLsProjects>>
 
 export function useDashboardLsProjects(
   year: number,
-  categoryId: number | null,
+  filters: DashboardFilters,
   dataSourceMode: 'real' | 'benchmark',
   enabled: boolean
 ) {
@@ -40,7 +40,7 @@ export function useDashboardLsProjects(
     fetchFn: fetchDashboardLsProjects,
     map: mapLsProjects,
     year,
-    categoryId,
+    filters,
     dataSourceMode,
     enabled,
   });

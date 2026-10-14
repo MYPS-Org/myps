@@ -6,6 +6,7 @@ import {
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
 import { useDashboardTheme } from '../DashboardTheme';
+import UpdatingBadge from './UpdatingBadge';
 
 export interface BudgetSegment {
   id: string;
@@ -210,6 +211,8 @@ export const DashboardMacroBudget: React.FC<Props> = ({
   })), [liveBreakdown, liveTotal, selectedYear]);
   const segments = isBenchmark ? benchmarkData.segments : liveSegments;
   const totalAmount = isBenchmark ? benchmarkData.total : liveTotal / 1e9;
+  // Reloading for a new year or filter with the previous breakdown still on screen.
+  const isUpdating = isLoading && !isBenchmark && liveBreakdown.length > 0;
 
   const [activeSegment, setActiveSegment] = useState<BudgetSegment | null>(segments[0] ?? null);
   const [showSubItems, setShowSubItems] = useState(false);
@@ -275,6 +278,7 @@ export const DashboardMacroBudget: React.FC<Props> = ({
             >
               {isBenchmark ? 'Demo Data Breakdown' : 'Persisted Program Breakdown'}
             </span>
+            {isUpdating && <UpdatingBadge isLight={isLight} />}
           </div>
           <h2 className={`text-xl sm:text-2xl font-black tracking-tight flex items-baseline gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
             <span className={isLight ? 'text-blue-700 font-black' : 'text-amber-400 font-black'}>
@@ -293,7 +297,9 @@ export const DashboardMacroBudget: React.FC<Props> = ({
       </div>
 
       {/* Main Grid: Interactive Donut on Left (4 cols), 2-Column Pillars Grid on Right (8 cols) */}
-      {isLoading && !isBenchmark ? (
+      {/* The skeleton is only for a first load: a reload keeps the previous breakdown on screen,
+          dimmed, so the sections below do not move up while it loads. */}
+      {isLoading && !isBenchmark && liveBreakdown.length === 0 ? (
         <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
           <div className="lg:col-span-4 flex items-center justify-center">
             <div className={`w-52 h-52 rounded-full animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`} />
@@ -305,7 +311,7 @@ export const DashboardMacroBudget: React.FC<Props> = ({
           </div>
         </div>
       ) : (
-      <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
+      <div className={`relative grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start transition-opacity ${isUpdating ? 'opacity-60' : ''}`}>
         {/* Donut Chart & Active Pillar Card (4 cols) */}
         <div className="lg:col-span-4 flex flex-col items-center justify-center">
           {segments.length === 0 ? (

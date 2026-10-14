@@ -20,12 +20,17 @@ export interface WatchlistProject {
   category: string;
   stageName: string;
   implementingOffice: string;
+  /** Program Details' SubProgram and Operating Unit; only filled in a per-program list. */
+  subProgram?: string | null;
+  operatingUnit?: string | null;
   fundingSource: string;
   allocatedBudget: number;
   updatedAt: string;
   isPublished: boolean;
   isPublishable: boolean;
   isRevised: boolean;
+  /** A Lump Sum Project: opens at /lumpsum/{id}, not the project form (as in the Project List). */
+  isLumpSum?: boolean;
 }
 
 interface Props {

@@ -1,3 +1,87 @@
+# UserManual.md — Changelog v3.12 → v3.13 (FE/UserManual.md)
+
+**Date:** October 14, 2026
+**Branch:** fix/dashboard-qa-concerns-v2.0.2 (uncommitted, on top of `fbd5d2f5`, the merge of `origin/main`)
+**Source:** The user's request to rename the Dashboard title "National Expenditure Program & Portfolio Matrix" to "Program Stage", to add Program Type and Program Stage Name filters beside Category, and to show the chosen stage under the title. Implemented under `documents/plans/dashboard-program-stage-type-filters.md`. The manual text describes the behaviour as built and verified against `myps_db_dev`.
+
+---
+
+## 1. Document Header
+
+| Field | v3.12 | v3.13 |
+|-------|-------|-------|
+| Version | 3.12 | 3.13 |
+| Date | October 14, 2026 | October 14, 2026 |
+
+A v3.13 row was added to the Revision History table.
+
+---
+
+## 2. Section 5.1 — Dashboard: new "Title" paragraph
+
+**New:** "The header is titled **Program Stage**. The line under the title names the stage the figures cover: the stage chosen in **Program Stage Name**, shown as its code and full name (for example *NEP-E · National Expenditure Program with Errata*), or **All budget stages** when none is chosen."
+
+The manual did not name the old title ("National Expenditure Program & Portfolio Matrix"), so there is no old text to replace. The wording follows the user's choices: code plus full name, and "All budget stages" with no stage chosen.
+
+---
+
+## 3. Section 5.1 — Header Controls table
+
+| # | Old | New | Reason |
+|---|-----|-----|--------|
+| 1 | *(no row)* | **Program Type**: narrows every section to the projects in one type of program (Regular Infrastructure, External Infrastructure, Trust Fund, Automatic Appropriation); **All program types** returns to all; Live DB only. | New filter (user request). The four types are `tOptionProgramType`. |
+| 2 | *(no row)* | **Program Stage Name**: narrows every section to one budget stage, listed BP to TF-R with full names; RBP, RDIP and PIP are not listed because the Dashboard never counts them; the chosen stage appears under the title; **All stages** returns to all; Live DB only. | New filter (user request). Only the nine budget stages the Dashboard counts are offered. |
+| 3 | "...all show the same amount for the same year and category." | "...for the same year and filters. Category, Program Type and Program Stage Name combine: a project must match every one that is chosen." | The three filters are ANDed in every section. Verified: the per-stage and per-type totals add up to the unfiltered FY2024 total. |
+
+---
+
+## 4. Section 5.1 — Dashboard Sections table
+
+| # | Section | Old | New | Reason |
+|---|---------|-----|-----|--------|
+| 1 | Summary cards | "...Select a card to open its details, including how the figure is calculated." | Adds: the FY Infrastructure Budget, Active Portfolio Projects and Publication Compliance details list their projects **per program**. Each program row shows its stage, "*N of M projects*" and its FY amount, largest first; the program amounts add up to the card. A program expands to its projects, 10 per page, in Program Details' columns (Project ID, Description, Category, SubProgram, Implementing Office, Operating Unit, Publishable, Published); a project at another stage than its program is marked **at \<stage\>**. Selecting a project opens its details page (a Lump Sum Project opens in Lump Sum Projects, Section 5.10). Its Project ID can be opened in a new tab (right-click, or Ctrl+click / middle-click the row). **Project Repository** opens the Projects list. | User requests, in order. (1) A project clicked in a card's details opened the Projects list rather than that project; it now opens by the Project List's rules: `/projects/project-details/<ID>:<stage>`, or `/lumpsum/<id>` for a Lump Sum Project. (2) The flat list showed each project's FY-scheduled amount, which users compared with the larger multi-year total on the project's page (P00968001LZ: ₱17.31B vs ₱58.47B), so the user asked for the projects per program, as on Program Details, with no per-project amount (plan `dashboard-kpi-modal-projects-per-program.md`). (3) Open a project in a new tab. |
+| 2 | Distribution of Budget by Region | "...Select a region to zoom to it." | Adds: "Its badge names the fiscal year and the chosen stage, for example *FY 2027 General Appropriations Act*, or *All budget stages*." | The badge always read "National Expenditure Program". On Live DB it now follows the stage filter (user decision). |
+| 3 | Distribution of Budget by Region | "...on an interactive map or as pie analytics." | Adds: the tables beside the map list each group's regions in DPWH's order (Southern Luzon IV-A, MIMAROPA, V; Northern Luzon CAR, I, II, III; Visayas NIR, VI, VII, VIII; Mindanao IX–XIII, BARMM), and every group header shows its share and amount. NCR / Northern / Southern Luzon are the Dashboard's own grouping, since the database records only the island group. | User request: the tables were in budget order, and Northern/Southern Luzon showed only their %. The order is `tOptionAdminAreaRegion.Hierarchy` (NCR 10101 … BARMM 10317), which matches the requested order exactly (plan `dashboard-regions-trend-categories.md`). |
+| 4 | Annual Budget & Lump Sum Itemization Trend | "Each year's infrastructure budget and itemized Lump Sum amount. Point to a year to see both amounts; select it to switch the Dashboard to that year." | Both amounts printed under each year's bars and repeated for the selected year below the chart. Selecting a year keeps the chart as it is; a filter change keeps it on screen marked **Updating…**. | User request: the amounts showed only on hover, and selecting a year made the chart disappear and come back. The trend does not depend on the selected year, so it is no longer reloaded. |
+| 5 | Project Stages → **Project Categories** | "The number of projects at each budget stage. Select a stage to filter the project list below. Choosing a different **Program Stage Name** in the header clears the stage selected here." | "The fiscal year's projects per project category ... Select a category to filter the whole Dashboard by it, as the **Category** filter does; select it again, or **Clear Filter**, to remove it." | User request: show the breakdown per category, as in the Category filter. The stage breakdown and its project-list stage filter are gone; the header's Program Stage Name filter remains. |
+| 6 | *(new paragraph after the Sections table)* | *(none)* | **New:** "Changing the year or a filter: the page stays where you are…": sections keep their previous figures, dimmed and marked **Updating…**, until the new ones arrive, and the part of the page clicked stays in place; scrolling yourself takes over. | User report: selecting a trend bar or a category sent the page down to the next section and back. Sections above collapsed to shorter loading placeholders while they reloaded (plan `dashboard-keep-scroll-position.md`). |
+
+---
+
+## 5. Section 5.1 — Step-by-Step
+
+| # | Old | New |
+|---|-----|-----|
+| 4 | "*(Optional)* Click in **Category** and pick a category..." | Same, plus "Choose a **Program Type** and/or a **Program Stage Name** from their lists; the chosen stage appears under the **Program Stage** title." |
+| 6 | "To list one island group's or stage's projects, select its card. Select **Reset Filter** in the project list to clear it." | "To list one island group's projects, select its card; select **Reset Filter** in the project list to clear it. To narrow the whole Dashboard to one category, select it under *Project Categories*." |
+| 7 | "...the header stays pinned at the top of the page as a single row (**Viewing FY \<year\>**, the data source, Category, the fiscal years and Refresh)..." | "...in a compact form (**Viewing FY \<year\>**, the data source, Category, Program Type, Program Stage Name, the fiscal years and Refresh)..." |
+
+Step 7: with two more controls, the pinned header wraps to two lines at a 1440 px wide window, so "single row" is no longer accurate.
+
+---
+
+## 6. Section 5.1 — On Success and Common Outcomes
+
+| # | Old | New |
+|---|-----|-----|
+| 1 | On Success: "...the selected fiscal year (and category, if chosen)..." | "...the selected fiscal year (and the category, program type and stage, if chosen)..." |
+| 2 | "A category with no projects in the fiscal year" | "A category, program type or stage (or a combination of them) with no projects in the fiscal year". The outcome text is unchanged. |
+| 3 | Demo Data: "...The Category control is unavailable." | "...The Category, Program Type and Program Stage Name controls are unavailable, the line under the title reads **All budget stages**, and choosing Demo Data clears any category, program type or stage chosen in Live DB." |
+| 4 | *(no row)* | **New:** "A project's details page shows a larger total cost than the Dashboard counts for it". It is expected: the page shows the whole multi-year cost, and the Dashboard only the cost scheduled in the fiscal year. Yearly amounts that add up to less than the Total mean part of the cost was never scheduled to a year (619 imported components on `myps_db_dev`, ₱297B in all). |
+
+---
+
+## 7. Commits Covered
+
+| Commit | Message | Impact |
+|--------|---------|--------|
+| *(uncommitted)* | Dashboard: "Program Stage" title with Program Type and Program Stage Name filters (plan `dashboard-program-stage-type-filters.md`) | Sections 2–6 above |
+| *(uncommitted)* | Dashboard: KPI details list projects per program, linked to each project (plan `dashboard-kpi-modal-projects-per-program.md`) | Section 4 row 1, Section 6 row 4 |
+| *(uncommitted)* | Dashboard: region order and Luzon sub-group amounts, trend values, category breakdown (plan `dashboard-regions-trend-categories.md`) | Section 4 rows 3–5, Section 5 row 6 |
+| *(uncommitted)* | Dashboard: the page stays in place when a year or category is selected (plan `dashboard-keep-scroll-position.md`) | Section 4 row 6 |
+
+---
+
 # UserManual.md — Changelog v3.11 → v3.12 (FE/UserManual.md)
 
 **Date:** October 14, 2026

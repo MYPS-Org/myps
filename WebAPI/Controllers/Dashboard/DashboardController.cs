@@ -33,6 +33,10 @@ namespace WebAPI.Controllers.Dashboard
         private const string UnrecordedLabel = "Not recorded";
         private const string UnstagedLabel = "Unstaged";
 
+        /// <summary>ShowDashboardProjectsFilterDTO.Publication values: the Active Portfolio tabs.</summary>
+        private const string PublicationPublished = "published";
+        private const string PublicationForPublish = "forpublish";
+
         /// <summary>vProjectLatest.Source when an approved formal revision is the effective one.</summary>
         private const string RevisionSource = "Revision";
 
@@ -45,6 +49,65 @@ namespace WebAPI.Controllers.Dashboard
             stays out until someone decides it belongs. */
         private static readonly string[] BudgetStageNames =
             { "BP", "NEP", "NEP-E", "HGAB", "HGAB-I", "GAA", "GAA-R", "TF", "TF-R" };
+
+        /// <summary>
+        /// The full name shown for each of <see cref="BudgetStageNames"/> under the dashboard title
+        /// and on the region map. tOptionProgramStage.DisplayName is blank for most stages, and
+        /// ReportingController.GetStageFullName folds NEP-E into NEP (and so on) for report
+        /// headings, so neither can name a single stage.
+        /// </summary>
+        private static readonly Dictionary<string, string> BudgetStageFullNames = new()
+        {
+            ["BP"] = "Budget Proposal",
+            ["NEP"] = "National Expenditure Program",
+            ["NEP-E"] = "National Expenditure Program with Errata",
+            ["HGAB"] = "House General Appropriations Bill",
+            ["HGAB-I"] = "House General Appropriations Bill with amendments",
+            ["GAA"] = "General Appropriations Act",
+            ["GAA-R"] = "General Appropriations Act – Revision",
+            ["TF"] = "Trust Fund",
+            ["TF-R"] = "Trust Fund – Revision"
+        };
+
+        /// <summary>
+        /// The header filters, ANDed: project category, program type (tPrograms.Type) and project
+        /// stage (vProjectLatest.StageName, the stage the Project Stages chart counts). All null
+        /// means the whole fiscal year. Every section is narrowed by the same three, so their
+        /// totals still agree under a filter.
+        /// </summary>
+        private sealed record DashboardFilter(int? CategoryId, int? ProgramType, string? StageName)
+        {
+            public static readonly DashboardFilter None = new(null, null, null);
+
+            public static DashboardFilter From(DashboardRequestDTO? dto) =>
+                dto is null ? None : Create(dto.CategoryId, dto.ProgramType, dto.StageName);
+
+            public static DashboardFilter From(ShowDashboardProjectsDTO dto) =>
+                Create(dto.CategoryId, dto.ProgramType, dto.StageName);
+
+            private static DashboardFilter Create(int? categoryId, int? programType, string? stageName) =>
+                new(categoryId, programType, string.IsNullOrWhiteSpace(stageName) ? null : stageName.Trim());
+
+            public bool IsNarrowed => CategoryId.HasValue || ProgramType.HasValue || StageName is not null;
+
+            /// <summary>
+            /// One program to narrow to (a KPI detail's per-program list). Not a header filter and
+            /// not bound from the request DTOs: Projects sets it from its own Filters.ProgramPK.
+            /// </summary>
+            public string? ProgramPK { get; init; }
+
+            /// <summary>
+            /// The stages counted: every budget stage, or just the chosen one (none when the
+            /// chosen name is not a budget stage). Query it as <c>EF.Constant(...).Contains</c>:
+            /// sent as a parameter (<c>StageName = @stage</c>) the stage made SQL Server misjudge
+            /// how many projects it covers, and Statuses and RegionalBreakdown went from about
+            /// 1 s to 9.5 s on FY2024. As a literal IN list the query keeps the shape of the
+            /// unfiltered one, whose static allow-list EF already inlines.
+            /// </summary>
+            public string[] CountedStageNames => StageName is null
+                ? BudgetStageNames
+                : Array.FindAll(BudgetStageNames, name => name == StageName);
+        }
 
         public DashboardController(
             MYPSDbContext db,
@@ -63,28 +126,17 @@ namespace WebAPI.Controllers.Dashboard
             try
             {
                 var scope = await ResolveYearAsync(dto?.Year, cancellationToken);
+                var filter = DashboardFilter.From(dto);
 
                 // Grouped by the three publish flags rather than by project: SQL Server
-                // returns at most eight rows and the per-flag totals are summed here, so
-                // the KPI tiles never pull the ~57k project rows this used to materialize.
-                var flagTotals = await (
-                    from row in await GetCostRowsAsync(scope.SelectedYear, dto?.CategoryId, cancellationToken)
-                    join flags in _db.tProjects.AsNoTracking()
-                        on row.ProjectPK equals flags.ProjectPK
-                    group new { row.Amount, row.ProjectPK } by new
-                    {
-                        flags.IsPublished,
-                        flags.IsPublishable,
-                        flags.IsRevised
-                    } into grouped
-                    select new
-                    {
-                        grouped.Key.IsPublished,
-                        grouped.Key.IsPublishable,
-                        grouped.Key.IsRevised,
-                        Budget = grouped.Sum(item => item.Amount),
-                        ProjectCount = grouped.Select(item => item.ProjectPK).Distinct().Count()
-                    }).ToListAsync(cancellationToken);
+                // returns at most eight rows per half and the per-flag totals are summed here,
+                // so the KPI tiles never pull the ~57k project rows this used to materialize.
+                var sources = await GetCostRowSourcesAsync(scope.SelectedYear, filter, cancellationToken);
+                var flagTotals = await GetFlagTotalsAsync(sources.Base, cancellationToken);
+                if (sources.Revised is not null)
+                {
+                    flagTotals.AddRange(await GetFlagTotalsAsync(sources.Revised, cancellationToken));
+                }
 
                 var activeProjects = flagTotals.Sum(item => item.ProjectCount);
                 var publishedCount = flagTotals.Where(item => item.IsPublished).Sum(item => item.ProjectCount);
@@ -92,7 +144,7 @@ namespace WebAPI.Controllers.Dashboard
                 // Real Lump Sum figures, sourced from the V2 views (vLumpSumSet/vLumpSumBalance)
                 // via the same helper the LumpSum endpoint uses — replaces the old hard-coded 0/0
                 // that stood in for the pre-V2 tLSWallets integration once that schema was retired.
-                var lsProjects = await LoadLumpSumProjectsAsync(GetVisibleLumpSumSet(dto?.CategoryId), scope.SelectedYear, cancellationToken);
+                var lsProjects = await LoadLumpSumProjectsAsync(GetVisibleLumpSumSet(filter), scope.SelectedYear, cancellationToken);
 
                 var response = new DashboardKpisResponseDTO
                 {
@@ -141,8 +193,9 @@ namespace WebAPI.Controllers.Dashboard
                 // to seek on, SQL Server picks a nested-loop plan that took 34-89 s on
                 // myps_db_dev, against 1.7 s for this. A project has one program, so a pair
                 // never mixes two projects' years and its distinct count is exact.
+                var filter = DashboardFilter.From(dto);
                 var yearPairs = await (
-                    from row in await GetCostRowsAsync(null, dto?.CategoryId, cancellationToken)
+                    from row in await GetCostRowsAsync(null, filter, cancellationToken)
                     group new { row.Amount, row.ProjectPK } by new { row.ProgramYear, row.Year } into grouped
                     select new
                     {
@@ -167,7 +220,7 @@ namespace WebAPI.Controllers.Dashboard
 
                 // LS Itemized per year: the same figure the Lump Sum KPI tile shows for the
                 // selected year, so a bar's tooltip agrees with the tile.
-                var itemizedByYear = await GetLumpSumItemizedByYearAsync(dto?.CategoryId, cancellationToken);
+                var itemizedByYear = await GetLumpSumItemizedByYearAsync(filter, cancellationToken);
                 foreach (var row in annualTrend)
                 {
                     row.LsItemized = itemizedByYear.TryGetValue(row.Year, out var itemized) ? itemized : 0;
@@ -199,7 +252,7 @@ namespace WebAPI.Controllers.Dashboard
                 // in Live DB mode. The group-by is SQL-side: one row per program, and only
                 // the selected year's programs reach it (see GetCostRowsAsync).
                 var budgetBreakdown = await (
-                    from row in await GetCostRowsAsync(scope.SelectedYear, dto?.CategoryId, cancellationToken)
+                    from row in await GetCostRowsAsync(scope.SelectedYear, DashboardFilter.From(dto), cancellationToken)
                     group new { row.Amount, row.ProjectPK } by row.ProgramName into grouped
                     select new DashboardBudgetBreakdownDTO
                     {
@@ -219,6 +272,67 @@ namespace WebAPI.Controllers.Dashboard
         }
 
         // ------------------------------------------------------------------
+        // Programs — a KPI detail's per-program view: each program's share of the fiscal
+        // year's figure, with its published and for-publish parts for the Active Portfolio
+        // tabs. The same cost rows as Kpis, so the programs add up to the KPI tiles exactly.
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> Programs(
+            [FromBody] DashboardRequestDTO? dto,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var scope = await ResolveYearAsync(dto?.Year, cancellationToken);
+                var sources = await GetCostRowSourcesAsync(scope.SelectedYear, DashboardFilter.From(dto), cancellationToken);
+                var cells = await GetProgramFlagTotalsAsync(sources.Base, cancellationToken);
+                if (sources.Revised is not null)
+                {
+                    cells.AddRange(await GetProgramFlagTotalsAsync(sources.Revised, cancellationToken));
+                }
+
+                var programKeys = cells.Select(cell => cell.ProgramPK).Distinct().ToArray();
+                var programInfo = (await _db.vProgramLatest.AsNoTracking()
+                        .Where(program => programKeys.Contains(program.ProgramPK))
+                        .Select(program => new { program.ProgramPK, program.Name, program.StageName, program.NumberOfProjects })
+                        .ToListAsync(cancellationToken))
+                    .GroupBy(program => program.ProgramPK)
+                    .ToDictionary(group => group.Key, group => group.First());
+
+                var programs = cells
+                    .GroupBy(cell => cell.ProgramPK)
+                    .Select(group =>
+                    {
+                        programInfo.TryGetValue(group.Key, out var info);
+                        var published = group.Where(cell => cell.IsPublished).ToList();
+                        var forPublish = group.Where(cell => cell.IsPublishable && !cell.IsPublished).ToList();
+                        return new DashboardProgramDTO
+                        {
+                            ProgramPK = group.Key,
+                            Name = info?.Name ?? UnrecordedLabel,
+                            StageName = info?.StageName ?? UnstagedLabel,
+                            ProgramProjectCount = info?.NumberOfProjects ?? 0,
+                            ProjectCount = group.Sum(cell => cell.ProjectCount),
+                            Budget = group.Sum(cell => cell.Budget),
+                            PublishedCount = published.Sum(cell => cell.ProjectCount),
+                            PublishedBudget = published.Sum(cell => cell.Budget),
+                            ForPublishCount = forPublish.Sum(cell => cell.ProjectCount),
+                            ForPublishBudget = forPublish.Sum(cell => cell.Budget)
+                        };
+                    })
+                    .OrderByDescending(program => program.Budget)
+                    .ThenBy(program => program.Name)
+                    .ToList();
+
+                return Ok(new DashboardProgramsResponseDTO { Programs = programs });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId);
+            }
+        }
+
+        // ------------------------------------------------------------------
         // Statuses (stage statuses + island totals — both feed DashboardCharts)
         // ------------------------------------------------------------------
         [HttpPost]
@@ -230,17 +344,18 @@ namespace WebAPI.Controllers.Dashboard
             {
                 var scope = await ResolveYearAsync(dto?.Year, cancellationToken);
 
-                // One SQL group-by over {stage, region} serves both halves of this response:
-                // stage and region are project-level attributes, so a project contributes to
-                // exactly one cell and rolling the cells up by either axis in memory is exact.
-                // That keeps this endpoint at a single heavy query instead of two.
+                // One SQL group-by over {stage, region, category} serves every part of this
+                // response: all three are project-level attributes, so a project contributes to
+                // exactly one cell and rolling the cells up by any axis in memory is exact.
+                // That keeps this endpoint at a single heavy query instead of three.
                 var cells = await (
-                    from row in await GetCostRowsAsync(scope.SelectedYear, dto?.CategoryId, cancellationToken)
-                    group new { row.Amount, row.ProjectPK } by new { row.StageName, row.RegionCode } into grouped
+                    from row in await GetCostRowsAsync(scope.SelectedYear, DashboardFilter.From(dto), cancellationToken)
+                    group new { row.Amount, row.ProjectPK } by new { row.StageName, row.RegionCode, row.Category } into grouped
                     select new
                     {
                         grouped.Key.StageName,
                         Region = grouped.Key.RegionCode,
+                        grouped.Key.Category,
                         Budget = grouped.Sum(item => item.Amount),
                         ProjectCount = grouped.Select(item => item.ProjectPK).Distinct().Count()
                     }).ToListAsync(cancellationToken);
@@ -270,7 +385,28 @@ namespace WebAPI.Controllers.Dashboard
                     .OrderByDescending(item => item.Budget)
                     .ToList();
 
-                return Ok(new DashboardStatusesResponseDTO { Statuses = statuses, Islands = islands });
+                // The breakdown box's categories, named like the header's Category filter.
+                var categoryIds = cells.Select(cell => cell.Category).Distinct().ToArray();
+                var categoryNames = await _db.tOptionProjectCategory.AsNoTracking()
+                    .Where(category => categoryIds.Contains(category.CategoryId))
+                    .Select(category => new { category.CategoryId, category.CategoryName })
+                    .ToDictionaryAsync(category => category.CategoryId, category => category.CategoryName, cancellationToken);
+                var categories = cells
+                    .GroupBy(cell => cell.Category)
+                    .Select(group => new DashboardCategoryShareDTO
+                    {
+                        CategoryId = group.Key,
+                        Name = categoryNames.TryGetValue(group.Key, out var name) && !string.IsNullOrWhiteSpace(name)
+                            ? name!
+                            : "Uncategorized",
+                        ProjectCount = group.Sum(cell => cell.ProjectCount),
+                        Budget = group.Sum(cell => cell.Budget)
+                    })
+                    .OrderByDescending(item => item.ProjectCount)
+                    .ThenByDescending(item => item.Budget)
+                    .ToList();
+
+                return Ok(new DashboardStatusesResponseDTO { Statuses = statuses, Islands = islands, Categories = categories });
             }
             catch (Exception ex)
             {
@@ -298,7 +434,7 @@ namespace WebAPI.Controllers.Dashboard
                 // code (not its display name) keeps the GROUP BY off the region table; names
                 // are resolved afterwards over the resulting handful of rows.
                 var regionCells = await (
-                    from row in await GetCostRowsAsync(scope.SelectedYear, dto?.CategoryId, cancellationToken)
+                    from row in await GetCostRowsAsync(scope.SelectedYear, DashboardFilter.From(dto), cancellationToken)
                     group new { row.Amount, row.ProjectPK } by row.RegionCode into grouped
                     select new
                     {
@@ -318,6 +454,7 @@ namespace WebAPI.Controllers.Dashboard
                         {
                             Region = RegionDisplayName(cell.RegionCode, region?.Name),
                             Island = IslandName(region?.IslandCode),
+                            Hierarchy = region?.Hierarchy,
                             Budget = cell.Budget,
                             ProjectCount = cell.ProjectCount
                         };
@@ -345,7 +482,7 @@ namespace WebAPI.Controllers.Dashboard
             {
                 var scope = await ResolveYearAsync(dto.Year, cancellationToken);
                 var result = await PageProjectsAsync(
-                    scope.SelectedYear, dto.CategoryId, dto.Filters, dto.limit, dto.page, dto.Navigation, cancellationToken);
+                    scope.SelectedYear, DashboardFilter.From(dto), dto.Filters, dto.limit, dto.page, dto.Navigation, cancellationToken);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -367,7 +504,7 @@ namespace WebAPI.Controllers.Dashboard
                 // The queue is a work list, not a fiscal-year figure, so only the category
                 // narrows it; the year is deliberately ignored here.
                 var visibleProjects = GetVisibleProjects();
-                var revisionSummary = await GetRevisionSummaryAsync(visibleProjects, dto?.CategoryId, cancellationToken);
+                var revisionSummary = await GetRevisionSummaryAsync(visibleProjects, DashboardFilter.From(dto), cancellationToken);
                 return Ok(revisionSummary);
             }
             catch (Exception ex)
@@ -421,6 +558,49 @@ namespace WebAPI.Controllers.Dashboard
         }
 
         // ------------------------------------------------------------------
+        // FilterOptions — the header's Program Type and Program Stage Name dropdowns.
+        // Both are short fixed lists: the four program types, and only the budget stages
+        // the dashboard counts (a planning stage would always show nothing).
+        // ------------------------------------------------------------------
+        [HttpPost]
+        public async Task<IActionResult> FilterOptions(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var programTypes = await _db.tOptionProgramType.AsNoTracking()
+                    .OrderBy(type => type.NameId)
+                    .Select(type => new DashboardProgramTypeOptionDTO
+                    {
+                        ProgramType = type.NameId,
+                        Name = type.Name
+                    })
+                    .ToListAsync(cancellationToken);
+
+                var stageNames = await _db.tOptionProgramStage.AsNoTracking()
+                    .Where(stage => BudgetStageNames.Contains(stage.Name))
+                    .OrderBy(stage => stage.StageHierarchy)
+                    .Select(stage => stage.Name)
+                    .ToListAsync(cancellationToken);
+
+                return Ok(new DashboardFilterOptionsResponseDTO
+                {
+                    ProgramTypes = programTypes,
+                    Stages = stageNames
+                        .Select(name => new DashboardStageOptionDTO
+                        {
+                            StageName = name,
+                            FullName = BudgetStageFullNames.TryGetValue(name, out var fullName) ? fullName : name
+                        })
+                        .ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, null, _Session.UserId);
+            }
+        }
+
+        // ------------------------------------------------------------------
         // LumpSum — the Dashboard's own Lump Sum Wallet breakdown, sourced from
         // the same live V2 views (vLumpSumSet/vLumpSumBalance/vLumpSumChildSet)
         // the /lumpsum module reads. Feeds the KPI detail modal's "Lump Sum" tab;
@@ -435,7 +615,7 @@ namespace WebAPI.Controllers.Dashboard
             try
             {
                 var scope = await ResolveYearAsync(dto?.Year, cancellationToken);
-                var lsProjects = await LoadLumpSumProjectsAsync(GetVisibleLumpSumSet(dto?.CategoryId), scope.SelectedYear, cancellationToken);
+                var lsProjects = await LoadLumpSumProjectsAsync(GetVisibleLumpSumSet(DashboardFilter.From(dto)), scope.SelectedYear, cancellationToken);
                 return Ok(new DashboardLsProjectsResponseDTO { LsProjects = lsProjects });
             }
             catch (Exception ex)
@@ -496,8 +676,8 @@ namespace WebAPI.Controllers.Dashboard
                     .ToList();
 
                 var activities = await GetActivitiesAsync(scoped, cancellationToken);
-                var revisionSummary = await GetRevisionSummaryAsync(visibleProjects, null, cancellationToken);
-                var lsProjects = await LoadLumpSumProjectsAsync(GetVisibleLumpSumSet(null), scope.SelectedYear, cancellationToken);
+                var revisionSummary = await GetRevisionSummaryAsync(visibleProjects, DashboardFilter.None, cancellationToken);
+                var lsProjects = await LoadLumpSumProjectsAsync(GetVisibleLumpSumSet(DashboardFilter.None), scope.SelectedYear, cancellationToken);
 
                 var response = new DashboardSummaryDTO
                 {
@@ -578,7 +758,7 @@ namespace WebAPI.Controllers.Dashboard
 
         private async Task<DashboardRevisionSummaryDTO> GetRevisionSummaryAsync(
             IQueryable<ProjectLatest> visibleProjects,
-            int? categoryId,
+            DashboardFilter filter,
             CancellationToken cancellationToken)
         {
             // Reuses dbo.fRevisionQueue -- the exact source behind the /revision
@@ -607,9 +787,18 @@ namespace WebAPI.Controllers.Dashboard
                     .ToArray();
                 var revisionProjects = visibleProjects
                     .Where(project => revisionProjectIds.Contains(project.ProjectId));
-                if (categoryId is int category)
+                if (filter.CategoryId is int category)
                 {
                     revisionProjects = revisionProjects.Where(project => project.Category == category);
+                }
+                if (filter.ProgramType is int programType)
+                {
+                    var programKeys = GetProgramKeysOfType(programType);
+                    revisionProjects = revisionProjects.Where(project => programKeys.Contains(project.ProgramFK));
+                }
+                if (filter.StageName is string stage)
+                {
+                    revisionProjects = revisionProjects.Where(project => project.StageName == stage);
                 }
                 var revisionOfficeByProject = await revisionProjects
                     .Select(project => new { project.ProjectId, project.ImplementingOffice })
@@ -618,9 +807,9 @@ namespace WebAPI.Controllers.Dashboard
                         project => project.ImplementingOffice,
                         cancellationToken);
 
-                // A category narrows the queue to revisions of that category's projects;
+                // A header filter narrows the queue to revisions of the projects it matches;
                 // revisionOfficeByProject now holds exactly those.
-                if (categoryId.HasValue)
+                if (filter.IsNarrowed)
                 {
                     revisionQueue = revisionQueue
                         .Where(revision => revision.ProjectId != null
@@ -725,15 +914,21 @@ namespace WebAPI.Controllers.Dashboard
         /// <see cref="GetVisibleProjects"/>'s shape but reuses the Lump Sum module's own
         /// visibility source -- dbo.fUserVisiblePrograms, the same TVF
         /// LumpsumController.IsLumpSumVisible checks a single record against. Held to the
-        /// same budget stages and category as every other dashboard figure.
+        /// same budget stages and header filter as every other dashboard figure.
         /// </summary>
-        private IQueryable<LumpSum> GetVisibleLumpSumSet(int? categoryId)
+        private IQueryable<LumpSum> GetVisibleLumpSumSet(DashboardFilter filter)
         {
+            var stageNames = filter.CountedStageNames;
             IQueryable<LumpSum> visibleLumpSum = _db.vLumpSumSet.AsNoTracking()
-                .Where(lumpSum => BudgetStageNames.Contains(lumpSum.StageName));
-            if (categoryId is int category)
+                .Where(lumpSum => EF.Constant(stageNames).Contains(lumpSum.StageName));
+            if (filter.CategoryId is int category)
             {
                 visibleLumpSum = visibleLumpSum.Where(lumpSum => lumpSum.Category == category);
+            }
+            if (filter.ProgramType is int programType)
+            {
+                var programKeys = GetProgramKeysOfType(programType);
+                visibleLumpSum = visibleLumpSum.Where(lumpSum => programKeys.Contains(lumpSum.ProgramFK));
             }
             if (_Session.ApplyFilter)
             {
@@ -746,15 +941,27 @@ namespace WebAPI.Controllers.Dashboard
         }
 
         /// <summary>
+        /// Keys of the programs of one type (tPrograms.Type, a tOptionProgramType.NameId), as a
+        /// subquery for the sets that carry a ProgramFK but not their program's type.
+        /// </summary>
+        private IQueryable<string> GetProgramKeysOfType(int programType)
+        {
+            var type = (EnumProgramType)programType;
+            return _db.tPrograms.AsNoTracking()
+                .Where(program => program.Type == EF.Constant(type))
+                .Select(program => program.ProgramPK);
+        }
+
+        /// <summary>
         /// Itemized Lump Sum amount per program year, with the same live-balance fallback as
         /// <see cref="LoadLumpSumProjectsAsync"/>. Lump Sum Projects number a handful, so
         /// they are summed in memory.
         /// </summary>
         private async Task<Dictionary<int, decimal>> GetLumpSumItemizedByYearAsync(
-            int? categoryId,
+            DashboardFilter filter,
             CancellationToken cancellationToken)
         {
-            var lumpSums = await GetVisibleLumpSumSet(categoryId)
+            var lumpSums = await GetVisibleLumpSumSet(filter)
                 .Where(lumpSum => lumpSum.StartYear != null)
                 .Select(lumpSum => new { lumpSum.Id, Year = lumpSum.StartYear!.Value, lumpSum.ItemizedTotal })
                 .ToListAsync(cancellationToken);
@@ -1146,7 +1353,8 @@ namespace WebAPI.Controllers.Dashboard
         /// so their totals reconcile. The scope:
         /// <list type="bullet">
         /// <item>a visible project, in a live program, at one of <see cref="BudgetStageNames"/>,
-        /// and in category <paramref name="categoryId"/> when one is given;</item>
+        /// narrowed by each part of <paramref name="filter"/> that is set: its category, its
+        /// program's type, its stage;</item>
         /// <item>its program's year (tPrograms.StartYear) is <paramref name="year"/>, and only
         /// cost scheduled IN that year counts, so a multi-year project in last year's program
         /// adds nothing to this year. With a null <paramref name="year"/> (the trend) every
@@ -1185,10 +1393,10 @@ namespace WebAPI.Controllers.Dashboard
         /// </summary>
         private async Task<IQueryable<DashboardCostRow>> GetCostRowsAsync(
             int? year,
-            int? categoryId,
+            DashboardFilter filter,
             CancellationToken cancellationToken)
         {
-            var sources = await GetCostRowSourcesAsync(year, categoryId, cancellationToken);
+            var sources = await GetCostRowSourcesAsync(year, filter, cancellationToken);
             return sources.Revised is null ? sources.Base : sources.Base.Concat(sources.Revised);
         }
 
@@ -1201,7 +1409,7 @@ namespace WebAPI.Controllers.Dashboard
 
         private async Task<CostRowSources> GetCostRowSourcesAsync(
             int? year,
-            int? categoryId,
+            DashboardFilter filter,
             CancellationToken cancellationToken,
             Func<IQueryable<ScopedProject>, IQueryable<ScopedProject>>? narrow = null)
         {
@@ -1211,13 +1419,28 @@ namespace WebAPI.Controllers.Dashboard
             var revisionDetails = _db.tRevisionDetails.AsNoTracking()
                 .Where(detail => revisionDetailIds.Contains(detail.Id));
 
+            // The stage and program type filters are literals on rows both halves already join,
+            // so neither reaches a vProjectLatest column the scope does not read anyway; see
+            // DashboardFilter.CountedStageNames for why they are not parameters.
+            var stageNames = filter.CountedStageNames;
             var projects = GetVisibleProjects()
-                .Where(project => BudgetStageNames.Contains(project.StageName));
+                .Where(project => EF.Constant(stageNames).Contains(project.StageName));
             var programs = _db.tPrograms.AsNoTracking()
                 .Where(program => !program.IsDeleted);
             if (year is int fiscalYear)
             {
                 programs = programs.Where(program => program.StartYear == fiscalYear);
+            }
+            if (filter.ProgramType is int programType)
+            {
+                var type = (EnumProgramType)programType;
+                programs = programs.Where(program => program.Type == EF.Constant(type));
+            }
+            if (filter.ProgramPK is string programPK)
+            {
+                // The program's unique key: SQL Server estimates this one row correctly, so it
+                // stays a parameter (unlike the stage; see DashboardFilter.CountedStageNames).
+                programs = programs.Where(program => program.ProgramPK == programPK);
             }
 
             IQueryable<ScopedProject> baseProjects =
@@ -1230,6 +1453,7 @@ namespace WebAPI.Controllers.Dashboard
                 {
                     Project = project,
                     ProgramYear = program.StartYear,
+                    ProgramPK = program.ProgramPK,
                     Province = revision.Province,
                     Category = revision.Category,
                     ProjectId = revision.ProjectId,
@@ -1258,6 +1482,8 @@ namespace WebAPI.Controllers.Dashboard
                     ProgramName = item.Project.ProgramName,
                     StageName = item.Project.StageName,
                     ProgramYear = item.ProgramYear,
+                    ProgramPK = item.ProgramPK,
+                    Category = item.Category,
                     Province = item.Province,
                     Year = cost.Year,
                     Amount = cost.Amount
@@ -1278,6 +1504,7 @@ namespace WebAPI.Controllers.Dashboard
                     {
                         Project = project,
                         ProgramYear = program.StartYear,
+                        ProgramPK = program.ProgramPK,
                         Province = revision.Province,
                         // The view's values are the approved revision's for these projects.
                         Category = project.Category,
@@ -1300,6 +1527,8 @@ namespace WebAPI.Controllers.Dashboard
                         ProgramName = item.Project.ProgramName,
                         StageName = item.Project.StageName,
                         ProgramYear = item.ProgramYear,
+                        ProgramPK = item.ProgramPK,
+                        Category = item.Category,
                         Province = item.Province,
                         Year = cost.Year,
                         Amount = cost.Amount
@@ -1312,7 +1541,7 @@ namespace WebAPI.Controllers.Dashboard
 
             IQueryable<ScopedProject> Narrow(IQueryable<ScopedProject> source)
             {
-                if (categoryId is int category)
+                if (filter.CategoryId is int category)
                 {
                     source = source.Where(item => item.Category == category);
                 }
@@ -1338,6 +1567,8 @@ namespace WebAPI.Controllers.Dashboard
                         StageName = row.StageName,
                         RegionCode = province.RegionParticipantId,
                         ProgramYear = row.ProgramYear,
+                        ProgramPK = row.ProgramPK,
+                        Category = row.Category,
                         Year = row.Year,
                         Amount = row.Amount
                     };
@@ -1351,6 +1582,8 @@ namespace WebAPI.Controllers.Dashboard
             public string? ProgramName { get; set; }
             public string? StageName { get; set; }
             public int ProgramYear { get; set; }
+            public string ProgramPK { get; set; } = string.Empty;
+            public int Category { get; set; }
             public string? Province { get; set; }
             public int Year { get; set; }
             public decimal Amount { get; set; }
@@ -1364,6 +1597,8 @@ namespace WebAPI.Controllers.Dashboard
         {
             public ProjectLatest Project { get; set; } = null!;
             public int ProgramYear { get; set; }
+            /// <summary>tPrograms.ProgramPK of the joined program row (equal to Project.ProgramFK).</summary>
+            public string ProgramPK { get; set; } = string.Empty;
             /// <summary>tProjectRevisions.Province, a tOptionAdminAreaProvince.Code.</summary>
             public string? Province { get; set; }
             /// <summary>
@@ -1417,14 +1652,22 @@ namespace WebAPI.Controllers.Dashboard
             public string? RegionCode { get; set; }
             /// <summary>tPrograms.StartYear: the fiscal year the project's program belongs to.</summary>
             public int ProgramYear { get; set; }
+            /// <summary>
+            /// The project's program. EF leaves it out of every query that does not group or
+            /// filter by it, so carrying it costs the other sections nothing.
+            /// </summary>
+            public string ProgramPK { get; set; } = string.Empty;
+            /// <summary>tOptionProjectCategory.CategoryId of the project (see ScopedProject.Category).</summary>
+            public int Category { get; set; }
             /// <summary>The year this cost is scheduled in.</summary>
             public int Year { get; set; }
             public decimal Amount { get; set; }
         }
 
-        private sealed record DashboardRegionRow(string Name, string IslandCode);
+        /// <param name="Hierarchy">tOptionAdminAreaRegion.Hierarchy, DPWH's region order (e.g. 10106 for Region IV-A).</param>
+        private sealed record DashboardRegionRow(string Name, string IslandCode, string? Hierarchy);
 
-        /// <summary>Region code -&gt; name/island for the handful of codes an aggregate returned.</summary>
+        /// <summary>Region code -&gt; name/island/order for the handful of codes an aggregate returned.</summary>
         private async Task<Dictionary<string, DashboardRegionRow>> GetRegionsByCodeAsync(
             IEnumerable<string?> regionCodes,
             CancellationToken cancellationToken)
@@ -1441,10 +1684,10 @@ namespace WebAPI.Controllers.Dashboard
 
             return await _db.tOptionAdminAreaRegion.AsNoTracking()
                 .Where(region => codes.Contains(region.ParticipantId))
-                .Select(region => new { region.ParticipantId, region.Name, region.IslandCode })
+                .Select(region => new { region.ParticipantId, region.Name, region.IslandCode, region.Hierarchy })
                 .ToDictionaryAsync(
                     region => region.ParticipantId,
-                    region => new DashboardRegionRow(region.Name, region.IslandCode),
+                    region => new DashboardRegionRow(region.Name, region.IslandCode, region.Hierarchy),
                     cancellationToken);
         }
 
@@ -1502,13 +1745,20 @@ namespace WebAPI.Controllers.Dashboard
         /// </summary>
         private async Task<FilteredResult<DashboardProjectDTO>> PageProjectsAsync(
             int year,
-            int? categoryId,
+            DashboardFilter headerFilter,
             ShowDashboardProjectsFilterDTO filters,
             int limit,
             int page,
             PaginationNavigation navigation,
             CancellationToken cancellationToken)
         {
+            // A KPI detail's per-program list: one program, by its key.
+            var programPK = string.IsNullOrWhiteSpace(filters.ProgramPK) ? null : filters.ProgramPK.Trim();
+            if (programPK is not null)
+            {
+                headerFilter = headerFilter with { ProgramPK = programPK };
+            }
+
             // The island and region filters are expressed as display names ("Luzon"); each is
             // matched through the province codes it covers, on the project's own province.
             var hasIslandFilter = !string.IsNullOrWhiteSpace(filters.Island);
@@ -1548,7 +1798,7 @@ namespace WebAPI.Controllers.Dashboard
                 return projects;
             }
 
-            var sources = await GetCostRowSourcesAsync(year, categoryId, cancellationToken, Narrow);
+            var sources = await GetCostRowSourcesAsync(year, headerFilter, cancellationToken, Narrow);
 
             // Deliberately grouped by project alone (its region code rides along: a project has
             // one province, so it never splits a group). Carrying the display columns through
@@ -1562,6 +1812,29 @@ namespace WebAPI.Controllers.Dashboard
             var revisedBudgets = sources.Revised is null
                 ? new List<DashboardProjectBudget>()
                 : await ToProjectBudgets(sources.Revised).ToListAsync(cancellationToken);
+
+            // The Active Portfolio tabs. Applied to the per-project budgets, after the aggregate,
+            // in the shape that keeps Kpis' flag totals fast (see GetFlagTotalsAsync).
+            var publication = filters.Publication?.Trim().ToLowerInvariant();
+            if (publication is PublicationPublished or PublicationForPublish)
+            {
+                var flagged = publication == PublicationPublished
+                    ? _db.tProjects.AsNoTracking().Where(flags => flags.IsPublished)
+                    : _db.tProjects.AsNoTracking().Where(flags => flags.IsPublishable && !flags.IsPublished);
+                baseBudgets =
+                    from budget in baseBudgets
+                    join flags in flagged on budget.ProjectPK equals flags.ProjectPK
+                    select budget;
+                if (revisedBudgets.Count > 0)
+                {
+                    var revisedKeys = revisedBudgets.Select(budget => budget.ProjectPK).ToArray();
+                    var keptKeys = (await flagged
+                        .Where(flags => revisedKeys.Contains(flags.ProjectPK))
+                        .Select(flags => flags.ProjectPK)
+                        .ToListAsync(cancellationToken)).ToHashSet();
+                    revisedBudgets = revisedBudgets.Where(budget => keptKeys.Contains(budget.ProjectPK)).ToList();
+                }
+            }
 
             var safeLimit = limit < 1 ? 10 : Math.Min(limit, 200);
             var total = await baseBudgets.CountAsync(cancellationToken) + revisedBudgets.Count;
@@ -1609,7 +1882,8 @@ namespace WebAPI.Controllers.Dashboard
                     project.RevisionCreatedDate,
                     flags.IsPublished,
                     flags.IsPublishable,
-                    flags.IsRevised
+                    flags.IsRevised,
+                    IsLumpSum = flags.ProjectType == "LS" && flags.ParentProjectId == null
                 }).ToListAsync(cancellationToken);
 
             // Re-impose the paged order, which the detail fetch does not preserve.
@@ -1635,12 +1909,19 @@ namespace WebAPI.Controllers.Dashboard
             var revisionIds = pageRows.Select(row => row.Key.RevisionId).Distinct().ToArray();
             var fundingLookup = await GetFundingSourcesByRevisionAsync(revisionIds, cancellationToken);
 
+            // A per-program list shows the values Program Details shows for the same project.
+            var programRows = programPK is null
+                ? new Dictionary<string, DBHelper.Models.Functions.Program.ProgramProjects>()
+                : await GetProgramProjectRowsAsync(
+                    programPK, pageRows.Select(row => (row.Key.ProjectPK, (string?)row.Key.StageName)), cancellationToken);
+
             var lists = pageRows
                 .Select(row =>
                 {
                     regionLookup.TryGetValue(row.Page.RegionCode ?? string.Empty, out var region);
                     officeLookup.TryGetValue(row.Key.ImplementingOffice ?? string.Empty, out var officeName);
                     fundingLookup.TryGetValue(row.Key.RevisionId, out var fundingSources);
+                    programRows.TryGetValue(row.Key.ProjectPK, out var programRow);
                     return new DashboardProjectDTO
                     {
                         Id = row.Key.Id,
@@ -1650,9 +1931,15 @@ namespace WebAPI.Controllers.Dashboard
                         ProgramName = row.Key.ProgramName ?? UnrecordedLabel,
                         Region = RegionDisplayName(row.Page.RegionCode, region?.Name),
                         Island = IslandName(region?.IslandCode),
-                        Category = row.Key.CategoryName ?? "Uncategorized",
+                        Category = programRow?.CategoryName ?? row.Key.CategoryName ?? "Uncategorized",
                         StageName = row.Key.StageName ?? UnstagedLabel,
-                        ImplementingOffice = OfficeDisplayName(row.Key.ImplementingOffice, officeName),
+                        ImplementingOffice = string.IsNullOrWhiteSpace(programRow?.ImplementingOfficeName)
+                            ? OfficeDisplayName(row.Key.ImplementingOffice, officeName)
+                            : programRow.ImplementingOfficeName,
+                        SubProgram = programRow?.ThrustName,
+                        OperatingUnit = string.IsNullOrWhiteSpace(programRow?.OperatingUnitName)
+                            ? null
+                            : programRow.OperatingUnitName,
                         FundingSource = string.IsNullOrWhiteSpace(fundingSources)
                             ? UnrecordedLabel
                             : fundingSources,
@@ -1660,6 +1947,7 @@ namespace WebAPI.Controllers.Dashboard
                         IsPublished = row.Key.IsPublished,
                         IsPublishable = row.Key.IsPublishable,
                         IsRevised = row.Key.IsRevised,
+                        IsLumpSum = row.Key.IsLumpSum,
                         UpdatedAt = row.Key.LastUpdatedDate ?? row.Key.RevisionCreatedDate
                     };
                 })
@@ -1681,6 +1969,111 @@ namespace WebAPI.Controllers.Dashboard
                 NextFilteredId = hasNext ? requestedPage + 1 : null,
                 PageCursorId = requestedPage
             };
+        }
+
+        /// <summary>
+        /// Budget and project count per combination of the three publish flags, for one half of
+        /// <see cref="GetCostRowSourcesAsync"/> (a project is in one half only, so the caller can
+        /// add the halves). Each project's budget is summed before it meets tProjects: joined at
+        /// cost-row grain over both halves, as this was, a stage or program type filter made SQL
+        /// Server choose a plan that took the FY2024 flag totals from about 0.9 s to 5-7.5 s.
+        /// Per-project sums over both halves in one statement took 5-6 s with or without a
+        /// filter; per half, as here, the two take about 2 s together for any filter (FY2024,
+        /// myps_db_dev).
+        /// </summary>
+        private async Task<List<DashboardFlagTotal>> GetFlagTotalsAsync(
+            IQueryable<DashboardCostRow> costRows,
+            CancellationToken cancellationToken) =>
+            await (
+                from project in ToProjectBudgets(costRows)
+                join flags in _db.tProjects.AsNoTracking()
+                    on project.ProjectPK equals flags.ProjectPK
+                group project.Budget by new { flags.IsPublished, flags.IsPublishable, flags.IsRevised } into grouped
+                select new DashboardFlagTotal
+                {
+                    IsPublished = grouped.Key.IsPublished,
+                    IsPublishable = grouped.Key.IsPublishable,
+                    IsRevised = grouped.Key.IsRevised,
+                    Budget = grouped.Sum(),
+                    ProjectCount = grouped.Count()
+                }).ToListAsync(cancellationToken);
+
+        /// <summary>
+        /// <see cref="GetFlagTotalsAsync"/> per program: budget and project count per program and
+        /// combination of the publish flags, for one half. Each project's budget is summed
+        /// before it meets tProjects, the shape that keeps the Kpis flag totals fast; a project
+        /// has one program, so the program key never splits it.
+        /// </summary>
+        private async Task<List<DashboardProgramFlagTotal>> GetProgramFlagTotalsAsync(
+            IQueryable<DashboardCostRow> costRows,
+            CancellationToken cancellationToken) =>
+            await (
+                from project in
+                    from row in costRows
+                    group row.Amount by new { row.ProjectPK, row.ProgramPK } into grouped
+                    select new { grouped.Key.ProjectPK, grouped.Key.ProgramPK, Budget = grouped.Sum() }
+                join flags in _db.tProjects.AsNoTracking()
+                    on project.ProjectPK equals flags.ProjectPK
+                group project.Budget by new { project.ProgramPK, flags.IsPublished, flags.IsPublishable } into grouped
+                select new DashboardProgramFlagTotal
+                {
+                    ProgramPK = grouped.Key.ProgramPK,
+                    IsPublished = grouped.Key.IsPublished,
+                    IsPublishable = grouped.Key.IsPublishable,
+                    Budget = grouped.Sum(),
+                    ProjectCount = grouped.Count()
+                }).ToListAsync(cancellationToken);
+
+        private sealed class DashboardProgramFlagTotal
+        {
+            public string ProgramPK { get; set; } = string.Empty;
+            public bool IsPublished { get; set; }
+            public bool IsPublishable { get; set; }
+            public decimal Budget { get; set; }
+            public int ProjectCount { get; set; }
+        }
+
+        private sealed class DashboardFlagTotal
+        {
+            public bool IsPublished { get; set; }
+            public bool IsPublishable { get; set; }
+            public bool IsRevised { get; set; }
+            public decimal Budget { get; set; }
+            public int ProjectCount { get; set; }
+        }
+
+        /// <summary>
+        /// Program Details' rows (dbo.fProgramProjects, the function behind its project list) for
+        /// a page of one program's projects, read once per stage among them: a project can sit
+        /// at another stage than its program (about 1,400 of GAA 2025 SSP's do), and the
+        /// function lists it under its own stage only.
+        /// </summary>
+        private async Task<Dictionary<string, DBHelper.Models.Functions.Program.ProgramProjects>> GetProgramProjectRowsAsync(
+            string programPK,
+            IEnumerable<(string ProjectPK, string? StageName)> projects,
+            CancellationToken cancellationToken)
+        {
+            var rows = new Dictionary<string, DBHelper.Models.Functions.Program.ProgramProjects>();
+            foreach (var stageGroup in projects.GroupBy(project => project.StageName))
+            {
+                // Same stage-name parse as ProgramController.ShowProjectsInProgram.
+                if (stageGroup.Key is null
+                    || !Enum.TryParse<EnumProgramStage>(stageGroup.Key.Replace("-", ""), ignoreCase: true, out var stage))
+                {
+                    continue;
+                }
+                var keys = stageGroup.Select(project => project.ProjectPK).ToArray();
+                var found = await _db.fProgramProjects
+                    .FromSqlInterpolated($"SELECT * FROM dbo.fProgramProjects({programPK}, {(int)stage})")
+                    .AsNoTracking()
+                    .Where(row => keys.Contains(row.ProjectPK))
+                    .ToListAsync(cancellationToken);
+                foreach (var row in found)
+                {
+                    rows.TryAdd(row.ProjectPK, row);
+                }
+            }
+            return rows;
         }
 
         private static IQueryable<DashboardProjectBudget> ToProjectBudgets(IQueryable<DashboardCostRow> rows) =>

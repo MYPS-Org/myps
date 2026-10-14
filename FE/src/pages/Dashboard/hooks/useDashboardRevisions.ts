@@ -1,4 +1,4 @@
-import { fetchDashboardRevisions, type DashboardRevisionSummary } from '../Service';
+import { fetchDashboardRevisions, type DashboardRevisionSummary, type DashboardFilters } from '../Service';
 import { revisionsCacheAtom } from '../atoms/dashboardSectionCache.atom';
 import { useSectionData } from './useSectionData';
 
@@ -8,7 +8,7 @@ function identity(raw: DashboardRevisionSummary): DashboardRevisionSummary {
 
 export function useDashboardRevisions(
   year: number,
-  categoryId: number | null,
+  filters: DashboardFilters,
   dataSourceMode: 'real' | 'benchmark',
   enabled: boolean
 ) {
@@ -17,7 +17,7 @@ export function useDashboardRevisions(
     fetchFn: fetchDashboardRevisions,
     map: identity,
     year,
-    categoryId,
+    filters,
     dataSourceMode,
     enabled,
   });

@@ -13,12 +13,12 @@ import { formatCompactMoney } from './AnimatedCounter';
 import { useDashboardTheme } from '../DashboardTheme';
 import { usePagination } from '../../../hooks/usePagination';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
-import { fetchDashboardProjects, type DashboardProjectsFilter } from '../Service';
+import { fetchDashboardProjects, type DashboardFilters, type DashboardProjectsFilter } from '../Service';
 
 interface Props {
   year: number;
-  /** Header category filter (tOptionProjectCategory.CategoryId); null for all categories. */
-  categoryId: number | null;
+  /** Header filters (category, program type, stage); memoised by the parent. */
+  filters: DashboardFilters;
   dataSourceMode: 'real' | 'benchmark';
   /** Gates the first fetch — pass viewport visibility so this section only loads once reached. */
   enabled: boolean;
@@ -26,7 +26,6 @@ interface Props {
    *  this component's pagination state isn't atom-backed like the other sections', so the parent
    *  can't just clear a cache atom to trigger it. */
   refreshSignal?: number;
-  activeStatusFilter?: string | null;
   activeIslandFilter?: string | null;
   onClearFilters?: () => void;
   onSelectProject: (project: WatchlistProject) => void;
@@ -38,11 +37,10 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 export const DashboardProjectWatchlist: React.FC<Props> = ({
   year,
-  categoryId,
+  filters,
   dataSourceMode,
   enabled,
   refreshSignal = 0,
-  activeStatusFilter,
   activeIslandFilter,
   onClearFilters,
   onSelectProject,
@@ -59,8 +57,8 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
 
   const fetchFn = useCallback(
     (params: Parameters<typeof fetchDashboardProjects>[0]) =>
-      fetchDashboardProjects(params, year, dataSourceMode === 'benchmark', categoryId),
-    [year, dataSourceMode, categoryId]
+      fetchDashboardProjects(params, year, dataSourceMode === 'benchmark', filters),
+    [year, dataSourceMode, filters]
   );
 
   // enabled: false — this component drives every fetch itself (below), keyed off viewport
@@ -76,13 +74,12 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
     pagination.applyFilters({
       Search: debouncedSearch || undefined,
       Island: activeIslandFilter ?? undefined,
-      Status: activeStatusFilter ?? undefined,
     });
-    // pagination.applyFilters is stable unless year/dataSourceMode/categoryId change (it's rebuilt
+    // pagination.applyFilters is stable unless year/dataSourceMode/filters change (it's rebuilt
     // from fetchFn, which depends on those) — safe to omit here, matching usePagination.ts's own
     // mount-effect convention.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, year, categoryId, dataSourceMode, refreshSignal, debouncedSearch, activeIslandFilter, activeStatusFilter]);
+  }, [enabled, year, filters, dataSourceMode, refreshSignal, debouncedSearch, activeIslandFilter]);
 
   const projects = pagination.data.lists;
   // The server's total is a count of projects, one row each (QA read it as regions: "8460 Regions?").
@@ -94,9 +91,6 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
   const getSubtitle = () => {
     if (activeIslandFilter) {
       return `Filtered: ${activeIslandFilter} Group (${projectCountLabel})`;
-    }
-    if (activeStatusFilter) {
-      return `Filtered: Stage ${activeStatusFilter} (${projectCountLabel})`;
     }
     return `Strategic Regional Capital Investment Portfolio (${projectCountLabel})`;
   };
@@ -169,17 +163,12 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
         </div>
 
         {/* Active Filter Chips */}
-        {(activeStatusFilter || activeIslandFilter || searchInput) && (
+        {(activeIslandFilter || searchInput) && (
           <div className={`flex items-center gap-2 px-6 py-2.5 border-b text-xs flex-wrap ${isLight ? 'bg-slate-50/80 border-slate-100' : 'bg-slate-950/80 border-slate-800'}`}>
             <span className={`font-medium text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Active Filter:</span>
             {activeIslandFilter && (
               <span className={`px-2.5 py-0.5 rounded-full border font-bold text-[11px] ${isLight ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'}`}>
                 {activeIslandFilter} Island Group ({projectCountLabel})
-              </span>
-            )}
-            {activeStatusFilter && (
-              <span className={`px-2.5 py-0.5 rounded-full border font-bold text-[11px] ${isLight ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-blue-500/20 text-blue-300 border-blue-500/30'}`}>
-                Stage: {activeStatusFilter}
               </span>
             )}
             {searchInput && (

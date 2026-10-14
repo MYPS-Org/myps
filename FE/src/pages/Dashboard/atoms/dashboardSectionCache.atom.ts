@@ -1,14 +1,14 @@
 import { atom } from 'jotai';
 import type { KpiData } from '../components/DashboardKpiCards';
-import type { StatusSegment, IslandAllocation } from '../components/DashboardCharts';
+import type { StatusSegment, IslandAllocation, CategoryShare } from '../components/DashboardCharts';
 import type { RegionalBreakdownRow } from '../components/DashboardRegionalMatrix';
 import type { DashboardLsProject } from '../components/DashboardKpiDetailModal';
-import type { DashboardRevisionSummary } from '../Service';
+import type { DashboardFilters, DashboardRevisionSummary } from '../Service';
 
 /**
  * Lazy-loading + cache convention for this page: each section owns one atom here, keyed by
- * `${dataSourceMode}:${year}:${categoryId}`. A section's hook (see ../hooks) renders straight from
- * the atom when the key matches the current mode+year+category — no fetch, no skeleton — and only fetches when
+ * `${dataSourceMode}:${year}:${categoryId}:${programType}:${stageName}`. A section's hook (see ../hooks) renders straight from
+ * the atom when the key matches the current mode+year+header filters — no fetch, no skeleton — and only fetches when
  * the key changes or the section becomes visible for the first time. This is what lets switching
  * tabs, or scrolling a section out of view and back, skip a refetch: unlike component state,
  * atoms live at module scope and survive the section unmounting. See documents/plans/
@@ -33,8 +33,8 @@ export function emptySectionCache<T>(): SectionCache<T> {
     return { key: null, data: null, status: 'idle', error: null };
 }
 
-export function sectionCacheKey(dataSourceMode: 'real' | 'benchmark', year: number, categoryId: number | null): string {
-    return `${dataSourceMode}:${year}:${categoryId ?? 'all'}`;
+export function sectionCacheKey(dataSourceMode: 'real' | 'benchmark', year: number, filters: DashboardFilters): string {
+    return `${dataSourceMode}:${year}:${filters.categoryId ?? 'all'}:${filters.programType ?? 'all'}:${filters.stageName ?? 'all'}`;
 }
 
 export interface TrendRow {
@@ -73,9 +73,8 @@ export const kpisCacheAtom = atom<SectionCache<KpiSection>>(emptySectionCache<Kp
 export const liveAvailableYearsAtom = atom<number[]>([]);
 export const trendCacheAtom = atom<SectionCache<TrendRow[]>>(emptySectionCache<TrendRow[]>());
 export const budgetBreakdownCacheAtom = atom<SectionCache<BudgetBreakdownRow[]>>(emptySectionCache<BudgetBreakdownRow[]>());
-export const statusesCacheAtom = atom<SectionCache<{ statuses: StatusSegment[]; islands: IslandAllocation[] }>>(
-  emptySectionCache<{ statuses: StatusSegment[]; islands: IslandAllocation[] }>()
-);
+type StatusesSection = { statuses: StatusSegment[]; islands: IslandAllocation[]; categories: CategoryShare[] };
+export const statusesCacheAtom = atom<SectionCache<StatusesSection>>(emptySectionCache<StatusesSection>());
 export const regionalBreakdownCacheAtom = atom<SectionCache<RegionalBreakdownRow[]>>(emptySectionCache<RegionalBreakdownRow[]>());
 export const revisionsCacheAtom = atom<SectionCache<DashboardRevisionSummary>>(emptySectionCache<DashboardRevisionSummary>());
 export const lsProjectsCacheAtom = atom<SectionCache<DashboardLsProject[]>>(emptySectionCache<DashboardLsProject[]>());

@@ -9,18 +9,23 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useDashboardTheme } from '../DashboardTheme';
+import UpdatingBadge from './UpdatingBadge';
 
 /** Server-aggregated region row (WebAPI Dashboard/RegionalBreakdown) — replaces client-side
  *  aggregation over a full project array so this component only needs per-region totals. */
 export interface RegionalBreakdownRow {
   region: string;
   island: string;
+  /** tOptionAdminAreaRegion.Hierarchy: the order the region tables list regions in. */
+  hierarchy?: string | null;
   budget: number;
   projectCount: number;
 }
 
 interface Props {
   selectedYear?: number;
+  /** Badge wording after the year: the header stage's full name, or "All budget stages". */
+  stageLabel?: string;
   regions?: RegionalBreakdownRow[];
   isLoading?: boolean;
   onSelectIsland?: (island: string | null) => void;
@@ -31,6 +36,7 @@ interface RegionRow {
   name: string;
   displayName: string;
   island: string;
+  hierarchy: string | null;
   subgroup: string;
   amount: number;
   sharePercent: number;
@@ -66,12 +72,15 @@ function getDonutPath(cx: number, cy: number, rInner: number, rOuter: number, st
 
 export const DashboardRegionalMatrix: React.FC<Props> = ({
   selectedYear = 2027,
+  stageLabel = 'National Expenditure Program',
   regions: regionsProp = [],
   isLoading = false,
   onSelectIsland,
   activeIslandFilter,
 }) => {
   const { isLight } = useDashboardTheme();
+  // Reloading for a new year or filter with the previous regions still on screen.
+  const isUpdating = isLoading && regionsProp.length > 0;
   const [viewMode, setViewMode] = useState<'map' | 'pie'>('map');
   const [selectedIslandTab, setSelectedIslandTab] = useState<'All' | 'Luzon' | 'Visayas' | 'Mindanao'>('All');
   
@@ -114,6 +123,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
       name: regName,
       displayName: shortName,
       island: row.island || 'Other',
+      hierarchy: row.hierarchy ?? null,
       subgroup,
       amount: row.budget,
       sharePercent: share,
@@ -137,15 +147,24 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
   const visayasShare = totalBudgetBillion > 0 ? (visayasTotal / totalBudgetBillion) * 100 : 0;
   const mindanaoShare = totalBudgetBillion > 0 ? (mindanaoTotal / totalBudgetBillion) * 100 : 0;
 
-  const northernLuzon = regionRows.filter((r) => r.subgroup === 'Northern Luzon');
-  const southernLuzon = regionRows.filter((r) => r.subgroup === 'Southern Luzon');
+  // The region tables list regions in DPWH's order (tOptionAdminAreaRegion.Hierarchy: CAR, I, II,
+  // III; IV-A, MIMAROPA, V; NIR, VI, VII, VIII; IX … XIII, BARMM), not by budget. A region with no
+  // hierarchy (an unrecognized code) goes last. Northern and Southern Luzon are not in the
+  // database: regionGroup() splits Luzon's regions into them, NCR apart.
+  const byHierarchy = (a: RegionRow, b: RegionRow) =>
+    (a.hierarchy ?? '￿').localeCompare(b.hierarchy ?? '￿') || a.displayName.localeCompare(b.displayName);
+  const regionsInOrder = [...regionRows].sort(byHierarchy);
+  const northernLuzon = regionsInOrder.filter((r) => r.subgroup === 'Northern Luzon');
+  const southernLuzon = regionsInOrder.filter((r) => r.subgroup === 'Southern Luzon');
+  const northernLuzonBillion = northernLuzon.reduce((sum, r) => sum + r.amount, 0) / 1e9;
+  const southernLuzonBillion = southernLuzon.reduce((sum, r) => sum + r.amount, 0) / 1e9;
   const ncr = regionRows.filter((r) => r.subgroup === 'NCR').reduce((sum, row) => ({
     amount: sum.amount + row.amount,
     sharePercent: sum.sharePercent + row.sharePercent,
     count: sum.count + row.count,
   }), { amount: 0, sharePercent: 0, count: 0 });
-  const visayasList = regionRows.filter((r) => r.island === 'Visayas');
-  const mindanaoList = regionRows.filter((r) => r.island === 'Mindanao');
+  const visayasList = regionsInOrder.filter((r) => r.island === 'Visayas');
+  const mindanaoList = regionsInOrder.filter((r) => r.island === 'Mindanao');
 
   const northernLuzonShare = northernLuzon.reduce((s, r) => s + r.sharePercent, 0);
   const southernLuzonShare = southernLuzon.reduce((s, r) => s + r.sharePercent, 0);
@@ -258,8 +277,9 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                   isLight ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
                 }`}
               >
-                FY {selectedYear} National Expenditure Program
+                FY {selectedYear} {stageLabel}
               </span>
+              {isUpdating && <UpdatingBadge isLight={isLight} />}
             </div>
             <h2 className={`text-xl sm:text-2xl font-black tracking-tight flex flex-wrap items-baseline gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               <span className={isLight ? 'text-blue-800 font-black' : 'text-emerald-400 font-black'}>
@@ -306,7 +326,9 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
           </div>
         </div>
 
-        {isLoading ? (
+        {/* The skeleton is only for a first load: a reload keeps the previous map and tables on
+            screen, dimmed, so the sections below do not move up while it loads. */}
+        {isLoading && regionsProp.length === 0 ? (
           <div className="mt-5 rounded-2xl p-6 border border-slate-800/60 bg-slate-900/40 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
             <div className="lg:col-span-3 space-y-3">
               {Array.from({ length: 3 }).map((_, index) => (
@@ -323,7 +345,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
             </div>
           </div>
         ) : (
-        <>
+        <div className={`transition-opacity ${isUpdating ? 'opacity-60' : ''}`}>
         {/* 1. Official Infographic Map View with True Philippines Map */}
         {viewMode === 'map' && (
           <div
@@ -390,6 +412,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                 <div className="rounded-xl overflow-hidden shadow-xl border border-sky-400/40 bg-white">
                   <button type="button" onClick={() => handleMapSelect('Southern Luzon')} aria-pressed={mapArea === 'Southern Luzon'} className="w-full text-left hover:brightness-110 focus-visible:outline-2 focus-visible:outline-amber-400 bg-[#00a3e0] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between">
                     <span className="font-black text-xs tracking-wide">SOUTHERN LUZON - {southernLuzonShare.toFixed(2)}%</span>
+                    <span className="shrink-0 whitespace-nowrap text-[11px] font-bold opacity-90">₱{southernLuzonBillion.toFixed(2)} B</span>
                   </button>
                   <table className="w-full text-left text-xs bg-white text-slate-900 font-medium">
                     <thead className="bg-[#fbb040] text-slate-950 font-black text-[11px] uppercase tracking-wider">
@@ -421,7 +444,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                     }`}
                   >
                     <span className="w-full text-left hover:brightness-110 focus-visible:outline-2 focus-visible:outline-amber-400 font-black text-xs tracking-wide">VISAYAS - {visayasShare.toFixed(2)}%</span>
-                    <span className="text-[11px] font-bold opacity-90">₱{visayasTotal.toFixed(2)} B</span>
+                    <span className="shrink-0 whitespace-nowrap text-[11px] font-bold opacity-90">₱{visayasTotal.toFixed(2)} B</span>
                   </button>
                   <table className="w-full text-left text-xs bg-white text-slate-900 font-medium">
                     <thead className="bg-[#fbb040] text-slate-950 font-black text-[11px] uppercase tracking-wider">
@@ -459,6 +482,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                 <div className="rounded-xl overflow-hidden shadow-xl border border-sky-400/40 bg-white">
                   <button type="button" onClick={() => handleMapSelect('Northern Luzon')} aria-pressed={mapArea === 'Northern Luzon'} className="w-full text-left hover:brightness-110 focus-visible:outline-2 focus-visible:outline-amber-400 bg-[#00a3e0] text-white font-black text-xs py-2 px-3.5 uppercase tracking-wider flex items-center justify-between">
                     <span className="font-black text-xs tracking-wide">NORTHERN LUZON - {northernLuzonShare.toFixed(2)}%</span>
+                    <span className="shrink-0 whitespace-nowrap text-[11px] font-bold opacity-90">₱{northernLuzonBillion.toFixed(2)} B</span>
                   </button>
                   <table className="w-full text-left text-xs bg-white text-slate-900 font-medium">
                     <thead className="bg-[#fbb040] text-slate-950 font-black text-[11px] uppercase tracking-wider">
@@ -490,7 +514,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
                     }`}
                   >
                     <span className="w-full text-left hover:brightness-110 focus-visible:outline-2 focus-visible:outline-amber-400 font-black text-xs tracking-wide">MINDANAO - {mindanaoShare.toFixed(2)}%</span>
-                    <span className="text-[11px] font-bold opacity-90">₱{mindanaoTotal.toFixed(2)} B</span>
+                    <span className="shrink-0 whitespace-nowrap text-[11px] font-bold opacity-90">₱{mindanaoTotal.toFixed(2)} B</span>
                   </button>
                   <table className="w-full text-left text-xs bg-white text-slate-900 font-medium">
                     <thead className="bg-[#fbb040] text-slate-950 font-black text-[11px] uppercase tracking-wider">
@@ -770,7 +794,7 @@ export const DashboardRegionalMatrix: React.FC<Props> = ({
           </div>
         )}
 
-        </>
+        </div>
         )}
 
         {/* 3. Fullscreen / High-Resolution Enlarge Map Modal */}

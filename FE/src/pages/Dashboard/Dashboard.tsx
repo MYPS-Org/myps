@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy } from 'react';
+import React, { useState, useEffect, useMemo, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSetAtom, useAtomValue } from 'jotai';
 import {
@@ -21,6 +21,8 @@ import DashboardTrajectoryChart from './components/DashboardTrajectoryChart';
 const DashboardRegionalMatrix = lazy(() => import('./components/DashboardRegionalMatrix'));
 import DashboardProjectWatchlist, { type WatchlistProject } from './components/DashboardProjectWatchlist';
 import DashboardCategoryFilter, { type DashboardCategory } from './components/DashboardCategoryFilter';
+import DashboardProgramFilters from './components/DashboardProgramFilters';
+import type { DashboardFilters, DashboardStageOption } from './Service';
 import DashboardKpiDetailModal, { type DashboardKpiType } from './components/DashboardKpiDetailModal';
 import ProjectQuickDetailModal from './components/ProjectQuickDetailModal';
 
@@ -32,6 +34,7 @@ import { useDashboardRegionalBreakdown } from './hooks/useDashboardRegionalBreak
 import { useDashboardRevisions } from './hooks/useDashboardRevisions';
 import { useDashboardLsProjects } from './hooks/useDashboardLsProjects';
 import { usePinnedHeader } from './hooks/usePinnedHeader';
+import { holdScrollPosition } from './hooks/holdScrollPosition';
 import {
   kpisCacheAtom,
   trendCacheAtom,
@@ -73,6 +76,14 @@ const BENCHMARK_AVAILABLE_YEARS = [2027, 2026, 2025, 2024, 2023];
     constant; flip both together. */
 export const LIVE_DB_ENABLED = true;
 
+/** Where a project row opens, by the Project List's rules: a Lump Sum Project in the Lump Sum
+ *  module (its id is the key /lumpsum/:id takes), any other project in its details form at its
+ *  current stage (`/projects/project-details/<ProjectId>:<StageName>`, which EditProject reads). */
+function projectDetailsPath(project: WatchlistProject): string {
+  if (project.isLumpSum) return `/lumpsum/${project.id}`;
+  return `/projects/project-details/${encodeURIComponent(project.projectId)}:${encodeURIComponent(project.stageName)}`;
+}
+
 const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const { setTheme, isLight } = useDashboardTheme();
@@ -80,8 +91,9 @@ const DashboardContent: React.FC = () => {
   const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('benchmark');
   const [selectedYear, setSelectedYear] = useState<number>(2027);
   const [selectedCategory, setSelectedCategory] = useState<DashboardCategory | null>(null);
+  const [selectedProgramType, setSelectedProgramType] = useState<number | null>(null);
+  const [selectedStage, setSelectedStage] = useState<DashboardStageOption | null>(null);
   const [selectedKpi, setSelectedKpi] = useState<DashboardKpiType | null>(null);
-  const [activeStatusFilter, setActiveStatusFilter] = useState<string | null>(null);
   const [activeIslandFilter, setActiveIslandFilter] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<WatchlistProject | null>(null);
   const [refreshSignal, setRefreshSignal] = useState(0);
@@ -90,8 +102,25 @@ const DashboardContent: React.FC = () => {
   // out of 'real' while LIVE_DB_ENABLED is false; this is what guarantees it -- a stale state
   // value, a future caller, or a restored session still cannot send a dashboard query.
   const sourceMode: 'real' | 'benchmark' = LIVE_DB_ENABLED ? dataSourceMode : 'benchmark';
-  // The category narrows Live DB data only: Demo Data figures have no real categories behind them.
-  const categoryId = sourceMode === 'real' ? selectedCategory?.id ?? null : null;
+  // The header filters narrow Live DB data only: Demo Data figures have no real categories,
+  // program types or stages behind them.
+  const isLive = sourceMode === 'real';
+  const categoryId = isLive ? selectedCategory?.id ?? null : null;
+  const programType = isLive ? selectedProgramType : null;
+  const stage = isLive ? selectedStage : null;
+  const stageName = stage?.StageName ?? null;
+  // Memoised: the KPI modal and the watchlist refetch when this object changes.
+  const filters = useMemo<DashboardFilters>(
+    () => ({ categoryId, programType, stageName }),
+    [categoryId, programType, stageName]
+  );
+  // Shown under the Program Stage title, and (full name only) on the region map's badge. The
+  // Demo Data map keeps its NEP wording: its figures are the NEP presentation set.
+  const stageLine = stage ? `${stage.StageName} · ${stage.FullName}` : 'All budget stages';
+  // Where a project in a KPI detail opens, for a click and for its link (right-click / new tab).
+  // Demo Data rows are samples with no project behind them, so they open the list.
+  const projectHref = (project: WatchlistProject) => (isLive ? projectDetailsPath(project) : '/projects');
+  const mapStageLabel = isLive ? stage?.FullName ?? 'All budget stages' : 'National Expenditure Program';
   useEffect(() => {
     if (!LIVE_DB_ENABLED && dataSourceMode === 'real') {
       setDataSourceMode('benchmark');
@@ -103,9 +132,9 @@ const DashboardContent: React.FC = () => {
   // and Lump Sum tiles each resolve on their own without blocking the rest of the cards). Lump
   // Sum is eager rather than viewport-gated like Tier 2 below because the KPI tile needs its
   // total immediately and the dataset is tiny (a handful of Lump Sum Projects).
-  const kpis = useDashboardKpis(selectedYear, categoryId, sourceMode, true);
-  const revisions = useDashboardRevisions(selectedYear, categoryId, sourceMode, true);
-  const lsProjectsSection = useDashboardLsProjects(selectedYear, categoryId, sourceMode, true);
+  const kpis = useDashboardKpis(selectedYear, filters, sourceMode, true);
+  const revisions = useDashboardRevisions(selectedYear, filters, sourceMode, true);
+  const lsProjectsSection = useDashboardLsProjects(selectedYear, filters, sourceMode, true);
 
   const liveAvailableYears = useAtomValue(liveAvailableYearsAtom);
   const availableYears = sourceMode === 'benchmark'
@@ -134,6 +163,22 @@ const DashboardContent: React.FC = () => {
   const pinnedHeader = usePinnedHeader();
   const isHeaderPinned = pinnedHeader.isPinned;
 
+  // Keeps what the user is looking at in place while every section reloads for a new year or
+  // filter (see holdScrollPosition): a click inside a section holds the element clicked, and a
+  // pinned-header control holds whatever sits just below the header. With the header unpinned
+  // the user is at the top of the page, where nothing above can move.
+  const holdView = (anchor?: Element) => {
+    if (anchor) {
+      holdScrollPosition(anchor);
+      return;
+    }
+    const header = pinnedHeader.headerRef.current;
+    if (!isHeaderPinned || !header) return;
+    const box = header.getBoundingClientRect();
+    const below = document.elementFromPoint(box.left + box.width / 2, box.bottom + 16);
+    if (below) holdScrollPosition(below.closest('section') ?? below);
+  };
+
   const macroBudgetViewport = useInViewport<HTMLDivElement>();
   const trajectoryViewport = useInViewport<HTMLDivElement>();
   const regionalMatrixViewport = useInViewport<HTMLDivElement>();
@@ -142,10 +187,10 @@ const DashboardContent: React.FC = () => {
 
   // Trend feeds both the Trajectory chart and the Charts panel's trend bars -- one shared fetch,
   // enabled by whichever of the two sections is reached first.
-  const trend = useDashboardTrend(selectedYear, categoryId, sourceMode, trajectoryViewport.isVisible || chartsViewport.isVisible);
-  const budgetBreakdown = useDashboardBudgetBreakdown(selectedYear, categoryId, sourceMode, macroBudgetViewport.isVisible);
-  const statuses = useDashboardStatuses(selectedYear, categoryId, sourceMode, chartsViewport.isVisible);
-  const regionalBreakdown = useDashboardRegionalBreakdown(selectedYear, categoryId, sourceMode, regionalMatrixViewport.isVisible);
+  const trend = useDashboardTrend(filters, sourceMode, trajectoryViewport.isVisible || chartsViewport.isVisible);
+  const budgetBreakdown = useDashboardBudgetBreakdown(selectedYear, filters, sourceMode, macroBudgetViewport.isVisible);
+  const statuses = useDashboardStatuses(selectedYear, filters, sourceMode, chartsViewport.isVisible);
+  const regionalBreakdown = useDashboardRegionalBreakdown(selectedYear, filters, sourceMode, regionalMatrixViewport.isVisible);
 
   const monthlyData = (trend.data ?? []).map((row) => ({
     month: String(row.year),
@@ -181,7 +226,6 @@ const DashboardContent: React.FC = () => {
 
   const clearCrossFilters = () => {
     setActiveIslandFilter(null);
-    setActiveStatusFilter(null);
   };
 
   const skeletonBlock = (heightClass: string) => (
@@ -198,12 +242,11 @@ const DashboardContent: React.FC = () => {
     <div id="watchlist-section">
       <DashboardProjectWatchlist
         year={selectedYear}
-        categoryId={categoryId}
+        filters={filters}
         dataSourceMode={sourceMode}
         enabled={watchlistViewport.isVisible}
         refreshSignal={refreshSignal}
         activeIslandFilter={activeIslandFilter}
-        activeStatusFilter={activeStatusFilter}
         onClearFilters={clearCrossFilters}
         onSelectProject={setSelectedProject}
         onViewAll={() => navigate('/projects')}
@@ -219,8 +262,8 @@ const DashboardContent: React.FC = () => {
     >
       {/* 1. Header Bar with Theme & Live DB vs Benchmark Switcher.
           Pinned below the app's top bar once the page scrolls to it (usePinnedHeader), in a
-          compact one-row form that keeps only the filters, so every section below stays visibly
-          under the selected data source, category and fiscal year. */}
+          compact form that keeps only the filters, so every section below stays visibly under
+          the selected data source, category, program type, stage and fiscal year. */}
       <div>
         <div ref={pinnedHeader.markerRef} aria-hidden="true" />
         {isHeaderPinned && <div aria-hidden="true" style={{ height: pinnedHeader.spacerHeight }} />}
@@ -276,8 +319,11 @@ const DashboardContent: React.FC = () => {
                     </span>
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
-                    <span>National Expenditure Program & Portfolio Matrix</span>
+                    <span>Program Stage</span>
                   </h1>
+                  <p data-testid="dashboard-stage-line" className="text-sm sm:text-base font-bold text-amber-300 mt-1">
+                    {stageLine}
+                  </p>
                   <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
                     Comprehensive executive monitoring of multi-year capital outlays, stage lifecycles, and regional infrastructure delivery.
                   </p>
@@ -291,6 +337,7 @@ const DashboardContent: React.FC = () => {
                     disabled={!LIVE_DB_ENABLED}
                     onClick={() => {
                       if (!LIVE_DB_ENABLED) return;
+                      holdView();
                       setDataSourceMode('real');
                       setSelectedYear(2027);
                     }}
@@ -310,9 +357,12 @@ const DashboardContent: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
+                      holdView();
                       setDataSourceMode('benchmark');
                       setSelectedYear(2027);
                       setSelectedCategory(null);
+                      setSelectedProgramType(null);
+                      setSelectedStage(null);
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       dataSourceMode === 'benchmark'
@@ -359,9 +409,28 @@ const DashboardContent: React.FC = () => {
                 {/* Category filter: narrows every section, beside the year it combines with */}
                 <DashboardCategoryFilter
                   value={selectedCategory}
-                  onChange={setSelectedCategory}
+                  onChange={(category) => {
+                    holdView();
+                    setSelectedCategory(category);
+                  }}
                   disabled={sourceMode !== 'real'}
                   disabledReason="Category filtering uses Live DB data. Switch to Live DB to filter by category."
+                />
+
+                {/* Program Type and Program Stage Name: narrow every section together with Category */}
+                <DashboardProgramFilters
+                  programType={selectedProgramType}
+                  onProgramTypeChange={(programType) => {
+                    holdView();
+                    setSelectedProgramType(programType);
+                  }}
+                  stage={selectedStage}
+                  onStageChange={(nextStage) => {
+                    holdView();
+                    setSelectedStage(nextStage);
+                  }}
+                  disabled={sourceMode !== 'real'}
+                  disabledReason="Program type and stage filtering uses Live DB data. Switch to Live DB to filter by program type or stage."
                 />
 
                 {/* Fiscal Year Switcher */}
@@ -371,7 +440,10 @@ const DashboardContent: React.FC = () => {
                     return (
                       <button
                         key={year}
-                        onClick={() => setSelectedYear(year)}
+                        onClick={() => {
+                          holdView();
+                          setSelectedYear(year);
+                        }}
                         className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                           isSelected
                             ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25'
@@ -455,7 +527,10 @@ const DashboardContent: React.FC = () => {
           <LazySection isVisible={trajectoryViewport.isVisible} sectionRef={trajectoryViewport.ref} skeleton={skeletonBlock('h-80')}>
             <DashboardTrajectoryChart
               selectedYear={selectedYear}
-              onSelectYear={(yr) => setSelectedYear(yr)}
+              onSelectYear={(yr, anchor) => {
+                holdView(anchor);
+                setSelectedYear(yr);
+              }}
               isBenchmark={sourceMode === 'benchmark'}
               liveData={trajectoryLiveData}
               isLoading={trend.isLoading}
@@ -466,6 +541,7 @@ const DashboardContent: React.FC = () => {
           <LazySection isVisible={regionalMatrixViewport.isVisible} sectionRef={regionalMatrixViewport.ref} skeleton={skeletonBlock('h-[500px]')}>
             <DashboardRegionalMatrix
               selectedYear={selectedYear}
+              stageLabel={mapStageLabel}
               regions={regionalBreakdown.data ?? []}
               isLoading={regionalBreakdown.isLoading}
               onSelectIsland={(isl) => setActiveIslandFilter(isl)}
@@ -473,18 +549,25 @@ const DashboardContent: React.FC = () => {
             />
           </LazySection>
 
-          {/* Annual Trend & Project Stages */}
+          {/* Annual Trend & Project Categories */}
           <LazySection isVisible={chartsViewport.isVisible} sectionRef={chartsViewport.ref} skeleton={skeletonBlock('h-96')}>
             <DashboardCharts
               selectedYear={selectedYear}
               monthlyData={monthlyData}
-              statusData={statuses.data?.statuses ?? []}
+              categories={statuses.data?.categories ?? []}
               islandData={statuses.data?.islands ?? []}
               isTrendLoading={trend.isLoading}
               isStatusesLoading={statuses.isLoading}
-              onSelectYear={setSelectedYear}
-              onStatusSelect={setActiveStatusFilter}
-              activeStatusFilter={activeStatusFilter}
+              onSelectYear={(yr, anchor) => {
+                holdView(anchor);
+                setSelectedYear(yr);
+              }}
+              selectedCategoryId={categoryId}
+              // A category row applies the header Category filter; Demo Data has no real categories.
+              onSelectCategory={isLive ? (category, anchor) => {
+                holdView(anchor);
+                setSelectedCategory(category);
+              } : undefined}
               onSelectIsland={setActiveIslandFilter}
               activeIslandFilter={activeIslandFilter}
             />
@@ -502,13 +585,18 @@ const DashboardContent: React.FC = () => {
       <DashboardKpiDetailModal
         type={selectedKpi}
         selectedYear={selectedYear}
-        categoryId={categoryId}
+        filters={filters}
         dataSourceMode={sourceMode}
         kpiData={kpis.data?.kpis ?? undefined}
         lsProjects={lsProjectsSection.data ?? []}
         revisions={revisions.data ?? undefined}
         onClose={() => setSelectedKpi(null)}
-        onOpenProject={() => {
+        projectHref={projectHref}
+        onOpenProject={(project) => {
+          setSelectedKpi(null);
+          navigate(projectHref(project));
+        }}
+        onOpenRepository={() => {
           setSelectedKpi(null);
           navigate('/projects');
         }}

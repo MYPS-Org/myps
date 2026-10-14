@@ -1,4 +1,4 @@
-import { fetchDashboardBudgetBreakdown } from '../Service';
+import { fetchDashboardBudgetBreakdown, type DashboardFilters } from '../Service';
 import { budgetBreakdownCacheAtom, type BudgetBreakdownRow } from '../atoms/dashboardSectionCache.atom';
 import { useSectionData } from './useSectionData';
 
@@ -12,7 +12,7 @@ function mapBudgetBreakdown(raw: Awaited<ReturnType<typeof fetchDashboardBudgetB
 
 export function useDashboardBudgetBreakdown(
   year: number,
-  categoryId: number | null,
+  filters: DashboardFilters,
   dataSourceMode: 'real' | 'benchmark',
   enabled: boolean
 ) {
@@ -21,8 +21,10 @@ export function useDashboardBudgetBreakdown(
     fetchFn: fetchDashboardBudgetBreakdown,
     map: mapBudgetBreakdown,
     year,
-    categoryId,
+    filters,
     dataSourceMode,
     enabled,
+    // Kept on screen while a new year or filter loads, so the page does not shift.
+    keepPreviousData: true,
   });
 }
