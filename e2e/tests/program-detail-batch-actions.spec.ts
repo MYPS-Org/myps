@@ -47,7 +47,8 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { captureApiCalls } from './helpers/networkCapture';
-import { apiLogin, provisionLumpSum, type ProvisionedLumpSum } from './helpers/lumpSumFixture';
+import { apiLogin, post, provisionLumpSum, type ProvisionedLumpSum } from './helpers/lumpSumFixture';
+import { addOrdinaryProject } from './helpers/crossStageFixture';
 import { withFixtureProgram, type FixtureProgram } from './helpers/approvedProgramFixture';
 
 /** ProgramDetail's route param is `${ProgramPK}:${StageName}` — see Program.tsx's handleViewDetails. */
@@ -77,24 +78,28 @@ test.describe('Program Details — batch actions', () => {
     await apiLogin(page);
 
     await withFixtureProgram(page, async ({ program }) => {
-      /*  Provisioned while the program is Working: CreateLumpSum is refused on an
-          Approved one. This parent is the program's only project, and batch
-          deleting it IS its cleanup — the revision ends up soft-deleted either
-          way, which is what the sweeper would have achieved. */
-      const parent: ProvisionedLumpSum = await provisionLumpSum(
-        page,
-        1_000_000,
-        'batch actions delete target',
-        { programPK: program.ProgramPK },
-      );
+      /*  AN ORDINARY PROJECT, NOT A LUMP SUM ONE (2026-10-15). Batch Delete now
+          refuses Lump Sum parents and children: only the Lump Sum module returns a
+          child's allocation to its parent (documents/plans/project-deletion-single-
+          rule.md). Added while the program is Working, at its own stage, so it is on
+          its first stage entry: dbo.fProjectDeletionTier rates it Hard and the batch
+          delete removes it outright — which IS its cleanup. */
+      const target = {
+        projectId: await addOrdinaryProject(
+          page,
+          { ProgramPK: program.ProgramPK, ProgramId: program.ProgramId, Name: program.Name, StageName: program.StageName },
+          `batch actions delete target ${Date.now()}`,
+          program.StageName,
+        ),
+      };
 
       await page.goto(detailUrl(program)); // already authenticated — see the header
 
-      const row = projectRow(page, parent.projectId);
+      const row = projectRow(page, target.projectId);
       await expect(row, 'the provisioned project is listed before the delete').toBeVisible();
 
       await openBatchAction(page, 'Batch Delete');
-      await page.locator('textarea#projectIds').fill(parent.projectId);
+      await page.locator('textarea#projectIds').fill(target.projectId);
       await page.getByRole('button', { name: 'Delete Projects', exact: true }).click();
 
       /*  The confirm dialog asks for the word, then repeats the action in its own
@@ -134,7 +139,7 @@ test.describe('Program Details — batch actions', () => {
               if (!rendered) return 'loading';
               const rows = Array.from(document.querySelectorAll('tbody tr'));
               return rows.some((r) => r.textContent?.includes(projectId)) ? 'present' : 'absent';
-            }, parent.projectId),
+            }, target.projectId),
           {
             timeout: 60_000,
             message: 'the deleted row is gone once the page has re-rendered, with no reload',
@@ -231,13 +236,23 @@ test.describe('Program Details — batch actions', () => {
     await apiLogin(page);
 
     await withFixtureProgram(page, async ({ program, approve }) => {
+      /*  Ordinary projects, not Lump Sum parents (2026-10-15): Batch Delete refuses
+          Lump Sum rows now, so a parent on page 2 would answer 400 and the table
+          would never be re-queried. Each is on its first stage entry, so the
+          finally below hard-deletes whatever the test left — the fixture program is
+          never swept, and ordinary projects carry no sweeper marker. */
       const PAGE_SIZE = 10;
+      const added: string[] = [];
       for (let i = 0; i <= PAGE_SIZE; i++) {
-        await provisionLumpSum(page, 1_000_000, `batch actions paging ${i}`, {
-          programPK: program.ProgramPK,
-        });
+        added.push(await addOrdinaryProject(
+          page,
+          { ProgramPK: program.ProgramPK, ProgramId: program.ProgramId, Name: program.Name, StageName: program.StageName },
+          `batch actions paging ${i} ${Date.now()}`,
+          program.StageName,
+        ));
       }
 
+      try {
       await approve();
       await page.goto(detailUrl(program));
 
@@ -302,6 +317,10 @@ test.describe('Program Details — batch actions', () => {
         body: JSON.stringify(calls, null, 2),
         contentType: 'application/json',
       });
+      } finally {
+        // First-stage ordinary projects: Batch Delete removes them outright.
+        await post(page, '/api/Program/BatchDelete', { ProgramId: program.ProgramId, ProjectIds: added.join(';') });
+      }
     });
   });
 });

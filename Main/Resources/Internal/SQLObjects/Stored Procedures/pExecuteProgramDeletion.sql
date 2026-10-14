@@ -63,11 +63,12 @@
       RISK-112). If Blocked, RAISERROR and return -- zero writes. Runs
       BEFORE any transaction opens -- nothing to roll back.
 
-      PASS 2 -- Published-child check (dbo.fProjectDeletionTier per child):
-      loop every project under @ProgramFK; if EVEN ONE comes back
-      'Blocked' (published), RAISERROR naming it and return -- zero writes,
-      including to every OTHER non-published child. Also runs BEFORE any
-      transaction opens -- purely read-only.
+      PASS 2 -- Child check (dbo.fProjectDeletionTier per child, the single
+      project-deletion rule): every project under @ProgramFK must come back
+      'Hard'. If EVEN ONE is 'Blocked' (published) or 'Soft' (progressed past
+      its first stage), RAISERROR naming it with its reason and return --
+      zero writes to any child. Also runs BEFORE any transaction opens --
+      purely read-only.
 
       PASS 3 -- Execute (only reached if Pass 1 and Pass 2 both passed, now
       inside the transaction opened above): force hard-delete every child
@@ -119,20 +120,25 @@ BEGIN
     END
 
     -- PASS 2: every child project's tier, still read-only, no transaction yet.
-    DECLARE @Projects TABLE (ProjectFK NVARCHAR(200) PRIMARY KEY, Tier NVARCHAR(20));
+    -- The same single rule every project delete uses (dbo.fProjectDeletionTier): a
+    -- program is hard-deleted only when EVERY child is 'Hard'. A published child
+    -- ('Blocked') or one that has progressed past its first stage ('Soft') refuses
+    -- the whole request.
+    DECLARE @Projects TABLE (ProjectFK NVARCHAR(200) PRIMARY KEY, Tier NVARCHAR(20), Reason NVARCHAR(100));
 
-    INSERT INTO @Projects (ProjectFK, Tier)
-    SELECT p.ProjectPK, t.Tier
+    INSERT INTO @Projects (ProjectFK, Tier, Reason)
+    SELECT p.ProjectPK, t.Tier, t.Reason
     FROM dbo.tProjects p
     CROSS APPLY dbo.fProjectDeletionTier(p.ProjectPK, @ProgramFK) t
-    WHERE p.ProgramFK = @ProgramFK;
+    WHERE p.ProgramFK = @ProgramFK
+      AND t.ProjectFK = p.ProjectPK;   -- the PK's own row; the string may also be another project's revision id
 
-    IF EXISTS (SELECT 1 FROM @Projects WHERE Tier = N'Blocked')
+    IF EXISTS (SELECT 1 FROM @Projects WHERE Tier <> N'Hard')
     BEGIN
         DECLARE @BlockedList NVARCHAR(MAX) = (
-            SELECT STRING_AGG(ProjectFK, N', ') FROM @Projects WHERE Tier = N'Blocked'
+            SELECT STRING_AGG(ProjectFK + N' (' + Reason + N')', N', ') FROM @Projects WHERE Tier <> N'Hard'
         );
-        RAISERROR(N'pExecuteProgramDeletion: Program %s has published project(s) that must be unpublished first: %s', 16, 1, @ProgramFK, @BlockedList);
+        RAISERROR(N'pExecuteProgramDeletion: Program %s has project(s) that cannot be hard-deleted: %s', 16, 1, @ProgramFK, @BlockedList);
         RETURN;
     END
 

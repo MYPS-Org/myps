@@ -1,55 +1,52 @@
-/*  dbo.pExecuteProjectDeletion — physically removes every row belonging to
-    ONE project under ONE program.
+/*  dbo.pExecuteProjectDeletion — THE hard delete of ONE project under ONE program:
+    every row the project has under @ProgramFK is physically removed. It is the only
+    hard cascade; Batch Delete, Delete Program, Delete Lump Sum and Delete Itemized
+    Project all call it rather than deleting rows themselves.
 
-    SELF-ATOMIC, NESTING-SAFE: this procedure opens its own transaction only
-    if none is already active (@@TRANCOUNT = 0) when called directly/
-    standalone, and commits only the transaction it itself opened. When
-    called from inside dbo.pExecuteProgramDeletion's own transaction (the
-    per-project loop), it detects the existing transaction, does not open or
-    commit a second one, and simply lets any error propagate up via THROW
-    so the OUTER transaction rolls back everything -- SQL Server always
-    rolls back the full transaction on an inner ROLLBACK regardless of
-    nesting depth, so this is correct either way. This was added
-    2026-10-14 after a code-behavior-audit found the original version had
-    no BEGIN/COMMIT/ROLLBACK TRAN of its own and relied entirely on every
-    caller remembering to wrap it -- a real rollback-readiness gap: a
-    direct standalone EXEC (SSMS, a future script, a different caller)
-    without a caller-supplied transaction would leave a partial delete on
-    any mid-cascade failure, with no way back.
+    GATE: dbo.fProjectDeletionTier, the single deletion rule (see its header). This
+    procedure runs only when the tier is 'Hard' — a first-stage-entry project, or a
+    Lump Sum itemized project. 'Blocked' (published) and 'Soft' (progressed past its
+    first stage) raise an error and write nothing; a soft delete is the caller's
+    job, never this procedure's. @ProjectFK may be the ProjectPK or any revision
+    ProjectId of the project under @ProgramFK (BP/P-agnostic, resolved by the
+    function). A ProjectPK always names its own project; any other reference that
+    names more than one project is refused as ambiguous.
 
-    POLICY (finalized 2026-10-14, operator-directed): there is no
-    soft-delete path in this procedure. Every project reaching this call is
-    force hard-deleted, regardless of its own stage/revision history
-    ("hard-delete them all, for now"). The ONLY gate is
-    tProjects.IsPublished -- checked via dbo.fProjectDeletionTier before
-    any write. If published, this procedure raises an error and performs
-    zero writes; the caller must have already excluded published projects
-    via its own Pass 1 (see pExecuteProgramDeletion) -- this check here is a
-    defense-in-depth backstop, not the primary gate.
+    TRANSACTIONS: opens its own transaction only when none is active, and commits or
+    rolls back only what it opened. Inside a caller's transaction (Delete Program's
+    procedure, Batch Delete's and the Lump Sum actions' EF transaction) it never
+    issues a ROLLBACK itself: that used to add error 266 ("Transaction count after
+    EXECUTE…") on top of, and in place of, the real error. The real error is
+    re-thrown, and because of XACT_ABORT ON SQL Server then ends the caller's
+    transaction as the error leaves the procedure; callers treat it as finished
+    (their rollbacks are guarded for exactly that).
 
-    DELETE ORDER (children before parents, FK-safe):
-      1. tProjectMajorWorkLocations  (off tProjectMajorWorkItem.Id via WorkItemFK --
-                                       confirmed live: no FK constraint exists on this
-                                       column, so skipping this step would silently
-                                       orphan rows; not skipped)
-      2. tProjectComponentCostPerYear (off tProjectComponentCost.Id via ComponentCostFK)
-      3. tProjectMajorWorkItem        (off tProjectComponentCost.Id via ComponentCostFK)
-      4. tProjectComponentCost        (off tProjectRevisions.Id via ProjectRevisionFK)
-      5. tProjectNotes                (off tProjectRevisions.Id via ProjectRevisionFK --
-                                        raw column access; dbo.tProjectNotes' real column
-                                        is ProjectRevisionFK, the EF model is stale and
-                                        declares StageName/ProjectId instead, confirmed
-                                        live 2026-10-14 -- irrelevant here since this is a
-                                        plain stored procedure, not EF)
-      6. tProjectFundingProfile       (off tProjectRevisions.Id via ProjectRevisionFK)
-      7. tProjectStages               (ProjectFK + ProgramFK scoped)
-      8. tProjectRevisions            (ProjectFK + ProgramFK scoped)
-      9. tProjects                    (ONLY if no tProjectStages/tProjectRevisions row
-                                        remains for this ProjectFK under ANY OTHER
-                                        ProgramFK -- the multi-year guard. A project that
-                                        still has real history under a different program
-                                        keeps its tProjects row; this program's slice is
-                                        still fully removed in steps 1-8.) */
+    DELETE ORDER (children first). The tables marked * have no foreign key, so the
+    database would not object to skipping them; they are deleted explicitly so no
+    row is left pointing at a removed revision.
+      Formal revisions, off tRevisionDetails (FK to tProjectRevisions and tProjects):
+        tRevisionProjectMajorWorkLocations*  off tRevisionProjectMajorWorkItem.Id
+        tRevisionProjectMajorWorkItem*       off tRevisionProjectComponentCost.Id
+        tRevisionProjectComponentCostPerYear off tRevisionProjectComponentCost.Id
+        tRevisionProjectComponentCost, tRevisionProjectFundingProfile,
+        tRevisionProjectSnapshot, tRevisionApprovals, tRevisionDocuments,
+        tRevisionForCorrectionDetails        off tRevisionDetails.Id
+        tRevisionPCMAComponent*              by TransactionId, only when no other
+                                             tRevisionDetails row shares it
+        tRevisionDetails                     off this program's revisions
+        tRevisionProjects*                   by ProjectFK + ProgramFK
+      The project's own rows:
+        tProjectMajorWorkLocations*          off tProjectMajorWorkItem.Id
+        tProjectComponentCostPerYear*        off tProjectComponentCost.Id
+        tProjectMajorWorkItem*               off tProjectComponentCost.Id
+        tProjectComponentCost                off tProjectRevisions.Id
+        tProjectNotes, tProjectFundingProfile,
+        tProjectSupportingDocs*              off tProjectRevisions.Id
+        tProjectStages, tProjectRevisions    scoped to (ProjectFK, ProgramFK)
+        tProjects                            only when no stage or revision remains
+                                             under another ProgramFK (multi-year guard)
+    Supporting-document FILES are not touched: a stage advance copies the path, not
+    the file, so a file may still be referenced by another row. Only the rows go. */
 SET QUOTED_IDENTIFIER ON;
 GO
 CREATE OR ALTER PROCEDURE dbo.pExecuteProjectDeletion
@@ -62,20 +59,42 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @Tier NVARCHAR(20);
-    SELECT @Tier = Tier FROM dbo.fProjectDeletionTier(@ProjectFK, @ProgramFK);
+    DECLARE @Matches INT, @Tier NVARCHAR(20), @Reason NVARCHAR(100), @ResolvedFK NVARCHAR(200);
 
-    IF @Tier IS NULL
+    -- A ProjectPK names exactly its own project, even when the same string is also
+    -- another project's revision ProjectId (the function returns both rows).
+    SELECT @Tier = Tier, @Reason = Reason, @ResolvedFK = ProjectFK
+    FROM dbo.fProjectDeletionTier(@ProjectFK, @ProgramFK)
+    WHERE ProjectFK = @ProjectFK;
+
+    IF @ResolvedFK IS NULL
     BEGIN
-        RAISERROR(N'pExecuteProjectDeletion: Project %s was not found under Program %s.', 16, 1, @ProjectFK, @ProgramFK);
+        -- Any other reference (a revision ProjectId, BP- or P-form) must name one project.
+        SELECT @Matches = COUNT(*) FROM dbo.fProjectDeletionTier(@ProjectFK, @ProgramFK);
+
+        IF @Matches = 0
+        BEGIN
+            RAISERROR(N'pExecuteProjectDeletion: Project %s was not found under Program %s.', 16, 1, @ProjectFK, @ProgramFK);
+            RETURN;
+        END
+
+        IF @Matches > 1
+        BEGIN
+            RAISERROR(N'pExecuteProjectDeletion: Project reference %s matches more than one project under Program %s. Use the ProjectPK.', 16, 1, @ProjectFK, @ProgramFK);
+            RETURN;
+        END
+
+        SELECT @Tier = Tier, @Reason = Reason, @ResolvedFK = ProjectFK
+        FROM dbo.fProjectDeletionTier(@ProjectFK, @ProgramFK);
+    END
+
+    IF @Tier <> N'Hard'
+    BEGIN
+        RAISERROR(N'pExecuteProjectDeletion: Project %s cannot be hard-deleted (%s: %s).', 16, 1, @ResolvedFK, @Tier, @Reason);
         RETURN;
     END
 
-    IF @Tier = N'Blocked'
-    BEGIN
-        RAISERROR(N'pExecuteProjectDeletion: Project %s is published and cannot be deleted. Cancel it through Programs first.', 16, 1, @ProjectFK);
-        RETURN;
-    END
+    SET @ProjectFK = @ResolvedFK;
 
     DECLARE @StartedOwnTran BIT = 0;
     IF @@TRANCOUNT = 0
@@ -100,40 +119,55 @@ BEGIN
         SELECT w.Id FROM dbo.tProjectMajorWorkItem w
         WHERE w.ComponentCostFK IN (SELECT Id FROM @CostIds);
 
-        -- 1. Work locations off work items
-        DELETE FROM dbo.tProjectMajorWorkLocations
-        WHERE WorkItemFK IN (SELECT Id FROM @WorkItemIds);
+        -- Formal revisions (tRevisionDetails and everything hanging off it)
+        DECLARE @RevDetailIds TABLE (Id INT PRIMARY KEY);
+        INSERT INTO @RevDetailIds (Id)
+        SELECT d.Id FROM dbo.tRevisionDetails d
+        WHERE d.ProjectRevisionFK IN (SELECT Id FROM @RevisionIds);
 
-        -- 2. Cost-per-year off component costs
-        DELETE FROM dbo.tProjectComponentCostPerYear
-        WHERE ComponentCostFK IN (SELECT Id FROM @CostIds);
+        DECLARE @RevCostIds TABLE (Id INT PRIMARY KEY);
+        INSERT INTO @RevCostIds (Id)
+        SELECT c.Id FROM dbo.tRevisionProjectComponentCost c
+        WHERE c.RevisionDetailFK IN (SELECT Id FROM @RevDetailIds);
 
-        -- 3. Major work items off component costs
-        DELETE FROM dbo.tProjectMajorWorkItem
-        WHERE Id IN (SELECT Id FROM @WorkItemIds);
+        DECLARE @RevWorkItemIds TABLE (Id INT PRIMARY KEY);
+        INSERT INTO @RevWorkItemIds (Id)
+        SELECT w.Id FROM dbo.tRevisionProjectMajorWorkItem w
+        WHERE w.ComponentCostFK IN (SELECT Id FROM @RevCostIds);
 
-        -- 4. Component costs off revisions
-        DELETE FROM dbo.tProjectComponentCost
-        WHERE Id IN (SELECT Id FROM @CostIds);
+        DELETE FROM dbo.tRevisionProjectMajorWorkLocations WHERE RevisionWorkItemFK IN (SELECT Id FROM @RevWorkItemIds);
+        DELETE FROM dbo.tRevisionProjectMajorWorkItem      WHERE Id IN (SELECT Id FROM @RevWorkItemIds);
+        DELETE FROM dbo.tRevisionProjectComponentCostPerYear WHERE RevisionComponentCostFK IN (SELECT Id FROM @RevCostIds);
+        DELETE FROM dbo.tRevisionProjectComponentCost      WHERE Id IN (SELECT Id FROM @RevCostIds);
+        DELETE FROM dbo.tRevisionProjectFundingProfile     WHERE RevisionDetailFK IN (SELECT Id FROM @RevDetailIds);
+        DELETE FROM dbo.tRevisionProjectSnapshot           WHERE RevisionDetailFK IN (SELECT Id FROM @RevDetailIds);
+        DELETE FROM dbo.tRevisionApprovals                 WHERE RevisionDetailFK IN (SELECT Id FROM @RevDetailIds);
+        DELETE FROM dbo.tRevisionDocuments                 WHERE RevisionDetailFK IN (SELECT Id FROM @RevDetailIds);
+        DELETE FROM dbo.tRevisionForCorrectionDetails      WHERE RevisionDetailFK IN (SELECT Id FROM @RevDetailIds);
 
-        -- 5. Notes off revisions (raw column, confirmed live)
-        DELETE FROM dbo.tProjectNotes
-        WHERE ProjectRevisionFK IN (SELECT Id FROM @RevisionIds);
+        DELETE pc FROM dbo.tRevisionPCMAComponent pc
+        WHERE pc.TransactionId IN (SELECT d.TransactionId FROM dbo.tRevisionDetails d
+                                   WHERE d.Id IN (SELECT Id FROM @RevDetailIds))
+          AND NOT EXISTS (SELECT 1 FROM dbo.tRevisionDetails o
+                          WHERE o.TransactionId = pc.TransactionId
+                            AND o.Id NOT IN (SELECT Id FROM @RevDetailIds));
 
-        -- 6. Funding profile off revisions
-        DELETE FROM dbo.tProjectFundingProfile
-        WHERE ProjectRevisionFK IN (SELECT Id FROM @RevisionIds);
+        DELETE FROM dbo.tRevisionDetails  WHERE Id IN (SELECT Id FROM @RevDetailIds);
+        DELETE FROM dbo.tRevisionProjects WHERE ProjectFK = @ProjectFK AND ProgramFK = @ProgramFK;
 
-        -- 7. Stages scoped to this project+program
-        DELETE FROM dbo.tProjectStages
-        WHERE ProjectFK = @ProjectFK AND ProgramFK = @ProgramFK;
+        -- The project's own rows
+        DELETE FROM dbo.tProjectMajorWorkLocations   WHERE WorkItemFK IN (SELECT Id FROM @WorkItemIds);
+        DELETE FROM dbo.tProjectComponentCostPerYear WHERE ComponentCostFK IN (SELECT Id FROM @CostIds);
+        DELETE FROM dbo.tProjectMajorWorkItem        WHERE Id IN (SELECT Id FROM @WorkItemIds);
+        DELETE FROM dbo.tProjectComponentCost        WHERE Id IN (SELECT Id FROM @CostIds);
+        -- tProjectNotes' real column is ProjectRevisionFK (the EF model is stale).
+        DELETE FROM dbo.tProjectNotes          WHERE ProjectRevisionFK IN (SELECT Id FROM @RevisionIds);
+        DELETE FROM dbo.tProjectFundingProfile WHERE ProjectRevisionFK IN (SELECT Id FROM @RevisionIds);
+        DELETE FROM dbo.tProjectSupportingDocs WHERE ProjectRevisionFK IN (SELECT Id FROM @RevisionIds);
+        DELETE FROM dbo.tProjectStages         WHERE ProjectFK = @ProjectFK AND ProgramFK = @ProgramFK;
+        DELETE FROM dbo.tProjectRevisions      WHERE Id IN (SELECT Id FROM @RevisionIds);
 
-        -- 8. Revisions scoped to this project+program
-        DELETE FROM dbo.tProjectRevisions
-        WHERE Id IN (SELECT Id FROM @RevisionIds);
-
-        -- 9. The tProjects row itself, ONLY if no OTHER program still
-        --    references this ProjectFK via stages or revisions (multi-year guard)
+        -- Multi-year guard: keep the project row while another program still has history for it.
         IF NOT EXISTS (SELECT 1 FROM dbo.tProjectStages WHERE ProjectFK = @ProjectFK AND ProgramFK <> @ProgramFK)
            AND NOT EXISTS (SELECT 1 FROM dbo.tProjectRevisions WHERE ProjectFK = @ProjectFK AND ProgramFK <> @ProgramFK)
         BEGIN
@@ -143,7 +177,8 @@ BEGIN
         IF @StartedOwnTran = 1 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        -- Roll back only what this procedure opened; a caller's transaction is the caller's.
+        IF @StartedOwnTran = 1 AND @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH
 END

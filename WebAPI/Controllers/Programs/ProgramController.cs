@@ -2327,90 +2327,134 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 /*
-                 * Match the same way as BatchRestrictPublish.
+                 * 2026-10-15: ONE DELETION RULE, PREFIX-AGNOSTIC
+                 * (documents/plans/project-deletion-single-rule.md).
                  *
-                 * The ProgramId condition is important so projects from another
-                 * program cannot be deleted accidentally.
+                 * Every id is resolved and judged by dbo.fProjectDeletionTier, the same
+                 * function Delete Program and both Lump Sum deletes use. It accepts the
+                 * ProjectPK or any revision ProjectId of the project under this program, so
+                 * after BP->NEP both BP01000002LZ (the PK) and P01000002LZ (the revision id)
+                 * name the same project. Its tier decides what happens here:
+                 *   Hard  (first stage entry)     -> dbo.pExecuteProjectDeletion, rows removed;
+                 *   Soft  (progressed past it)    -> the current-stage revision is flagged, as before;
+                 *   Blocked (published)           -> refused.
+                 * Lump Sum parents and itemized children are refused too: the Lump Sum module
+                 * owns them, and only it returns a child's allocation to its parent.
+                 *
+                 * Scoped by ProgramPK and the program's current StageId through tProjectStages,
+                 * not by vProjectLatest: the revision a soft delete flags is the project's live
+                 * revision AT THIS STAGE, never an earlier stage's revision a cross-stage
+                 * fallback might return.
                  */
-                var projectRevisions = await _db.vProjectLatest
-                    .AsNoTracking()
-                    .Where(x =>
-                        x.ProgramId == dto.ProgramId &&
-                        x.StageName == programDetails.StageName &&
-                        x.ProjectId != null &&
-                        requestedProjectIds.Contains(x.ProjectId))
-                    .Select(x => new
-                    {
-                        // 2026-09-21 (RISK: wrong-row delete): this used to select x.Id and
-                        // feed it to tProjectRevisions.Id below. vProjectLatest.Id is
-                        // tProjects.Id; the revision key is vProjectLatest.RevisionId. The two
-                        // are DIFFERENT for all 115,350 rows on myps_db_dev_200 -- never equal
-                        // by construction, since they are identities of different tables.
-                        //
-                        // Measured on that database, over the 115,350 projects a user could
-                        // paste in: the old key hit ANOTHER project's revision 112,115 times
-                        // (97%), hit nothing 2,064 times, and hit its own only 1,171 times by
-                        // coincidence of numbering. So Batch Delete either flagged an unrelated
-                        // project -- in another program, invisibly -- or silently did nothing
-                        // and still answered 200, which the UI shows as a success toast. Against
-                        // the project LIST (fProgramProjects, which joins tProjectStages
-                        // .RevisionId) the old key matched 0 of 109,790 listed rows and the new
-                        // one matches 109,788, so the deleted row could never have left the
-                        // table. That is the "batch delete does nothing" report.
-                        x.RevisionId,
-                        x.ProjectId
-                    })
-                    .ToListAsync(cancellationToken);
+                var programPK = validationResult.Data!.Program.ProgramPK;
+                var currentStageId = validationResult.Data.ProgramStage.StageId;
 
-                var existingProjectIds = projectRevisions
-                    .Where(x => !string.IsNullOrWhiteSpace(x.ProjectId))
-                    .Select(x => x.ProjectId!)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var tiers = await _db.DetermineProjectDeletionTiersAsync(requestedProjectIds, programPK, cancellationToken);
+                var tiersByRef = tiers
+                    .GroupBy(x => x.Ref, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+                var refusedProjects = new List<object>();
+                var candidates = new List<(string Ref, ProjectHelper.ProjectDeletionTierResult Tier)>();
+                var firstRefByProjectFK = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var id in requestedProjectIds)
+                {
+                    if (!tiersByRef.TryGetValue(id, out var rows))
+                    {
+                        continue; // reported in MissingProjectIds below
+                    }
+                    if (rows.Count > 1)
+                    {
+                        // One string, two projects (one's PK, another's revision id): never guess
+                        // which one a user meant when the outcome may be a hard delete.
+                        refusedProjects.Add(new { ProjectId = id, Reason = "matches more than one project in this program" });
+                        continue;
+                    }
+                    var row = rows[0];
+                    if (row.Tier == ProjectHelper.ProjectDeletionTiers.Blocked)
+                    {
+                        refusedProjects.Add(new { ProjectId = id, Reason = row.Reason });
+                    }
+                    else if (row.Kind != ProjectHelper.ProjectDeletionKinds.Ordinary)
+                    {
+                        refusedProjects.Add(new { ProjectId = id, Reason = "Lump Sum project; delete it from the Lump Sum module" });
+                    }
+                    else if (firstRefByProjectFK.TryGetValue(row.ProjectFK, out var firstRef))
+                    {
+                        // The BP- and P-form of one project: deleted once, and the second form says so.
+                        refusedProjects.Add(new { ProjectId = id, Reason = $"same project as {firstRef}" });
+                    }
+                    else
+                    {
+                        firstRefByProjectFK[row.ProjectFK] = id;
+                        candidates.Add((id, row));
+                    }
+                }
+
+                var candidateFKs = candidates.Select(x => x.Tier.ProjectFK).ToArray();
+                var liveAtStage = await (
+                        from stage in _db.tProjectStages
+                        join revision in _db.tProjectRevisions on stage.RevisionId equals revision.Id
+                        where stage.ProgramFK == programPK
+                              && stage.StageId == currentStageId
+                              && candidateFKs.Contains(stage.ProjectFK)
+                              && !revision.IsDeleted
+                        group revision by revision.ProjectFK into g
+                        select new { ProjectFK = g.Key, RevisionId = g.Max(x => x.Id) })
+                    .ToDictionaryAsync(x => x.ProjectFK, x => x.RevisionId, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+                var hardDeletes = new List<(string Ref, string ProjectFK)>();
+                var softDeletes = new List<(string Ref, int RevisionId)>();
+                var notLiveHere = new List<string>();
+                foreach (var (projectRef, tier) in candidates)
+                {
+                    if (!liveAtStage.TryGetValue(tier.ProjectFK, out var revisionId))
+                    {
+                        notLiveHere.Add(projectRef); // not at this stage, or already deleted here
+                    }
+                    else if (tier.Tier == ProjectHelper.ProjectDeletionTiers.Hard)
+                    {
+                        hardDeletes.Add((projectRef, tier.ProjectFK));
+                    }
+                    else
+                    {
+                        softDeletes.Add((projectRef, revisionId));
+                    }
+                }
 
                 var missingProjectIds = requestedProjectIds
-                    .Where(id => !existingProjectIds.Contains(id))
+                    .Where(id => !tiersByRef.ContainsKey(id))
+                    .Concat(notLiveHere)
                     .ToArray();
 
-                var revisionIds = projectRevisions
-                    .Select(x => x.RevisionId)
-                    .Distinct()
-                    .ToArray();
-
-                if (revisionIds.Length == 0)
+                if (hardDeletes.Count == 0 && softDeletes.Count == 0)
                 {
                     return new BadRequestObjectResult(new
                     {
                         Message =
-                            "None of the supplied project IDs were found in the current program and stage.",
+                            "None of the supplied project IDs can be deleted from the current program and stage.",
                         Title = "Projects Not Found",
-                        MissingProjectIds = missingProjectIds
+                        MissingProjectIds = missingProjectIds,
+                        RefusedProjects = refusedProjects
                     });
                 }
 
                 transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+                DateTime currentDate = Functions.CurrentDate();
 
-                var updatedCount = await _db.tProjectRevisions
-                    .Where(x =>
-                        revisionIds.Contains(x.Id) &&
-                        !x.IsDeleted)
-                    .ExecuteUpdateAsync(
-                        setters => setters.SetProperty(
-                            revision => revision.IsDeleted,
-                            true),
-                        cancellationToken);
-
-                if (updatedCount == 0)
+                foreach (var (_, projectFK) in hardDeletes)
                 {
-                    return Ok(new
-                    {
-                        Message =
-                            "No changes were required because all matching project revisions " +
-                            "are already deleted.",
-                        Title = "No Changes Required",
-                        UpdatedCount = 0,
-                        MissingProjectIds = missingProjectIds
-                    });
+                    await _db.ExecuteProjectDeletionAsync(projectFK, programPK, _Session.UserId, currentDate, cancellationToken);
                 }
+
+                var softRevisionIds = softDeletes.Select(x => x.RevisionId).ToArray();
+                var softCount = softRevisionIds.Length == 0
+                    ? 0
+                    : await _db.tProjectRevisions
+                        .Where(x => softRevisionIds.Contains(x.Id) && !x.IsDeleted)
+                        .ExecuteUpdateAsync(
+                            setters => setters.SetProperty(revision => revision.IsDeleted, true),
+                            cancellationToken);
 
                 // 2026-09-21: a deleted project no longer counts toward its program's Cost
                 // (pRecomputeProgramCost counts ordinary projects on their latest live revision
@@ -2421,25 +2465,20 @@ namespace WebAPI.Controllers.Programs
                 await _db.RecomputeProgramCostAsync(programDetails.ProgramPK, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
-                if (missingProjectIds.Length > 0)
-                {
-                    return Ok(new
-                    {
-                        Message =
-                            $"{updatedCount} project revision(s) were deleted. " +
-                            "Some project IDs were not found.",
-                        Title = "Project Deletion Partially Successful",
-                        UpdatedCount = updatedCount,
-                        MissingProjectIds = missingProjectIds
-                    });
-                }
-
+                var updatedCount = hardDeletes.Count + softCount;
+                bool partial = missingProjectIds.Length > 0 || refusedProjects.Count > 0;
                 return Ok(new
                 {
-                    Message = $"{updatedCount} project revision(s) were deleted successfully.",
-                    Title = "Project Deletion Successful",
+                    Message =
+                        $"{hardDeletes.Count} project(s) permanently deleted (first stage entry), " +
+                        $"{softCount} project(s) deleted at the current stage." +
+                        (partial ? " Some project IDs were not found or cannot be deleted here." : string.Empty),
+                    Title = partial ? "Project Deletion Partially Successful" : "Project Deletion Successful",
                     UpdatedCount = updatedCount,
-                    MissingProjectIds = Array.Empty<string>()
+                    HardDeletedProjectIds = hardDeletes.Select(x => x.Ref).ToArray(),
+                    SoftDeletedProjectIds = softDeletes.Select(x => x.Ref).ToArray(),
+                    MissingProjectIds = missingProjectIds,
+                    RefusedProjects = refusedProjects
                 });
             }
             catch (Exception ex)
@@ -2542,17 +2581,28 @@ namespace WebAPI.Controllers.Programs
                 // restoredSet came back empty (every id reported "not found") and `.Count() > 0`
                 // was false, so the action answered "No Projects Restored" and let the transaction
                 // dispose without a commit, rolling its own restore back. It could never succeed.
+                // 2026-10-15: ids are resolved by dbo.fProjectDeletionTier, the same resolver
+                // Batch Delete uses, so the BP-form ProjectPK and the P-form revision ProjectId
+                // both find the project (only its ProjectFK is used; restore is not a delete).
+                // A hard-deleted project no longer exists and is reported as not found; an
+                // ambiguous reference (one string, two projects) is not restored.
+                var resolved = await _db.DetermineProjectDeletionTiersAsync(projectIds, ProgramParent.ProgramPK, cancellationToken);
+                var projectFKByRef = resolved
+                    .GroupBy(x => x.Ref, StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Select(x => x.ProjectFK).Distinct().Count() == 1)
+                    .ToDictionary(g => g.Key, g => g.First().ProjectFK, StringComparer.OrdinalIgnoreCase);
+                var projectFKs = projectFKByRef.Values.Distinct().ToArray();
+
                 var latestDeletedRevisions = await (
                     from revision in _db.tProjectRevisions
                     where revision.ProgramFK == ProgramParent.ProgramPK
-                          && revision.ProjectId != null
-                          && projectIds.Contains(revision.ProjectId)
+                          && projectFKs.Contains(revision.ProjectFK)
                           && revision.IsDeleted
-                    group revision by revision.ProjectId
+                    group revision by revision.ProjectFK
                     into revisionGroup
                     select new
                     {
-                        ProjectId = revisionGroup.Key,
+                        ProjectFK = revisionGroup.Key,
                         Id = revisionGroup.Max(x => x.Id)
                     })
                     .ToListAsync(cancellationToken);
@@ -2564,9 +2614,9 @@ namespace WebAPI.Controllers.Programs
                             false),
                         cancellationToken);
 
-
+                var restoredFKs = latestDeletedRevisions.Select(x => x.ProjectFK).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var restoredSet = new HashSet<string>(
-                    latestDeletedRevisions.Select(x => x.ProjectId!),
+                    projectFKByRef.Where(x => restoredFKs.Contains(x.Value)).Select(x => x.Key),
                     StringComparer.OrdinalIgnoreCase
                 );
 

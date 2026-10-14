@@ -630,56 +630,92 @@ namespace Helpers
         }
         #endregion
 
-        #region ProjectDeletionTier (Dapper / ISqlExecutor)
-        // Added 2026-10-14, operator-directed deep-protocol engagement (RISK-112 follow-up):
-        // single source of truth, from C#'s side, for "can this project be deleted right
-        // now?" -- a thin wrapper around dbo.fProjectDeletionTier (Main/Resources/Internal/
-        // SQLObjects/Functions/fProjectDeletionTier.sql), which is itself the canonical
-        // decision logic. Do not re-implement the tier rule here in C# -- query the function.
-        //
-        // POLICY (see the SQL function's own header for the full rationale): there is no
-        // soft-delete tier anymore. 'Hard' means force-deletable regardless of stage/revision
-        // history; 'Blocked' means tProjects.IsPublished = 1 and the project can never be
-        // deleted as a side effect of deleting its program. Stage/RevisionCount are returned
-        // for audit/diagnostic display only and do not themselves change the Tier.
+        #region ProjectDeletionTier — the single project-deletion rule
+        // Thin wrappers around dbo.fProjectDeletionTier and dbo.pExecuteProjectDeletion
+        // (Main/Resources/Internal/SQLObjects). The function IS the rule — hard only on a
+        // project's first stage entry, soft once it has progressed, Lump Sum itemized
+        // projects always hard, published never, independent of the BP/P prefix — and every
+        // delete path asks it: Batch Delete, Delete Program, Delete Lump Sum, Delete Itemized
+        // Project. Never re-state the rule in C#; read Tier.
+        public static class ProjectDeletionTiers
+        {
+            public const string Hard = "Hard";
+            public const string Soft = "Soft";
+            public const string Blocked = "Blocked";
+        }
+
+        public static class ProjectDeletionKinds
+        {
+            public const string Ordinary = "Ordinary";
+            public const string LSParent = "LSParent";
+            public const string LSChild = "LSChild";
+        }
+
+        /// <summary>One row of dbo.fProjectDeletionTier. <see cref="Ref"/> is the reference as given
+        /// (ProjectPK or any revision ProjectId, BP- or P-form); <see cref="ProjectFK"/> is what it resolved to.</summary>
         public class ProjectDeletionTierResult
         {
+            public string Ref { get; set; } = string.Empty;
             public string ProjectFK { get; set; } = string.Empty;
             public string ProgramFK { get; set; } = string.Empty;
+            public string MatchedBy { get; set; } = string.Empty;
+            public string Kind { get; set; } = string.Empty;
             public bool IsPublished { get; set; }
             public bool IsRevised { get; set; }
             public int StageCount { get; set; }
-            public int RevisionCount { get; set; }
             public string Tier { get; set; } = string.Empty;
+            public string Reason { get; set; } = string.Empty;
         }
 
         /// <summary>
-        /// Queries dbo.fProjectDeletionTier for one project scoped to one program. Returns
-        /// null when the project does not exist under that program -- the function itself
-        /// returns zero rows in that case (confirmed live 2026-10-14), it does NOT fall back
-        /// to a false 'Hard' result, so callers must check for null and must not assume a
-        /// result is always returned.
+        /// The tier of every reference in <paramref name="projectRefs"/>, in one query, inside
+        /// whatever transaction <paramref name="db"/> has open. A reference that resolves to
+        /// nothing has no row; one that matches more than one project has several and must be
+        /// refused as ambiguous (see the function header).
         /// </summary>
-        public static async Task<ProjectDeletionTierResult?> DetermineProjectDeletionTierAsync(
-            this ISqlExecutor sql, string projectFK, string programFK, CancellationToken cancellationToken = default)
+        public static async Task<List<ProjectDeletionTierResult>> DetermineProjectDeletionTiersAsync(
+            this MYPSDbContext db, IEnumerable<string> projectRefs, string programFK, CancellationToken cancellationToken = default)
+        {
+            string refs = System.Text.Json.JsonSerializer.Serialize(projectRefs.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+            return await db.Database.SqlQuery<ProjectDeletionTierResult>($"""
+                SELECT t.Ref, t.ProjectFK, t.ProgramFK, t.MatchedBy, t.Kind, t.IsPublished, t.IsRevised, t.StageCount, t.Tier, t.Reason
+                FROM OPENJSON({refs}) WITH (Ref NVARCHAR(200) '$') j
+                CROSS APPLY dbo.fProjectDeletionTier(j.Ref, {programFK}) t
+                """).ToListAsync(cancellationToken);
+        }
+
+        /// <summary>Single-reference form of <see cref="DetermineProjectDeletionTiersAsync"/>.</summary>
+        public static async Task<List<ProjectDeletionTierResult>> DetermineProjectDeletionTierAsync(
+            this MYPSDbContext db, string projectRef, string programFK, CancellationToken cancellationToken = default)
+            => await db.DetermineProjectDeletionTiersAsync(new[] { projectRef }, programFK, cancellationToken);
+
+        /// <summary>
+        /// Hard-deletes one project under one program through dbo.pExecuteProjectDeletion, inside
+        /// the transaction <paramref name="db"/> has open (the procedure then neither commits nor
+        /// rolls back; the caller does). The procedure re-checks the tier and refuses anything but
+        /// 'Hard' with a SqlException, so call it only for a project whose tier is Hard.
+        /// </summary>
+        public static Task<int> ExecuteProjectDeletionAsync(
+            this MYPSDbContext db, string projectFK, string programFK, string userId, DateTime currentDate, CancellationToken cancellationToken = default)
+            => db.Database.ExecuteSqlInterpolatedAsync(
+                $"EXEC dbo.pExecuteProjectDeletion @ProjectFK = {projectFK}, @ProgramFK = {programFK}, @UserId = {userId}, @CurrentDate = {currentDate}",
+                cancellationToken);
+
+        /// <summary>Dapper form of <see cref="DetermineProjectDeletionTierAsync(MYPSDbContext, string, string, CancellationToken)"/>.</summary>
+        public static async Task<List<ProjectDeletionTierResult>> DetermineProjectDeletionTierAsync(
+            this ISqlExecutor sql, string projectRef, string programFK, CancellationToken cancellationToken = default)
         {
             var rows = await sql.QueryAsync<ProjectDeletionTierResult>(
-                "SELECT * FROM dbo.fProjectDeletionTier(@ProjectFK, @ProgramFK)",
-                new { ProjectFK = projectFK, ProgramFK = programFK },
+                "SELECT * FROM dbo.fProjectDeletionTier(@ProjectRef, @ProgramFK)",
+                new { ProjectRef = projectRef, ProgramFK = programFK },
                 ct: cancellationToken);
-            return rows.FirstOrDefault();
+            return rows.ToList();
         }
 
         /// <summary>
-        /// Executes dbo.pExecuteProjectDeletion for ONE project under ONE program. The
-        /// procedure is self-atomic (opens its own transaction if none is active, per the
-        /// 2026-10-14 code-behavior-audit fix) -- pass an explicit transaction via `tx` ONLY
-        /// when composing this call inside a larger caller-owned transaction; passing none
-        /// lets the procedure commit (or roll back) independently. Throws SqlException
-        /// (RAISERROR propagates as the exception's Message) when the project is not found
-        /// or is Blocked (published) -- callers must catch and translate to a user-facing
-        /// refusal, mirroring the existing ProjectIdRangeExhaustedException/
-        /// ProjectIdCollisionException catch pattern already used elsewhere in this file.
+        /// Dapper form of the hard delete. Self-atomic when <paramref name="tx"/> is null; pass a
+        /// transaction only to compose with other writes on it. Throws SqlException when the
+        /// project is not found, the reference is ambiguous, or its tier is not Hard.
         /// </summary>
         public static async Task ExecuteProjectDeletionAsync(
             this ISqlExecutor sql, string projectFK, string programFK, string userId, DateTime currentDate,
@@ -691,9 +727,6 @@ namespace Helpers
             parameters.Add("@UserId", userId, DbType.String, ParameterDirection.Input);
             parameters.Add("@CurrentDate", currentDate, DbType.DateTime2, ParameterDirection.Input);
 
-            // Explicit EXEC, matching the convention already used elsewhere in this codebase
-            // (e.g. ProgramController.cs's "EXEC dbo.pRecomputeProjectPublishable @ProgramFK = ...")
-            // rather than relying on ISqlExecutor's lack of a CommandType.StoredProcedure option.
             await sql.ExecuteAsync(
                 "EXEC dbo.pExecuteProjectDeletion @ProjectFK = @ProjectFK, @ProgramFK = @ProgramFK, @UserId = @UserId, @CurrentDate = @CurrentDate",
                 parameters,
