@@ -29,6 +29,14 @@ Appsetting.RootPath = builder.Environment.ContentRootPath;
 
 Appsetting.PrepareAppsettings(builder.Configuration);
 
+// `Main --apply-sql-objects [--yes]`: apply Resources/Internal/SQLObjects to MYPSDb and exit,
+// before any service (Hangfire, SignalR, Kestrel) is registered. See Helpers/SqlObjectDeployer.cs.
+if (args.Contains(SqlObjectDeployer.CommandFlag))
+{
+    Environment.ExitCode = await SqlObjectDeployer.RunCommandAsync(args, Console.Out);
+    return;
+}
+
 
 // ==========================================================
 // SERVICES
