@@ -29,12 +29,18 @@ function mapLsProjects(raw: Awaited<ReturnType<typeof fetchDashboardLsProjects>>
   }));
 }
 
-export function useDashboardLsProjects(year: number, dataSourceMode: 'real' | 'benchmark', enabled: boolean) {
+export function useDashboardLsProjects(
+  year: number,
+  categoryId: number | null,
+  dataSourceMode: 'real' | 'benchmark',
+  enabled: boolean
+) {
   return useSectionData({
     atom: lsProjectsCacheAtom,
     fetchFn: fetchDashboardLsProjects,
     map: mapLsProjects,
     year,
+    categoryId,
     dataSourceMode,
     enabled,
   });

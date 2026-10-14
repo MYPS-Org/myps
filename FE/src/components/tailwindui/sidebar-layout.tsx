@@ -62,7 +62,8 @@ export function SidebarLayout({
       </MobileSidebar>
 
       {/* Navbar on mobile */}
-      <header className="flex items-center px-4 xl:hidden sticky top-0 z-10 bg-gray-50 shadow-md transition-colors duration-200">
+      {/* data-app-navbar: pages that pin their own header below this bar measure it (Dashboard). */}
+      <header data-app-navbar className="flex items-center px-4 xl:hidden sticky top-0 z-10 bg-gray-50 shadow-md transition-colors duration-200">
         <div className="py-2.5">
           <NavbarItem onClick={() => setShowSidebar(true)} aria-label="Open navigation">
             <OpenMenuIcon />
@@ -73,7 +74,7 @@ export function SidebarLayout({
 
       {/* Content */}
       <main className="flex flex-1 flex-col xl:min-w-0 xl:pl-64">
-        <div className="sticky top-0 z-10 bg-gray-50 shadow-md transition-colors duration-200 max-xl:hidden">
+        <div data-app-navbar className="sticky top-0 z-10 bg-gray-50 shadow-md transition-colors duration-200 max-xl:hidden">
           {navbar}
         </div>
         <div className="grow overflow-auto transition-colors duration-200">

@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.11
-**Date:** September 10, 2026
+**Version:** 3.12
+**Date:** October 14, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -35,6 +35,7 @@
 | 3.9 | August 23, 2026 | RP | RP | Section 5.3.6 added: Component Targets — a new read-only panel on the project details page, below Major Items of Work, listing each project component and expanding to that component's physical target at every Program Stage the project has undergone (Source, Component ID, Component Description, Type of Work, Target, Target Unit), with pagination controls; component rows are labelled with the bare Component ID while the expanded rows show the project-qualified form; former Sections 5.3.6 Supporting Documents and 5.3.7 Project Location Map renumbered to 5.3.7 and 5.3.8 |
 | 3.10 | August 25, 2026 | RP | RP | Section 5.3.6 Component Targets updated: in the expanded per-component table the **Source** column was replaced by **Stage Name** (the stage's full display name, e.g. `NEP-Errata` rather than `NEP-E`) and the **Component ID** column was replaced by **Project Description** (the project's description as it stood at that stage); the Project Description, Component Description, Type of Work and Target Unit columns now wrap long text onto multiple lines instead of forcing the panel to scroll sideways |
 | 3.11 | September 10, 2026 | RP | RP | Synced against Deliverable 48 User Manual V5 (27 Aug 2026): added Section 5.6 Reports (5.6.1 Report Filters, 5.6.2 Programs Selection Panel) and Section 5.10 Lump Sum Projects (5.10.1–5.10.8), documenting the now-live Reports and Lump Sum Projects sidebar modules; former Sections 5.6–5.8 (Code Tables, User Management, Infra Management) renumbered to 5.7–5.9; Section 4.1 module map and Section 9 updated to reflect Reports/Lump Sum as active modules (only Multi-Year Management remains inactive); user-group terminology standardized throughout from DEO/RO/AUC to **DPC** (District Planning Coordinator) / **RPC** (Regional Planning Coordinator) / **PS Admin**, matching V5 — Section 5.4.9 retitled "RPC Endorsement Actions" and its action renamed Approve → Endorse to match the existing Section 5.4.1 terminology note; added a consolidated RPCStatus/PSStatus reference table after Workflow 5; added DPC/RPC to Appendix C. Section 5.3.6 Component Targets was retained even though V5 omits it — the docx appears to predate that feature's documentation despite its later date; flagged back to the manual's author. See `documents/UserManual_DocxDiff_V5.md` for the full diff. |
+| 3.12 | October 14, 2026 | RP | RP | Section 5.1 Dashboard rewritten for the current executive dashboard (it still described an old user-info screen): header controls including the new **Category** filter (lists every category on click, narrows as you type, marks inactive categories, Live DB only) and the header staying pinned as one row while scrolling; the rule for what counts toward a fiscal year (that year's programs and cost year, budget stages BP–GAA-R and TF/TF-R only — RBP/RDIP/PIP planning proposals excluded — approved formal revisions at their revised amount, region and island group from the project's Province); every section described, including "Relative Project Count" (formerly "Relative Volume Density"), the now-clickable Annual Budget bars, project-count wording in the project list, and removal of the Live Audit Feed; Common Outcomes added |
 
 ### Consultant
 
@@ -377,30 +378,68 @@ The following table maps each active sidebar item to its route and source compon
 
 ### 5.1 Dashboard
 
-**Purpose:** The Dashboard is the first screen displayed after login. It provides an overview of the logged-in user's account and system status.
+**Purpose:** The Dashboard is the first screen displayed after login. It summarizes the infrastructure budget of one fiscal year: the total budget, the programs it is spread across, where it goes by region and island group, how it moved over the years, and the projects behind it.
 
 **Who uses this:** DPC, RPC, PS Admin
 
-**Prerequisites:** Successful login (see Section 3.1).
+**Prerequisites:** Successful login (see Section 3.1). The figures cover only the projects your user group is allowed to see.
 
-**Dashboard Panels:**
+**Header Controls:**
 
-| Panel | Contents |
-|-------|----------|
-| User Info | Logged-in user's Username, Role, and Phone number |
-| Account Status | Current account status (Active) and credit balance |
-| Quick Actions | System operational status |
+| Control | What it does |
+|---------|--------------|
+| Live DB / Demo Data | **Live DB** shows figures from the MYPS database. **Demo Data** shows fixed sample figures for presentations; it never reads the database. |
+| Light / Dark | Switches the Dashboard's color theme. |
+| Category | Narrows every section of the Dashboard to one project category (for example *OO1: Ensure Safe and Reliable National Road System*). Click in the box to see every category; type any part of a name to shorten the list, then pick one. Retired categories are marked **Inactive** but can still be chosen, since older projects use them. The chosen category appears as **Category: \<name\>**; select **×** to return to all categories. Available in Live DB only. |
+| Fiscal year buttons (e.g. 2024–2028) | Selects the fiscal year every section shows. The years offered are the years that have programs. |
+| Refresh | Reloads every section. |
+| Project Repository | Opens the Projects list (Section 5.3). |
+
+**What counts toward a fiscal year (Live DB):**
+
+- Only projects in **that fiscal year's programs** are counted. A multi-year project in last year's program does not add to this year.
+- Only the cost **scheduled in that fiscal year** is counted.
+- Only projects at a **budget stage** are counted: BP, NEP, NEP-E, HGAB, HGAB-I, GAA, GAA-R, TF and TF-R. Planning proposals (**RBP, RDIP, PIP**) are not budget and are not counted.
+- A project with an **approved formal revision** (endorsed by RPC and approved by Central Office) is counted at its revised amount, the same amount Program Details shows.
+- A project's **region and island group come from its Province**. A project with no province recorded is shown as **Unassigned**.
+
+Every section follows the same rule, so the totals agree: the FY Infrastructure Budget card, Total Program Outlays, the regional map and the island-group cards all show the same amount for the same year and category.
+
+**Dashboard Sections:**
+
+| Section | Contents |
+|---------|----------|
+| Summary cards | FY Infrastructure Budget, Active Portfolio Projects, Lump Sum (LS) Itemized, Publication Compliance and Revision Queue. Select a card to open its details, including how the figure is calculated. |
+| Total Program Outlays | The fiscal year's budget by program, as a donut chart and a list. Select a program to see its amount and share. |
+| No. of Infrastructure Projects | The number of projects per fiscal year. **Relative Project Count** compares the years' project counts as bars. Select a year card or a bar to switch the Dashboard to that year. |
+| Distribution of Budget by Region | The budget share of Luzon, Visayas and Mindanao, their sub-groups (NCR, Northern Luzon, Southern Luzon) and each region, on an interactive map or as pie analytics. Select a region to zoom to it. |
+| Annual Budget & Lump Sum Itemization Trend | Each year's infrastructure budget and itemized Lump Sum amount. Point to a year to see both amounts; select it to switch the Dashboard to that year. |
+| Project Stages | The number of projects at each budget stage. Select a stage to filter the project list below. |
+| Island-Group Allocation | One card per island group with its budget share and project count. Select a card to filter the project list below. |
+| FY Regional Infrastructure Portfolio | The fiscal year's projects, largest budget first, with their region, stage, island group and budget. Search by project ID, description or region; select **View** for a project's summary. The count shown is a number of **projects**. |
 
 **Step-by-Step:**
 
-1. Log in to the system (see Section 3.1).
-2. The Dashboard loads automatically after successful login.
-3. Review the panels for user and account information.
-4. Use the sidebar to navigate to any module.
+1. Log in to the system (see Section 3.1). The Dashboard opens.
+2. Select **Live DB** to see database figures.
+3. Select a fiscal year in the header.
+4. *(Optional)* Click in **Category** and pick a category from the list (type part of its name to find it faster).
+5. Review the sections. To look at another year, select a year in the header, a year card or bar under *No. of Infrastructure Projects*, or a bar in the *Annual Budget* chart.
+6. To list one island group's or stage's projects, select its card. Select **Reset Filter** in the project list to clear it.
+7. Scroll down freely: the header stays pinned at the top of the page as a single row (**Viewing FY \<year\>**, the data source, Category, the fiscal years and Refresh), so you can always see which filters the figures below are under, and change them without scrolling back up.
 
 [Insert Screenshot: Dashboard Screen]
 
-**On Success:** The Dashboard loads and displays all panels without errors. The sidebar shows only the modules accessible to the logged-in user's role.
+**On Success:** Every section shows the selected fiscal year (and category, if chosen), and their totals agree.
+
+**Common Outcomes:**
+
+| Situation | What you see |
+|-----------|--------------|
+| No category matches what you typed | "No categories match ..." Clear the box to see the whole list again. |
+| A category with no projects in the fiscal year | The cards show ₱0 and 0 projects, and the sections say no records are recorded for that year. |
+| Demo Data selected | Sample figures are shown with the notice "Demo data is for demonstration only and does not come from the live database." The Category control is unavailable. |
+| A project's province is not recorded | The project is counted under **Unassigned** in the island-group cards and listed with region "Not recorded". |
 
 ---
 

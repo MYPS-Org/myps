@@ -287,7 +287,7 @@ export const DashboardMacroBudget: React.FC<Props> = ({
           <p className={`text-xs mt-0.5 max-w-xl ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
             {isBenchmark
               ? 'Macro allocation across national arterial highways, flood mitigations, foreign-assisted projects, and community basic infrastructure.'
-              : 'Program allocations calculated from persisted project component-cost schedules for the selected fiscal year.'}
+              : `Allocations of FY ${selectedYear} programs from their FY ${selectedYear} component-cost schedules, at budget stages only (BP to GAA-R, and Trust Fund). Planning proposals (RBP, RDIP, PIP) are not counted.`}
           </p>
         </div>
       </div>

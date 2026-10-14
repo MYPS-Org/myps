@@ -58,6 +58,8 @@ export interface DashboardLsProject {
 interface Props {
   type: DashboardKpiType | null;
   selectedYear: number;
+  /** Header category filter; the modal's project list follows it like every other section. */
+  categoryId: number | null;
   dataSourceMode: 'real' | 'benchmark';
   kpiData?: KpiData;
   lsProjects: DashboardLsProject[];
@@ -94,6 +96,7 @@ const money = (value: number) =>
 const DashboardKpiDetailModal: React.FC<Props> = ({
   type,
   selectedYear,
+  categoryId,
   dataSourceMode,
   kpiData,
   lsProjects,
@@ -144,7 +147,8 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
     fetchDashboardProjects(
       { Filters: filters, limit: MODAL_PROJECT_FETCH_LIMIT, page: 1, Navigation: 0 },
       selectedYear,
-      dataSourceMode === 'benchmark'
+      dataSourceMode === 'benchmark',
+      categoryId
     )
       .then((response) => {
         if (active) setFetchedProjects(response.Data.lists);
@@ -158,7 +162,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
     return () => {
       active = false;
     };
-  }, [type, selectedYear, dataSourceMode]);
+  }, [type, selectedYear, categoryId, dataSourceMode]);
 
   if (!type) return null;
 
@@ -224,7 +228,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
       tally: money(totalBudget),
       count: `${activeCount.toLocaleString()} contributing project(s)`,
       formula:
-        'Sum of non-deleted component-cost-per-year amounts where the cost year equals the selected fiscal year. Amounts are grouped once per latest project revision.',
+        `Sum of the FY ${selectedYear} component-cost-per-year amounts of projects in FY ${selectedYear} programs, at a budget stage (BP, NEP, NEP-E, HGAB, HGAB-I, GAA, GAA-R, TF, TF-R). Planning proposals (RBP, RDIP, PIP) are excluded. A project with an approved formal revision is counted at the revised amount, as in Program Details.`,
     },
     projects: {
       title: `Active Projects in FY ${selectedYear}`,
@@ -252,7 +256,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
           ? 'Projects whose persisted record has IsPublished = true for the selected fiscal year.'
           : projectsTab === 'review' || projectsTab === 'approval'
             ? 'Rows from dbo.fRevisionQueue, the same table-valued function behind the /revision page. The queue is already scoped to your user groups: it returns revisions you created, plus the RO tier if you belong to RPC and the CO tier if you belong to AUC.'
-            : 'Count of visible latest project revisions that have at least one non-deleted component-cost-per-year record in the selected fiscal year.',
+            : `Count of visible projects in FY ${selectedYear} programs, at a budget stage, with at least one FY ${selectedYear} component-cost-per-year record.`,
     },
     revisions: {
       title: `Revision Queue for FY ${selectedYear}`,
@@ -273,7 +277,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
       tally: `${publicationRate.toFixed(1)}%`,
       count: `${publishedCount.toLocaleString()} published of ${activeCount.toLocaleString()} project(s)`,
       formula:
-        'Published projects ÷ all visible costed projects in the selected fiscal year × 100. Publication state comes from the persisted project record.',
+        'Published projects ÷ all visible costed projects of the selected fiscal year’s programs at a budget stage × 100. Publication state comes from the persisted project record.',
     },
   }[type];
 

@@ -20,7 +20,7 @@ const DashboardMacroBudget = lazy(() => import('./components/DashboardMacroBudge
 import DashboardTrajectoryChart from './components/DashboardTrajectoryChart';
 const DashboardRegionalMatrix = lazy(() => import('./components/DashboardRegionalMatrix'));
 import DashboardProjectWatchlist, { type WatchlistProject } from './components/DashboardProjectWatchlist';
-import DashboardActivityFeed from './components/DashboardActivityFeed';
+import DashboardCategoryFilter, { type DashboardCategory } from './components/DashboardCategoryFilter';
 import DashboardKpiDetailModal, { type DashboardKpiType } from './components/DashboardKpiDetailModal';
 import ProjectQuickDetailModal from './components/ProjectQuickDetailModal';
 
@@ -29,16 +29,15 @@ import { useDashboardTrend } from './hooks/useDashboardTrend';
 import { useDashboardBudgetBreakdown } from './hooks/useDashboardBudgetBreakdown';
 import { useDashboardStatuses } from './hooks/useDashboardStatuses';
 import { useDashboardRegionalBreakdown } from './hooks/useDashboardRegionalBreakdown';
-import { useDashboardActivities } from './hooks/useDashboardActivities';
 import { useDashboardRevisions } from './hooks/useDashboardRevisions';
 import { useDashboardLsProjects } from './hooks/useDashboardLsProjects';
+import { usePinnedHeader } from './hooks/usePinnedHeader';
 import {
   kpisCacheAtom,
   trendCacheAtom,
   budgetBreakdownCacheAtom,
   statusesCacheAtom,
   regionalBreakdownCacheAtom,
-  activitiesCacheAtom,
   revisionsCacheAtom,
   emptySectionCache,
   liveAvailableYearsAtom,
@@ -80,6 +79,7 @@ const DashboardContent: React.FC = () => {
 
   const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('benchmark');
   const [selectedYear, setSelectedYear] = useState<number>(2027);
+  const [selectedCategory, setSelectedCategory] = useState<DashboardCategory | null>(null);
   const [selectedKpi, setSelectedKpi] = useState<DashboardKpiType | null>(null);
   const [activeStatusFilter, setActiveStatusFilter] = useState<string | null>(null);
   const [activeIslandFilter, setActiveIslandFilter] = useState<string | null>(null);
@@ -90,6 +90,8 @@ const DashboardContent: React.FC = () => {
   // out of 'real' while LIVE_DB_ENABLED is false; this is what guarantees it -- a stale state
   // value, a future caller, or a restored session still cannot send a dashboard query.
   const sourceMode: 'real' | 'benchmark' = LIVE_DB_ENABLED ? dataSourceMode : 'benchmark';
+  // The category narrows Live DB data only: Demo Data figures have no real categories behind them.
+  const categoryId = sourceMode === 'real' ? selectedCategory?.id ?? null : null;
   useEffect(() => {
     if (!LIVE_DB_ENABLED && dataSourceMode === 'real') {
       setDataSourceMode('benchmark');
@@ -101,9 +103,9 @@ const DashboardContent: React.FC = () => {
   // and Lump Sum tiles each resolve on their own without blocking the rest of the cards). Lump
   // Sum is eager rather than viewport-gated like Tier 2 below because the KPI tile needs its
   // total immediately and the dataset is tiny (a handful of Lump Sum Projects).
-  const kpis = useDashboardKpis(selectedYear, sourceMode, true);
-  const revisions = useDashboardRevisions(selectedYear, sourceMode, true);
-  const lsProjectsSection = useDashboardLsProjects(selectedYear, sourceMode, true);
+  const kpis = useDashboardKpis(selectedYear, categoryId, sourceMode, true);
+  const revisions = useDashboardRevisions(selectedYear, categoryId, sourceMode, true);
+  const lsProjectsSection = useDashboardLsProjects(selectedYear, categoryId, sourceMode, true);
 
   const liveAvailableYears = useAtomValue(liveAvailableYearsAtom);
   const availableYears = sourceMode === 'benchmark'
@@ -128,6 +130,10 @@ const DashboardContent: React.FC = () => {
   // across the old perspective tabs, so a section appearing in more than one tab only fetched
   // once; the tabs are gone, but a callback ref still makes the observer survive remounts --
   // see useInViewport.)
+  // The header (data source, category, year) stays on screen while scrolling; see usePinnedHeader.
+  const pinnedHeader = usePinnedHeader();
+  const isHeaderPinned = pinnedHeader.isPinned;
+
   const macroBudgetViewport = useInViewport<HTMLDivElement>();
   const trajectoryViewport = useInViewport<HTMLDivElement>();
   const regionalMatrixViewport = useInViewport<HTMLDivElement>();
@@ -136,11 +142,10 @@ const DashboardContent: React.FC = () => {
 
   // Trend feeds both the Trajectory chart and the Charts panel's trend bars -- one shared fetch,
   // enabled by whichever of the two sections is reached first.
-  const trend = useDashboardTrend(selectedYear, sourceMode, trajectoryViewport.isVisible || chartsViewport.isVisible);
-  const budgetBreakdown = useDashboardBudgetBreakdown(selectedYear, sourceMode, macroBudgetViewport.isVisible);
-  const statuses = useDashboardStatuses(selectedYear, sourceMode, chartsViewport.isVisible);
-  const regionalBreakdown = useDashboardRegionalBreakdown(selectedYear, sourceMode, regionalMatrixViewport.isVisible);
-  const activities = useDashboardActivities(selectedYear, sourceMode, watchlistViewport.isVisible);
+  const trend = useDashboardTrend(selectedYear, categoryId, sourceMode, trajectoryViewport.isVisible || chartsViewport.isVisible);
+  const budgetBreakdown = useDashboardBudgetBreakdown(selectedYear, categoryId, sourceMode, macroBudgetViewport.isVisible);
+  const statuses = useDashboardStatuses(selectedYear, categoryId, sourceMode, chartsViewport.isVisible);
+  const regionalBreakdown = useDashboardRegionalBreakdown(selectedYear, categoryId, sourceMode, regionalMatrixViewport.isVisible);
 
   const monthlyData = (trend.data ?? []).map((row) => ({
     month: String(row.year),
@@ -158,7 +163,6 @@ const DashboardContent: React.FC = () => {
   const setBudgetBreakdownCache = useSetAtom(budgetBreakdownCacheAtom);
   const setStatusesCache = useSetAtom(statusesCacheAtom);
   const setRegionalBreakdownCache = useSetAtom(regionalBreakdownCacheAtom);
-  const setActivitiesCache = useSetAtom(activitiesCacheAtom);
   const setRevisionsCache = useSetAtom(revisionsCacheAtom);
 
   // Clears every section's cache atom -- a currently-visible section's hook will see its cache
@@ -171,7 +175,6 @@ const DashboardContent: React.FC = () => {
     setBudgetBreakdownCache(emptySectionCache());
     setStatusesCache(emptySectionCache());
     setRegionalBreakdownCache(emptySectionCache());
-    setActivitiesCache(emptySectionCache());
     setRevisionsCache(emptySectionCache());
     setRefreshSignal((value) => value + 1);
   };
@@ -189,24 +192,22 @@ const DashboardContent: React.FC = () => {
     />
   );
 
-  const watchlistAndActivity = (
-    <div id="watchlist-section" className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-      <div className="lg:col-span-2">
-        <DashboardProjectWatchlist
-          year={selectedYear}
-          dataSourceMode={sourceMode}
-          enabled={watchlistViewport.isVisible}
-          refreshSignal={refreshSignal}
-          activeIslandFilter={activeIslandFilter}
-          activeStatusFilter={activeStatusFilter}
-          onClearFilters={clearCrossFilters}
-          onSelectProject={setSelectedProject}
-          onViewAll={() => navigate('/projects')}
-        />
-      </div>
-      <div className="lg:col-span-1">
-        <DashboardActivityFeed activities={activities.data ?? []} isLoading={activities.isLoading} />
-      </div>
+  // Full width since the Live Audit Feed beside it was removed: QA could not tell what it was for,
+  // and it only repeated the twelve most recently edited projects.
+  const watchlist = (
+    <div id="watchlist-section">
+      <DashboardProjectWatchlist
+        year={selectedYear}
+        categoryId={categoryId}
+        dataSourceMode={sourceMode}
+        enabled={watchlistViewport.isVisible}
+        refreshSignal={refreshSignal}
+        activeIslandFilter={activeIslandFilter}
+        activeStatusFilter={activeStatusFilter}
+        onClearFilters={clearCrossFilters}
+        onSelectProject={setSelectedProject}
+        onViewAll={() => navigate('/projects')}
+      />
     </div>
   );
 
@@ -216,153 +217,201 @@ const DashboardContent: React.FC = () => {
         isLight ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'
       }`}
     >
-      {/* 1. Header Bar with Theme & Live DB vs Benchmark Switcher */}
-      <div
-        className={`rounded-2xl p-6 sm:p-7 shadow-xl border relative overflow-hidden transition-all duration-300 ${
-          isLight
-            ? 'bg-gradient-to-r from-slate-900 via-[#0a2042] to-slate-900 text-white border-slate-800'
-            : 'bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 text-white border-slate-800'
-        }`}
-      >
-        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20">
-                DPWH Executive Command Center
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/10 text-white border border-white/10">
-                MYPS Infrastructure Analytics
-              </span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                dataSourceMode === 'real'
-                  ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40'
-                  : 'bg-blue-500/20 text-blue-200 border-blue-400/40'
-              }`}>
-                {dataSourceMode === 'real' ? 'Database data' : 'Demo data'}
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              <span>National Expenditure Program & Portfolio Matrix</span>
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
-              Comprehensive executive monitoring of multi-year capital outlays, stage lifecycles, and regional infrastructure delivery.
-            </p>
-          </div>
+      {/* 1. Header Bar with Theme & Live DB vs Benchmark Switcher.
+          Pinned below the app's top bar once the page scrolls to it (usePinnedHeader), in a
+          compact one-row form that keeps only the filters, so every section below stays visibly
+          under the selected data source, category and fiscal year. */}
+      <div>
+        <div ref={pinnedHeader.markerRef} aria-hidden="true" />
+        {isHeaderPinned && <div aria-hidden="true" style={{ height: pinnedHeader.spacerHeight }} />}
+        <div
+          ref={pinnedHeader.headerRef}
+          data-pinned={isHeaderPinned ? 'true' : undefined}
+          className={isHeaderPinned ? `fixed z-30 backdrop-blur-sm ${isLight ? 'bg-slate-100/90' : 'bg-slate-950/90'}` : undefined}
+          style={isHeaderPinned ? pinnedHeader.pinnedStyle : undefined}
+        >
+          <div
+            // No overflow-hidden: the category list drops below this card and was clipped.
+            className={`rounded-2xl shadow-xl border relative transition-all duration-300 ${
+              isHeaderPinned ? 'px-4 py-2.5' : 'p-6 sm:p-7'
+            } ${
+              isLight
+                ? 'bg-gradient-to-r from-slate-900 via-[#0a2042] to-slate-900 text-white border-slate-800'
+                : 'bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 text-white border-slate-800'
+            }`}
+          >
+            <div
+              className={`relative flex justify-between ${
+                isHeaderPinned ? 'flex-row flex-wrap items-center gap-3' : 'flex-col lg:flex-row lg:items-center gap-6'
+              }`}
+            >
+              {isHeaderPinned ? (
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-black tracking-wider uppercase text-amber-400 whitespace-nowrap">
+                    Viewing FY {selectedYear}
+                  </span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${
+                    dataSourceMode === 'real'
+                      ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40'
+                      : 'bg-blue-500/20 text-blue-200 border-blue-400/40'
+                  }`}>
+                    {dataSourceMode === 'real' ? 'Database data' : 'Demo data'}
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20">
+                      DPWH Executive Command Center
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/10 text-white border border-white/10">
+                      MYPS Infrastructure Analytics
+                    </span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                      dataSourceMode === 'real'
+                        ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40'
+                        : 'bg-blue-500/20 text-blue-200 border-blue-400/40'
+                    }`}>
+                      {dataSourceMode === 'real' ? 'Database data' : 'Demo data'}
+                    </span>
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
+                    <span>National Expenditure Program & Portfolio Matrix</span>
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+                    Comprehensive executive monitoring of multi-year capital outlays, stage lifecycles, and regional infrastructure delivery.
+                  </p>
+                </div>
+              )}
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Real DB vs Benchmark Switch Toggle */}
-            <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80 shadow-inner">
-              <button
-                disabled={!LIVE_DB_ENABLED}
-                onClick={() => {
-                  if (!LIVE_DB_ENABLED) return;
-                  setDataSourceMode('real');
-                  setSelectedYear(2027);
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  dataSourceMode === 'real'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25'
-                    : 'text-slate-400 hover:text-white'
-                } ${!LIVE_DB_ENABLED ? 'opacity-40 cursor-not-allowed hover:text-slate-400' : ''}`}
-                title={
-                  LIVE_DB_ENABLED
-                    ? 'Query projects from the configured live MYPS database'
-                    : 'Live database view is temporarily unavailable while the summary endpoint is made pageable.'
-                }
-              >
-                <CircleStackIcon className="w-3.5 h-3.5" />
-                <span>Live DB</span>
-              </button>
-              <button
-                onClick={() => {
-                  setDataSourceMode('benchmark');
-                  setSelectedYear(2027);
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  dataSourceMode === 'benchmark'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="View sample figures for demonstration"
-              >
-                <SparklesIcon className="w-3.5 h-3.5 text-amber-400" />
-                <span>Demo Data</span>
-              </button>
-            </div>
-
-            {/* Light / Dark Mode Switcher */}
-            <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80">
-              <button
-                onClick={() => setTheme('light')}
-                className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-                  isLight
-                    ? 'bg-amber-400 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Switch to Light Theme (Option A)"
-              >
-                <SunIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Light</span>
-              </button>
-              <button
-                onClick={() => setTheme('dark')}
-                className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-                  !isLight
-                    ? 'bg-slate-800 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Switch to Dark Theme"
-              >
-                <MoonIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Dark</span>
-              </button>
-            </div>
-
-            {/* Fiscal Year Switcher */}
-            <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80">
-              {availableYears.map((year) => {
-                const isSelected = selectedYear === year;
-                return (
+              <div className={`flex flex-wrap items-center ${isHeaderPinned ? 'gap-2' : 'gap-3'}`}>
+                {/* Real DB vs Benchmark Switch Toggle */}
+                <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80 shadow-inner">
                   <button
-                    key={year}
-                    onClick={() => setSelectedYear(year)}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      isSelected
-                        ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                    }`}
+                    disabled={!LIVE_DB_ENABLED}
+                    onClick={() => {
+                      if (!LIVE_DB_ENABLED) return;
+                      setDataSourceMode('real');
+                      setSelectedYear(2027);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      dataSourceMode === 'real'
+                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25'
+                        : 'text-slate-400 hover:text-white'
+                    } ${!LIVE_DB_ENABLED ? 'opacity-40 cursor-not-allowed hover:text-slate-400' : ''}`}
+                    title={
+                      LIVE_DB_ENABLED
+                        ? 'Query projects from the configured live MYPS database'
+                        : 'Live database view is temporarily unavailable while the summary endpoint is made pageable.'
+                    }
                   >
-                    {year}
+                    <CircleStackIcon className="w-3.5 h-3.5" />
+                    <span>Live DB</span>
                   </button>
-                );
-              })}
+                  <button
+                    onClick={() => {
+                      setDataSourceMode('benchmark');
+                      setSelectedYear(2027);
+                      setSelectedCategory(null);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      dataSourceMode === 'benchmark'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="View sample figures for demonstration"
+                  >
+                    <SparklesIcon className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Demo Data</span>
+                  </button>
+                </div>
+
+                {/* Light / Dark Mode Switcher: not a filter, so the pinned form leaves it out */}
+                {!isHeaderPinned && (
+                  <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80">
+                    <button
+                      onClick={() => setTheme('light')}
+                      className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                        isLight
+                          ? 'bg-amber-400 text-slate-950 shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Switch to Light Theme (Option A)"
+                    >
+                      <SunIcon className="w-4 h-4" />
+                      <span className="hidden sm:inline">Light</span>
+                    </button>
+                    <button
+                      onClick={() => setTheme('dark')}
+                      className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                        !isLight
+                          ? 'bg-slate-800 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Switch to Dark Theme"
+                    >
+                      <MoonIcon className="w-4 h-4" />
+                      <span className="hidden sm:inline">Dark</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Category filter: narrows every section, beside the year it combines with */}
+                <DashboardCategoryFilter
+                  value={selectedCategory}
+                  onChange={setSelectedCategory}
+                  disabled={sourceMode !== 'real'}
+                  disabledReason="Category filtering uses Live DB data. Switch to Live DB to filter by category."
+                />
+
+                {/* Fiscal Year Switcher */}
+                <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80">
+                  {availableYears.map((year) => {
+                    const isSelected = selectedYear === year;
+                    return (
+                      <button
+                        key={year}
+                        onClick={() => setSelectedYear(year)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                          isSelected
+                            ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        {year}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={handleRefresh}
+                  disabled={kpis.isLoading}
+                  className={`${isHeaderPinned ? 'p-2' : 'p-2.5'} text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 disabled:opacity-50 transition-all flex items-center justify-center shadow-sm`}
+                  title="Refresh dashboard"
+                >
+                  <ArrowPathIcon className={`w-4 h-4 ${kpis.isLoading ? 'animate-spin' : ''}`} />
+                </button>
+
+                {!isHeaderPinned && (
+                  <button
+                    onClick={() => navigate('/projects')}
+                    className="px-4 py-2.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                    <span>Project Repository</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            <button
-              onClick={handleRefresh}
-              disabled={kpis.isLoading}
-              className="p-2.5 text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 disabled:opacity-50 transition-all flex items-center justify-center shadow-sm"
-              title="Refresh dashboard"
-            >
-              <ArrowPathIcon className={`w-4 h-4 ${kpis.isLoading ? 'animate-spin' : ''}`} />
-            </button>
-
-            <button
-              onClick={() => navigate('/projects')}
-              className="px-4 py-2.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all"
-            >
-              <PlusIcon className="w-4 h-4" />
-              <span>Project Repository</span>
-            </button>
+            {!isHeaderPinned && dataSourceMode === 'benchmark' && (
+              <div className="relative mt-4 rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-100">
+                Demo data is for demonstration only and does not come from the live database.
+              </div>
+            )}
           </div>
         </div>
-
-        {dataSourceMode === 'benchmark' && (
-          <div className="relative mt-4 rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-100">
-            Demo data is for demonstration only and does not come from the live database.
-          </div>
-        )}
-
       </div>
 
       {/* 2. Key High-Impact Animated KPI Cards */}
@@ -433,6 +482,7 @@ const DashboardContent: React.FC = () => {
               islandData={statuses.data?.islands ?? []}
               isTrendLoading={trend.isLoading}
               isStatusesLoading={statuses.isLoading}
+              onSelectYear={setSelectedYear}
               onStatusSelect={setActiveStatusFilter}
               activeStatusFilter={activeStatusFilter}
               onSelectIsland={setActiveIslandFilter}
@@ -442,7 +492,7 @@ const DashboardContent: React.FC = () => {
 
           {/* Project Watchlist & Activity Stream */}
           <LazySection isVisible={watchlistViewport.isVisible} sectionRef={watchlistViewport.ref} skeleton={skeletonBlock('h-96')}>
-            {watchlistAndActivity}
+            {watchlist}
           </LazySection>
       </div>
 
@@ -452,6 +502,7 @@ const DashboardContent: React.FC = () => {
       <DashboardKpiDetailModal
         type={selectedKpi}
         selectedYear={selectedYear}
+        categoryId={categoryId}
         dataSourceMode={sourceMode}
         kpiData={kpis.data?.kpis ?? undefined}
         lsProjects={lsProjectsSection.data ?? []}

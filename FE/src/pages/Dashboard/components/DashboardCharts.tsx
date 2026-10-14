@@ -37,6 +37,8 @@ interface Props {
   isTrendLoading?: boolean;
   /** Statuses and islands share one fetch (useDashboardStatuses). */
   isStatusesLoading?: boolean;
+  /** Clicking a year's bars selects that fiscal year for the whole dashboard, as the trajectory chart does. */
+  onSelectYear?: (year: number) => void;
   onStatusSelect?: (name: string | null) => void;
   activeStatusFilter?: string | null;
   onSelectIsland?: (island: string | null) => void;
@@ -60,6 +62,7 @@ export const DashboardCharts: React.FC<Props> = ({
   islandData,
   isTrendLoading = false,
   isStatusesLoading = false,
+  onSelectYear,
   onStatusSelect,
   activeStatusFilter,
   onSelectIsland,
@@ -160,11 +163,19 @@ export const DashboardCharts: React.FC<Props> = ({
                 const actualHeight = Math.max(aVal > 0 ? 3 : 0, (aVal / maxTrend) * 100);
 
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={item.month}
-                    className="relative flex-1 min-w-0 h-full flex flex-col justify-end group cursor-pointer"
+                    className={`relative flex-1 min-w-0 h-full flex flex-col justify-end group cursor-pointer rounded-t-md focus:outline-none focus-visible:ring-2 ${
+                      isLight ? 'focus-visible:ring-blue-500' : 'focus-visible:ring-amber-400'
+                    }`}
+                    onClick={() => onSelectYear?.(Number(item.month))}
                     onMouseEnter={() => setHoveredTrend(item)}
                     onMouseLeave={() => setHoveredTrend(null)}
+                    onFocus={() => setHoveredTrend(item)}
+                    onBlur={() => setHoveredTrend(null)}
+                    aria-pressed={isSelected}
+                    aria-label={`FY ${item.month}: budget ${formatCompactMoney(item.budget)}, LS itemized ${formatCompactMoney(item.actual)}. Select this fiscal year.`}
                   >
                     {/* Tooltip */}
                     {hoveredTrend?.month === item.month && (
@@ -216,7 +227,7 @@ export const DashboardCharts: React.FC<Props> = ({
                     >
                       {item.month}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -224,7 +235,10 @@ export const DashboardCharts: React.FC<Props> = ({
         </div>
 
         <div className={`mt-4 pt-3 border-t flex items-center justify-between text-xs ${isLight ? 'border-slate-100 text-slate-500' : 'border-slate-800 text-slate-400'}`}>
-          <span>Active Scope: <strong className={isLight ? 'text-blue-700' : 'text-amber-400'}>FY {selectedYear}</strong></span>
+          <span>
+            Active Scope: <strong className={isLight ? 'text-blue-700' : 'text-amber-400'}>FY {selectedYear}</strong>
+            {onSelectYear && <span className={isLight ? 'text-slate-400' : 'text-slate-500'}> · click a year to switch</span>}
+          </span>
           <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Amounts shown in standard valuation</span>
         </div>
       </section>

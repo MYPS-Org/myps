@@ -105,18 +105,25 @@ export function usePagination<TFilters, TItem>(
         }
     }, []);
 
+    // Numbers each fetch so only the newest one may write data. Without it, a slow response to an
+    // older request (e.g. the Dashboard watchlist before its category was cleared) could land last
+    // and replace the list the user actually asked for.
+    const requestSeqRef = useRef(0);
+
     // Core fetch — sets loading state, updates data + cursor refs, logs errors without toasting
     // (the httpClient interceptor already shows error toasts; adding a manual one here duplicates it).
     const fetchData = useCallback(async (params: PaginatedRequest<TFilters>) => {
+        const requestSeq = ++requestSeqRef.current;
         setIsLoading(true);
         try {
             const response = await fetchFn(params);
+            if (requestSeq !== requestSeqRef.current) return;
             setData(response.Data);
             recordResponse(response);
         } catch (error) {
             console.error('Error fetching paginated data:', error);
         } finally {
-            setIsLoading(false);
+            if (requestSeq === requestSeqRef.current) setIsLoading(false);
         }
     }, [fetchFn, recordResponse]);
 
@@ -136,6 +143,7 @@ export function usePagination<TFilters, TItem>(
      * cursor for (e.g. clicking "page 5" right after a cold page-1 load).
      */
     const walkToPage = useCallback(async (targetPage: number) => {
+        const requestSeq = ++requestSeqRef.current;
         setIsLoading(true);
         try {
             const direction: 'next' | 'previous' = targetPage > data.page ? 'next' : 'previous';
@@ -155,6 +163,8 @@ export function usePagination<TFilters, TItem>(
                         : { Filters: currentFilters, limit, page: fromPage, Navigation: Nav.Previous, PreviousFilteredId: cursor, ...sortParams };
 
                 response = await fetchFn(params);
+                // A newer fetch (e.g. a filter change) has started: stop walking the old set.
+                if (requestSeq !== requestSeqRef.current) return;
                 recordResponse(response);
                 cursor = direction === 'next' ? response.Data.NextFilteredId ?? null : response.Data.PreviousFilteredId ?? null;
             }
@@ -165,7 +175,7 @@ export function usePagination<TFilters, TItem>(
         } catch (error) {
             console.error('Error paging to page:', error);
         } finally {
-            setIsLoading(false);
+            if (requestSeq === requestSeqRef.current) setIsLoading(false);
         }
     }, [fetchFn, currentFilters, limit, data.page, sortField, sortDirection, recordResponse]);
 

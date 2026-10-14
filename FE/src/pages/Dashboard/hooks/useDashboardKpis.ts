@@ -21,12 +21,18 @@ function mapKpis(raw: Awaited<ReturnType<typeof fetchDashboardKpis>>): KpiSectio
   };
 }
 
-export function useDashboardKpis(year: number, dataSourceMode: 'real' | 'benchmark', enabled: boolean) {
+export function useDashboardKpis(
+  year: number,
+  categoryId: number | null,
+  dataSourceMode: 'real' | 'benchmark',
+  enabled: boolean
+) {
   const section = useSectionData({
     atom: kpisCacheAtom,
     fetchFn: fetchDashboardKpis,
     map: mapKpis,
     year,
+    categoryId,
     dataSourceMode,
     enabled,
   });

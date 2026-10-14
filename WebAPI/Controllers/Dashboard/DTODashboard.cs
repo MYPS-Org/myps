@@ -7,6 +7,34 @@ namespace WebAPI.Controllers.Dashboard
     {
         [Range(2000, 2200)]
         public int? Year { get; set; }
+
+        /// <summary>
+        /// tOptionProjectCategory.CategoryId to narrow every section to; null means all
+        /// categories.
+        /// </summary>
+        public int? CategoryId { get; set; }
+    }
+
+    /// <summary>Category picker query: empty for every category, otherwise a substring of the name.</summary>
+    public class DashboardCategorySearchDTO
+    {
+        public string? Query { get; set; }
+    }
+
+    public class DashboardCategoryDTO
+    {
+        public int CategoryId { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
+        /// <summary>
+        /// False for a retired category. It is still offered (older projects carry it) and
+        /// is labelled, because some retired names nearly repeat a current one.
+        /// </summary>
+        public bool IsActive { get; set; }
+    }
+
+    public class DashboardCategoriesResponseDTO
+    {
+        public List<DashboardCategoryDTO> Categories { get; set; } = new();
     }
 
     public class DashboardKpisResponseDTO
@@ -45,11 +73,6 @@ namespace WebAPI.Controllers.Dashboard
         public List<DashboardRegionalBreakdownDTO> Regions { get; set; } = new();
     }
 
-    public class DashboardActivitiesResponseDTO
-    {
-        public List<DashboardActivityDTO> Activities { get; set; } = new();
-    }
-
     public class DashboardLsProjectsResponseDTO
     {
         public List<DashboardLsProjectDTO> LsProjects { get; set; } = new();
@@ -66,10 +89,13 @@ namespace WebAPI.Controllers.Dashboard
     public class ShowDashboardProjectsDTO : EnumPagination<ShowDashboardProjectsFilterDTO>
     {
         // The watchlist is scoped to the same fiscal year as the rest of the dashboard.
-        // Null falls back to the latest year that actually has cost data (see
+        // Null falls back to the current year, or the latest program year (see
         // DashboardController.ResolveYearAsync).
         [Range(2000, 2200)]
         public int? Year { get; set; }
+
+        /// <summary>Same meaning as <see cref="DashboardRequestDTO.CategoryId"/>.</summary>
+        public int? CategoryId { get; set; }
     }
 
     public class DashboardSummaryDTO

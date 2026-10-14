@@ -12,12 +12,18 @@ function mapRegionalBreakdown(raw: Awaited<ReturnType<typeof fetchDashboardRegio
   }));
 }
 
-export function useDashboardRegionalBreakdown(year: number, dataSourceMode: 'real' | 'benchmark', enabled: boolean) {
+export function useDashboardRegionalBreakdown(
+  year: number,
+  categoryId: number | null,
+  dataSourceMode: 'real' | 'benchmark',
+  enabled: boolean
+) {
   return useSectionData({
     atom: regionalBreakdownCacheAtom,
     fetchFn: fetchDashboardRegionalBreakdown,
     map: mapRegionalBreakdown,
     year,
+    categoryId,
     dataSourceMode,
     enabled,
   });
