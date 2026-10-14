@@ -147,7 +147,7 @@ const ConfirmDialogBatch: React.FC<ConfirmDialogBatchProps> = ({
 
                 {/* Program Info */}
                 <div className="bg-gray-50 rounded-md p-3 space-y-1 text-sm">
-                  <p><span className="font-medium text-gray-700">Program:</span> {programName}</p>
+                  <p><span className="font-medium text-gray-700">Program Name:</span> {programName}</p>
                   <p><span className="font-medium text-gray-700">Projects to be affected:</span> {projectCount}</p>
                 </div>
 
