@@ -630,13 +630,15 @@ namespace Helpers
         }
         #endregion
 
-        #region ProjectDeletionTier — the single project-deletion rule
-        // Thin wrappers around dbo.fProjectDeletionTier and dbo.pExecuteProjectDeletion
-        // (Main/Resources/Internal/SQLObjects). The function IS the rule — hard only on a
-        // project's first stage entry, soft once it has progressed, Lump Sum itemized
-        // projects always hard, published never, independent of the BP/P prefix — and every
-        // delete path asks it: Batch Delete, Delete Program, Delete Lump Sum, Delete Itemized
-        // Project. Never re-state the rule in C#; read Tier.
+        #region ProjectDeletionTier — the single project-deletion rule (file-based SQL)
+        // Converted 2026-10-16: runs the deletion rule DIRECTLY from the .sql files under
+        // Main/Resources/Internal/SQLScripts/Deletion/ via ISqlExecutor.ExecuteScriptFile*
+        // InTransactionAsync — no compiled DB function/procedure is used for this feature any
+        // longer. The script IS the rule — hard only on a project's first stage entry, soft
+        // once it has progressed, Lump Sum itemized projects always hard, published never,
+        // independent of the BP/P prefix — and every delete path asks it: Batch Delete,
+        // Delete Program, Delete Lump Sum, Delete Itemized Project. Never re-state the rule
+        // in C#; read Tier.
         public static class ProjectDeletionTiers
         {
             public const string Hard = "Hard";
@@ -651,7 +653,10 @@ namespace Helpers
             public const string LSChild = "LSChild";
         }
 
-        /// <summary>One row of dbo.fProjectDeletionTier. <see cref="Ref"/> is the reference as given
+        internal const string GetProjectDeletionTierScript = "Deletion/GetProjectDeletionTier.sql";
+        internal const string ExecuteProjectDeletionScript = "Deletion/ExecuteProjectDeletion.sql";
+
+        /// <summary>One row of Deletion/GetProjectDeletionTier.sql. <see cref="Ref"/> is the reference as given
         /// (ProjectPK or any revision ProjectId, BP- or P-form); <see cref="ProjectFK"/> is what it resolved to.</summary>
         public class ProjectDeletionTierResult
         {
@@ -671,11 +676,13 @@ namespace Helpers
         }
 
         /// <summary>
-        /// A delete the single deletion rule refused, carrying the plain-language reason the
-        /// procedures raise after their 'DELETE_REFUSED: ' token (e.g. "Project X cannot be
-        /// permanently deleted: program is approved."). Controllers turn it into a 400 whose
-        /// Message is <see cref="Reason"/>; ExceptionHandler would otherwise reduce it to a
-        /// generic database error. Same pattern as <see cref="ProjectIdRangeExhaustedException"/>.
+        /// A delete the single deletion rule refused, carrying the plain-language reason
+        /// (e.g. "Project X cannot be permanently deleted: program is approved."). Controllers
+        /// turn it into a 400 whose Message is <see cref="Reason"/>; ExceptionHandler would
+        /// otherwise reduce it to a generic database error. Same pattern as
+        /// <see cref="ProjectIdRangeExhaustedException"/>. Kept as a plain application
+        /// exception now (no SQL RAISERROR token to parse) — the refusal is raised directly
+        /// in C# wherever the tier check fails, before any script runs.
         /// </summary>
         public sealed class DeletionRefusedException : Exception
         {
@@ -684,6 +691,8 @@ namespace Helpers
 
             public DeletionRefusedException(string reason, Exception? inner = null) : base(reason, inner) => Reason = reason;
 
+            /// <summary>Kept for compatibility with any remaining caller that still catches a raw
+            /// SqlException carrying the legacy token (e.g. a not-yet-converted raw-SQL path).</summary>
             public static bool Matches(SqlException ex) => ex.Message.Contains(Token, StringComparison.Ordinal);
 
             /// <summary>The refusal error's own text, without the token (an exception can carry several errors).</summary>
@@ -702,7 +711,7 @@ namespace Helpers
         /// Audit rows for a soft delete (or its restore): one tTransactionLog row per project,
         /// IsDeleted false -> true (or back), added to <paramref name="db"/>'s change tracker so
         /// they commit with the caller's transaction. Hard deletes are logged by
-        /// dbo.pExecuteProjectDeletion itself.
+        /// Deletion/ExecuteProjectDeletion.sql itself.
         /// </summary>
         public static void AddSoftDeleteAuditRows(
             this MYPSDbContext db, IEnumerable<(string ProjectFK, int RevisionId, string? StageName)> revisions,
@@ -725,21 +734,54 @@ namespace Helpers
             }
         }
 
+        /// <summary>Opens <paramref name="db"/>'s underlying ADO.NET connection if it is not already open
+        /// (required before running a script against it directly, bypassing EF's own command pipeline).</summary>
+        private static async Task EnsureConnectionOpenAsync(MYPSDbContext db, CancellationToken cancellationToken)
+        {
+            if (db.Database.GetDbConnection().State != ConnectionState.Open)
+            {
+                await db.Database.OpenConnectionAsync(cancellationToken);
+            }
+        }
+
         /// <summary>
-        /// The tier of every reference in <paramref name="projectRefs"/>, in one query, inside
-        /// whatever transaction <paramref name="db"/> has open. A reference that resolves to
-        /// nothing has no row; one that matches more than one project has several and must be
-        /// refused as ambiguous (see the function header).
+        /// The tier of every reference in <paramref name="projectRefs"/>, one script-file call per
+        /// reference (no single-query batch form exists for file-sourced SQL — see the
+        /// 2026-10-16 clarify() decision to loop rather than inline the script into an
+        /// OPENJSON/CROSS APPLY wrapper, keeping one source of truth in the script file). Runs
+        /// against whatever transaction <paramref name="db"/> currently has open, if any, so it
+        /// sees uncommitted writes already made on it; otherwise runs on its own ad hoc
+        /// connection. A reference that resolves to nothing has no row; one that matches more
+        /// than one project has several and must be refused as ambiguous (see the script header).
         /// </summary>
         public static async Task<List<ProjectDeletionTierResult>> DetermineProjectDeletionTiersAsync(
             this MYPSDbContext db, IEnumerable<string> projectRefs, string programFK, CancellationToken cancellationToken = default)
         {
-            string refs = System.Text.Json.JsonSerializer.Serialize(projectRefs.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
-            return await db.Database.SqlQuery<ProjectDeletionTierResult>($"""
-                SELECT t.Ref, t.ProjectFK, t.ProgramFK, t.MatchedBy, t.Kind, t.IsPublished, t.IsRevised, t.StageCount, t.ProgramApproved, t.Tier, t.Reason
-                FROM OPENJSON({refs}) WITH (Ref NVARCHAR(200) '$') j
-                CROSS APPLY dbo.fProjectDeletionTier(j.Ref, {programFK}) t
-                """).ToListAsync(cancellationToken);
+            var sql = new SqlExecutor();
+            var efTx = db.Database.CurrentTransaction?.GetDbTransaction();
+            var results = new List<ProjectDeletionTierResult>();
+
+            foreach (var projectRef in projectRefs.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                IEnumerable<ProjectDeletionTierResult> rows;
+                if (efTx != null)
+                {
+                    await EnsureConnectionOpenAsync(db, cancellationToken);
+                    rows = await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                        GetProjectDeletionTierScript,
+                        new { ProjectRef = projectRef, ProgramFK = programFK },
+                        efTx, ct: cancellationToken);
+                }
+                else
+                {
+                    rows = await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                        GetProjectDeletionTierScript,
+                        new { ProjectRef = projectRef, ProgramFK = programFK },
+                        ct: cancellationToken);
+                }
+                results.AddRange(rows);
+            }
+            return results;
         }
 
         /// <summary>Single-reference form of <see cref="DetermineProjectDeletionTiersAsync"/>.</summary>
@@ -748,64 +790,130 @@ namespace Helpers
             => await db.DetermineProjectDeletionTiersAsync(new[] { projectRef }, programFK, cancellationToken);
 
         /// <summary>
-        /// Hard-deletes one project under one program through dbo.pExecuteProjectDeletion, inside
-        /// the transaction <paramref name="db"/> has open (the procedure then neither commits nor
-        /// rolls back; the caller does). The procedure re-checks the tier and refuses anything but
-        /// 'Hard' with <see cref="DeletionRefusedException"/>, so call it only for a project whose
-        /// tier is Hard. It also writes the project's tTransactionLog row.
+        /// Resolves a reference's tier row the same way the former stored procedure did: an
+        /// exact ProjectPK match wins even when the same string is also another project's
+        /// revision ProjectId (rows for both come back from the script); any other reference
+        /// must name exactly one project or it is refused as not-found / ambiguous.
+        /// </summary>
+        private static ProjectDeletionTierResult ResolveTierRow(List<ProjectDeletionTierResult> tierRows, string reference, string programFK)
+        {
+            var exact = tierRows.FirstOrDefault(x => x.ProjectFK == reference);
+            if (exact != null) return exact;
+
+            if (tierRows.Count == 0)
+            {
+                throw new DeletionRefusedException($"Project {reference} was not found in this program.");
+            }
+            if (tierRows.Count > 1)
+            {
+                throw new DeletionRefusedException($"Project ID {reference} matches more than one project in program {programFK}.");
+            }
+            return tierRows[0];
+        }
+
+        /// <summary>
+        /// Hard-deletes one project under one program by running Deletion/ExecuteProjectDeletion.sql,
+        /// inside the transaction <paramref name="db"/> has open (REQUIRED — this call must run
+        /// inside a caller-owned <c>db.Database.BeginTransactionAsync</c>, exactly as it did
+        /// before this conversion, so the cascade commits or rolls back together with the rest
+        /// of the caller's action; throws <see cref="InvalidOperationException"/> if none is
+        /// open). Re-derives the project's tier from Deletion/GetProjectDeletionTier.sql first —
+        /// defense in depth, mirrors the former stored procedure's own re-check — and refuses
+        /// with <see cref="DeletionRefusedException"/> for anything but 'Hard', never trusting an
+        /// earlier caller-side tier read without re-verifying here. It also writes the project's
+        /// tTransactionLog row (inside the script).
         /// </summary>
         public static async Task<int> ExecuteProjectDeletionAsync(
             this MYPSDbContext db, string projectFK, string programFK, string userId, DateTime currentDate, CancellationToken cancellationToken = default)
         {
-            try
+            var efTx = db.Database.CurrentTransaction?.GetDbTransaction()
+                ?? throw new InvalidOperationException(
+                    "ExecuteProjectDeletionAsync requires an open EF transaction (db.Database.BeginTransactionAsync) " +
+                    "so the delete cascade commits or rolls back together with the rest of the caller's action.");
+            await EnsureConnectionOpenAsync(db, cancellationToken);
+
+            var sql = new SqlExecutor();
+            var tierRows = await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                GetProjectDeletionTierScript,
+                new { ProjectRef = projectFK, ProgramFK = programFK },
+                efTx, ct: cancellationToken);
+            var tier = ResolveTierRow(tierRows.ToList(), projectFK, programFK);
+
+            if (tier.Tier != ProjectDeletionTiers.Hard)
             {
-                return await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"EXEC dbo.pExecuteProjectDeletion @ProjectFK = {projectFK}, @ProgramFK = {programFK}, @UserId = {userId}, @CurrentDate = {currentDate}",
-                    cancellationToken);
+                throw new DeletionRefusedException($"Project {tier.ProjectFK} cannot be permanently deleted: {tier.Reason}.");
             }
-            catch (SqlException ex) when (DeletionRefusedException.Matches(ex))
-            {
-                throw DeletionRefusedException.From(ex);
-            }
+
+            return await sql.ExecuteScriptFileNonQueryInTransactionAsync(
+                ExecuteProjectDeletionScript,
+                new
+                {
+                    ProjectFK = tier.ProjectFK,
+                    ProgramFK = programFK,
+                    UserId = userId,
+                    CurrentDate = currentDate,
+                    Kind = tier.Kind,
+                    StageCount = tier.StageCount,
+                    Reason = tier.Reason
+                },
+                efTx, ct: cancellationToken);
         }
 
-        /// <summary>Dapper form of <see cref="DetermineProjectDeletionTierAsync(MYPSDbContext, string, string, CancellationToken)"/>.</summary>
+        /// <summary>File-based form of <see cref="DetermineProjectDeletionTierAsync(MYPSDbContext, string, string, CancellationToken)"/>
+        /// for callers holding an <see cref="ISqlExecutor"/> rather than a DbContext (e.g. ProgramHelper's
+        /// program-delete orchestration, which owns its own ISqlExecutor-managed transaction).</summary>
         public static async Task<List<ProjectDeletionTierResult>> DetermineProjectDeletionTierAsync(
             this ISqlExecutor sql, string projectRef, string programFK, CancellationToken cancellationToken = default)
         {
-            var rows = await sql.QueryAsync<ProjectDeletionTierResult>(
-                "SELECT * FROM dbo.fProjectDeletionTier(@ProjectRef, @ProgramFK)",
+            var rows = await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                GetProjectDeletionTierScript,
                 new { ProjectRef = projectRef, ProgramFK = programFK },
                 ct: cancellationToken);
             return rows.ToList();
         }
 
         /// <summary>
-        /// Dapper form of the hard delete. Self-atomic when <paramref name="tx"/> is null; pass a
-        /// transaction only to compose with other writes on it. Throws SqlException when the
-        /// project is not found, the reference is ambiguous, or its tier is not Hard.
+        /// ISqlExecutor form of the hard delete, for composing into an ISqlExecutor-managed
+        /// transaction (see ProgramHelper.ExecuteProgramDeletionAsync). Pass <paramref name="tx"/>
+        /// to join a transaction already open on <paramref name="sql"/>'s own connection; when
+        /// null, re-derives the tier and runs standalone (its own ad hoc connection/transaction).
+        /// Throws <see cref="DeletionRefusedException"/> when the project is not found, the
+        /// reference is ambiguous, or its tier is not Hard.
         /// </summary>
         public static async Task ExecuteProjectDeletionAsync(
             this ISqlExecutor sql, string projectFK, string programFK, string userId, DateTime currentDate,
             IDbTransaction? tx = null, CancellationToken cancellationToken = default)
         {
-            var parameters = new DynamicParameters();
-            parameters.Add("@ProjectFK", projectFK, DbType.String, ParameterDirection.Input);
-            parameters.Add("@ProgramFK", programFK, DbType.String, ParameterDirection.Input);
-            parameters.Add("@UserId", userId, DbType.String, ParameterDirection.Input);
-            parameters.Add("@CurrentDate", currentDate, DbType.DateTime2, ParameterDirection.Input);
+            var tierRows = tx != null
+                ? await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                    GetProjectDeletionTierScript, new { ProjectRef = projectFK, ProgramFK = programFK }, tx, ct: cancellationToken)
+                : await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                    GetProjectDeletionTierScript, new { ProjectRef = projectFK, ProgramFK = programFK }, ct: cancellationToken);
+            var tier = ResolveTierRow(tierRows.ToList(), projectFK, programFK);
 
-            try
+            if (tier.Tier != ProjectDeletionTiers.Hard)
             {
-                await sql.ExecuteAsync(
-                    "EXEC dbo.pExecuteProjectDeletion @ProjectFK = @ProjectFK, @ProgramFK = @ProgramFK, @UserId = @UserId, @CurrentDate = @CurrentDate",
-                    parameters,
-                    tx: tx,
-                    ct: cancellationToken);
+                throw new DeletionRefusedException($"Project {tier.ProjectFK} cannot be permanently deleted: {tier.Reason}.");
             }
-            catch (SqlException ex) when (DeletionRefusedException.Matches(ex))
+
+            var parameters = new
             {
-                throw DeletionRefusedException.From(ex);
+                ProjectFK = tier.ProjectFK,
+                ProgramFK = programFK,
+                UserId = userId,
+                CurrentDate = currentDate,
+                Kind = tier.Kind,
+                StageCount = tier.StageCount,
+                Reason = tier.Reason
+            };
+
+            if (tx != null)
+            {
+                await sql.ExecuteScriptFileNonQueryInTransactionAsync(ExecuteProjectDeletionScript, parameters, tx, ct: cancellationToken);
+            }
+            else
+            {
+                await sql.ExecuteScriptFileNonQueryInTransactionAsync(ExecuteProjectDeletionScript, parameters, ct: cancellationToken);
             }
         }
         #endregion

@@ -1,6 +1,14 @@
-/*  dbo.fProgramDeletionEligibility — single source of truth for "can this
+/*  GetProgramDeletionEligibility.sql — single source of truth for "can this
     Program be deleted right now?", before any of its child projects are
     even considered.
+
+    RUNTIME SCRIPT (2026-10-15 architecture): this is the former dbo.fProgramDeletionEligibility
+    SQL function, converted to a plain parameterized SELECT run directly from this file via
+    ISqlExecutor.ExecuteScriptFileInTransactionAsync — no compiled DB object. The policy,
+    column shape and logic below are UNCHANGED from the function version; only the calling
+    mechanism changed (file-read + Dapper, not CREATE FUNCTION + EXEC/catalog call).
+
+    Params: @ProgramFK NVARCHAR(200) — same contract as before.
 
     POLICY (finalized 2026-10-14, operator-directed): replaces the old
     hardcoded stage-name allow/deny lists in ProgramController.DeleteProgram
@@ -30,46 +38,35 @@
 
     There is no soft-delete at the Program level. A Program that passes
     this check is fully hard-deleted, along with every one of its child
-    projects (see pExecuteProgramDeletion). Child projects are judged
-    separately by fProjectDeletionTier inside pExecuteProgramDeletion. */
+    projects (see ExecuteProgramDeletion.sql). Child projects are judged
+    separately by GetProjectDeletionTier.sql inside that same orchestration. */
 SET QUOTED_IDENTIFIER ON;
-GO
-CREATE OR ALTER FUNCTION dbo.fProgramDeletionEligibility
-(
-    @ProgramFK NVARCHAR(200)
-)
-RETURNS TABLE
-AS
-RETURN
-(
-    SELECT
-        pr.ProgramPK                                            AS ProgramFK,
-        ISNULL(st.StageCount, 0)                                AS StageCount,
-        cur.Status                                              AS CurrentStatus,
-        CASE
-            WHEN cur.Status = 1                    THEN N'Blocked'
-            WHEN ISNULL(st.StageCount, 0) > 1      THEN N'Blocked'
-            ELSE N'Eligible'
-        END                                                      AS Eligibility,
-        CASE
-            WHEN cur.Status = 1                    THEN N'program is approved'
-            WHEN ISNULL(st.StageCount, 0) > 1      THEN N'progressed beyond its initial stage'
-            ELSE N''
-        END                                                      AS Reason
-    FROM dbo.tPrograms pr
-    OUTER APPLY (
-        SELECT COUNT(*) AS StageCount
-        FROM dbo.tProgramStages s
-        WHERE s.ProgramFK = pr.ProgramPK
-    ) st
-    OUTER APPLY (
-        SELECT TOP (1) rv.Status
-        FROM dbo.tProgramStages ps
-        JOIN dbo.tOptionProgramStage o ON o.Id = ps.StageId
-        LEFT JOIN dbo.tProgramRevisions rv ON rv.Id = ps.RevisionId
-        WHERE ps.ProgramFK = pr.ProgramPK
-        ORDER BY o.StageHierarchy DESC, ps.Id DESC
-    ) cur
-    WHERE pr.ProgramPK = @ProgramFK
-);
-GO
+SELECT
+    pr.ProgramPK                                            AS ProgramFK,
+    ISNULL(st.StageCount, 0)                                AS StageCount,
+    cur.Status                                              AS CurrentStatus,
+    CASE
+        WHEN cur.Status = 1                    THEN N'Blocked'
+        WHEN ISNULL(st.StageCount, 0) > 1      THEN N'Blocked'
+        ELSE N'Eligible'
+    END                                                      AS Eligibility,
+    CASE
+        WHEN cur.Status = 1                    THEN N'program is approved'
+        WHEN ISNULL(st.StageCount, 0) > 1      THEN N'progressed beyond its initial stage'
+        ELSE N''
+    END                                                      AS Reason
+FROM dbo.tPrograms pr
+OUTER APPLY (
+    SELECT COUNT(*) AS StageCount
+    FROM dbo.tProgramStages s
+    WHERE s.ProgramFK = pr.ProgramPK
+) st
+OUTER APPLY (
+    SELECT TOP (1) rv.Status
+    FROM dbo.tProgramStages ps
+    JOIN dbo.tOptionProgramStage o ON o.Id = ps.StageId
+    LEFT JOIN dbo.tProgramRevisions rv ON rv.Id = ps.RevisionId
+    WHERE ps.ProgramFK = pr.ProgramPK
+    ORDER BY o.StageHierarchy DESC, ps.Id DESC
+) cur
+WHERE pr.ProgramPK = @ProgramFK;

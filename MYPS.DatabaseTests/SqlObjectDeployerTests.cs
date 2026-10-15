@@ -182,8 +182,19 @@ public sealed class SqlObjectDeployerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RealFolder_AppliesTheCheckedInObjects()
+    public async Task RealFolder_NoLongerHasDeploymentObjects_SinceDeletionMovedToRuntimeScripts()
     {
+        // 2026-10-16: the project/program hard-delete feature stopped deploying compiled DB
+        // objects (fProjectDeletionTier, fProgramDeletionEligibility, pExecuteProjectDeletion,
+        // pExecuteProgramDeletion) -- it now reads and runs its .sql files directly at request
+        // time via ISqlExecutor.ExecuteScriptFile*InTransactionAsync (Main/Resources/Internal/
+        // SQLScripts/Deletion/, see Helpers/ProjectHelper.cs and Helpers/ProgramHelper.cs), not
+        // through this deployer. Main/Resources/Internal/SQLObjects/ is scaffolded for a FUTURE
+        // migration of legacy Views/Stored Procedures/Functions (none has moved yet), so the
+        // real checked-in folder legitimately applies zero objects today; this replaces the
+        // former RealFolder_AppliesTheCheckedInObjects (which asserted the 4 deletion objects
+        // were deployed from here -- no longer true, and no longer the right place to test it:
+        // see ProjectDeletionTierTests for the script-file equivalent coverage).
         await using (var connection = new SqlConnection(ConnectionString))
         {
             await connection.OpenAsync();
@@ -194,8 +205,8 @@ public sealed class SqlObjectDeployerTests : IAsyncLifetime
         string root = FindRepositoryDirectory("Main/Resources/Internal/SQLObjects");
         var applied = await Deployer.ApplyAsync(root, execute: true, TextWriter.Null);
 
-        Assert.Contains("Functions/fProgramDeletionEligibility.sql", applied);
-        Assert.Equal(4, await CountObjectsAsync("fProgramDeletionEligibility", "fProjectDeletionTier", "pExecuteProgramDeletion", "pExecuteProjectDeletion"));
+        Assert.Empty(applied);
+        Assert.Equal(0, await CountObjectsAsync("fProgramDeletionEligibility", "fProjectDeletionTier", "pExecuteProgramDeletion", "pExecuteProjectDeletion"));
     }
 
     /// <summary>

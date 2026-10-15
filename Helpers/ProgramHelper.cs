@@ -152,22 +152,22 @@ namespace Helpers
             return response;
         }
 
-        #region ProgramDeletionEligibility (Dapper / ISqlExecutor)
-        // Added 2026-10-14, operator-directed deep-protocol engagement: global function,
-        // usable anywhere ISqlExecutor is injected, for "can this Program be deleted right
-        // now?" -- a thin wrapper around dbo.fProgramDeletionEligibility (Main/Resources/
-        // Internal/SQLObjects/Functions/fProgramDeletionEligibility.sql), itself the
-        // canonical decision logic. Do not re-implement the eligibility rule here in C# --
-        // query the function.
+        #region ProgramDeletionEligibility (file-based SQL via ISqlExecutor)
+        // Added 2026-10-14, operator-directed deep-protocol engagement; converted 2026-10-16
+        // to run the deletion rule DIRECTLY from the .sql files under Main/Resources/Internal/
+        // SQLScripts/Deletion/ via ISqlExecutor.ExecuteScriptFile*InTransactionAsync -- no
+        // compiled DB function/procedure is used for this feature any longer. Global, usable
+        // anywhere ISqlExecutor is injected, for "can this Program be deleted right now?". Do
+        // not re-implement the eligibility rule here in C# -- the rule lives in
+        // GetProgramDeletionEligibility.sql; this only runs it and maps the result.
         //
-        // POLICY (see the SQL function's own header for the full rationale): replaces the
+        // POLICY (see the script's own header for the full rationale): replaces the
         // old hardcoded StagesToCheck/AllowedStages lists in ProgramController.DeleteProgram
         // (RISK-112's root cause) with one rule uniform across all 12 EnumProgramStage
         // values: StageCount(ProgramFK) <= 1 -> Eligible, else Blocked. There is no
-        // soft-delete at the program level. This function does NOT check any child
-        // project's IsPublished flag -- that is a separate, independent check performed by
-        // dbo.pExecuteProgramDeletion's own Pass 2 (per fProjectDeletionTier), not by this
-        // function or by ProgramHelper at all.
+        // soft-delete at the program level. This check does NOT check any child
+        // project's IsPublished flag -- that is a separate, independent check performed in
+        // ExecuteProgramDeletionAsync's own PASS 2 (per GetProjectDeletionTier.sql), not here.
         public class ProgramDeletionEligibilityResult
         {
             public string ProgramFK { get; set; } = string.Empty;
@@ -179,60 +179,152 @@ namespace Helpers
             public string Reason { get; set; } = string.Empty;
         }
 
+        private const string GetProgramDeletionEligibilityScript = "Deletion/GetProgramDeletionEligibility.sql";
+        private const string GetProjectDeletionTierScript = "Deletion/GetProjectDeletionTier.sql";
+        private const string ExecuteProjectDeletionScript = "Deletion/ExecuteProjectDeletion.sql";
+        private const string ExecuteProgramDeletionScript = "Deletion/ExecuteProgramDeletion.sql";
+
         /// <summary>
-        /// Queries dbo.fProgramDeletionEligibility for one program. Returns null when the
-        /// program does not exist -- the function returns zero rows in that case (mirrors
-        /// fProjectDeletionTier's own contract), it does NOT fall back to a false
-        /// 'Eligible' result, so callers must check for null.
+        /// Runs Deletion/GetProgramDeletionEligibility.sql for one program. Returns null when
+        /// the program does not exist (the script returns zero rows in that case -- mirrors
+        /// GetProjectDeletionTier.sql's own contract) -- it does NOT fall back to a false
+        /// 'Eligible' result, so callers must check for null. Read-only; runs on its own
+        /// connection, no transaction needed.
         /// </summary>
         public static async Task<ProgramDeletionEligibilityResult?> DetermineProgramDeletionEligibilityAsync(
             this ISqlExecutor sql, string programFK, CancellationToken cancellationToken = default)
         {
-            var rows = await sql.QueryAsync<ProgramDeletionEligibilityResult>(
-                "SELECT * FROM dbo.fProgramDeletionEligibility(@ProgramFK)",
+            var rows = await sql.ExecuteScriptFileInTransactionAsync<ProgramDeletionEligibilityResult>(
+                GetProgramDeletionEligibilityScript,
                 new { ProgramFK = programFK },
                 ct: cancellationToken);
             return rows.FirstOrDefault();
         }
 
         /// <summary>
-        /// Executes dbo.pExecuteProgramDeletion for one program -- deletes every child
-        /// project first (dbo.pExecuteProjectDeletion, looped), then the program's own
-        /// tProgramStages/tProgramRevisions/tPrograms rows, all inside ONE transaction that
-        /// the procedure itself opens and manages (self-atomic, per the 2026-10-14
-        /// code-behavior-audit fix -- do NOT wrap this call in a caller-owned
-        /// BeginTransactionAsync/EF transaction; the procedure commits or rolls back on its
-        /// own). Throws SqlException (RAISERROR propagates as the exception's Message) when
-        /// the program is not found, has progressed beyond its initial stage, or has a
-        /// published child project -- callers must catch and translate to a user-facing
-        /// refusal. Returns the list of every project that was deleted, for audit-trail
+        /// Deletes one Program and every one of its child projects, running the five passes
+        /// directly from the .sql files under Main/Resources/Internal/SQLScripts/Deletion/ --
+        /// PASS 1 (program eligibility) and PASS 2 (every child's tier) are read-only and run
+        /// BEFORE any transaction opens, exactly as the former self-atomic stored procedure did.
+        /// PASS 3 (hard-delete every child), PASS 3.5 (postcondition: no project may survive
+        /// under this ProgramFK) and PASS 4 (the program's own rows) all run inside ONE
+        /// ISqlExecutor-managed ADO.NET transaction -- the atomicity guarantee moved from a
+        /// nested SQL transaction inside a compiled procedure to a C#-owned transaction
+        /// spanning every script-file call, but the all-or-nothing contract is identical:
+        /// any exception anywhere in PASS 3/3.5/4 rolls back every child delete and the
+        /// program delete together, nothing commits.
+        ///
+        /// Throws <see cref="ProjectHelper.DeletionRefusedException"/> when the program is not
+        /// found, has progressed beyond its initial stage, or has a published/non-Hard child
+        /// project -- callers translate this straight to a user-facing refusal, same contract
+        /// as before. Returns the list of every project that was deleted, for audit-trail
         /// logging (mirrors the existing TransactionLog pattern in ProgramController.cs).
         /// </summary>
         public static async Task<IEnumerable<string>> ExecuteProgramDeletionAsync(
             this ISqlExecutor sql, string programFK, string userId, DateTime currentDate,
             CancellationToken cancellationToken = default)
         {
-            var parameters = new DynamicParameters();
-            parameters.Add("@ProgramFK", programFK, DbType.String, ParameterDirection.Input);
-            parameters.Add("@UserId", userId, DbType.String, ParameterDirection.Input);
-            parameters.Add("@CurrentDate", currentDate, DbType.DateTime2, ParameterDirection.Input);
+            // PASS 1 -- Program eligibility. Read-only, no transaction yet.
+            var eligibility = await sql.DetermineProgramDeletionEligibilityAsync(programFK, cancellationToken);
+            if (eligibility == null)
+            {
+                throw new ProjectHelper.DeletionRefusedException($"Program {programFK} was not found.");
+            }
+            if (eligibility.Eligibility == "Blocked")
+            {
+                throw new ProjectHelper.DeletionRefusedException($"Program {programFK} cannot be deleted: {eligibility.Reason}.");
+            }
 
-            // Explicit EXEC, matching the convention already used elsewhere in this codebase
-            // (e.g. ProgramController.cs's "EXEC dbo.pRecomputeProjectPublishable @ProgramFK = ...").
-            // No `tx` parameter is exposed here deliberately -- this call must never be
-            // nested inside a caller-owned transaction (see summary above).
-            try
+            // PASS 2 -- every child project's tier, still read-only, no transaction yet. A
+            // program is hard-deleted only when EVERY child is 'Hard'. A published child
+            // ('Blocked') or one that has progressed past its first stage ('Soft') refuses
+            // the whole request, with zero writes to anything. Collects EVERY non-Hard child
+            // before refusing (matching the former stored procedure's STRING_AGG behavior) so
+            // one refusal names every blocking project at once, not just the first found.
+            var childProjectFKs = await sql.QueryAsync<string>(
+                "SELECT ProjectPK FROM dbo.tProjects WHERE ProgramFK = @ProgramFK",
+                new { ProgramFK = programFK }, ct: cancellationToken);
+
+            var childTiers = new List<ProjectHelper.ProjectDeletionTierResult>();
+            var blocked = new List<string>();
+            foreach (var projectFK in childProjectFKs)
             {
-                var deletedProjectIds = await sql.QueryAsync<string>(
-                    "EXEC dbo.pExecuteProgramDeletion @ProgramFK = @ProgramFK, @UserId = @UserId, @CurrentDate = @CurrentDate",
-                    parameters,
+                var tierRows = await sql.ExecuteScriptFileInTransactionAsync<ProjectHelper.ProjectDeletionTierResult>(
+                    GetProjectDeletionTierScript,
+                    new { ProjectRef = projectFK, ProgramFK = programFK },
                     ct: cancellationToken);
-                return deletedProjectIds;
+                var row = tierRows.FirstOrDefault(x => x.ProjectFK == projectFK);
+                if (row == null)
+                {
+                    blocked.Add($"{projectFK} (could not be evaluated for deletion)");
+                    continue;
+                }
+                if (row.Tier != ProjectHelper.ProjectDeletionTiers.Hard)
+                {
+                    blocked.Add($"{projectFK} ({row.Reason})");
+                    continue;
+                }
+                childTiers.Add(row);
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex) when (ProjectHelper.DeletionRefusedException.Matches(ex))
+
+            if (blocked.Count > 0)
             {
-                throw ProjectHelper.DeletionRefusedException.From(ex);
+                throw new ProjectHelper.DeletionRefusedException(
+                    $"Program {programFK} cannot be deleted because some of its projects cannot be permanently deleted: {string.Join(", ", blocked)}");
             }
+
+            // PASS 3 (only reached if PASS 1 and PASS 2 both passed) + PASS 3.5 + PASS 4, all
+            // inside ONE transaction this call owns end-to-end.
+            return await sql.ExecuteTransactionAsync(async (connection, transaction) =>
+            {
+                var deletedProjectIds = new List<string>();
+                foreach (var tier in childTiers)
+                {
+                    await sql.ExecuteScriptFileNonQueryInTransactionAsync(
+                        ExecuteProjectDeletionScript,
+                        new
+                        {
+                            ProjectFK = tier.ProjectFK,
+                            ProgramFK = programFK,
+                            UserId = userId,
+                            CurrentDate = currentDate,
+                            Kind = tier.Kind,
+                            StageCount = tier.StageCount,
+                            Reason = tier.Reason
+                        },
+                        transaction, ct: cancellationToken);
+                    deletedProjectIds.Add(tier.ProjectFK);
+                }
+
+                // PASS 3.5 -- postcondition verification: confirm no project row survived
+                // under this ProgramFK for any reason. This is the explicit enforcement of
+                // "program can never be deleted unless all projects in it have been totally
+                // hard-deleted" -- if even one survived, this throws, and the transaction
+                // this method owns rolls back every child delete above, nothing commits.
+                var survivorCount = await connection.ExecuteScalarAsync<int>(
+                    new CommandDefinition(
+                        "SELECT COUNT(*) FROM dbo.tProjects WHERE ProgramFK = @ProgramFK",
+                        new { ProgramFK = programFK }, transaction, cancellationToken: cancellationToken));
+                if (survivorCount > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"DELETE_REFUSED: {survivorCount} project(s) survived under program {programFK} after the delete cascade; program delete aborted, nothing committed.");
+                }
+
+                // PASS 4 -- only reached if PASS 3.5 raised nothing.
+                await sql.ExecuteScriptFileNonQueryInTransactionAsync(
+                    ExecuteProgramDeletionScript,
+                    new
+                    {
+                        ProgramFK = programFK,
+                        UserId = userId,
+                        CurrentDate = currentDate,
+                        ProjectsDeleted = deletedProjectIds.Count
+                    },
+                    transaction, ct: cancellationToken);
+
+                return (IEnumerable<string>)deletedProjectIds;
+            }, ct: cancellationToken);
         }
         #endregion
     }

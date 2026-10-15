@@ -51,8 +51,9 @@ namespace Main
             }
 
             Services.AddSingleton<ISqlExecutor>(new SqlExecutor());
-            // Delete endpoints answer 503 until the deletion SQL objects this build needs are
-            // deployed (Main.exe --apply-sql-objects --yes); see [RequiresDeletionObjects].
+            // Delete endpoints answer 503 until the deletion .sql scripts this build needs
+            // (Main/Resources/Internal/SQLScripts/Deletion/) are present and the database is
+            // reachable; see [RequiresDeletionObjects].
             Services.AddSingleton<IDeletionObjectsStatus>(sp => new DeletionObjectsStatus(
                 Appsetting.DbConnections.MYPSDb, sp.GetService<ILogger<DeletionObjectsStatus>>()));
             return Services;

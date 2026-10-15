@@ -4,14 +4,20 @@ using Xunit;
 
 namespace MYPS.DatabaseTests;
 
-/*  dbo.fProjectDeletionTier is the single project-deletion rule and dbo.pExecuteProjectDeletion the
-    single hard cascade (Main/Resources/Internal/SQLObjects; documents/plans/project-deletion-single-rule.md):
+/*  The project/program hard-delete rule is implemented by 4 .sql script files under
+    Main/Resources/Internal/SQLScripts/Deletion/ (GetProjectDeletionTier.sql,
+    GetProgramDeletionEligibility.sql, ExecuteProjectDeletion.sql, ExecuteProgramDeletion.sql),
+    read and run directly by ISqlExecutor.ExecuteScriptFile*InTransactionAsync — no compiled DB
+    function/procedure exists for this feature (converted 2026-10-16; documents/plans/
+    project-deletion-single-rule.md):
       - hard only on a project's first stage entry, soft once it has progressed with its program;
       - Lump Sum itemized children always hard, published projects never deleted;
       - the same answer whether the project is named by its BP-form ProjectPK or its P-form revision id.
-    Every test runs against its own throwaway MYPS_Test_<guid> database (LocalDbSafety). The objects are the
-    checked-in files, applied by SqlObjectDeployer onto a minimal schema that carries the live foreign keys
-    the cascade has to respect, so a wrong delete order fails here exactly as it would on the server. */
+    Every test runs against its own throwaway MYPS_Test_<guid> database (LocalDbSafety), with the
+    schema below carrying the live foreign keys the cascade has to respect, so a wrong delete
+    order fails here exactly as it would on the server. TestAppsettingsBootstrap (a
+    [ModuleInitializer]) points Appsetting.Resources.SQLScripts at the real checked-in scripts
+    before any test runs. */
 public sealed class ProjectDeletionTierTests : IAsyncLifetime
 {
     private const string Program = "PROGRAM-1";
@@ -27,8 +33,6 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         try
         {
             await ExecuteAsync(SchemaSql);
-            string root = FindRepositoryDirectory("Main/Resources/Internal/SQLObjects");
-            await new SqlObjectDeployer(new SqlExecutor(ConnectionString), ConnectionString).ApplyAsync(root, execute: true, TextWriter.Null);
             await ExecuteAsync($"INSERT dbo.tPrograms (ProgramPK) VALUES ('{Program}'), ('{OtherProgram}');");
         }
         catch
@@ -132,7 +136,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         Assert.Equal(new[] { ("BP01100001LZ", "ProjectId"), ("P01100001LZ", "ProjectPK") },
                      rows.Select(x => (x.ProjectFK, x.MatchedBy)));
 
-        await ExecuteAsync(ExecSql("P01100001LZ"));
+        await ExecSql("P01100001LZ");
         Assert.Equal(0, await CountAsync("dbo.tProjects", "ProjectPK = 'P01100001LZ'"));
         Assert.Equal(1, await CountAsync("dbo.tProjects", "ProjectPK = 'BP01100001LZ'"));
         Assert.Equal(2, await CountAsync("dbo.tProjectRevisions", "ProjectFK = 'BP01100001LZ'"));
@@ -166,7 +170,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         var other = await SeedProjectAsync("BP01000011LZ", (BP, "BP01000011LZ"));
         await ExecuteAsync($"INSERT dbo.tRevisionDetails (TransactionId, ProjectFK, ProjectRevisionFK) VALUES ('TX-SHARED', 'BP01000011LZ', {other[0]});");
 
-        await ExecuteAsync(ExecSql("P01000010LZ"));
+        await ExecSql("P01000010LZ");
 
         foreach (var (table, where) in CascadeTables(revisions[0]))
             Assert.True(await CountAsync(table, where) == 0, $"{table} still has rows for the deleted project");
@@ -185,8 +189,8 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     {
         // The P-form revision id resolves to the BP-form project, which has progressed: refused, nothing written.
         await SeedProjectAsync("BP01000012LZ", (BP, "BP01000012LZ"), (NEP, "P01000012LZ"));
-        var ex = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsync(ExecSql("P01000012LZ")));
-        Assert.Contains("DELETE_REFUSED: Project BP01000012LZ cannot be permanently deleted: progressed past its first stage.", ex.Message);
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecSql("P01000012LZ"));
+        Assert.Equal("Project BP01000012LZ cannot be permanently deleted: progressed past its first stage.", ex.Reason);
         Assert.Equal(1, await CountAsync("dbo.tProjects", "ProjectPK = 'BP01000012LZ'"));
     }
 
@@ -194,8 +198,8 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     public async Task Cascade_RefusesPublished_WithNoWrites()
     {
         await SeedProjectAsync("BP01000013LZ", isPublished: true, stages: new[] { (BP, "BP01000013LZ") });
-        var ex = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsync(ExecSql("BP01000013LZ")));
-        Assert.Contains("DELETE_REFUSED: Project BP01000013LZ cannot be permanently deleted: published.", ex.Message);
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecSql("BP01000013LZ"));
+        Assert.Equal("Project BP01000013LZ cannot be permanently deleted: published.", ex.Reason);
         Assert.Equal(1, await CountAsync("dbo.tProjectRevisions", "ProjectFK = 'BP01000013LZ'"));
     }
 
@@ -210,13 +214,14 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync();
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
-        await using (var command = new SqlCommand(ExecSql("BP01000014LZ"), connection, transaction))
         {
-            var ex = await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync());
+            var ex = await Assert.ThrowsAsync<SqlException>(() => ExecSql("BP01000014LZ", connection, transaction));
             Assert.Contains("REFERENCE constraint", ex.Message);
-            // Error 266 ("Transaction count after EXECUTE…") is what a ROLLBACK of the caller's
-            // transaction inside the procedure adds, and it used to replace the real cause.
+            // Error 266 ("Transaction count after EXECUTE…") was specific to the old nested stored
+            // procedure design; this script never opens/rolls back a transaction of its own, so
+            // that failure mode cannot recur, but the assertion stays as a regression guard.
             Assert.DoesNotContain("Transaction count", ex.Message);
+            await transaction.RollbackAsync();
         }
 
         // XACT_ABORT ON: SQL Server itself ends the caller's transaction when the error leaves the
@@ -277,9 +282,8 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     public async Task ProgramDeletion_RefusesAnApprovedProgram_WithTheReason()
     {
         await SetProgramStageAsync(GAAR, status: Approved);
-        var ex = await Assert.ThrowsAsync<SqlException>(() =>
-            ExecuteAsync($"EXEC dbo.pExecuteProgramDeletion @ProgramFK = '{Program}', @UserId = 'test', @CurrentDate = '2026-10-15';"));
-        Assert.Contains($"DELETE_REFUSED: Program {Program} cannot be deleted: program is approved.", ex.Message);
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecuteProgramDeletionAsync());
+        Assert.Equal($"Program {Program} cannot be deleted: program is approved.", ex.Reason);
         Assert.Equal(1, await CountAsync("dbo.tPrograms", $"ProgramPK = '{Program}'"));
     }
 
@@ -290,7 +294,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         await SeedProjectAsync("BP01000023LZ", (BP, "BP01000023LZ"));
         await SeedProjectAsync("BP01000024LZ", (BP, "BP01000024LZ"));
 
-        await ExecuteAsync($"EXEC dbo.pExecuteProgramDeletion @ProgramFK = '{Program}', @UserId = 'test', @CurrentDate = '2026-10-15';");
+        await ExecuteProgramDeletionAsync();
 
         Assert.Equal(0, await CountAsync("dbo.tPrograms", $"ProgramPK = '{Program}'"));
         Assert.Equal(2, await CountAsync("dbo.tTransactionLog", "ReferenceId IN ('BP01000023LZ', 'BP01000024LZ') AND NewValue = 'Permanently deleted'"));
@@ -314,9 +318,8 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         await ExecuteAsync($"INSERT dbo.tProgramStages (ProgramFK) VALUES ('{Program}');");
         await SeedProjectAsync("BP01000015LZ", isPublished: true, stages: new[] { (BP, "BP01000015LZ") });
 
-        var ex = await Assert.ThrowsAsync<SqlException>(() =>
-            ExecuteAsync($"EXEC dbo.pExecuteProgramDeletion @ProgramFK = '{Program}', @UserId = 'test', @CurrentDate = '2026-10-15';"));
-        Assert.Contains("BP01000015LZ (published)", ex.Message);
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecuteProgramDeletionAsync());
+        Assert.Contains("BP01000015LZ (published)", ex.Reason);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -335,16 +338,28 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
 
     private async Task<(string Eligibility, string Reason)> EligibilityAsync()
     {
-        await using var connection = new SqlConnection(ConnectionString);
-        await connection.OpenAsync();
-        await using var command = new SqlCommand($"SELECT Eligibility, Reason FROM dbo.fProgramDeletionEligibility('{Program}');", connection);
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        return (reader.GetString(0), reader.GetString(1));
+        var result = await new SqlExecutor(ConnectionString).DetermineProgramDeletionEligibilityAsync(Program);
+        Assert.NotNull(result);
+        return (result!.Eligibility, result.Reason);
     }
 
-    private static string ExecSql(string projectRef) =>
-        $"EXEC dbo.pExecuteProjectDeletion @ProjectFK = '{projectRef}', @ProgramFK = '{Program}', @UserId = 'test', @CurrentDate = '2026-10-15';";
+    /// <summary>Runs the real hard-delete cascade (Deletion/ExecuteProjectDeletion.sql) for
+    /// <paramref name="projectRef"/>, through the actual production wrapper (re-derives and
+    /// re-checks the tier first, exactly as the real code path does), inside the given
+    /// connection/transaction so a test can observe a mid-cascade failure or a caller-owned
+    /// <summary>Runs the real hard-delete cascade through the actual production entry point
+    /// (ISqlExecutor.ExecuteProjectDeletionAsync — re-derives and re-checks the tier first,
+    /// resolves ambiguous/alternate-form references exactly as the real code path does). Pass
+    /// <paramref name="transaction"/> so a test can observe a mid-cascade failure or a
+    /// caller-owned rollback; when omitted, runs standalone.</summary>
+    private Task ExecSql(string projectRef, SqlConnection? connection = null, SqlTransaction? transaction = null) =>
+        new SqlExecutor(ConnectionString).ExecuteProjectDeletionAsync(
+            projectRef, Program, "test", new DateTime(2026, 10, 15), tx: transaction);
+
+    /// <summary>Runs the real Program-delete orchestration (ProgramHelper.ExecuteProgramDeletionAsync)
+    /// against this test's database, through the actual production entry point.</summary>
+    private Task<IEnumerable<string>> ExecuteProgramDeletionAsync() =>
+        new SqlExecutor(ConnectionString).ExecuteProgramDeletionAsync(Program, "test", new DateTime(2026, 10, 15));
 
     private Task<List<int>> SeedProjectAsync(string projectPK, params (int StageId, string ProjectId)[] stages) =>
         SeedProjectAsync(projectPK, stages, Program); // three positional args: the params overload cannot match itself
