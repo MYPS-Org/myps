@@ -113,22 +113,8 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
               </div>
             </div>
 
-            {/* Program Impact Warning: a program delete permanently removes every project in it. */}
-            {(program.NumberOfProjects ?? 0) > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
-                  <div>
-                    <h4 className="text-sm font-medium text-yellow-800">
-                      Impact on Projects
-                    </h4>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      This program has {program.NumberOfProjects} project(s). They will be permanently deleted with the program.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* No project impact to warn about: a program is deleted only once all its projects have
+                been deleted (2026-10-16, no cascade); the server refuses otherwise. */}
 
             {/* Confirmation Input */}
             <div>

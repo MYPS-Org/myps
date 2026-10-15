@@ -254,12 +254,14 @@ const Program: React.FC = () => {
                                     >
                                         View
                                     </Button>
-                                    {/* An Approved program refuses every delete (server rule); say so here
-                                        rather than let the user type DELETE into a refusal. */}
+                                    {/* The server says whether this program can be deleted and why not (Approved,
+                                        progressed, or it still has projects to delete first); say so here rather
+                                        than let the user type DELETE into a refusal. DeleteProgram still decides. */}
                                     <Button
                                         color="red"
-                                        disabled={program.Status === 'Approved'}
-                                        title={program.Status === 'Approved' ? 'An Approved program cannot be deleted.' : 'Delete program'}
+                                        disabled={program.CanDelete === false || (program.CanDelete == null && program.Status === 'Approved')}
+                                        title={program.DeleteBlockedReason
+                                            ?? (program.CanDelete == null && program.Status === 'Approved' ? 'An Approved program cannot be deleted.' : 'Delete program')}
                                         onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramPK);}}
                                         className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded"
                                     >

@@ -22,7 +22,8 @@ export const fetchProgramEnums = async () => {
 
 export const fetchProgram = async (data: PaginatedRequest<ProgramFilter>) => {
     try {
-        const response = await httpClient.post<PaginationResponse<ProgramLatest>>('/program/showprogram', data, {
+        // IncludeDeleteEligibility: the list's Delete button follows the server's rule (CanDelete).
+        const response = await httpClient.post<PaginationResponse<ProgramLatest>>('/program/showprogram', { ...data, IncludeDeleteEligibility: true }, {
             preloaderMessage: 'Loading program...'
         });
         return response;
