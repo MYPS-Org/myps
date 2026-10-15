@@ -7,20 +7,19 @@
     insert) of the former dbo.pExecuteProgramDeletion stored procedure, converted to a
     plain parameterized script run via ISqlExecutor.ExecuteScriptFileNonQueryInTransactionAsync
     (fileName, parameters, tx) — tx is the SAME caller-owned transaction that already ran,
-    in order, inside ProgramHelper.ExecuteProgramDeletionAsync:
-      PASS 1   GetProgramDeletionEligibility.sql   (read-only; refused in C# before any tx opens)
-      PASS 2   GetProjectDeletionTier.sql per child (read-only; refused in C# before any tx opens)
-      PASS 3   ExecuteProjectDeletion.sql per child (inside this same tx, once per Hard child)
-      PASS 3.5 postcondition: C# re-checks NOT EXISTS tProjects WHERE ProgramFK = @ProgramFK,
-               inside this same tx, immediately before calling this script. If anything
-               survived, C# throws WITHOUT ever running this script, and the caller's
-               transaction rolls back everything (every child delete too) — this is the
-               explicit enforcement of "program can never be deleted unless all projects
-               in it have been totally hard-deleted," unchanged from the original design.
+    in order, inside ProgramHelper.DeleteProgramInTransactionAsync (2026-10-16: every pass
+    runs in that one transaction, after it locked the program's rows):
+      PASS 1   GetProgramDeletionEligibility.sql   (refused in C# if Blocked)
+      PASS 2   GetProjectDeletionTier.sql per child (refused in C#, naming every non-Hard child)
+      PASS 3   ExecuteProjectDeletion.sql per child, through ProjectHelper.ExecuteProjectDeletionAsync
+      PASS 3.5 postcondition: C# checks that no tProjects, tProjectRevisions or tProjectStages
+               row is left under @ProgramFK, immediately before calling this script. If any
+               is, C# throws WITHOUT ever running this script, and the caller's transaction
+               rolls back everything (every child delete too) — the explicit enforcement of
+               "program can never be deleted unless all projects in it have been totally
+               hard-deleted".
       PASS 4   this script.
-    One caller-level transaction spans all of PASS 3 + 3.5 + 4, preserving the original
-    stored procedure's all-or-nothing guarantee — the atomicity moved from a nested SQL
-    transaction to a C#-owned ADO.NET transaction, nothing else about the guarantee changed.
+    One caller-level transaction spans every pass, so the delete is all-or-nothing.
 
     Params:
       @ProgramFK        NVARCHAR(200)

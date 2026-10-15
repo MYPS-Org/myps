@@ -286,7 +286,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     {
         await SetProgramStageAsync(GAAR, status: Approved);
         var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecuteProgramDeletionAsync());
-        Assert.Equal($"Program {Program} cannot be deleted: program is approved.", ex.Reason);
+        Assert.Equal("This program cannot be deleted: program is approved.", ex.Reason);
         Assert.Equal(1, await CountAsync("dbo.tPrograms", $"ProgramPK = '{Program}'"));
     }
 
@@ -328,10 +328,10 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     // ---------------------------------------------------------------------------------------
     // Program delete re-decides inside its transaction (2026-10-16, delete-policy-must-fix.md)
     //
-    // ProgramHelper.ExecuteProgramDeletionAsync checks the program and every child first, with no
-    // locks, then deletes inside a transaction. These run that transactional part on its own,
-    // AFTER the facts changed, which is exactly what a concurrent approval, publish or stage
-    // advance between the pre-check and the delete looks like -- without having to race.
+    // ProgramHelper.ExecuteProgramDeletionAsync decides and deletes inside one transaction, on
+    // locked rows. These change the facts first and then run that transactional part, the state a
+    // concurrent approval, publish or stage advance would leave -- without having to race. (That
+    // the lock really holds such writers off was checked by hand on localhost UAT, 2026-10-16.)
     // ---------------------------------------------------------------------------------------
 
     [Fact]
@@ -345,7 +345,8 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         await ExecuteAsync("UPDATE dbo.tProjects SET IsPublished = 1 WHERE ProjectPK = 'BP01000031LZ';");
 
         var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => DeleteProgramInTransactionAsync());
-        Assert.Equal("Project BP01000031LZ cannot be permanently deleted: published.", ex.Reason);
+        Assert.Contains("BP01000031LZ (published)", ex.Reason);
+        Assert.DoesNotContain("BP01000030LZ", ex.Reason); // only the blocking child is named
         await AssertNothingDeletedAsync("BP01000030LZ", "BP01000031LZ");
     }
 
@@ -374,7 +375,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         await ExecuteAsync($"UPDATE dbo.tProgramRevisions SET Status = {Approved} WHERE ProgramFK = '{Program}';");
 
         var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => DeleteProgramInTransactionAsync());
-        Assert.Equal($"Program {Program} cannot be deleted: program is approved.", ex.Reason);
+        Assert.Equal("This program cannot be deleted: program is approved.", ex.Reason);
         await AssertNothingDeletedAsync("BP01000033LZ");
     }
 
@@ -389,8 +390,28 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         await ExecuteAsync($"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, IsDeleted) VALUES ('BP01000035LZ', '{OtherProgram}', 'P01000035LZ', 0);");
 
         var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecuteProgramDeletionAsync());
-        Assert.Equal($"Program {Program} cannot be deleted: 1 of its project(s) still have history in another program.", ex.Reason);
+        Assert.Equal("This program cannot be deleted: some of its projects still have history in another program.", ex.Reason);
         await AssertNothingDeletedAsync("BP01000034LZ", "BP01000035LZ"); // the other child's delete rolled back too
+    }
+
+    [Fact]
+    public async Task ProgramDeletion_ACarriedInProject_LosesOnlyItsHistoryUnderTheProgram()
+    {
+        // A multi-year project: created under another program, with history under this one.
+        await SetProgramStageAsync(BP, status: Working);
+        await SeedProjectAsync("BP01000037LZ", new[] { (BP, "BP01000037LZ") }, program: OtherProgram);
+        int revisionId = await ScalarAsync(
+            $"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, IsDeleted) VALUES ('BP01000037LZ', '{Program}', 'BP01000037LZ', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);");
+        await ExecuteAsync($"INSERT dbo.tProjectStages (ProjectFK, ProgramFK, RevisionId, StageId) VALUES ('BP01000037LZ', '{Program}', {revisionId}, {BP});");
+
+        var deleted = await ExecuteProgramDeletionAsync();
+
+        Assert.Contains("BP01000037LZ", deleted);
+        Assert.Equal(0, await CountAsync("dbo.tPrograms", $"ProgramPK = '{Program}'"));
+        Assert.Equal(0, await CountAsync("dbo.tProjectRevisions", $"ProgramFK = '{Program}'"));
+        Assert.Equal(0, await CountAsync("dbo.tProjectStages", $"ProgramFK = '{Program}'"));
+        Assert.Equal(1, await CountAsync("dbo.tProjects", "ProjectPK = 'BP01000037LZ'"));            // still the other program's
+        Assert.Equal(1, await CountAsync("dbo.tProjectRevisions", $"ProgramFK = '{OtherProgram}'")); // its history there is kept
     }
 
     [Fact]

@@ -500,9 +500,9 @@ namespace WebAPI.Controllers.Programs
 
                 // The whole decision and the cascade live in ProgramHelper.ExecuteProgramDeletionAsync:
                 // program eligibility (Blocked when the program is Approved or has advanced past
-                // its first stage) and every child's tier, decided again inside the delete
-                // transaction on locked rows. Any refusal is a DeletionRefusedException, caught
-                // below, and nothing is written.
+                // its first stage) and every child's tier, decided inside the delete transaction
+                // on locked rows. Any refusal is a DeletionRefusedException, caught below, and
+                // nothing is written.
                 var deletedProjectIds = await ProgramHelper.ExecuteProgramDeletionAsync(
                     _sql, ProgramParent.ProgramPK, _Session.UserId, CurrentDate, cancellationToken);
 
@@ -2230,7 +2230,7 @@ namespace WebAPI.Controllers.Programs
         }
 
         /// <summary>
-        /// Validates a Batch Delete request and resolves every id through dbo.fProjectDeletionTier.
+        /// Validates a Batch Delete request and resolves every id through Functions/GetProjectDeletionTier.sql.
         /// Read-only. Shared by <see cref="BatchDelete"/> and <see cref="PreviewBatchDelete"/> so the
         /// preview a user confirms is exactly what the delete then does.
         /// </summary>
@@ -2298,12 +2298,12 @@ namespace WebAPI.Controllers.Programs
              * 2026-10-15: ONE DELETION RULE, PREFIX-AGNOSTIC
              * (documents/plans/project-deletion-single-rule.md).
              *
-             * Every id is resolved and judged by dbo.fProjectDeletionTier, the same
-             * function Delete Program and both Lump Sum deletes use. It accepts the
+             * Every id is resolved and judged by Functions/GetProjectDeletionTier.sql, the same
+             * script Delete Program and both Lump Sum deletes use. It accepts the
              * ProjectPK or any revision ProjectId of the project under this program, so
              * after BP->NEP both BP01000002LZ (the PK) and P01000002LZ (the revision id)
              * name the same project. Its tier decides what happens here:
-             *   Hard  (first stage entry)     -> dbo.pExecuteProjectDeletion, rows removed;
+             *   Hard  (first stage entry)     -> ExecuteProjectDeletion.sql (via ProjectHelper), rows removed;
              *   Soft  (progressed past it)    -> the current-stage revision is flagged, as before;
              *   Blocked (published, or the program is Approved) -> refused.
              * Lump Sum parents and itemized children are refused too: the Lump Sum module
@@ -2618,7 +2618,7 @@ namespace WebAPI.Controllers.Programs
                 // restoredSet came back empty (every id reported "not found") and `.Count() > 0`
                 // was false, so the action answered "No Projects Restored" and let the transaction
                 // dispose without a commit, rolling its own restore back. It could never succeed.
-                // 2026-10-15: ids are resolved by dbo.fProjectDeletionTier, the same resolver
+                // 2026-10-15: ids are resolved by Functions/GetProjectDeletionTier.sql, the same resolver
                 // Batch Delete uses, so the BP-form ProjectPK and the P-form revision ProjectId
                 // both find the project (only its ProjectFK is used; restore is not a delete).
                 // A hard-deleted project no longer exists and is reported as not found; an
