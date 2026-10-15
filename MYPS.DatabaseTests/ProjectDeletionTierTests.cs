@@ -326,8 +326,109 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     }
 
     // ---------------------------------------------------------------------------------------
+    // Program delete re-decides inside its transaction (2026-10-16, delete-policy-must-fix.md)
+    //
+    // ProgramHelper.ExecuteProgramDeletionAsync checks the program and every child first, with no
+    // locks, then deletes inside a transaction. These run that transactional part on its own,
+    // AFTER the facts changed, which is exactly what a concurrent approval, publish or stage
+    // advance between the pre-check and the delete looks like -- without having to race.
+    // ---------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ProgramDeletion_InTransaction_RefusesAChildPublishedAfterThePreCheck()
+    {
+        await SetProgramStageAsync(BP, status: Working);
+        await SeedProjectAsync("BP01000030LZ", (BP, "BP01000030LZ"));
+        await SeedProjectAsync("BP01000031LZ", (BP, "BP01000031LZ"));
+        Assert.Equal("Hard", Assert.Single(await TierAsync("BP01000031LZ")).Tier); // what the pre-check saw
+
+        await ExecuteAsync("UPDATE dbo.tProjects SET IsPublished = 1 WHERE ProjectPK = 'BP01000031LZ';");
+
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => DeleteProgramInTransactionAsync());
+        Assert.Equal("Project BP01000031LZ cannot be permanently deleted: published.", ex.Reason);
+        await AssertNothingDeletedAsync("BP01000030LZ", "BP01000031LZ");
+    }
+
+    [Fact]
+    public async Task ProgramDeletion_InTransaction_RefusesAChildThatAdvancedAfterThePreCheck()
+    {
+        await SetProgramStageAsync(BP, status: Working);
+        await SeedProjectAsync("BP01000032LZ", (BP, "BP01000032LZ"));
+
+        // The project moves on with its program: a second stage entry makes it Soft (criterion 1).
+        int revisionId = await ScalarAsync(
+            $"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, IsDeleted) VALUES ('BP01000032LZ', '{Program}', 'P01000032LZ', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);");
+        await ExecuteAsync($"INSERT dbo.tProjectStages (ProjectFK, ProgramFK, RevisionId, StageId) VALUES ('BP01000032LZ', '{Program}', {revisionId}, {NEP});");
+
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => DeleteProgramInTransactionAsync());
+        Assert.Contains("progressed past its first stage", ex.Reason);
+        await AssertNothingDeletedAsync("BP01000032LZ");
+    }
+
+    [Fact]
+    public async Task ProgramDeletion_InTransaction_RefusesAProgramApprovedAfterThePreCheck()
+    {
+        await SetProgramStageAsync(BP, status: Working);
+        await SeedProjectAsync("BP01000033LZ", (BP, "BP01000033LZ"));
+
+        await ExecuteAsync($"UPDATE dbo.tProgramRevisions SET Status = {Approved} WHERE ProgramFK = '{Program}';");
+
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => DeleteProgramInTransactionAsync());
+        Assert.Equal($"Program {Program} cannot be deleted: program is approved.", ex.Reason);
+        await AssertNothingDeletedAsync("BP01000033LZ");
+    }
+
+    [Fact]
+    public async Task ProgramDeletion_ASurvivingChild_IsARefusal_AndRollsEverythingBack()
+    {
+        // The multi-year guard keeps the tProjects row of a project another program still has
+        // history for. Its tProjects.ProgramFK is this program, so it would survive the delete.
+        await SetProgramStageAsync(BP, status: Working);
+        await SeedProjectAsync("BP01000034LZ", (BP, "BP01000034LZ"));
+        await SeedProjectAsync("BP01000035LZ", (BP, "BP01000035LZ"));
+        await ExecuteAsync($"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, IsDeleted) VALUES ('BP01000035LZ', '{OtherProgram}', 'P01000035LZ', 0);");
+
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecuteProgramDeletionAsync());
+        Assert.Equal($"Program {Program} cannot be deleted: 1 of its project(s) still have history in another program.", ex.Reason);
+        await AssertNothingDeletedAsync("BP01000034LZ", "BP01000035LZ"); // the other child's delete rolled back too
+    }
+
+    [Fact]
+    public async Task ItemizedChild_InAnApprovedProgram_IsStillHardDeleted()
+    {
+        // Criterion 3: an itemized child is always hard-deleted, so no row keeps its Project ID.
+        await SetProgramStageAsync(GAAR, status: Approved);
+        await SeedProjectAsync("P01000036LZ", parentProjectId: "P01000099LS", isRevised: true, stages: new[] { (GAAR, "P01000036LZ") });
+
+        await ExecSql("P01000036LZ");
+
+        Assert.Equal(0, await CountAsync("dbo.tProjects", "ProjectPK = 'P01000036LZ'"));
+        Assert.Equal(0, await CountAsync("dbo.tProjectRevisions", "ProjectId = 'P01000036LZ'"));
+    }
+
+    // ---------------------------------------------------------------------------------------
     // Fixture
     // ---------------------------------------------------------------------------------------
+
+    /// <summary>The transactional part of program delete alone (ProgramHelper.DeleteProgramInTransactionAsync),
+    /// in a transaction that rolls back on any exception, as ExecuteProgramDeletionAsync runs it.</summary>
+    private Task<IEnumerable<string>> DeleteProgramInTransactionAsync()
+    {
+        var sql = new SqlExecutor(ConnectionString);
+        return sql.ExecuteTransactionAsync((connection, transaction) =>
+            sql.DeleteProgramInTransactionAsync(Program, "test", new DateTime(2026, 10, 16), connection, transaction));
+    }
+
+    private async Task AssertNothingDeletedAsync(params string[] projectPKs)
+    {
+        Assert.Equal(1, await CountAsync("dbo.tPrograms", $"ProgramPK = '{Program}'"));
+        foreach (string projectPK in projectPKs)
+        {
+            Assert.Equal(1, await CountAsync("dbo.tProjects", $"ProjectPK = '{projectPK}'"));
+            Assert.Equal(0, await CountAsync("dbo.tTransactionLog", $"ReferenceId = '{projectPK}'"));
+        }
+        Assert.Equal(0, await CountAsync("dbo.tTransactionLog", $"ReferenceId = '{Program}'"));
+    }
 
     private const int Approved = 1, Working = 3;
 

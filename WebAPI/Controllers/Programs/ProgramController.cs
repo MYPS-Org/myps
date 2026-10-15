@@ -498,37 +498,11 @@ namespace WebAPI.Controllers.Programs
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
 
-                // Pre-flight eligibility check (read-only, no transaction opened yet).
-                // Replaces the old hardcoded StagesToCheck/AllowedStages lists (RISK-112)
-                // and the cost guard (ProgramDetails.Cost > 0) with the function's rule:
-                // Blocked when the program is Approved (2026-10-15) or has advanced past its
-                // first stage; its Reason is the message. No stage-name logic, no cost check.
-                var eligibility = await ProgramHelper.DetermineProgramDeletionEligibilityAsync(
-                    _sql, ProgramParent.ProgramPK, cancellationToken);
-
-                if (eligibility == null)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = $"Program '{dto.ProgramId}' was not found.",
-                        Title = "Program Not Found"
-                    });
-                }
-
-                if (eligibility.Eligibility == "Blocked")
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = $"Program {dto.ProgramId} cannot be deleted: {eligibility.Reason}.",
-                        Title = "Delete Not Allowed"
-                    });
-                }
-
-                // Execute the full cascade: Pass 2 (published-child check) + Pass 3
-                // (force hard-delete every child project) + Pass 4 (program's own rows)
-                // all happen inside pExecuteProgramDeletion's own self-managed transaction.
-                // If ANY child is published, the procedure raises an error and performs
-                // zero writes -- the program and every other child stay untouched.
+                // The whole decision and the cascade live in ProgramHelper.ExecuteProgramDeletionAsync:
+                // program eligibility (Blocked when the program is Approved or has advanced past
+                // its first stage) and every child's tier, decided again inside the delete
+                // transaction on locked rows. Any refusal is a DeletionRefusedException, caught
+                // below, and nothing is written.
                 var deletedProjectIds = await ProgramHelper.ExecuteProgramDeletionAsync(
                     _sql, ProgramParent.ProgramPK, _Session.UserId, CurrentDate, cancellationToken);
 
@@ -541,8 +515,9 @@ namespace WebAPI.Controllers.Programs
             }
             catch (ProjectHelper.DeletionRefusedException ex)
             {
-                // A refusal from the procedures (published or progressed child, a race with an
-                // approval) — its reason is the message, not a generic database error.
+                // A refusal from the deletion rule (Approved or progressed program, a published or
+                // progressed child, a change that raced the delete) — its reason is the message,
+                // not a generic database error.
                 return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Not Allowed" });
             }
             catch (Exception ex)
