@@ -469,6 +469,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         maxAmount={getMinMaxAmounts(item.WorkTypeFK).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeFK).min}
                         parentId={item.Id}
+                        infraTypeEnums={infraTypeEnums}
                         dropDowns={dropDowns}
                         disabled={false}
                         fieldRules={fieldRules}
@@ -520,7 +521,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           ComponentId: majorItemToDelete.ComponentId,
           WorkTypeId: majorItemToDelete.WorkTypeFK,
           YearOfWork: majorItemToDelete.YearOfWork,
-          InfraType: majorItemToDelete.InfraTypeFK,
+          InfraType: getInfraName(majorItemToDelete.InfraTypeFK),
           TargetUnit: majorItemToDelete.TargetUnit,
           MajorItemLocations: majorItemToDelete.MajorItemLocations,
         } : null}
@@ -536,6 +537,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         }}
         onConfirm={handleConfirmCopyMajorItem}
         majorItemToCopy={majorItemToCopy}
+        infraTypeEnums={infraTypeEnums}
         componentCosts={componentCosts}
         existingMajorItems={items.map(item => ({ ComponentId: item.ComponentId }))}
       />

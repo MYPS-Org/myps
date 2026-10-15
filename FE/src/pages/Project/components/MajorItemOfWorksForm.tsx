@@ -424,6 +424,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         maxAmount={getMinMaxAmounts(item.WorkTypeFK).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeFK).min}
                         parentId={item.ComponentId}
+                        infraTypeEnums={infraTypeEnums}
                         dropDowns={dropDowns}
                         disabled={disabled}
                         deo={deo}
@@ -471,7 +472,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           ComponentId: deletingMajorItem.ComponentId,
           WorkTypeFK: deletingMajorItem.WorkTypeFK,
           YearOfWork: deletingMajorItem.YearOfWork,
-          InfraTypeFK: deletingMajorItem.InfraTypeFK,
+          InfraTypeFK: getInfraTypeName(deletingMajorItem.InfraTypeFK),
           TargetUnitId: deletingMajorItem.TargetUnitId,
           TargetUnit: deletingMajorItem.TargetUnit,
           MajorItemLocations: deletingMajorItem.MajorItemLocations

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
-import type { ComponentCost, MajorItemOfWorksWithDropdown } from '../../Project/Model.d';
+import type { ComponentCost, InfraTypeEnum, MajorItemOfWorksWithDropdown } from '../../Project/Model.d';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface CopyMajorItemDialogProps {
@@ -13,6 +13,7 @@ interface CopyMajorItemDialogProps {
   majorItemList?: MajorItemOfWorksWithDropdown[];
   componentCosts: ComponentCost[];
   existingMajorItems: Array<{ ComponentId: string }>;
+  infraTypeEnums?: InfraTypeEnum[];
 }
 
 const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
@@ -23,6 +24,7 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
   componentCosts,
   existingMajorItems,
   majorItemList: _majorItemList,
+  infraTypeEnums,
 }) => {
   const [selectedComponentId, setSelectedComponentId] = useState('');
   const { showToast } = useToast();
@@ -111,7 +113,7 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Infrastructure Type:</span>
-                  <span className="font-medium">{majorItemToCopy.InfraTypeFK}</span>
+                  <span className="font-medium">{infraTypeEnums?.find(x => x.InfraCode === majorItemToCopy.InfraTypeFK)?.InfraName || majorItemToCopy.InfraTypeFK}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Work Locations:</span>

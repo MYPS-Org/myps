@@ -17,11 +17,14 @@ import {
 interface DeleteWorkLocationDialogProps {
   onConfirmDelete: (index: number) => void;
   infraType?: string;
+  /** Display name for the infra type (e.g. "Roads"); falls back to infraType. */
+  infraTypeLabel?: string;
 }
 
 const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
   onConfirmDelete,
-  infraType
+  infraType,
+  infraTypeLabel
 }) => {
   const { showToast } = useToast();
   
@@ -122,7 +125,7 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
                   )}
                   <div className="flex justify-between">
                     <span className="text-gray-600">Infrastructure Type:</span>
-                    <span className="font-medium">{infraType || 'Unknown'}</span>
+                    <span className="font-medium">{infraTypeLabel || infraType || 'Unknown'}</span>
                   </div>
                   {selectedWorkLocation.TargetUnit && (
                     <div className="flex justify-between">

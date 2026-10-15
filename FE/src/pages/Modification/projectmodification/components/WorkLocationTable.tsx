@@ -6,7 +6,7 @@ import AddInfraDialog from '../../../Project/dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../../dialogs/deleteDialog/DeleteWorkLocationDialog';
 import { useDeleteWorkLocationDialog } from '../../hooks/useDeleteWorkLocationDialog';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType } from '../../../../utils/infraIdGenerator';
-import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../../../Project/Model.d';
+import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork, InfraTypeEnum } from '../../../Project/Model.d';
 import type { ProgramLatest } from '../../../Program/Model';
 import type { FieldRules } from '../../Model';
 import { getDisabledClass } from '../../../../utils/GlobalFunctions';
@@ -31,6 +31,7 @@ interface WorkLocationTableProps {
   disabled?: boolean;
   fieldRules?: FieldRules | null;
   deo?: string;
+  infraTypeEnums?: InfraTypeEnum[];
 }
 
 const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
@@ -50,8 +51,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   disabled = false,
   fieldRules,
   deo,
+  infraTypeEnums,
 }) => {
   const infraType = majorItemOfWorks.InfraTypeFK || '';
+  // Show the InfraName (e.g. "Roads") instead of the raw InfraCode (e.g. "R")
+  const infraTypeLabel = infraTypeEnums?.find(x => x.InfraCode === infraType)?.InfraName || infraType;
 
   // InfraType guard helpers — based on InfraCode
   // National Road: InfraCode 'R' (not local LR)
@@ -985,7 +989,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         <div>
           <h4 className="text-lg font-semibold text-gray-800">Work Locations</h4>
           <p className="text-sm text-gray-600 mt-1">
-            Configure work location for {infraType || 'this project'}
+            Configure work location for {infraTypeLabel || 'this project'}
           </p>
         </div>
       </div>
@@ -1098,7 +1102,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No work Target</h3>
             <p className="text-sm text-gray-500 mb-4 text-wrap">
-              Get started by adding your first work target. The form will adapt based on your infrastructure type ({infraType || 'Not specified'}).
+              Get started by adding your first work target. The form will adapt based on your infrastructure type ({infraTypeLabel || 'Not specified'}).
             </p>
           </div>
         </div>
@@ -1125,6 +1129,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       <DeleteWorkLocationDialog
         onConfirmDelete={onDelete}
         infraType={infraType}
+        infraTypeLabel={infraTypeLabel}
       />
     </div>
   );
