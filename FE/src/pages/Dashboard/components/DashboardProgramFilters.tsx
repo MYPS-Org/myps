@@ -6,7 +6,7 @@ interface Props {
   /** tOptionProgramType.NameId; null for all program types. */
   programType: number | null;
   onProgramTypeChange: (programType: number | null) => void;
-  /** null for all budget stages. */
+  /** null: each program at its current stage. */
   stage: DashboardStageOption | null;
   onStageChange: (stage: DashboardStageOption | null) => void;
   /** Demo Data has no real program types or stages behind it, so both are off there. */
@@ -98,7 +98,7 @@ const DashboardProgramFilters: React.FC<Props> = ({
           }
           className={selectClass}
         >
-          <option value="" className={optionClass}>All stages</option>
+          <option value="" className={optionClass}>Current stages</option>
           {statusOption}
           {options?.Stages.map((option) => (
             <option key={option.StageName} value={option.StageName} className={optionClass}>

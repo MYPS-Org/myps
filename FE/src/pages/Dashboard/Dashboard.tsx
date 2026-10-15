@@ -76,9 +76,13 @@ const BENCHMARK_AVAILABLE_YEARS = [2027, 2026, 2025, 2024, 2023];
     constant; flip both together. */
 export const LIVE_DB_ENABLED = true;
 
+/** The stage line and map badge with no Program Stage chosen: each program at its current stage. */
+const CURRENT_STAGES_LABEL = 'Current program stages';
+
 /** Where a project row opens, by the Project List's rules: a Lump Sum Project in the Lump Sum
- *  module (its id is the key /lumpsum/:id takes), any other project in its details form at its
- *  current stage (`/projects/project-details/<ProjectId>:<StageName>`, which EditProject reads). */
+ *  module (its id is the key /lumpsum/:id takes), any other project in its details form at the
+ *  stage the dashboard read it at (`/projects/project-details/<ProjectId>:<StageName>`, which
+ *  EditProject reads). */
 function projectDetailsPath(project: WatchlistProject): string {
   if (project.isLumpSum) return `/lumpsum/${project.id}`;
   return `/projects/project-details/${encodeURIComponent(project.projectId)}:${encodeURIComponent(project.stageName)}`;
@@ -114,13 +118,16 @@ const DashboardContent: React.FC = () => {
     () => ({ categoryId, programType, stageName }),
     [categoryId, programType, stageName]
   );
-  // Shown under the Program Stage title, and (full name only) on the region map's badge. The
-  // Demo Data map keeps its NEP wording: its figures are the NEP presentation set.
-  const stageLine = stage ? `${stage.StageName} · ${stage.FullName}` : 'All budget stages';
+  // Shown under the Program Stage title, and (full name only) on the region map's badge. With
+  // no stage chosen, Live DB reads each program at its current stage. The Demo Data map keeps
+  // its NEP wording: its figures are the NEP presentation set.
+  const stageLine = stage
+    ? `${stage.StageName} · ${stage.FullName}`
+    : isLive ? CURRENT_STAGES_LABEL : 'All budget stages';
   // Where a project in a KPI detail opens, for a click and for its link (right-click / new tab).
   // Demo Data rows are samples with no project behind them, so they open the list.
   const projectHref = (project: WatchlistProject) => (isLive ? projectDetailsPath(project) : '/projects');
-  const mapStageLabel = isLive ? stage?.FullName ?? 'All budget stages' : 'National Expenditure Program';
+  const mapStageLabel = isLive ? stage?.FullName ?? CURRENT_STAGES_LABEL : 'National Expenditure Program';
   useEffect(() => {
     if (!LIVE_DB_ENABLED && dataSourceMode === 'real') {
       setDataSourceMode('benchmark');
@@ -580,7 +587,7 @@ const DashboardContent: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <ProjectQuickDetailModal project={selectedProject} onClose={() => setSelectedProject(null)} />
+      <ProjectQuickDetailModal project={selectedProject} projectHref={projectHref} onClose={() => setSelectedProject(null)} />
 
       <DashboardKpiDetailModal
         type={selectedKpi}
@@ -595,10 +602,6 @@ const DashboardContent: React.FC = () => {
         onOpenProject={(project) => {
           setSelectedKpi(null);
           navigate(projectHref(project));
-        }}
-        onOpenRepository={() => {
-          setSelectedKpi(null);
-          navigate('/projects');
         }}
         onOpenLsProject={(project) => navigate(`/lumpsum/${project.id}`)}
       />

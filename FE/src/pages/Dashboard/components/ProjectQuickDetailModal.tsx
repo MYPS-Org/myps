@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   ArrowTopRightOnSquareIcon,
   FolderOpenIcon,
   XMarkIcon,
   MapPinIcon,
-  BanknotesIcon,
   BuildingOffice2Icon,
 } from '@heroicons/react/24/outline';
 
@@ -35,19 +34,17 @@ export interface WatchlistProject {
 
 interface Props {
   project: WatchlistProject | null;
+  /** The project's own page (its details at the stage shown), opened in a new tab. */
+  projectHref: (project: WatchlistProject) => string;
   onClose: () => void;
 }
 
-const money = (value: number) =>
-  new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    maximumFractionDigits: 2,
-  }).format(value);
-
-const ProjectQuickDetailModal: React.FC<Props> = ({ project, onClose }) => {
-  const navigate = useNavigate();
-
+/**
+ * A project's summary from the FY Regional Infrastructure Portfolio. It shows no amount, like
+ * the KPI cards' project lists: the project's FY share read beside the multi-year Total Cost on
+ * its details page looked like a contradiction (P00968001LZ: ₱17.31B vs ₱58.47B).
+ */
+const ProjectQuickDetailModal: React.FC<Props> = ({ project, projectHref, onClose }) => {
   useEffect(() => {
     if (!project) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -58,11 +55,6 @@ const ProjectQuickDetailModal: React.FC<Props> = ({ project, onClose }) => {
   }, [onClose, project]);
 
   if (!project) return null;
-
-  const handleNavigateRepository = () => {
-    onClose();
-    navigate('/projects');
-  };
 
   return (
     <div
@@ -151,28 +143,12 @@ const ProjectQuickDetailModal: React.FC<Props> = ({ project, onClose }) => {
               {project.implementingOffice || `${project.region} Regional Office`}
             </div>
           </div>
-
-          {/* Allocation Box */}
-          <div className="sm:col-span-2 rounded-xl bg-gradient-to-r from-blue-50 via-slate-50 to-amber-50/40 p-4 border border-blue-100 flex items-center justify-between">
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1">
-                <BanknotesIcon className="w-3.5 h-3.5 text-blue-600" />
-                FY Regional Allocation Outlay
-              </div>
-              <div className="mt-1 text-2xl font-black text-slate-900 tracking-tight">
-                {money(project.allocatedBudget)}
-              </div>
-            </div>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-600 text-white shadow-xs">
-              {project.stageName} Schedule
-            </span>
-          </div>
         </div>
 
         {/* Footer */}
         <div className="flex justify-between items-center border-t border-slate-100 bg-slate-50 px-6 py-4">
           <span className="text-xs text-slate-500">
-            Access project records in the Project Repository.
+            Project Repository opens this project&apos;s details in a new tab.
           </span>
           <div className="flex items-center gap-2.5">
             <button
@@ -181,14 +157,16 @@ const ProjectQuickDetailModal: React.FC<Props> = ({ project, onClose }) => {
             >
               Close
             </button>
-            <button
-              onClick={handleNavigateRepository}
+            <Link
+              to={projectHref(project)}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-md"
             >
               <FolderOpenIcon className="h-4 w-4 text-amber-400" />
               <span>Project Repository</span>
               <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 text-slate-400" />
-            </button>
+            </Link>
           </div>
         </div>
       </div>

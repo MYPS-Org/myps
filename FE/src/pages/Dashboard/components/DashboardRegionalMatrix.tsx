@@ -24,7 +24,7 @@ export interface RegionalBreakdownRow {
 
 interface Props {
   selectedYear?: number;
-  /** Badge wording after the year: the header stage's full name, or "All budget stages". */
+  /** Badge wording after the year: the header stage's full name, or "Current program stages". */
   stageLabel?: string;
   regions?: RegionalBreakdownRow[];
   isLoading?: boolean;

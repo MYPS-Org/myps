@@ -1,3 +1,73 @@
+# UserManual.md — Changelog v3.13 → v3.14 (FE/UserManual.md)
+
+**Date:** October 15, 2026
+**Branch:** fix/dashboard-qa-concerns-v2.0.2 (uncommitted, on top of `2473f03d`)
+**Source:** User report: with Program Stage = GAA, the FY Infrastructure Budget details showed "GAA 2025 OO-1 · GAA-R · 2 of 6,449 projects", while Program Details `:GAA` has 513 pages and the Programs list shows 5,121 projects for that stage. With NEP chosen, the Program Budget panel showed "GAA 2025 …" programs and the details showed a GAA-R program whose projects were "at NEP". The Dashboard counted each project once, at its own latest stage. It now reads each program at one program stage, as Program Details does (user decision: with no stage chosen, the program's current stage). Implemented under `documents/plans/dashboard-stage-reads-program-stage.md`; verified against `myps_db_dev`.
+
+---
+
+## 1. Document Header
+
+| Field | v3.13 | v3.14 |
+|-------|-------|-------|
+| Version | 3.13 | 3.14 |
+| Date | October 14, 2026 | October 15, 2026 |
+
+A v3.14 row was added to the Revision History table.
+
+---
+
+## 2. Section 5.1 — Title and Header Controls
+
+| # | Item | Old | New | Reason |
+|---|------|-----|-----|--------|
+| 1 | Title | "...or **All budget stages** when none is chosen." | "...or **Current program stages** when none is chosen: each program at its current stage." | With no stage chosen, each program is now read at its current stage (user decision), so "All budget stages" no longer described the figures. Demo Data keeps "All budget stages". |
+| 2 | Program Stage Name | "Narrows every section to the projects at one budget stage ... Choose **All stages** to return to all." | "Reads every program at one budget stage, the way Program Details shows that stage: the projects in the program's stage, their amounts at that stage, and the program's name there (for example *NEP 2025 OO-1* at NEP, *GAA 2025 OO-1 as Approved* at GAA) ... Choose **Current stages** to read each program at its current stage again." | The filter used to keep only projects whose own latest stage was the one chosen (2 of GAA 2025 OO-1's 6,449 at GAA). Each program stage is its own project set with its own revisions, costs and program name; Program Details and the Programs list read it that way. The dropdown's first choice is renamed to match. |
+
+---
+
+## 3. Section 5.1 — What counts toward a fiscal year
+
+| # | Old | New |
+|---|-----|-----|
+| 1 | "Only projects at a **budget stage** are counted: BP, NEP, ... TF-R. Planning proposals (**RBP, RDIP, PIP**) are not budget and are not counted." | New first bullet: each program is read at **one stage**, the chosen one or else its **current stage** (the stage the Programs list opens with **View**); its projects are the ones Program Details lists for that stage, each with its cost at that stage; a project that stopped at an earlier stage than its program's current stage counts only when that stage is chosen. The budget-stage bullet follows, reworded to "Only **budget stages** are counted". |
+| 2 | "...is counted at its revised amount, the same amount Program Details shows." | "...is counted at its revised amount at the stage it revises, the same amount Program Details shows." |
+
+Effect on the figures (FY 2025, no filter): ₱1,333.06B across 34,010 projects becomes ₱1,152.91B across 30,425. The 3,585 projects (₱180B) that stopped at BP, NEP, NEP-E or HGAB, and never reached their program's GAA, now count only under their own stage. GAA 2025 OO-1 at GAA reads 5,121 projects and ₱295,301,759,000.05, the Programs list's GAA figures exactly.
+
+---
+
+## 4. Section 5.1 — Dashboard Sections table
+
+| # | Section | Old | New | Reason |
+|---|---------|-----|-----|--------|
+| 1 | Summary cards | "one row per program with its stage, how many of its projects count (for example *14 of 22 projects*)... A project at a different stage than its program is marked **at \<stage\>**. Select a project to open its details page" | "one row per program, under its name at the stage it is read at, with that stage, how many of its projects count (for example *5,121 of 5,121 projects*; the second number is the program's project count at that stage, the list Program Details pages through)... All of a program's projects are at the program's stage. Select a project to open its details page at that stage" | The second number was the program's count across all stages (6,449), which matched no stage. The **at \<stage\>** marker can no longer occur and was removed. |
+| 2 | Distribution of Budget by Region | "...or *All budget stages*." | "...or *Current program stages*." | Follows the title line. |
+| 3 | Summary cards | *(no sentence)* | Adds: "Select a program's name to open its Program Details, at the stage shown, in a new tab." | User request: open a program's details from a card's details. The link is `/programs/programdetails/<ProgramPK>:<stage>`, what the Programs list's **View** opens; the rest of the row still expands the program. Demo Data program names are not links. |
+| 4 | Project Categories | "...each with its number of projects, share and amount..." | "...share (to two decimal places, for example *16.86%*)..." | User request: whole-number shares hid small categories' differences. |
+| 5 | Summary cards | "...to open it in a new tab. **Project Repository** opens the Projects list." | The last sentence is removed. | User request: the button was redundant now that each program and project in the list opens itself. |
+| 6 | FY Regional Infrastructure Portfolio | "The fiscal year's projects, largest budget first, with their region, stage, island group and budget... select **View** for a project's summary." | "...largest FY amount first, with their region, stage and island group... select **View** for a project's summary (stage, program, region, category and implementing office, as on its details page), where **Project Repository** opens the project's details page in a new tab. No amount is shown per project, as in the cards' project lists." | User report: the summary's "FY Regional Allocation Outlay" (P00968001LZ: ₱17,312,133,000, its FY 2025 share) contradicted the ₱58,472,375,000 Total Cost on its details page. User decision: no per-project amount, as in the cards' lists. The FY Regional Outlay column and the Page Total were removed with it, and Project Repository now opens the project itself instead of the Projects list. |
+
+---
+
+## 5. Section 5.1 — Common Outcomes
+
+| # | Old | New |
+|---|-----|-----|
+| 1 | *(no row)* | **New:** "The Programs list shows a slightly different project count or amount for a program's stage than the Dashboard". Expected in three cases: the Programs list counts projects removed from the stage (GAA 2025 OO-1 at GAA-R: 5,121 there, 5,119 in Program Details and on the Dashboard); it adds the program's Lump Sum allocation to every stage row, even where the Lump Sum did not exist yet (GAA 2025 OO-1 at NEP: ₱254.56B there, ₱253.76B on the Dashboard); and for a single-year project it counts that year's cost even when it is not the fiscal year. |
+
+---
+
+## 6. Commits Covered
+
+| Commit | Message | Impact |
+|--------|---------|--------|
+| *(uncommitted)* | Dashboard: read each program at one program stage, as Program Details does (plan `dashboard-stage-reads-program-stage.md`) | Sections 2–5 above |
+| *(uncommitted)* | Dashboard: program names in a card's details open Program Details in a new tab; category shares to two decimals | Section 4 rows 3–4 |
+| *(uncommitted)* | Dashboard: no per-project amount in the Regional Portfolio; Project Repository opens the project in a new tab; KPI details footer button removed | Section 4 rows 5–6 |
+
+---
+
 # UserManual.md — Changelog v3.12 → v3.13 (FE/UserManual.md)
 
 **Date:** October 14, 2026

@@ -31,6 +31,10 @@ const PROGRAM_PAGE_SIZE = 10;
 const money = (value: number) =>
   new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 2 }).format(value);
 
+/** Program Details at the stage the program is read at, as the Programs list's View opens it. */
+const programDetailsPath = (program: DashboardProgram) =>
+  `/programs/programdetails/${encodeURIComponent(program.ProgramPK)}:${encodeURIComponent(program.StageName)}`;
+
 /** A program's count and amount under the current tab. */
 function share(program: DashboardProgram, publication?: DashboardPublication) {
   if (publication === 'published') return { count: program.PublishedCount, budget: program.PublishedBudget };
@@ -41,9 +45,10 @@ function share(program: DashboardProgram, publication?: DashboardPublication) {
 /**
  * A KPI detail's projects, program by program, the way Program Details lists them: one row per
  * program that contributes to the figure (largest FY amount first, adding up to the card), and
- * on expanding a program its counted projects with Program Details' columns and values. There is
- * no per-project amount: a project's FY share read beside its multi-year total on the project
- * page looked like a contradiction.
+ * on expanding a program its counted projects with Program Details' columns and values. Each
+ * program is read at one stage (the chosen Program Stage, or its current one), named as it is
+ * there, and all its projects are at that stage. There is no per-project amount: a project's FY
+ * share read beside its multi-year total on the project page looked like a contradiction.
  */
 const DashboardProgramGroups: React.FC<Props> = ({
   year,
@@ -121,19 +126,38 @@ const DashboardProgramGroups: React.FC<Props> = ({
         const { count, budget } = share(program, publication);
         return (
           <div key={program.ProgramPK} className="rounded-xl border border-slate-200 bg-white">
-            <button
-              type="button"
-              onClick={() => toggle(program.ProgramPK)}
-              aria-expanded={isOpen}
-              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-slate-50 transition-colors"
-            >
+            {/* The whole row expands the program: the button is stretched over it. The program
+                name is a link above it (a link cannot sit inside a button), opening the
+                program's Program Details, at the stage shown, in a new tab. */}
+            <div className="relative flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-slate-50 transition-colors">
+              <button
+                type="button"
+                onClick={() => toggle(program.ProgramPK)}
+                aria-expanded={isOpen}
+                aria-label={`${isOpen ? 'Hide' : 'Show'} the projects of ${program.Name}`}
+                className="absolute inset-0 rounded-xl"
+              />
               {isOpen ? (
                 <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-500" />
               ) : (
                 <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-500" />
               )}
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-bold text-slate-900 break-words">{program.Name}</span>
+                {dataSourceMode === 'real' ? (
+                  <Link
+                    to={programDetailsPath(program)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative z-10 inline-flex items-center gap-1 text-sm font-bold text-slate-900 break-words hover:text-blue-700 hover:underline"
+                    title="Open this program's details in a new tab"
+                  >
+                    {program.Name}
+                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                  </Link>
+                ) : (
+                  // Demo Data programs are samples with no program behind them.
+                  <span className="block text-sm font-bold text-slate-900 break-words">{program.Name}</span>
+                )}
                 <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                   <span className="whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-800">
                     {program.StageName}
@@ -145,7 +169,7 @@ const DashboardProgramGroups: React.FC<Props> = ({
                 </span>
               </span>
               <span className="shrink-0 text-sm font-black text-slate-900">{money(budget)}</span>
-            </button>
+            </div>
             {isOpen && (
               <ProgramProjectList
                 program={program}
@@ -273,14 +297,6 @@ const ProgramProjectList: React.FC<ListProps> = ({
                         {project.projectId}
                         <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 text-blue-600" />
                       </Link>
-                      {project.stageName !== program.StageName && (
-                        <span
-                          className="mt-1 inline-block whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800"
-                          title="This project is at a different stage than its program"
-                        >
-                          at {project.stageName}
-                        </span>
-                      )}
                     </td>
                     <td className="min-w-[14rem] max-w-md break-words px-3 py-2.5 text-slate-700">{project.description}</td>
                     <td className="px-3 py-2.5 text-slate-700">{dash(project.category)}</td>

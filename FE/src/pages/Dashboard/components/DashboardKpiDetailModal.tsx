@@ -75,8 +75,6 @@ interface Props {
   onOpenProject: (project: WatchlistProject) => void;
   /** The page a project opens, for its link (so it can be opened in a new tab). */
   projectHref: (project: WatchlistProject) => string;
-  /** The footer's Project Repository button: open the project list. */
-  onOpenRepository: () => void;
   onOpenLsProject: (project: DashboardLsProject) => void;
 }
 
@@ -109,7 +107,6 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
   onClose,
   onOpenProject,
   projectHref,
-  onOpenRepository,
   onOpenLsProject,
 }) => {
   const [expandedLsIds, setExpandedLsIds] = useState<Set<number>>(new Set());
@@ -200,7 +197,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
       tally: money(totalBudget),
       count: `${activeCount.toLocaleString()} contributing project(s)`,
       formula:
-        `Sum of the FY ${selectedYear} component-cost-per-year amounts of projects in FY ${selectedYear} programs, at a budget stage (BP, NEP, NEP-E, HGAB, HGAB-I, GAA, GAA-R, TF, TF-R). Planning proposals (RBP, RDIP, PIP) are excluded. A project with an approved formal revision is counted at the revised amount, as in Program Details.`,
+        `Sum of the FY ${selectedYear} component-cost-per-year amounts of the projects in each FY ${selectedYear} program at one stage: the chosen Program Stage, or else the program's current stage. A program's projects and amounts at a stage are the ones Program Details lists for that stage. Only budget stages count (BP, NEP, NEP-E, HGAB, HGAB-I, GAA, GAA-R, TF, TF-R); planning proposals (RBP, RDIP, PIP) are excluded. A project with an approved formal revision is counted at the revised amount at the stage it revises.`,
     },
     projects: {
       title: `Active Projects in FY ${selectedYear}`,
@@ -228,7 +225,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
           ? 'Projects whose persisted record has IsPublished = true for the selected fiscal year.'
           : projectsTab === 'review' || projectsTab === 'approval'
             ? 'Rows from dbo.fRevisionQueue, the same table-valued function behind the /revision page. The queue is already scoped to your user groups: it returns revisions you created, plus the RO tier if you belong to RPC and the CO tier if you belong to AUC.'
-            : `Count of visible projects in FY ${selectedYear} programs, at a budget stage, with at least one FY ${selectedYear} component-cost-per-year record.`,
+            : `Count of visible projects in FY ${selectedYear} programs, at the chosen Program Stage or else each program's current stage, with at least one FY ${selectedYear} component-cost-per-year record.`,
     },
     revisions: {
       title: `Revision Queue for FY ${selectedYear}`,
@@ -249,7 +246,7 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
       tally: `${publicationRate.toFixed(1)}%`,
       count: `${publishedCount.toLocaleString()} published of ${activeCount.toLocaleString()} project(s)`,
       formula:
-        'Published projects ÷ all visible costed projects of the selected fiscal year’s programs at a budget stage × 100. Publication state comes from the persisted project record.',
+        'Published projects ÷ all visible costed projects of the selected fiscal year’s programs, at the chosen Program Stage or else each program’s current stage, × 100. Publication state comes from the persisted project record.',
     },
   }[type];
 
@@ -613,21 +610,13 @@ const DashboardKpiDetailModal: React.FC<Props> = ({
           <span className="text-xs text-slate-500">
             Click a project to open its details.
           </span>
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={onClose}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-xs"
-            >
-              Close
-            </button>
-            <button
-              onClick={onOpenRepository}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-md"
-            >
-              <span>Project Repository</span>
-              <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 text-slate-400" />
-            </button>
-          </div>
+          {/* No Project Repository button: each program and project in the list opens itself. */}
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-xs"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

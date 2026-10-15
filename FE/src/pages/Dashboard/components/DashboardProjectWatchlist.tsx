@@ -9,7 +9,6 @@ import {
 } from '@heroicons/react/24/outline';
 import type { WatchlistProject } from './ProjectQuickDetailModal';
 export type { WatchlistProject } from './ProjectQuickDetailModal';
-import { formatCompactMoney } from './AnimatedCounter';
 import { useDashboardTheme } from '../DashboardTheme';
 import { usePagination } from '../../../hooks/usePagination';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
@@ -85,7 +84,6 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
   // The server's total is a count of projects, one row each (QA read it as regions: "8460 Regions?").
   const totalProjects = pagination.data.total ?? 0;
   const projectCountLabel = `${totalProjects.toLocaleString()} ${totalProjects === 1 ? 'project' : 'projects'}`;
-  const pageBudget = projects.reduce((sum, project) => sum + project.allocatedBudget, 0);
   const isInitialLoad = pagination.isLoading && projects.length === 0;
 
   const getSubtitle = () => {
@@ -198,7 +196,6 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
                 <th className="pl-6 pr-4 py-3 whitespace-nowrap">Regional Investment Program</th>
                 <th className="px-3 py-3 hidden sm:table-cell whitespace-nowrap">Stage</th>
                 <th className="px-3 py-3 hidden md:table-cell whitespace-nowrap">Island Group</th>
-                <th className="px-4 py-3 text-right whitespace-nowrap">FY Regional Outlay</th>
                 <th className="pl-2 pr-6 py-3 text-right whitespace-nowrap">Action</th>
               </tr>
             </thead>
@@ -206,7 +203,7 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
               {isInitialLoad ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index}>
-                    <td className="pl-6 pr-4 py-3.5" colSpan={5}>
+                    <td className="pl-6 pr-4 py-3.5" colSpan={4}>
                       <div className={`h-6 rounded animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
                     </td>
                   </tr>
@@ -247,12 +244,6 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
                   <td className="px-3 py-3.5 hidden md:table-cell whitespace-nowrap">
                     <div className={`font-semibold text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}>{project.island} Group</div>
                     <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{project.category}</div>
-                  </td>
-
-                  <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                    <div className={`font-black text-xs sm:text-sm ${isLight ? 'text-blue-700' : 'text-amber-400'}`}>
-                      {formatCompactMoney(project.allocatedBudget)}
-                    </div>
                   </td>
 
                   <td className="pl-2 pr-6 py-3.5 text-right whitespace-nowrap">
@@ -302,9 +293,9 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
           <CheckBadgeIcon className="w-4 h-4 text-emerald-600" />
           Showing <strong>{projects.length}</strong> of <strong>{totalProjects.toLocaleString()}</strong> {totalProjects === 1 ? 'project' : 'projects'}
         </span>
-        <span className="text-xs font-black">
-          Page Total: <span className={isLight ? 'text-blue-700' : 'text-amber-400'}>{formatCompactMoney(pageBudget)}</span>
-        </span>
+        {/* No amounts per project or page, as in the KPI cards' project lists: a project's FY
+            share read beside its multi-year Total Cost on its details page looked contradictory. */}
+        <span>Largest FY {year} cost first</span>
       </div>
     </section>
   );

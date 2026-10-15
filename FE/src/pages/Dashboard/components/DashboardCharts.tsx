@@ -330,7 +330,7 @@ export const DashboardCharts: React.FC<Props> = ({
               </div>
             ) : (
               visibleCategories.map((item, index) => {
-                const pct = totalCategoryProjects ? Math.round((item.projectCount / totalCategoryProjects) * 100) : 0;
+                const pct = totalCategoryProjects ? (item.projectCount / totalCategoryProjects) * 100 : 0;
                 const isSelected = selectedCategoryId === item.id;
                 const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
 
@@ -377,7 +377,7 @@ export const DashboardCharts: React.FC<Props> = ({
                               : 'bg-slate-900 text-slate-300 border-slate-700'
                           }`}
                         >
-                          {pct}%
+                          {pct.toFixed(2)}%
                         </span>
                       </div>
                     </div>

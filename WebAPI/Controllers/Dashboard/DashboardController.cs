@@ -70,9 +70,9 @@ namespace WebAPI.Controllers.Dashboard
         };
 
         /// <summary>
-        /// The header filters, ANDed: project category, program type (tPrograms.Type) and project
-        /// stage (vProjectLatest.StageName, the stage the Project Stages chart counts). All null
-        /// means the whole fiscal year. Every section is narrowed by the same three, so their
+        /// The header filters, ANDed: project category, program type (tPrograms.Type) and program
+        /// stage: the stage each program is read at (see <see cref="GetProgramStages"/>), its
+        /// current one when none is chosen. Every section is narrowed by the same three, so their
         /// totals still agree under a filter.
         /// </summary>
         private sealed record DashboardFilter(int? CategoryId, int? ProgramType, string? StageName)
@@ -107,6 +107,15 @@ namespace WebAPI.Controllers.Dashboard
             public string[] CountedStageNames => StageName is null
                 ? BudgetStageNames
                 : Array.FindAll(BudgetStageNames, name => name == StageName);
+
+            /// <summary>
+            /// <see cref="CountedStageNames"/> as tOptionProgramStage.NameId, the StageId of
+            /// tProgramStages and tProjectStages ("NEP-E" is NEPE), parsed the way
+            /// ProgramController.ShowProjectsInProgram parses a stage name.
+            /// </summary>
+            public EnumProgramStage[] CountedStageIds => Array.ConvertAll(
+                CountedStageNames,
+                name => Enum.Parse<EnumProgramStage>(name.Replace("-", ""), ignoreCase: true));
         }
 
         public DashboardController(
@@ -245,23 +254,36 @@ namespace WebAPI.Controllers.Dashboard
             try
             {
                 var scope = await ResolveYearAsync(dto?.Year, cancellationToken);
+                var filter = DashboardFilter.From(dto);
 
                 // This is the live equivalent of the NEP presentation's macro allocation
                 // panel. Program names and amounts are taken from the selected
                 // projects/revisions; no presentation categories or values are inferred
                 // in Live DB mode. The group-by is SQL-side: one row per program, and only
-                // the selected year's programs reach it (see GetCostRowsAsync).
-                var budgetBreakdown = await (
-                    from row in await GetCostRowsAsync(scope.SelectedYear, DashboardFilter.From(dto), cancellationToken)
-                    group new { row.Amount, row.ProjectPK } by row.ProgramName into grouped
-                    select new DashboardBudgetBreakdownDTO
+                // the selected year's programs reach it (see GetCostRowsAsync). Each program
+                // is named as it is at the stage it is read at ("NEP 2025 OO-1" at NEP).
+                var programBudgets = await (
+                    from row in await GetCostRowsAsync(scope.SelectedYear, filter, cancellationToken)
+                    group new { row.Amount, row.ProjectPK } by row.ProgramPK into grouped
+                    select new
                     {
-                        Name = grouped.Key ?? UnrecordedLabel,
+                        ProgramPK = grouped.Key,
                         Budget = grouped.Sum(item => item.Amount),
                         ProjectCount = grouped.Select(item => item.ProjectPK).Distinct().Count()
                     })
-                    .OrderByDescending(item => item.Budget)
                     .ToListAsync(cancellationToken);
+                var programStages = await GetProgramStageInfoAsync(
+                    scope.SelectedYear, filter, programBudgets.Select(item => item.ProgramPK), includeProjectCounts: false, cancellationToken);
+
+                var budgetBreakdown = programBudgets
+                    .Select(item => new DashboardBudgetBreakdownDTO
+                    {
+                        Name = programStages.TryGetValue(item.ProgramPK, out var stage) ? stage.Name : UnrecordedLabel,
+                        Budget = item.Budget,
+                        ProjectCount = item.ProjectCount
+                    })
+                    .OrderByDescending(item => item.Budget)
+                    .ToList();
 
                 return Ok(new DashboardBudgetBreakdownResponseDTO { BudgetBreakdown = budgetBreakdown });
             }
@@ -284,20 +306,18 @@ namespace WebAPI.Controllers.Dashboard
             try
             {
                 var scope = await ResolveYearAsync(dto?.Year, cancellationToken);
-                var sources = await GetCostRowSourcesAsync(scope.SelectedYear, DashboardFilter.From(dto), cancellationToken);
+                var filter = DashboardFilter.From(dto);
+                var sources = await GetCostRowSourcesAsync(scope.SelectedYear, filter, cancellationToken);
                 var cells = await GetProgramFlagTotalsAsync(sources.Base, cancellationToken);
                 if (sources.Revised is not null)
                 {
                     cells.AddRange(await GetProgramFlagTotalsAsync(sources.Revised, cancellationToken));
                 }
 
-                var programKeys = cells.Select(cell => cell.ProgramPK).Distinct().ToArray();
-                var programInfo = (await _db.vProgramLatest.AsNoTracking()
-                        .Where(program => programKeys.Contains(program.ProgramPK))
-                        .Select(program => new { program.ProgramPK, program.Name, program.StageName, program.NumberOfProjects })
-                        .ToListAsync(cancellationToken))
-                    .GroupBy(program => program.ProgramPK)
-                    .ToDictionary(group => group.Key, group => group.First());
+                // Name, stage and project count at the stage each program is read at: what
+                // Program Details shows for that stage (GAA 2025 OO-1 at GAA: 5,121 projects).
+                var programInfo = await GetProgramStageInfoAsync(
+                    scope.SelectedYear, filter, cells.Select(cell => cell.ProgramPK), includeProjectCounts: true, cancellationToken);
 
                 var programs = cells
                     .GroupBy(cell => cell.ProgramPK)
@@ -311,7 +331,7 @@ namespace WebAPI.Controllers.Dashboard
                             ProgramPK = group.Key,
                             Name = info?.Name ?? UnrecordedLabel,
                             StageName = info?.StageName ?? UnstagedLabel,
-                            ProgramProjectCount = info?.NumberOfProjects ?? 0,
+                            ProgramProjectCount = info?.ProjectCount ?? 0,
                             ProjectCount = group.Sum(cell => cell.ProjectCount),
                             Budget = group.Sum(cell => cell.Budget),
                             PublishedCount = published.Sum(cell => cell.ProjectCount),
@@ -1352,18 +1372,22 @@ namespace WebAPI.Controllers.Dashboard
         /// the dimensions the aggregate endpoints group or filter by. Every section reads it,
         /// so their totals reconcile. The scope:
         /// <list type="bullet">
-        /// <item>a visible project, in a live program, at one of <see cref="BudgetStageNames"/>,
-        /// narrowed by each part of <paramref name="filter"/> that is set: its category, its
-        /// program's type, its stage;</item>
+        /// <item>a visible project in a live program's stage: the tProjectStages rows, with a
+        /// live revision, of the stage the program is read at (the chosen stage, or its current
+        /// one; see <see cref="GetProgramStages"/>). That is the list Program Details shows for
+        /// the stage, so a project is read as it stands at that stage (its revision there, its
+        /// cost there) even when it has since moved on or stopped earlier. Narrowed by each
+        /// part of <paramref name="filter"/> that is set: its category, its program's type,
+        /// the stage;</item>
         /// <item>its program's year (tPrograms.StartYear) is <paramref name="year"/>, and only
         /// cost scheduled IN that year counts, so a multi-year project in last year's program
         /// adds nothing to this year. With a null <paramref name="year"/> (the trend) every
         /// row is returned with both years and the caller keeps the pairs where they match;
         /// see <see cref="Trend"/> for why that comparison is not done in SQL;</item>
-        /// <item>the cost comes from the project's effective revision: an approved formal
-        /// revision's tRevisionProjectComponentCost* rows when it has one (vProjectLatest.Source
-        /// 'Revision', what Program Details counts), its base tProjectComponentCost* rows
-        /// otherwise;</item>
+        /// <item>the cost comes from the stage's revision: an approved formal revision's
+        /// tRevisionProjectComponentCost* rows when the project's effective revision
+        /// (vProjectLatest.Source 'Revision', what Program Details counts) revises that stage's
+        /// revision, its base tProjectComponentCost* rows otherwise;</item>
         /// <item>the region is the one its province belongs to: tProjectRevisions.Province
         /// matched on tOptionAdminAreaProvince.Code. tProjectRevisions.Region is not read: it is
         /// blank on most migrated projects and, where set, names another region than the
@@ -1378,13 +1402,12 @@ namespace WebAPI.Controllers.Dashboard
         /// many cost rows. A project is in exactly one of the two branches below, so their
         /// UNION ALL never counts a project twice.
         ///
-        /// PERFORMANCE. Nothing here reads a vProjectLatest column that depends on its
-        /// per-project CROSS APPLY of fProjectEffectiveRevision (Source, ProjectId,
-        /// Description, Region, Category...): touching one makes SQL Server evaluate that
-        /// function for every project, which took these queries from about 1 s to 6-9 s. So the
-        /// revised projects are found first, as a short list, and the category is read from the
-        /// base revision row, which is what the view returns for every unrevised project. The
-        /// revised few are point lookups, which cost nothing.
+        /// PERFORMANCE. The scope is driven by the few dozen program stages and seeks
+        /// IX_tProjectStages_ProgramFK_StageId; vProjectLatest is read only for the revised few,
+        /// as point lookups. Its columns that depend on its per-project CROSS APPLY of
+        /// fProjectEffectiveRevision (Source, ProjectId, Description, Category...) make SQL
+        /// Server evaluate that function for every project it touches, which took these queries
+        /// from about 1 s to 6-9 s when the view drove the scope.
         ///
         /// The watchlist's project filters (island, stage, search: the narrow argument of
         /// GetCostRowSourcesAsync) run on each half's project rows, before the cost joins. Filtering the finished rows instead
@@ -1404,8 +1427,13 @@ namespace WebAPI.Controllers.Dashboard
         /// The two halves of <see cref="GetCostRowsAsync"/>, kept apart for the watchlist (see
         /// <see cref="DashboardPageMerge"/>): projects costed from their base rows, and, when
         /// any exist, the few costed from an approved formal revision. A project is in one only.
+        /// Projects is every scoped project before the narrow filters, read from its stage's base
+        /// revision: the watchlist reads a page's display rows from it.
         /// </summary>
-        private sealed record CostRowSources(IQueryable<DashboardCostRow> Base, IQueryable<DashboardCostRow>? Revised);
+        private sealed record CostRowSources(
+            IQueryable<DashboardCostRow> Base,
+            IQueryable<DashboardCostRow>? Revised,
+            IQueryable<ScopedProject> Projects);
 
         private async Task<CostRowSources> GetCostRowSourcesAsync(
             int? year,
@@ -1419,68 +1447,60 @@ namespace WebAPI.Controllers.Dashboard
             var revisionDetails = _db.tRevisionDetails.AsNoTracking()
                 .Where(detail => revisionDetailIds.Contains(detail.Id));
 
-            // The stage and program type filters are literals on rows both halves already join,
-            // so neither reaches a vProjectLatest column the scope does not read anyway; see
-            // DashboardFilter.CountedStageNames for why they are not parameters.
-            var stageNames = filter.CountedStageNames;
-            var projects = GetVisibleProjects()
-                .Where(project => EF.Constant(stageNames).Contains(project.StageName));
-            var programs = _db.tPrograms.AsNoTracking()
-                .Where(program => !program.IsDeleted);
-            if (year is int fiscalYear)
-            {
-                programs = programs.Where(program => program.StartYear == fiscalYear);
-            }
-            if (filter.ProgramType is int programType)
-            {
-                var type = (EnumProgramType)programType;
-                programs = programs.Where(program => program.Type == EF.Constant(type));
-            }
-            if (filter.ProgramPK is string programPK)
-            {
-                // The program's unique key: SQL Server estimates this one row correctly, so it
-                // stays a parameter (unlike the stage; see DashboardFilter.CountedStageNames).
-                programs = programs.Where(program => program.ProgramPK == programPK);
-            }
-
-            IQueryable<ScopedProject> baseProjects =
-                from project in projects
-                join program in programs
-                    on project.ProgramFK equals program.ProgramPK
+            // The project rows of each program's stage, each with the live revision it has at
+            // that stage: dbo.fProgramProjects' rows for the same program and stage, which is
+            // what Program Details lists. The program stage set is small (one row per program),
+            // so it drives the join and each of its rows seeks IX_tProjectStages_ProgramFK_StageId.
+            IQueryable<ScopedProject> scoped =
+                from projectStage in _db.tProjectStages.AsNoTracking()
+                join stage in GetProgramStages(year, filter)
+                    on new { projectStage.ProgramFK, projectStage.StageId }
+                    equals new { ProgramFK = stage.ProgramPK, stage.StageId }
                 join revision in _db.tProjectRevisions.AsNoTracking()
-                    on project.RevisionId equals revision.Id
+                    on projectStage.RevisionId equals revision.Id
+                where !revision.IsDeleted
                 select new ScopedProject
                 {
-                    Project = project,
-                    ProgramYear = program.StartYear,
-                    ProgramPK = program.ProgramPK,
+                    ProjectPK = projectStage.ProjectFK,
+                    StageName = projectStage.StageName,
+                    RevisionId = projectStage.RevisionId,
+                    ProgramYear = stage.ProgramYear,
+                    ProgramPK = stage.ProgramPK,
                     Province = revision.Province,
                     Category = revision.Category,
                     ProjectId = revision.ProjectId,
-                    Description = revision.Description
+                    Description = revision.Description,
+                    ImplementingOffice = revision.ImplementingOffice
                 };
+            if (_Session.ApplyFilter)
+            {
+                var allowedProjects = _db.fUserVisibleProjects
+                    .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleProjects({_Session.UserId})");
+                scoped = scoped.Where(item => allowedProjects.Any(allowed => allowed.ProjectPK == item.ProjectPK));
+            }
+
+            var baseProjects = scoped;
             if (revisionDetailIds.Length > 0)
             {
-                // NOT EXISTS against tRevisionDetails, not NOT IN over a list of project keys:
-                // EF sends that list as an OPENJSON nvarchar(max) column, and with an island
-                // filter beside it SQL Server chose a plan seven times slower.
+                // NOT EXISTS against tRevisionDetails, not NOT IN over a list of keys: EF sends
+                // that list as an OPENJSON nvarchar(max) column, and with an island filter beside
+                // it SQL Server chose a plan seven times slower.
                 baseProjects = baseProjects.Where(item =>
-                    !revisionDetails.Any(detail => detail.ProjectFK == item.Project.ProjectPK));
+                    !revisionDetails.Any(detail => detail.ProjectRevisionFK == item.RevisionId));
             }
             baseProjects = Narrow(baseProjects);
 
             var baseCosts =
                 from item in baseProjects
                 join component in _db.tProjectComponentCost.AsNoTracking()
-                    on item.Project.RevisionId equals component.ProjectRevisionFK
+                    on item.RevisionId equals component.ProjectRevisionFK
                 join cost in _db.tProjectComponentCostPerYear.AsNoTracking()
                     on component.Id equals cost.ComponentCostFK
                 where !component.IsDeleted && !cost.IsDeleted
                 select new BranchCostRow
                 {
-                    ProjectPK = item.Project.ProjectPK,
-                    ProgramName = item.Project.ProgramName,
-                    StageName = item.Project.StageName,
+                    ProjectPK = item.ProjectPK,
+                    StageName = item.StageName,
                     ProgramYear = item.ProgramYear,
                     ProgramPK = item.ProgramPK,
                     Category = item.Category,
@@ -1492,24 +1512,27 @@ namespace WebAPI.Controllers.Dashboard
             IQueryable<BranchCostRow>? revisedCosts = null;
             if (revisionDetailIds.Length > 0)
             {
+                // A revision counts at the stage whose revision it revises; at any other stage
+                // the project is read from that stage's base rows.
                 IQueryable<ScopedProject> revisedProjects =
                     from detail in revisionDetails
-                    join project in projects
-                        on detail.ProjectFK equals project.ProjectPK
-                    join program in programs
-                        on project.ProgramFK equals program.ProgramPK
-                    join revision in _db.tProjectRevisions.AsNoTracking()
-                        on project.RevisionId equals revision.Id
+                    join item in scoped
+                        on detail.ProjectRevisionFK equals item.RevisionId
+                    join project in _db.vProjectLatest.AsNoTracking()
+                        on item.ProjectPK equals project.ProjectPK
                     select new ScopedProject
                     {
-                        Project = project,
-                        ProgramYear = program.StartYear,
-                        ProgramPK = program.ProgramPK,
-                        Province = revision.Province,
+                        ProjectPK = item.ProjectPK,
+                        StageName = item.StageName,
+                        RevisionId = item.RevisionId,
+                        ProgramYear = item.ProgramYear,
+                        ProgramPK = item.ProgramPK,
+                        Province = item.Province,
                         // The view's values are the approved revision's for these projects.
                         Category = project.Category,
                         ProjectId = project.ProjectId,
                         Description = project.Description,
+                        ImplementingOffice = project.ImplementingOffice,
                         RevisionDetailId = detail.Id
                     };
                 revisedProjects = Narrow(revisedProjects);
@@ -1523,9 +1546,8 @@ namespace WebAPI.Controllers.Dashboard
                     where !component.IsDeleted && !cost.IsDeleted
                     select new BranchCostRow
                     {
-                        ProjectPK = item.Project.ProjectPK,
-                        ProgramName = item.Project.ProgramName,
-                        StageName = item.Project.StageName,
+                        ProjectPK = item.ProjectPK,
+                        StageName = item.StageName,
                         ProgramYear = item.ProgramYear,
                         ProgramPK = item.ProgramPK,
                         Category = item.Category,
@@ -1537,7 +1559,8 @@ namespace WebAPI.Controllers.Dashboard
 
             return new CostRowSources(
                 ToCostRows(baseCosts),
-                revisedCosts is null ? null : ToCostRows(revisedCosts));
+                revisedCosts is null ? null : ToCostRows(revisedCosts),
+                scoped);
 
             IQueryable<ScopedProject> Narrow(IQueryable<ScopedProject> source)
             {
@@ -1553,7 +1576,8 @@ namespace WebAPI.Controllers.Dashboard
             {
                 if (year is int costYear)
                 {
-                    costs = costs.Where(row => row.Year == costYear);
+                    // A literal like the program year (see GetProgramStages).
+                    costs = costs.Where(row => row.Year == EF.Constant(costYear));
                 }
                 return
                     from row in costs
@@ -1563,7 +1587,6 @@ namespace WebAPI.Controllers.Dashboard
                     select new DashboardCostRow
                     {
                         ProjectPK = row.ProjectPK,
-                        ProgramName = row.ProgramName,
                         StageName = row.StageName,
                         RegionCode = province.RegionParticipantId,
                         ProgramYear = row.ProgramYear,
@@ -1579,7 +1602,6 @@ namespace WebAPI.Controllers.Dashboard
         private sealed class BranchCostRow
         {
             public string ProjectPK { get; set; } = string.Empty;
-            public string? ProgramName { get; set; }
             public string? StageName { get; set; }
             public int ProgramYear { get; set; }
             public string ProgramPK { get; set; } = string.Empty;
@@ -1595,24 +1617,163 @@ namespace WebAPI.Controllers.Dashboard
         /// </summary>
         private sealed class ScopedProject
         {
-            public ProjectLatest Project { get; set; } = null!;
+            public string ProjectPK { get; set; } = string.Empty;
+            /// <summary>The program stage the project is read at (tProjectStages.StageName).</summary>
+            public string StageName { get; set; } = string.Empty;
+            /// <summary>The project's tProjectRevisions row at that stage (tProjectStages.RevisionId).</summary>
+            public int RevisionId { get; set; }
             public int ProgramYear { get; set; }
-            /// <summary>tPrograms.ProgramPK of the joined program row (equal to Project.ProgramFK).</summary>
             public string ProgramPK { get; set; } = string.Empty;
             /// <summary>tProjectRevisions.Province, a tOptionAdminAreaProvince.Code.</summary>
             public string? Province { get; set; }
             /// <summary>
-            /// Category, ID and description as vProjectLatest shows them: the base revision row's
-            /// for an unrevised project (exactly what the view returns for it), the view's own for
-            /// a revised one. Read from the base row where possible because the view's columns
-            /// make SQL Server resolve every project's effective revision (see GetCostRowsAsync).
+            /// Category, ID, description and implementing office at the stage: the stage revision's,
+            /// or for a project whose approved formal revision revises it, the revision's (as
+            /// vProjectLatest shows them).
             /// </summary>
             public int Category { get; set; }
             public string ProjectId { get; set; } = string.Empty;
             public string Description { get; set; } = string.Empty;
+            public string? ImplementingOffice { get; set; }
             /// <summary>The approved formal revision the project reads its cost from; 0 for none.</summary>
             public int RevisionDetailId { get; set; }
         }
+
+        /// <summary>
+        /// The stage each program in scope is read at, one row per program: the chosen stage
+        /// (its tProgramStages row), or with no stage chosen the program's current stage
+        /// (vProgramLatest, the stage /programs opens), held to the budget stages. A program
+        /// stage is its own project set, each project with its own revision and cost there, so
+        /// reading a program at one stage gives the figures Program Details shows for it. Every
+        /// section reads it, through <see cref="GetCostRowSourcesAsync"/> and
+        /// <see cref="GetProgramStageInfoAsync"/>.
+        /// </summary>
+        private IQueryable<ProgramStageInScope> GetProgramStages(int? year, DashboardFilter filter)
+        {
+            var programs = _db.tPrograms.AsNoTracking()
+                .Where(program => !program.IsDeleted);
+            if (year is int fiscalYear)
+            {
+                // A literal, so each fiscal year gets its own plan. As a parameter, the plan
+                // compiled for FY2026 (8 projects) was reused for FY2024 (33,000) and the Kpis
+                // flag totals timed out at 90 s instead of taking about 6 s.
+                programs = programs.Where(program => program.StartYear == EF.Constant(fiscalYear));
+            }
+            if (filter.ProgramType is int programType)
+            {
+                var type = (EnumProgramType)programType;
+                programs = programs.Where(program => program.Type == EF.Constant(type));
+            }
+            if (filter.ProgramPK is string programPK)
+            {
+                // The program's unique key: SQL Server estimates this one row correctly, so it
+                // stays a parameter (unlike the stage; see DashboardFilter.CountedStageNames).
+                programs = programs.Where(program => program.ProgramPK == programPK);
+            }
+
+            var stageIds = filter.CountedStageIds;
+            if (filter.StageName is not null)
+            {
+                return
+                    from program in programs
+                    join stage in _db.tProgramStages.AsNoTracking()
+                        on program.ProgramPK equals stage.ProgramFK
+                    where EF.Constant(stageIds).Contains(stage.StageId)
+                    select new ProgramStageInScope
+                    {
+                        ProgramPK = program.ProgramPK,
+                        ProgramYear = program.StartYear,
+                        StageId = stage.StageId,
+                        StageName = stage.StageName,
+                        ProgramRevisionId = stage.RevisionId
+                    };
+            }
+            return
+                from program in programs
+                join current in _db.vProgramLatest.AsNoTracking()
+                    on program.ProgramPK equals current.ProgramPK
+                where EF.Constant(stageIds).Contains(current.StageId)
+                select new ProgramStageInScope
+                {
+                    ProgramPK = program.ProgramPK,
+                    ProgramYear = program.StartYear,
+                    StageId = current.StageId,
+                    StageName = current.StageName,
+                    ProgramRevisionId = current.RevisionId
+                };
+        }
+
+        private sealed class ProgramStageInScope
+        {
+            public string ProgramPK { get; set; } = string.Empty;
+            public int ProgramYear { get; set; }
+            public EnumProgramStage StageId { get; set; }
+            public string StageName { get; set; } = string.Empty;
+            /// <summary>The program's tProgramRevisions row at the stage, which names it there.</summary>
+            public int ProgramRevisionId { get; set; }
+        }
+
+        /// <summary>
+        /// Name and stage, and optionally the project count, of the given programs at the stage
+        /// each is read at (see <see cref="GetProgramStages"/>). The name is the stage's
+        /// ("NEP 2025 OO-1" at NEP, "GAA 2025 OO-1" at GAA-R). The count is the stage's projects
+        /// with a live revision, the list Program Details pages through (5,121 for GAA 2025 OO-1
+        /// at GAA). Like Program Details, it does not apply per-project visibility.
+        /// </summary>
+        private async Task<Dictionary<string, ProgramStageInfo>> GetProgramStageInfoAsync(
+            int? year,
+            DashboardFilter filter,
+            IEnumerable<string> programKeys,
+            bool includeProjectCounts,
+            CancellationToken cancellationToken)
+        {
+            var keys = programKeys.Distinct().ToArray();
+            if (keys.Length == 0)
+            {
+                return new Dictionary<string, ProgramStageInfo>();
+            }
+
+            var stages = GetProgramStages(year, filter)
+                .Where(stage => keys.Contains(stage.ProgramPK));
+            var named = await (
+                from stage in stages
+                join revision in _db.tProgramRevisions.AsNoTracking()
+                    on stage.ProgramRevisionId equals revision.Id into revisions
+                from revision in revisions.DefaultIfEmpty()
+                select new { stage.ProgramPK, stage.StageName, Name = (string?)revision.Name }
+            ).ToListAsync(cancellationToken);
+
+            var counts = new Dictionary<string, int>();
+            if (includeProjectCounts)
+            {
+                counts = await (
+                    from projectStage in _db.tProjectStages.AsNoTracking()
+                    join stage in stages
+                        on new { projectStage.ProgramFK, projectStage.StageId }
+                        equals new { ProgramFK = stage.ProgramPK, stage.StageId }
+                    join revision in _db.tProjectRevisions.AsNoTracking()
+                        on projectStage.RevisionId equals revision.Id
+                    where !revision.IsDeleted
+                    group projectStage by projectStage.ProgramFK into grouped
+                    select new { ProgramPK = grouped.Key, Count = grouped.Count() }
+                ).ToDictionaryAsync(item => item.ProgramPK, item => item.Count, cancellationToken);
+            }
+
+            return named
+                .GroupBy(stage => stage.ProgramPK)
+                .ToDictionary(
+                    group => group.Key,
+                    group =>
+                    {
+                        var stage = group.First();
+                        return new ProgramStageInfo(
+                            string.IsNullOrWhiteSpace(stage.Name) ? UnrecordedLabel : stage.Name,
+                            stage.StageName,
+                            counts.TryGetValue(group.Key, out var count) ? count : 0);
+                    });
+        }
+
+        private sealed record ProgramStageInfo(string Name, string StageName, int ProjectCount);
 
         /// <summary>
         /// The approved formal revision each revised project reads from: its latest
@@ -1646,7 +1807,7 @@ namespace WebAPI.Controllers.Dashboard
         private sealed class DashboardCostRow
         {
             public string ProjectPK { get; set; } = string.Empty;
-            public string? ProgramName { get; set; }
+            /// <summary>The program stage the project is read at (see ScopedProject.StageName).</summary>
             public string? StageName { get; set; }
             /// <summary>tOptionAdminAreaRegion.ParticipantId of the project's province; null when none matches.</summary>
             public string? RegionCode { get; set; }
@@ -1786,7 +1947,7 @@ namespace WebAPI.Controllers.Dashboard
                 }
                 if (status.Length > 0)
                 {
-                    projects = projects.Where(item => item.Project.StageName == status);
+                    projects = projects.Where(item => item.StageName == status);
                 }
                 if (search.Length > 0)
                 {
@@ -1862,6 +2023,35 @@ namespace WebAPI.Controllers.Dashboard
             var pageKeys = pageBudgets.Select(row => row.ProjectPK).ToArray();
             var pageByProject = pageBudgets.ToDictionary(row => row.ProjectPK);
 
+            // Each row as it stands at the stage it was read at: that stage's revision, ID,
+            // description, category and office, and the program's name there.
+            var stageRows = (await sources.Projects
+                    .Where(item => pageKeys.Contains(item.ProjectPK))
+                    .Select(item => new
+                    {
+                        item.ProjectPK,
+                        item.ProgramPK,
+                        item.StageName,
+                        item.RevisionId,
+                        item.ProjectId,
+                        item.Description,
+                        item.Category,
+                        item.ImplementingOffice
+                    })
+                    .ToListAsync(cancellationToken))
+                .GroupBy(row => row.ProjectPK)
+                .ToDictionary(group => group.Key, group => group.First());
+            var programStages = await GetProgramStageInfoAsync(
+                year, headerFilter, stageRows.Values.Select(row => row.ProgramPK), includeProjectCounts: false, cancellationToken);
+            var stageCategoryIds = stageRows.Values.Select(row => row.Category).Distinct().ToArray();
+            var stageCategoryNames = await _db.tOptionProjectCategory.AsNoTracking()
+                .Where(category => stageCategoryIds.Contains(category.CategoryId))
+                .Select(category => new { category.CategoryId, category.CategoryName })
+                .ToDictionaryAsync(category => category.CategoryId, category => category.CategoryName, cancellationToken);
+            // A project read from an approved formal revision shows the revision's values, as
+            // vProjectLatest gives them (see the revised half of GetCostRowSourcesAsync).
+            var revisedPageKeys = revisedBudgets.Select(budget => budget.ProjectPK).ToHashSet();
+
             var details = await (
                 from project in GetVisibleProjects()
                 join flags in _db.tProjects.AsNoTracking()
@@ -1871,12 +2061,9 @@ namespace WebAPI.Controllers.Dashboard
                 {
                     flags.Id,
                     project.ProjectPK,
-                    project.RevisionId,
                     project.ProjectId,
                     project.Description,
-                    project.ProgramName,
                     project.CategoryName,
-                    project.StageName,
                     project.ImplementingOffice,
                     project.LastUpdatedDate,
                     project.RevisionCreatedDate,
@@ -1889,15 +2076,34 @@ namespace WebAPI.Controllers.Dashboard
             // Re-impose the paged order, which the detail fetch does not preserve.
             var detailByProject = details.ToDictionary(row => row.ProjectPK);
             var pageRows = pageKeys
-                .Where(detailByProject.ContainsKey)
-                .Select(key => new { Key = detailByProject[key], Page = pageByProject[key] })
+                .Where(key => detailByProject.ContainsKey(key) && stageRows.ContainsKey(key))
+                .Select(key =>
+                {
+                    var detail = detailByProject[key];
+                    var stage = stageRows[key];
+                    var revised = revisedPageKeys.Contains(key);
+                    return new
+                    {
+                        Key = detail,
+                        Page = pageByProject[key],
+                        stage.StageName,
+                        stage.RevisionId,
+                        ProgramName = programStages.TryGetValue(stage.ProgramPK, out var program) ? program.Name : UnrecordedLabel,
+                        ProjectId = revised ? detail.ProjectId : stage.ProjectId,
+                        Description = revised ? detail.Description : stage.Description,
+                        CategoryName = revised
+                            ? detail.CategoryName
+                            : stageCategoryNames.TryGetValue(stage.Category, out var categoryName) ? categoryName : null,
+                        ImplementingOffice = revised ? detail.ImplementingOffice : stage.ImplementingOffice
+                    };
+                })
                 .ToList();
 
             // Name/funding resolution only ever runs over the rows on this page.
             var regionLookup = await GetRegionsByCodeAsync(
                 pageRows.Select(row => row.Page.RegionCode), cancellationToken);
 
-            var officeIds = pageRows.Select(row => row.Key.ImplementingOffice)
+            var officeIds = pageRows.Select(row => row.ImplementingOffice)
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Distinct()
                 .ToArray();
@@ -1906,35 +2112,36 @@ namespace WebAPI.Controllers.Dashboard
                 .Select(office => new { office.ParticipantId, office.Name })
                 .ToDictionaryAsync(office => office.ParticipantId, office => office.Name, cancellationToken);
 
-            var revisionIds = pageRows.Select(row => row.Key.RevisionId).Distinct().ToArray();
+            var revisionIds = pageRows.Select(row => row.RevisionId).Distinct().ToArray();
             var fundingLookup = await GetFundingSourcesByRevisionAsync(revisionIds, cancellationToken);
 
-            // A per-program list shows the values Program Details shows for the same project.
+            // A per-program list shows the values Program Details shows for the same project at
+            // the same stage.
             var programRows = programPK is null
                 ? new Dictionary<string, DBHelper.Models.Functions.Program.ProgramProjects>()
                 : await GetProgramProjectRowsAsync(
-                    programPK, pageRows.Select(row => (row.Key.ProjectPK, (string?)row.Key.StageName)), cancellationToken);
+                    programPK, pageRows.Select(row => (row.Key.ProjectPK, (string?)row.StageName)), cancellationToken);
 
             var lists = pageRows
                 .Select(row =>
                 {
                     regionLookup.TryGetValue(row.Page.RegionCode ?? string.Empty, out var region);
-                    officeLookup.TryGetValue(row.Key.ImplementingOffice ?? string.Empty, out var officeName);
-                    fundingLookup.TryGetValue(row.Key.RevisionId, out var fundingSources);
+                    officeLookup.TryGetValue(row.ImplementingOffice ?? string.Empty, out var officeName);
+                    fundingLookup.TryGetValue(row.RevisionId, out var fundingSources);
                     programRows.TryGetValue(row.Key.ProjectPK, out var programRow);
                     return new DashboardProjectDTO
                     {
                         Id = row.Key.Id,
                         ProjectPK = row.Key.ProjectPK,
-                        ProjectId = row.Key.ProjectId,
-                        Description = row.Key.Description,
-                        ProgramName = row.Key.ProgramName ?? UnrecordedLabel,
+                        ProjectId = row.ProjectId,
+                        Description = row.Description,
+                        ProgramName = row.ProgramName,
                         Region = RegionDisplayName(row.Page.RegionCode, region?.Name),
                         Island = IslandName(region?.IslandCode),
-                        Category = programRow?.CategoryName ?? row.Key.CategoryName ?? "Uncategorized",
-                        StageName = row.Key.StageName ?? UnstagedLabel,
+                        Category = programRow?.CategoryName ?? row.CategoryName ?? "Uncategorized",
+                        StageName = string.IsNullOrWhiteSpace(row.StageName) ? UnstagedLabel : row.StageName,
                         ImplementingOffice = string.IsNullOrWhiteSpace(programRow?.ImplementingOfficeName)
-                            ? OfficeDisplayName(row.Key.ImplementingOffice, officeName)
+                            ? OfficeDisplayName(row.ImplementingOffice, officeName)
                             : programRow.ImplementingOfficeName,
                         SubProgram = programRow?.ThrustName,
                         OperatingUnit = string.IsNullOrWhiteSpace(programRow?.OperatingUnitName)
@@ -2044,9 +2251,8 @@ namespace WebAPI.Controllers.Dashboard
 
         /// <summary>
         /// Program Details' rows (dbo.fProgramProjects, the function behind its project list) for
-        /// a page of one program's projects, read once per stage among them: a project can sit
-        /// at another stage than its program (about 1,400 of GAA 2025 SSP's do), and the
-        /// function lists it under its own stage only.
+        /// a page of one program's projects, read at the stage each was read at. That is the
+        /// program's stage for all of them, so this is one read in practice.
         /// </summary>
         private async Task<Dictionary<string, DBHelper.Models.Functions.Program.ProgramProjects>> GetProgramProjectRowsAsync(
             string programPK,

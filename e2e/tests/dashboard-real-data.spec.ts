@@ -229,7 +229,14 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
       await expect(page.getByRole('dialog')).toHaveCount(0);
 
       await quickViewButtons.first().click();
-      await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+      const quickView = page.getByRole('dialog');
+      // No per-project amount (it read as a contradiction of the project's Total Cost), and
+      // Project Repository opens the project's own details page in a new tab.
+      await expect(quickView.getByText(/Allocation Outlay/i)).toHaveCount(0);
+      const repository = quickView.getByRole('link', { name: /Project Repository/i });
+      await expect(repository).toHaveAttribute('target', '_blank');
+      await expect(repository).toHaveAttribute('href', /^\/(projects\/project-details\/.+:.+|lumpsum\/\d+)$/);
+      await quickView.getByRole('button', { name: 'Close', exact: true }).click();
       await expect(page.getByRole('dialog')).toHaveCount(0);
     }
 
@@ -238,6 +245,8 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
       await expect(dialog.getByText(/Calculation Methodology:/i)).toBeVisible();
+      // Each program and project opens itself, so the footer has no Project Repository button.
+      await expect(dialog.getByRole('button', { name: /Project Repository/i })).toHaveCount(0);
       await dialog.getByRole('button', { name: /close kpi details/i }).click();
       await expect(dialog).toHaveCount(0);
     }
@@ -253,12 +262,20 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     // One row per program, and the programs add up to the card.
     const programRows = dialog.locator('button[aria-expanded]');
     await expect(programRows.first()).toBeVisible({ timeout: 60_000 });
-    type ProgramRow = { ProgramPK: string; Budget: number; ProjectCount: number };
+    type ProgramRow = { ProgramPK: string; Name: string; StageName: string; Budget: number; ProjectCount: number };
     const programs = (callsFor(apiCalls, 'Programs').at(-1)?.responseBody?.Programs ?? []) as ProgramRow[];
     const kpis = callsFor(apiCalls, 'Kpis').at(-1)?.responseBody?.Kpis;
     expect(programs.reduce((sum, program) => sum + program.Budget, 0)).toBeCloseTo(kpis?.TotalBudget ?? -1, 2);
     expect(programs.reduce((sum, program) => sum + program.ProjectCount, 0)).toBe(kpis?.ActiveProjects);
     await expect(programRows).toHaveCount(programs.length);
+
+    // A program's name opens its Program Details, at the stage shown, in a new tab.
+    const programLink = dialog.getByRole('link', { name: programs[0].Name, exact: true });
+    await expect(programLink).toHaveAttribute(
+      'href',
+      `/programs/programdetails/${encodeURIComponent(programs[0].ProgramPK)}:${encodeURIComponent(programs[0].StageName)}`,
+    );
+    await expect(programLink).toHaveAttribute('target', '_blank');
 
     // Expanding the largest program lists its projects with Program Details' columns.
     await programRows.first().click();
@@ -419,7 +436,7 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     const typeSelect = page.getByRole('combobox', { name: 'Filter by program type' });
     const stageSelect = page.getByRole('combobox', { name: 'Filter by program stage name' });
     const stageLine = page.getByTestId('dashboard-stage-line');
-    await expect(stageLine).toHaveText('All budget stages');
+    await expect(stageLine).toHaveText('Current program stages');
 
     // Only the nine budget stages are offered, in stage order: a planning stage (RBP, RDIP, PIP)
     // is never counted, so it would always show nothing.
@@ -465,7 +482,7 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     expect(reset?.ProgramType ?? null).toBeNull();
     expect(reset?.StageName ?? null).toBeNull();
     await page.evaluate(() => window.scrollTo(0, 0));
-    await expect(stageLine).toHaveText('All budget stages');
+    await expect(stageLine).toHaveText('Current program stages');
   });
 
   test('annual budget bars select their fiscal year like the project trajectory', async ({ page }) => {
