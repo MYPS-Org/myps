@@ -75,8 +75,13 @@
     <None Include="libwkhtmltox.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- Ensure all Resources (templates, SQL scripts, etc.) are copied to output -->
-    <Content Include="Resources\**\*">
+    <!-- Ensure all Resources (templates, SQL scripts, etc.) are copied to output.
+         SQLObjects tooling is NOT shipped (2026-10-15): GenerateTables.ps1 and its DDL template
+         are developer tools that talk to a database, Tables\ is generated reference DDL, and the
+         README is for developers. The Functions/Views/Stored Procedures folders DO ship: the
+         apply-sql-objects command (a double hyphen cannot appear inside an XML comment) reads them from the build output. -->
+    <Content Include="Resources\**\*"
+             Exclude="Resources\Internal\SQLObjects\GenerateTables.ps1;Resources\Internal\SQLObjects\GenerateTableDDL.template.sql;Resources\Internal\SQLObjects\Tables\**;Resources\Internal\SQLObjects\README.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
