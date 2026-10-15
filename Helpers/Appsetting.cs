@@ -40,6 +40,8 @@ namespace Helpers
         public RevisionFolder Revision { get; set; } = new RevisionFolder();
         public string Images { get; set; } = string.Empty;
         public string SQLScripts { get; set; } = string.Empty;
+        /// <summary>CREATE OR ALTER functions/views/procedures applied by <c>Main --apply-sql-objects</c>. Defaults so no appsettings key is required.</summary>
+        public string SQLObjects { get; set; } = "SQLObjects";
         public string Template { get; set; } = string.Empty;
     }
     public class RevisionFolder
@@ -101,6 +103,7 @@ namespace Helpers
             Resources.Revision.ImplementingOffice = Path.Combine(Resources.Revision.RevisionsMain, Resources.Revision.ImplementingOffice);
             Resources.Images = Path.Combine(Resources.Internal, Resources.Images);
             Resources.SQLScripts = Path.Combine(Resources.Internal, Resources.SQLScripts);
+            Resources.SQLObjects = Path.Combine(Resources.Internal, Resources.SQLObjects);
             Resources.Template = Path.Combine(Resources.Internal, Resources.Template);
             KafkaConfigs = config.GetSection("Kafka").Get<KafkaConfig>()!;
             SMTP = config.GetSection("SMTP").Get<SMTPClass>()!;
