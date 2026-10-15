@@ -55,7 +55,7 @@ public sealed class DeletionObjectsStatusTests : IDisposable
     public async Task Probe_OneScriptFileMissing_NamesOnlyThatOne()
     {
         string partialRoot = Path.Combine(Path.GetTempPath(), "MYPS_Test_PartialScripts_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(Path.Combine(partialRoot, "Deletion"));
+        Directory.CreateDirectory(partialRoot);
         try
         {
             // Copy every required file except one.
@@ -63,7 +63,9 @@ public sealed class DeletionObjectsStatusTests : IDisposable
             foreach (string relativePath in Helpers.DeletionObjectsStatus.RequiredScriptFiles)
             {
                 if (relativePath == missingOne) continue;
-                File.Copy(Path.Combine(_realScriptsRoot, relativePath), Path.Combine(partialRoot, relativePath));
+                string dest = Path.Combine(partialRoot, relativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                File.Copy(Path.Combine(_realScriptsRoot, relativePath), dest);
             }
 
             string? problem = await Helpers.DeletionObjectsStatus.ProbeAsync(LocalDbSafety.MasterConnectionString, partialRoot);

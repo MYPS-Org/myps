@@ -179,13 +179,13 @@ namespace Helpers
             public string Reason { get; set; } = string.Empty;
         }
 
-        private const string GetProgramDeletionEligibilityScript = "Deletion/GetProgramDeletionEligibility.sql";
-        private const string GetProjectDeletionTierScript = "Deletion/GetProjectDeletionTier.sql";
-        private const string ExecuteProjectDeletionScript = "Deletion/ExecuteProjectDeletion.sql";
-        private const string ExecuteProgramDeletionScript = "Deletion/ExecuteProgramDeletion.sql";
+        private const string GetProgramDeletionEligibilityScript = "Deletion/Functions/GetProgramDeletionEligibility.sql";
+        private const string GetProjectDeletionTierScript = "Deletion/Functions/GetProjectDeletionTier.sql";
+        private const string ExecuteProjectDeletionScript = "Deletion/Stored Procedures/ExecuteProjectDeletion.sql";
+        private const string ExecuteProgramDeletionScript = "Deletion/Stored Procedures/ExecuteProgramDeletion.sql";
 
         /// <summary>
-        /// Runs Deletion/GetProgramDeletionEligibility.sql for one program. Returns null when
+        /// Runs Deletion/Functions/GetProgramDeletionEligibility.sql for one program. Returns null when
         /// the program does not exist (the script returns zero rows in that case -- mirrors
         /// GetProjectDeletionTier.sql's own contract) -- it does NOT fall back to a false
         /// 'Eligible' result, so callers must check for null. Read-only; runs on its own

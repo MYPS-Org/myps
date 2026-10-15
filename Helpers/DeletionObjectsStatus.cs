@@ -44,10 +44,10 @@ namespace Helpers
         /// to Appsetting.Resources.SQLScripts. A missing one means the feature cannot run at all.</summary>
         public static readonly IReadOnlyList<string> RequiredScriptFiles = new[]
         {
-            "Deletion/GetProjectDeletionTier.sql",
-            "Deletion/GetProgramDeletionEligibility.sql",
-            "Deletion/ExecuteProjectDeletion.sql",
-            "Deletion/ExecuteProgramDeletion.sql",
+            "Deletion/Functions/GetProjectDeletionTier.sql",
+            "Deletion/Functions/GetProgramDeletionEligibility.sql",
+            "Deletion/Stored Procedures/ExecuteProjectDeletion.sql",
+            "Deletion/Stored Procedures/ExecuteProgramDeletion.sql",
         };
 
         /// <summary>The scripts use FOR JSON PATH for their audit-log snapshots (SQL Server 2016 /

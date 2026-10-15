@@ -343,7 +343,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         return (result!.Eligibility, result.Reason);
     }
 
-    /// <summary>Runs the real hard-delete cascade (Deletion/ExecuteProjectDeletion.sql) for
+    /// <summary>Runs the real hard-delete cascade (Deletion/Stored Procedures/ExecuteProjectDeletion.sql) for
     /// <paramref name="projectRef"/>, through the actual production wrapper (re-derives and
     /// re-checks the tier first, exactly as the real code path does), inside the given
     /// connection/transaction so a test can observe a mid-cascade failure or a caller-owned
