@@ -13,18 +13,17 @@ public sealed class ApplicationFactorySmokeTests
     [Trait("Layer", "Characterization")]
     public void ApplicationFactory_CanBeConstructedWithExternalWorkersDisabled()
     {
+        // 2026-10-16 FIX: this test previously threw at WebApplicationFactory construction
+        // ("Configuration 'ReportService:BaseUrl' is missing") -- Main/Program.cs reads that
+        // key off builder.Configuration BEFORE builder.Build() runs, but
+        // ConfigureAppConfiguration's override below only applies AT Build() time, too late.
+        // See TestHostEnvironment.cs for the full explanation; this is the actual root cause
+        // of what had been treated as a pre-existing, unrelated failure.
+        TestHostEnvironment.EnsureTestEnvironmentVariablesSet();
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
-                builder.ConfigureAppConfiguration((_, configuration) =>
-                {
-                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["Testing:DisableHangfire"] = "true",
-                        ["Testing:DisablePdfNativeLibrary"] = "true"
-                    });
-                });
             });
         Assert.NotNull(factory.Services);
     }
@@ -36,18 +35,12 @@ public sealed class ApplicationFactorySmokeTests
         // Proves ReportJobService/ImportProjectJobService's new IMYPSExceptionHandler constructor
         // parameter resolves cleanly under the same DI scoping Hangfire's own AspNetCoreJobActivator
         // uses (fresh IServiceScope per job) -- without needing a live Hangfire job run.
+        // See the sibling test above for why TestHostEnvironment is needed here.
+        TestHostEnvironment.EnsureTestEnvironmentVariablesSet();
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
-                builder.ConfigureAppConfiguration((_, configuration) =>
-                {
-                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["Testing:DisableHangfire"] = "true",
-                        ["Testing:DisablePdfNativeLibrary"] = "true"
-                    });
-                });
             });
 
         using var scope = factory.Services.CreateScope();

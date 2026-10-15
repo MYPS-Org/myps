@@ -107,18 +107,14 @@ public sealed class RequiresDeletionObjectsTests
     {
         // Under the Testing environment Program.cs skips the startup probe, so constructing the host
         // must not need (or dial) a database; the status still resolves for the filter.
+        // See TestHostEnvironment.cs: ConfigureAppConfiguration's override below ran too late
+        // for Main/Program.cs's own eager ReportService:BaseUrl read, which is why this test
+        // previously failed and had been treated as a pre-existing, unrelated issue.
+        TestHostEnvironment.EnsureTestEnvironmentVariablesSet();
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
-                builder.ConfigureAppConfiguration((_, configuration) =>
-                {
-                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["Testing:DisableHangfire"] = "true",
-                        ["Testing:DisablePdfNativeLibrary"] = "true"
-                    });
-                });
             });
 
         var status = factory.Services.GetRequiredService<IDeletionObjectsStatus>();
