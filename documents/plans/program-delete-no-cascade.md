@@ -155,7 +155,7 @@ Date: 2026-10-16
   - The first version of the eligibility query took 10.7 s for 20 programs; SQL Server ignored the in-APPLY gate.
   - It was rewritten as steps: 0.27 s for 25.
   - `DeletedProjects` was dropped, since nothing read it; Delete Program finds leftovers itself.
-- **Review follow-ups applied:** a reason code (`BlockedBy`) instead of matching on the wording; the opt-in flag (the Project form's type-ahead no longer pays for the query); the Approved fallback in the FE; the swallowed error is now logged.
+- **Review follow-ups applied:** a reason code (`BlockedBy`) instead of matching on the wording; the opt-in flag (NOTE: the FE first set it in the shared `fetchProgram`, so the Project form's type-ahead still paid for the query; fixed by `fetchProgramList`, 2026-10-16, Risk #1); the Approved fallback in the FE; the swallowed error is now logged.
 - **Not changed, noted:**
   - The list can still show Delete enabled for a program whose only leftovers the server will refuse: a published soft-deleted project, or one carried into a later year. None on UAT.
   - A legacy soft delete that flagged only one of a project's revisions leaves the project live until Batch Delete is run on it again.

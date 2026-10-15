@@ -22,8 +22,7 @@ export const fetchProgramEnums = async () => {
 
 export const fetchProgram = async (data: PaginatedRequest<ProgramFilter>) => {
     try {
-        // IncludeDeleteEligibility: the list's Delete button follows the server's rule (CanDelete).
-        const response = await httpClient.post<PaginationResponse<ProgramLatest>>('/program/showprogram', { ...data, IncludeDeleteEligibility: true }, {
+        const response = await httpClient.post<PaginationResponse<ProgramLatest>>('/program/showprogram', data, {
             preloaderMessage: 'Loading program...'
         });
         return response;
@@ -32,6 +31,11 @@ export const fetchProgram = async (data: PaginatedRequest<ProgramFilter>) => {
         throw error;
     }
 };
+
+/** The Program list's call: also asks for each program's delete eligibility (CanDelete /
+ *  DeleteBlockedReason), which costs an extra query, so other callers use fetchProgram. */
+export const fetchProgramList = (data: PaginatedRequest<ProgramFilter>) =>
+    fetchProgram({ ...data, IncludeDeleteEligibility: true } as PaginatedRequest<ProgramFilter>);
 
 export const fetchProgramById = async (programId: string, StageName: string) => {
     try {

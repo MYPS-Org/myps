@@ -1,7 +1,7 @@
 "use-client";
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchProgram, fetchProgramEnums, fetchStagesByProgramId } from '../Service';
+import { fetchProgramList, fetchProgramEnums, fetchStagesByProgramId } from '../Service';
 import type { ProgramEnums, ProgramLatest, ProgramFilter, StageList } from '../Model.d';
 import { usePagination } from '../../../hooks/usePagination';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
@@ -47,7 +47,7 @@ const Program: React.FC = () => {
 
     // Shared pagination hook — replaces the hand-rolled ProgramData/ProgramFilters/isLoading
     // state and the Paginate() function. Uses StartYear (renamed from YearStart in ProgramFilter).
-    const pagination = usePagination<ProgramFilter, ProgramLatest>(fetchProgram, {
+    const pagination = usePagination<ProgramFilter, ProgramLatest>(fetchProgramList, {
         initialFilters: { Name: '', StartYear: null, Type: '', StageName: '' },
         limit: 10,
     });
