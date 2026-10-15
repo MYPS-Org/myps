@@ -219,7 +219,7 @@ namespace WebAPI.Controllers.Lumpsum
         /// Deletes an itemized project and RESTORES ITS COST to the parent's LS
         /// component — the inverse of the deduction itemizing made.
         ///
-        /// Always a hard delete (dbo.fProjectDeletionTier rates every itemized
+        /// Always a hard delete (Functions/GetProjectDeletionTier.sql rates every itemized
         /// child 'Hard', revised or not), so no row keeps its reserved Project ID.
         /// Blocked on a published project: publishing belongs to the Programs
         /// module, so a published child must be handled there.
@@ -330,14 +330,14 @@ namespace WebAPI.Controllers.Lumpsum
                 }
 
                 /*  2026-10-15: THE TIER COMES FROM THE SINGLE DELETION RULE,
-                    dbo.fProjectDeletionTier (documents/plans/project-deletion-single-rule.md).
+                    Functions/GetProjectDeletionTier.sql (documents/plans/project-deletion-single-rule.md).
                     An itemized child is ALWAYS 'Hard' there — even when revised — so no
                     row keeps holding its reserved Project ID; a published child is
                     'Blocked'. The inline "unrevised and one revision" test that used to
                     live here soft-deleted every revised child instead, and its EF
                     cascade missed work locations, supporting documents and the formal
-                    revision tables. The hard cascade is now dbo.pExecuteProjectDeletion,
-                    run inside this action's transaction. */
+                    revision tables. The hard cascade is now ExecuteProjectDeletion.sql, run
+                    by ProjectHelper.ExecuteProjectDeletionAsync inside this action's transaction. */
                 var TierRow = (await _db.DetermineProjectDeletionTierAsync(Project.ProjectPK, Project.ProgramFK, cancellationToken))
                     .FirstOrDefault(x => x.ProjectFK == Project.ProjectPK); // the PK's own row
 
@@ -432,12 +432,13 @@ namespace WebAPI.Controllers.Lumpsum
         }
 
         /// <summary>
-        /// Deletes a Lump Sum Project. Refused while a project is still itemized from
-        /// it or its program is Approved; otherwise the tier is dbo.fProjectDeletionTier's:
-        ///   Blocked — it is published.
+        /// Deletes a Lump Sum Project. The tier is Functions/GetProjectDeletionTier.sql's,
+        /// read first:
+        ///   Blocked — it is published, or its program is Approved (refused before anything else).
         ///   Hard    — still on its first stage entry; the rows are removed.
         ///   Soft    — it has progressed with its program; the revisions are flagged and kept for history.
-        /// Either non-blocked outcome leaves no orphaned children behind.
+        /// Then it is refused while a project is still itemized from it, so either
+        /// non-blocked outcome leaves no orphaned children behind.
         /// </summary>
         [HttpPost]
         [RequiresDeletionObjects]
@@ -566,7 +567,7 @@ namespace WebAPI.Controllers.Lumpsum
                         .ToListAsync(cancellationToken);
 
                     // 2026-10-15: one audit row per revision this flags (hard deletes are logged
-                    // by dbo.pExecuteProjectDeletion), committed with the soft delete.
+                    // by ExecuteProjectDeletion.sql), committed with the soft delete.
                     _db.AddSoftDeleteAuditRows(
                         Revisions.Where(x => !x.IsDeleted).Select(x => (Project.ProjectPK, x.Id, (string?)null)),
                         deleted: true, UserId, CurrentDate);

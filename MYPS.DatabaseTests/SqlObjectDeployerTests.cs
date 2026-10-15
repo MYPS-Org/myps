@@ -72,6 +72,7 @@ public sealed class SqlObjectDeployerTests : IAsyncLifetime
     [InlineData("/* a header mentioning CREATE FUNCTION in prose, never as code */\nSELECT 1 AS Col;", false)]
     [InlineData("CREATE TABLE #Ids (Id INT PRIMARY KEY);\nDELETE FROM dbo.tProjects WHERE ProjectPK IN (SELECT Id FROM #Ids);", false)]
     [InlineData("CREATE INDEX IX_Work ON #Work (Id);", false)]
+    [InlineData("ALTER PROCEDURE dbo.pX AS BEGIN SELECT 1; END", true)]
     [InlineData("CREATE OR ALTER FUNCTION dbo.fX() RETURNS TABLE AS RETURN (SELECT 1 AS One);", true)]
     [InlineData("CREATE OR ALTER VIEW dbo.vX AS SELECT 1 AS One;", true)]
     [InlineData("CREATE OR ALTER PROCEDURE dbo.pX AS BEGIN SELECT 1; END", true)]

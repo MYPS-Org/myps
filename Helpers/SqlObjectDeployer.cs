@@ -195,16 +195,16 @@ namespace Helpers
             return result;
         }
 
-        // CREATE [OR ALTER] of a programmable object only: a runtime script that opens with
-        // CREATE TABLE #work or CREATE INDEX is still a runtime script, never deployed.
+        // CREATE [OR ALTER] or ALTER of a programmable object only: a runtime script that opens
+        // with CREATE TABLE #work or CREATE INDEX is still a runtime script, never deployed.
         private static readonly System.Text.RegularExpressions.Regex ObjectDdl = new(
-            @"^CREATE\s+(OR\s+ALTER\s+)?(FUNCTION|VIEW|PROCEDURE|PROC|TRIGGER)\b",
+            @"^(CREATE(\s+OR\s+ALTER)?|ALTER)\s+(FUNCTION|VIEW|PROCEDURE|PROC|TRIGGER)\b",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
         /// <summary>
         /// True when any batch of <paramref name="script"/> (per <see cref="SqlBatchSplitter"/>, which
         /// already tracks comments/strings correctly) is, once its own leading comments and whitespace
-        /// are stripped, CREATE [OR ALTER] FUNCTION/VIEW/PROCEDURE/TRIGGER. A real object file's DDL
+        /// are stripped, CREATE [OR ALTER] or ALTER of a FUNCTION/VIEW/PROCEDURE/TRIGGER. A real object file's DDL
         /// batch may follow a separate `SET QUOTED_IDENTIFIER ON; GO` batch, so every batch is checked,
         /// not just the first. A plain parameterized script (a SELECT/DELETE/UPDATE body meant for
         /// ISqlExecutor.ExecuteScriptFile*InTransactionAsync, not this deployer) has no such batch and

@@ -182,3 +182,25 @@ Date: 2026-10-16
 - `MYPS.ApiIntegrationTests/{DeletionEndpointsHttpFixture, DeletionEndpointsHttpTests, RequiresDeletionObjectsTests, TestAuthHandler}.cs`
 - `MYPS.DatabaseTests/{ProjectDeletionTierTests, SqlObjectDeployerTests}.cs`
 - `documents/docs/RELEASE_DELETE_POLICY.md`, this plan.
+
+### Review follow-up (2026-10-16, `/code-review` of 84ff5cc6..592694f1)
+- **Lock didn't hold publishes off (confirmed on localhost UAT).** `COUNT(*)` was answered from the ProgramFK index alone, so `UPDATE tProjects SET IsPublished` went through while the lock was held.
+  - The lock now reads the decision columns (Status, IsPublished/IsRevised/ProjectType/ParentProjectId, RevisionId/StageId). That forces the lookup into the table rows.
+  - Re-probed: a publish, an approval and a program-stage update all wait.
+  - Lock statement timeout set to 120 s.
+- **One locked transaction.** Delete Program now decides and deletes inside a single locked transaction. The unlocked pre-pass is gone; PASS 2 runs in the transaction and names every blocking child.
+- **Projects carried in from another program:**
+  - They count as children, so their history under the deleted program is removed. Their `tProjects` row and other-program history stay.
+  - PASS 3.5 also checks `tProjectRevisions`/`tProjectStages` under the program.
+- **Refusal messages** no longer show the internal ProgramPK ("This program cannot be deleted: …").
+- **HTTP fixture:** reads the action ids before writing anything; a failed setup cleans up after itself and restores the environment variable. Verified on localhost: without the permission script it stops with 0 rows written.
+- **Deployer:** also deploys `ALTER FUNCTION/VIEW/PROCEDURE/TRIGGER` files.
+- **Stale comments:** fixed in DeleteLumpSum and DeleteItemizedProject, the tier script, `ExecuteProgramDeletion.sql` and Batch Delete.
+- **Runbook step 2:** now checks that the five locked tables have an index starting with ProgramFK/ProgramPK (all 1 on localhost UAT).
+- **Not changed (noted):** the deployer re-reads files during discovery (CLI only); the fixture is per test, not per collection; the 503 message repeats "130" as a literal.
+- **Tests after follow-up:**
+  - DB 100/100 (new: a carried-in project).
+  - Unit 37/37.
+  - API 66/66, both with the HTTP tests disabled and enabled on localhost under snapshot `_snap_t6`.
+  - E2E: delete specs 21/21 plus the ls-contract Approved case.
+  - Snapshot reverted, all counts match, snapshot dropped.

@@ -21,7 +21,7 @@ order.txt             optional: object files to apply first, one relative path p
 
 ## Deployable objects (`--apply-sql-objects`)
 
-A file whose batches contain a `CREATE` statement is a deployable object. There are **none today**. The command is kept for when one is added:
+A file with a `CREATE [OR ALTER]` or `ALTER` batch for a function, view, procedure or trigger is a deployable object. There are **none today**. The command is kept for when one is added:
 
 ```bash
 # from Main/bin/<Configuration>/net8.0 (or a publish folder)

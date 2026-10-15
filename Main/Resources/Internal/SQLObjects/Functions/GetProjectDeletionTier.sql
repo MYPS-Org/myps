@@ -55,9 +55,9 @@
     returns ONE ROW PER PROJECT the reference names, never a silent pick: MatchedBy
     says whether it matched that project's PK. A caller resolving what a USER typed
     must refuse a reference with more than one row as ambiguous (Batch Delete,
-    restore). A caller that already holds the ProjectPK (ExecuteProjectDeletion.sql,
-    ExecuteProgramDeletion.sql, the Lump Sum actions) takes the row whose ProjectFK is
-    that PK. No match: zero rows.
+    restore). A caller that already holds the ProjectPK (ProjectHelper.ExecuteProjectDeletionAsync,
+    ProgramHelper.DeleteProgramInTransactionAsync, the Lump Sum actions) takes the row whose
+    ProjectFK is that PK. No match: zero rows.
 
     Kind: 'LSChild'  tProjects.ParentProjectId IS NOT NULL (an itemized project);
           'LSParent' ProjectType = 'LS' and no parent;

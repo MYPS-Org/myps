@@ -68,13 +68,33 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
             return; // opt-in: disabled, nothing touched
         }
         ConnectionString = RequireLocalServer(configured);
-        Enabled = true;
 
+        await using var conn = new SqlConnection(ConnectionString);
+        await conn.OpenAsync();
+        // Read-only, and the likeliest to fail (a database without the PreviewBatchDelete
+        // migration): done before anything is written or overridden.
+        int[] actionIds = await ReadDeleteActionIdsAsync(conn);
+
+        Enabled = true;
         TestHostEnvironment.EnsureTestEnvironmentVariablesSet();
         // Restored in DisposeAsync so it cannot leak into another test class in this run.
         _previousMypsDb = Environment.GetEnvironmentVariable("ConnectionStrings__MYPSDb");
         Environment.SetEnvironmentVariable("ConnectionStrings__MYPSDb", ConnectionString);
+        try
+        {
+            await CreateFactoryAndTestUserAsync(conn, actionIds);
+        }
+        catch
+        {
+            // xUnit skips DisposeAsync when InitializeAsync throws: clean up here, or the test
+            // user and the environment override would outlive this fixture.
+            await DisposeAsync();
+            throw;
+        }
+    }
 
+    private async Task CreateFactoryAndTestUserAsync(SqlConnection conn, int[] actionIds)
+    {
         Factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
@@ -91,8 +111,6 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
                 });
             });
 
-        await using var conn = new SqlConnection(ConnectionString);
-        await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             INSERT INTO dbo.tUsers (EmployeeId, UserId, Name, Email, RegCode, PlantillaOffice, IsActive)
@@ -104,8 +122,6 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
             """;
         cmd.Parameters.AddWithValue("@UserId", TestUserId);
         _groupId = (int)(await cmd.ExecuteScalarAsync())!;
-
-        int[] actionIds = await ReadDeleteActionIdsAsync(conn);
 
         await using var cmd2 = conn.CreateCommand();
         cmd2.CommandText = """
@@ -209,6 +225,9 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
         cmd.Parameters.AddWithValue("@GroupId", _groupId);
         await cmd.ExecuteNonQueryAsync();
 
-        await Factory.DisposeAsync();
+        if (Factory != null)
+        {
+            await Factory.DisposeAsync();
+        }
     }
 }

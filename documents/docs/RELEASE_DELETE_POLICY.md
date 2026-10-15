@@ -60,9 +60,21 @@ FROM (VALUES
 ORDER BY Granted, t.name;
 
 SELECT compatibility_level FROM sys.databases WHERE database_id = DB_ID();   -- must be >= 130
+
+-- Delete Program locks one program's rows while it decides and deletes. Each of these tables
+-- needs an index that starts with the program column, or the lock covers the whole table.
+SELECT t.name AS TableName,
+       CASE WHEN EXISTS (
+           SELECT 1 FROM sys.index_columns ic
+           JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+           WHERE ic.object_id = t.object_id AND ic.key_ordinal = 1 AND c.name IN ('ProgramFK', 'ProgramPK')
+       ) THEN 1 ELSE 0 END AS HasProgramIndex                                  -- must be 1
+FROM sys.tables t
+WHERE t.name IN ('tPrograms', 'tProgramRevisions', 'tProgramStages', 'tProjects', 'tProjectStages');
 ```
 
 - **A `0` row:** grant that right to the app's login, with the DBA's agreement. Without it, a delete fails with a permission error and nothing is deleted: every delete runs in one transaction.
+- **`HasProgramIndex` = 0:** create the missing index (for `tProjectStages`, `IX_tProjectStages_ProgramFK_StageId` on `(ProgramFK, StageId)`), with the DBA's agreement. Without it, a Delete Program holds up every stage change in every program until it finishes.
 - **Compatibility level below 130:** raise it (`ALTER DATABASE … SET COMPATIBILITY_LEVEL = 130` or higher), with the DBA's agreement. That is a database-wide setting. The deletion scripts use `FOR JSON` for their audit rows, and the permission script uses `OPENJSON`.
 
 ### 3. Publish the build
