@@ -61,7 +61,7 @@ ORDER BY Granted, t.name;
 
 SELECT compatibility_level FROM sys.databases WHERE database_id = DB_ID();   -- must be >= 130
 
--- Delete Program locks one program's rows while it decides and deletes. Each of these tables
+-- Delete Program locks one program's rows while it decides and deletes. Each of these six tables
 -- needs an index that starts with the program column, or the lock covers the whole table.
 SELECT t.name AS TableName,
        CASE WHEN EXISTS (
@@ -70,7 +70,7 @@ SELECT t.name AS TableName,
            WHERE ic.object_id = t.object_id AND ic.key_ordinal = 1 AND c.name IN ('ProgramFK', 'ProgramPK')
        ) THEN 1 ELSE 0 END AS HasProgramIndex                                  -- must be 1
 FROM sys.tables t
-WHERE t.name IN ('tPrograms', 'tProgramRevisions', 'tProgramStages', 'tProjects', 'tProjectStages');
+WHERE t.name IN ('tPrograms', 'tProgramRevisions', 'tProgramStages', 'tProjects', 'tProjectRevisions', 'tProjectStages');
 ```
 
 - **A `0` row:** grant that right to the app's login, with the DBA's agreement. Without it, a delete fails with a permission error and nothing is deleted: every delete runs in one transaction.
@@ -91,7 +91,7 @@ Resources\Internal\SQLObjects\Stored Procedures\ExecuteProgramDeletion.sql
 ### 4. Smoke check
 
 1. The API log contains **`Deletion feature is ready (scripts on disk, database reachable).`** If it says `Deletion feature is NOT ready: …`, the message names what is missing: a script (go back to step 3) or the database or compatibility level (step 2).
-2. Program list: the Delete button is **disabled** on an Approved program.
+2. Program list: the Delete button is **disabled**, with the reason as its tooltip, on an Approved program and on a program that still has projects.
 3. Program Details → Batch Actions → Batch Delete with one project ID shows the preview groups before asking for DELETE. Cancel there.
 4. Optional consistency check: 0 rows means the delete gate's "Approved" agrees with the Status badge users see. It uses the same current-stage lookup as the deletion scripts.
 
@@ -121,6 +121,7 @@ Resources\Internal\SQLObjects\Stored Procedures\ExecuteProgramDeletion.sql
 - Batch Delete **permanently** deletes a project on its first stage entry. Later stages are still a restorable delete. The confirm dialog says which, before the user types DELETE.
 - Nothing in an **Approved** program can be deleted, except Lump Sum itemized projects. Delete Program is disabled on an Approved program.
 - Published projects are never deleted.
+- **Delete Program no longer deletes projects.** A program can be deleted only once all its projects have been deleted: Batch Delete in Program Details, or the Lump Sum module for Lump Sum projects. The Delete button is disabled with the reason until then. Projects that were already deleted (soft-deleted) do not block it; what is left of them goes with the program, and only within that program.
 
 ## Related
 

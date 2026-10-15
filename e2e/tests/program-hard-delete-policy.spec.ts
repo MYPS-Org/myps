@@ -2,20 +2,22 @@
 // program-hard-delete-policy.spec.ts — DeleteProgram under feat/program-project-hard-delete-policy
 //
 // That branch replaced DeleteProgram's stage allow/deny lists and cost guard with
-// one rule (dbo.fProgramDeletionEligibility): StageCount(ProgramFK) <= 1 -> the
-// program AND every child project are hard-deleted by dbo.pExecuteProgramDeletion;
-// > 1 -> refused; any child with IsPublished = 1 -> refused with zero writes.
+// one rule (Functions/GetProgramDeletionEligibility.sql): Blocked when the program is
+// Approved, has progressed past its first stage, or (2026-10-16, NO CASCADE) still has a
+// live project -- a user deletes the projects first (Batch Delete / the Lump Sum module).
+// Only leftovers of projects users already deleted (soft) go with the program.
 //
-//   (a) active project WITH cost        -> 200; program, project and cost rows gone
-//                                          (behaviour flip: the old build refused this)
+//   (a) live project WITH cost          -> 400 "still has 1 project(s)", nothing written;
+//                                          after Batch Delete -> 200, everything gone
 //   (b) program advanced BP -> NEP      -> 400 "beyond its initial stage"
-//   (c) child IsPublished = 1           -> 400, nothing removed
-//   (d) program Status = Approved       -> 200 (status is not part of the rule)
+//   (c) a published project             -> 400 "still has 1 project(s)", nothing removed
+//   (d) program Status = Approved       -> 400 "program is approved"
 //   (e) program created directly at NEP -> 200 (RISK-112: was always refused)
-//   (f) child with a tRevisionDetails   -> records what happens; the cascade does
-//       row                                not delete tRevisionDetails, which has a
-//                                          NO_ACTION FK to tProjectRevisions
-//   (g) audit trail                     -> records whether tTransactionLog got a row
+//   (f) project with a tRevisionDetails -> Batch Delete removes it and the formal-revision
+//       row                                rows; then the program deletes
+//   (g) audit trail                     -> a row per project (Batch Delete) + one for the program
+//   (m) projects all soft-deleted       -> 200; their leftover rows go with the program
+//   (n) the Program list                -> CanDelete / DeleteBlockedReason from the same rule
 //
 // Batch Delete under the single deletion rule (dbo.fProjectDeletionTier, 2026-10-15):
 //   (h) project on its first stage entry -> hard-deleted, rows and cost gone
@@ -26,7 +28,7 @@
 //
 // Fixture data is seeded by SQL and NOTHING is cleaned up through the API: run it
 // against a database snapshot and revert. E2E_SQL_SERVER / E2E_SQL_DB must name the
-// API's MYPSDb; the file skips without them. The four SQL objects must be deployed.
+// API's MYPSDb; the file skips without them.
 // =============================================================================
 
 import { test, expect, type Page } from '@playwright/test';
@@ -129,13 +131,26 @@ test.describe('DeleteProgram hard-delete policy (feat/program-project-hard-delet
 
   test.beforeEach(async ({ page }) => { await apiLogin(page); });
 
-  test('(a) BP program with an active COSTED project is hard-deleted with its cost rows', async ({ page }) => {
+  test('(a) a program with a live COSTED project is refused until a user deletes the project, then deleted', async ({ page }) => {
     const { program, project } = await programWithProject(page, 'a');
     seedCost(project.revisionId);
+    const before = leftovers(program.ProgramPK, [project.revisionId]);
+
+    // 2026-10-16: no cascade -- Delete Program does not take the project with it.
+    const refused = await deleteProgram(page, program);
+    note('refused', `${refused.status} ${JSON.stringify(refused.body)}`);
+    expect(refused.status).toBe(400);
+    expect(String(refused.body?.Message)).toContain('still has 1 project(s) that have not been deleted');
+    expect(String(refused.body?.Message)).toContain('Batch Delete');
+    expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(before);
+
+    // A user allowed to Batch Delete deletes the project first; then the program goes.
+    const deleted = await batchDelete(page, program, project.projectPK);
+    expect(deleted.status, JSON.stringify(deleted.body)).toBe(200);
     const res = await deleteProgram(page, program);
     note('response', `${res.status} ${JSON.stringify(res.body)}`);
     expect(res.status, JSON.stringify(res.body)).toBe(200);
-    expect(res.body?.DeletedProjects).toEqual([project.projectPK]);
+    expect(res.body?.DeletedProjects).toEqual([]);
     expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(NONE_LEFT);
   });
 
@@ -150,7 +165,7 @@ test.describe('DeleteProgram hard-delete policy (feat/program-project-hard-delet
     expect(leftovers(advanced.ProgramPK)).toEqual(before);
   });
 
-  test('(c) a published child blocks the whole delete with zero writes', async ({ page }) => {
+  test('(c) a program with a published project is refused with zero writes', async ({ page }) => {
     const { program, project } = await programWithProject(page, 'c');
     seedCost(project.revisionId);
     runSql(`UPDATE dbo.tProjects SET IsPublished = 1 WHERE ProjectPK = '${project.projectPK}';`);
@@ -158,7 +173,7 @@ test.describe('DeleteProgram hard-delete policy (feat/program-project-hard-delet
     const res = await deleteProgram(page, program);
     note('response', `${res.status} ${JSON.stringify(res.body)}`);
     expect(res.status).toBe(400);
-    expect(String(res.body?.Message)).toContain('published');
+    expect(String(res.body?.Message)).toContain('still has 1 project(s)');
     expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(before);
   });
 
@@ -186,30 +201,69 @@ test.describe('DeleteProgram hard-delete policy (feat/program-project-hard-delet
     expect(leftovers(program.ProgramPK)).toEqual(NONE_LEFT);
   });
 
-  test('(f) a child with a tRevisionDetails row is hard-deleted with it (the cascade covers the formal-revision tables)', async ({ page }) => {
+  test('(f) a project with a tRevisionDetails row is hard-deleted with it by Batch Delete (the cascade covers the formal-revision tables)', async ({ page }) => {
     const { program, project } = await programWithProject(page, 'f');
     runSql(
       `INSERT dbo.tRevisionDetails (TransactionId, ProjectFK, ProjectRevisionFK, ProgramId, RevisionGroupId, ReasonId, IsCertified, CreatedBy, CreatedDate) ` +
       `VALUES ('e2e-hdp-f', '${project.projectPK}', ${project.revisionId}, '${program.ProgramId}', 10, 1, 0, 'e2e', GETDATE());`
     );
-    const res = await deleteProgram(page, program);
+    const res = await batchDelete(page, program, project.projectPK);
     note('response', `${res.status} ${JSON.stringify(res.body)}`);
-    // Before 2026-10-15 this failed on FK_tRevisionDetails_ProjectRevision and rolled back with a
-    // generic 400; pExecuteProjectDeletion now removes tRevisionDetails and its children first.
+    // Before 2026-10-15 this failed on FK_tRevisionDetails_ProjectRevision; the project delete now
+    // removes tRevisionDetails and its children first. (2026-10-16: projects are deleted by Batch
+    // Delete, not by Delete Program, so this is where the cascade is exercised.)
     expect(res.status, JSON.stringify(res.body)).toBe(200);
-    expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(NONE_LEFT);
+    expect(res.body?.HardDeletedProjectIds).toEqual([project.projectPK]);
     expect(scalar(`SELECT COUNT(*) FROM dbo.tRevisionDetails WHERE TransactionId = 'e2e-hdp-f';`)).toBe(0);
+    expect(leftovers(program.ProgramPK, [project.revisionId]).tProjects).toBe(0);
+
+    const programDeleted = await deleteProgram(page, program);
+    expect(programDeleted.status, JSON.stringify(programDeleted.body)).toBe(200);
+    expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(NONE_LEFT);
   });
 
-  test('(g) a program delete writes one audit row per project and one for the program', async ({ page }) => {
+  test('(g) audit: Batch Delete writes a row per project, Delete Program one for the program', async ({ page }) => {
     const { program, project } = await programWithProject(page, 'g');
     const auditRows = (referenceId: string) =>
       scalar(`SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId = '${referenceId}' AND TransactionType = 'Delete' AND NewValue = 'Permanently deleted';`);
+    expect((await batchDelete(page, program, project.projectPK)).status).toBe(200);
     const res = await deleteProgram(page, program);
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     note('audit rows', { program: auditRows(program.ProgramPK), project: auditRows(project.projectPK) });
     expect(auditRows(project.projectPK), 'one row for the deleted project').toBe(1);
     expect(auditRows(program.ProgramPK), 'one row for the deleted program').toBe(1);
+  });
+
+  test('(m) a program whose projects were all deleted earlier (soft) is deletable, and their leftovers go with it', async ({ page }) => {
+    // Soft-deleted rows, as the old Batch Delete on main left them: a user already deleted the project.
+    const { program, project } = await programWithProject(page, 'm');
+    runSql(`UPDATE dbo.tProjectRevisions SET IsDeleted = 1 WHERE ProjectFK = '${project.projectPK}' AND ProgramFK = '${program.ProgramPK}';`);
+    const res = await deleteProgram(page, program);
+    note('response', `${res.status} ${JSON.stringify(res.body)}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body?.DeletedProjects).toEqual([project.projectPK]);
+    expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(NONE_LEFT);
+  });
+
+  test('(n) the Program list says whether each program can be deleted, from the same rule', async ({ page }) => {
+    const { program } = await programWithProject(page, 'n');
+    // Only the Program list asks for it (IncludeDeleteEligibility); other ShowProgram callers skip the query.
+    const listed = await post(page, '/api/Program/ShowProgram', {
+      Filters: { Name: program.Name, StartYear: null, StageName: '', Type: '' },
+      page: 1, limit: 10, sortDirection: 0, IncludeDeleteEligibility: true,
+    });
+    const row = ((listed.body?.lists ?? []) as any[]).find((p) => String(p.ProgramPK) === program.ProgramPK);
+    expect(row, 'the new program is listed').toBeTruthy();
+    expect(row?.CanDelete).toBe(false);
+    expect(String(row?.DeleteBlockedReason)).toContain('still has 1 project(s)');
+
+    // And on screen: the Delete button is disabled, its tooltip the server's reason.
+    await page.goto('/programs'); // already authenticated (apiLogin)
+    await page.getByPlaceholder('Search Programs...').fill(program.Name);
+    await page.getByPlaceholder('Search Programs...').press('Enter');
+    const deleteButton = page.locator('tr', { hasText: program.Name }).getByTitle(/still has 1 project\(s\)/);
+    await expect(deleteButton).toBeVisible({ timeout: 30_000 });
+    await expect(deleteButton).toBeDisabled();
   });
 
   test('(h) Batch Delete hard-deletes a project on its first stage entry', async ({ page }) => {
