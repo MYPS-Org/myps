@@ -162,14 +162,17 @@ test.describe('DeleteProgram hard-delete policy (feat/program-project-hard-delet
     expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(before);
   });
 
-  test('(d) an APPROVED single-stage program is hard-deleted (status is not checked)', async ({ page }) => {
+  test('(d) an APPROVED program is refused, with the reason and nothing written', async ({ page }) => {
     const { program, project } = await programWithProject(page, 'd');
     runSql(`UPDATE dbo.tProgramRevisions SET Status = 1 WHERE ProgramFK = '${program.ProgramPK}';`);
     expect(scalar(`SELECT COUNT(*) FROM dbo.tProgramRevisions WHERE ProgramFK = '${program.ProgramPK}' AND Status = 1;`)).toBe(1);
+    const before = leftovers(program.ProgramPK, [project.revisionId]);
     const res = await deleteProgram(page, program);
     note('response', `${res.status} ${JSON.stringify(res.body)}`);
-    expect(res.status, JSON.stringify(res.body)).toBe(200);
-    expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(NONE_LEFT);
+    // 2026-10-15: an Approved program refuses every delete (it was hard-deleted before).
+    expect(res.status).toBe(400);
+    expect(String(res.body?.Message)).toContain('program is approved');
+    expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(before);
   });
 
   test('(e) a program created directly at NEP (skip-BP) is deletable', async ({ page }) => {
@@ -198,15 +201,15 @@ test.describe('DeleteProgram hard-delete policy (feat/program-project-hard-delet
     expect(scalar(`SELECT COUNT(*) FROM dbo.tRevisionDetails WHERE TransactionId = 'e2e-hdp-f';`)).toBe(0);
   });
 
-  test('(g) a successful delete leaves an audit row in tTransactionLog', async ({ page }) => {
-    const { program } = await programWithProject(page, 'g');
-    const logBefore = scalar(`SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId IN ('${program.ProgramId}', '${program.ProgramPK}') AND TransactionType = 'Delete';`);
+  test('(g) a program delete writes one audit row per project and one for the program', async ({ page }) => {
+    const { program, project } = await programWithProject(page, 'g');
+    const auditRows = (referenceId: string) =>
+      scalar(`SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId = '${referenceId}' AND TransactionType = 'Delete' AND NewValue = 'Permanently deleted';`);
     const res = await deleteProgram(page, program);
     expect(res.status, JSON.stringify(res.body)).toBe(200);
-    const logAfter = scalar(`SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId IN ('${program.ProgramId}', '${program.ProgramPK}') AND TransactionType = 'Delete';`);
-    note('audit rows', { before: logBefore, after: logAfter });
-    // main wrote one TransactionLog row per DeleteProgram; the branch removed it.
-    expect(logAfter - logBefore, 'DeleteProgram should write a Delete audit row').toBe(1);
+    note('audit rows', { program: auditRows(program.ProgramPK), project: auditRows(project.projectPK) });
+    expect(auditRows(project.projectPK), 'one row for the deleted project').toBe(1);
+    expect(auditRows(program.ProgramPK), 'one row for the deleted program').toBe(1);
   });
 
   test('(h) Batch Delete hard-deletes a project on its first stage entry', async ({ page }) => {
@@ -244,6 +247,10 @@ test.describe('DeleteProgram hard-delete policy (feat/program-project-hard-delet
     expect(del.body?.HardDeletedProjectIds).toEqual([]);
     expect(revisionAt(STAGE_NEP)[0][1], 'NEP revision flagged').toBe('1');
     expect(revisionAt(1)[0][1], 'BP revision untouched').toBe('0');
+    const softAudit = (newValue: 'true' | 'false') => scalar(
+      `SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId = '${project.projectPK}' ` +
+      `AND AffectedTable = 'tProjectRevisions' AND AffectedColumn = 'IsDeleted' AND NewValue = '${newValue}';`);
+    expect(softAudit('true'), 'the soft delete is logged').toBe(1);
 
     const again = await batchDelete(page, advanced, pForm); // the P-form id: same project, already deleted here
     expect(again.status).toBe(400);
@@ -253,6 +260,7 @@ test.describe('DeleteProgram hard-delete policy (feat/program-project-hard-delet
     note('restore', `${restore.status} ${JSON.stringify(restore.body)}`);
     expect(restore.status, JSON.stringify(restore.body)).toBe(200);
     expect(revisionAt(STAGE_NEP)[0][1], 'NEP revision restored').toBe('0');
+    expect(softAudit('false'), 'the restore is logged').toBe(1);
   });
 
   test('(j) Batch Delete refuses a Lump Sum row and a published one, with nothing written', async ({ page }) => {
@@ -271,5 +279,42 @@ test.describe('DeleteProgram hard-delete policy (feat/program-project-hard-delet
     expect(reasons[ls.projectPK]).toContain('Lump Sum');
     expect(reasons[pub.projectPK]).toBe('published');
     expect(leftovers(program.ProgramPK)).toEqual(before);
+  });
+
+  test('(k) Batch Delete in an APPROVED program is refused, even for a first-stage project', async ({ page }) => {
+    const { program, project } = await programWithProject(page, 'k');
+    runSql(`UPDATE dbo.tProgramRevisions SET Status = 1 WHERE ProgramFK = '${program.ProgramPK}';`);
+    const before = leftovers(program.ProgramPK, [project.revisionId]);
+
+    const res = await batchDelete(page, program, project.projectPK);
+    note('response', `${res.status} ${JSON.stringify(res.body)}`);
+    expect(res.status).toBe(400);
+    expect(res.body?.RefusedProjects).toEqual([{ ProjectId: project.projectPK, Reason: 'program is approved' }]);
+    expect(leftovers(program.ProgramPK, [project.revisionId])).toEqual(before);
+  });
+
+  test('(l) PreviewBatchDelete says what Batch Delete would do, and writes nothing', async ({ page }) => {
+    // One program, three kinds of id: a first-stage project (hard), a published one (refused), an unknown id.
+    const program = await createProgram(page, `e2e-hdp-l-${new Date().toISOString()}`, 1);
+    await addOrdinaryProject(page, program, `e2e-hdp-l hard ${Date.now()}`);
+    await addOrdinaryProject(page, program, `e2e-hdp-l pub ${Date.now()}`);
+    const [hard, pub] = projectsOf(program.ProgramPK);
+    runSql(`UPDATE dbo.tProjects SET IsPublished = 1 WHERE ProjectPK = '${pub.projectPK}';`);
+    const before = leftovers(program.ProgramPK, [hard.revisionId, pub.revisionId]);
+    const logBefore = scalar(`SELECT COUNT(*) FROM dbo.tTransactionLog;`);
+
+    const res = await post(page, '/api/Program/PreviewBatchDelete', {
+      ProgramId: program.ProgramId,
+      ProjectIds: `${hard.projectPK};${pub.projectPK};NO-SUCH-PROJECT`,
+    });
+    note('preview', `${res.status} ${JSON.stringify(res.body)}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body?.HardProjectIds).toEqual([hard.projectPK]);
+    expect(res.body?.SoftProjectIds).toEqual([]);
+    expect(res.body?.RefusedProjects).toEqual([{ ProjectId: pub.projectPK, Reason: 'published' }]);
+    expect(res.body?.MissingProjectIds).toEqual(['NO-SUCH-PROJECT']);
+
+    expect(leftovers(program.ProgramPK, [hard.revisionId, pub.revisionId]), 'a preview deletes nothing').toEqual(before);
+    expect(scalar(`SELECT COUNT(*) FROM dbo.tTransactionLog;`), 'and logs nothing').toBe(logBefore);
   });
 });

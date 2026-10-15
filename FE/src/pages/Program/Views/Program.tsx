@@ -254,7 +254,15 @@ const Program: React.FC = () => {
                                     >
                                         View
                                     </Button>
-                                    <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramPK);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
+                                    {/* An Approved program refuses every delete (server rule); say so here
+                                        rather than let the user type DELETE into a refusal. */}
+                                    <Button
+                                        color="red"
+                                        disabled={program.Status === 'Approved'}
+                                        title={program.Status === 'Approved' ? 'An Approved program cannot be deleted.' : 'Delete program'}
+                                        onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramPK);}}
+                                        className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded"
+                                    >
                                         <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
                                     </Button>
                                 </div>

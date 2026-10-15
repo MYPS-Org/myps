@@ -5,6 +5,27 @@ export interface BatchActionResponse {
 	MissingProjectIds: string[];
 	/** Publish actions only: matched projects left untouched because they are already published. */
 	SkippedAlreadyPublishedProjectIds?: string[];
+	/** Batch Delete only: removed outright (first stage entry). */
+	HardDeletedProjectIds?: string[];
+	/** Batch Delete only: deleted at the current stage; restorable. */
+	SoftDeletedProjectIds?: string[];
+	/** Batch Delete only: ids it would not touch, and why. */
+	RefusedProjects?: BatchDeleteRefusal[];
+}
+export interface BatchDeleteRefusal {
+	ProjectId: string;
+	Reason: string;
+}
+/** What Batch Delete would do with a list of ids (POST /Program/PreviewBatchDelete); nothing is written. */
+export interface BatchDeletePreview {
+	Message: string;
+	Title: string;
+	/** Would be permanently deleted (first stage entry). */
+	HardProjectIds: string[];
+	/** Would be deleted at the current stage; restorable with Batch Restore. */
+	SoftProjectIds: string[];
+	RefusedProjects: BatchDeleteRefusal[];
+	MissingProjectIds: string[];
 }
 export interface ProgramModel {
 	Id: number;

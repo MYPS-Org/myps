@@ -102,6 +102,11 @@ test.describe('Program Details — batch actions', () => {
       await page.locator('textarea#projectIds').fill(target.projectId);
       await page.getByRole('button', { name: 'Delete Projects', exact: true }).click();
 
+      /*  2026-10-15: the confirm dialog shows the SERVER's preview before asking for DELETE.
+          A first-stage project is listed as permanently deleted, and the warning says so. */
+      await expect(page.getByText('Permanently deleted (first stage entry) (1)')).toBeVisible();
+      await expect(page.getByText('You are about to permanently delete 1 project(s). This cannot be undone.')).toBeVisible();
+
       /*  The confirm dialog asks for the word, then repeats the action in its own
           words. `exact`, because placeholder matching is case-INSENSITIVE and a
           substring by default, so a bare 'DELETE' also matches the ID textarea
@@ -235,7 +240,7 @@ test.describe('Program Details — batch actions', () => {
 
     await apiLogin(page);
 
-    await withFixtureProgram(page, async ({ program, approve }) => {
+    await withFixtureProgram(page, async ({ program, approve, restore }) => {
       /*  Ordinary projects, not Lump Sum parents (2026-10-15): Batch Delete refuses
           Lump Sum rows now, so a parent on page 2 would answer 400 and the table
           would never be re-queried. Each is on its first stage entry, so the
@@ -301,6 +306,11 @@ test.describe('Program Details — batch actions', () => {
       const afterRestrict = await tableQueryAfter('BatchRestrictPublish');
       expect(afterRestrict.page, 'Restrict Publishing re-reads the page the user is on').toBe(2);
       expect(afterRestrict.Navigation, 'by page cursor, not a reset to the first page').toBe(4);
+
+      /*  An Approved program refuses every delete (2026-10-15), so set it back to Working
+          before the delete half. Restrict Publishing above needed it Approved; the delete
+          below is about paging, not about approval. */
+      await restore();
 
       // Delete changes which rows exist: the cached cursors are stale, so back to page 1.
       await openBatchAction(page, 'Batch Delete');
