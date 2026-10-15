@@ -224,9 +224,12 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
             await transaction.RollbackAsync();
         }
 
-        // XACT_ABORT ON: SQL Server itself ends the caller's transaction when the error leaves the
-        // procedure, so the caller treats it as finished (SafeRollbackAsync, Batch Delete's guarded
-        // rollback) and nothing the cascade did before the failure survives.
+        // The explicit RollbackAsync() above is what undoes this now — the script has no
+        // XACT_ABORT/TRY-CATCH of its own (unlike the former procedure); the caller's
+        // transaction is the caller's responsibility to roll back, which this test does
+        // directly, and which every real production caller does too (confirmed: ProgramHelper.
+        // ExecuteProgramDeletionAsync's own ExecuteTransactionAsync, and all 3 real controller
+        // call sites' catch blocks — see this session's code-behavior-audit).
         Assert.Equal(1, await CountAsync("dbo.tProjects", "ProjectPK = 'BP01000014LZ'"));
         Assert.Equal(1, await CountAsync("dbo.tProjectStages", "ProjectFK = 'BP01000014LZ'"));
         Assert.Equal(0, await CountAsync("dbo.tTransactionLog", "ReferenceId = 'BP01000014LZ'")); // the audit row went with it
@@ -343,10 +346,6 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         return (result!.Eligibility, result.Reason);
     }
 
-    /// <summary>Runs the real hard-delete cascade (Deletion/Stored Procedures/ExecuteProjectDeletion.sql) for
-    /// <paramref name="projectRef"/>, through the actual production wrapper (re-derives and
-    /// re-checks the tier first, exactly as the real code path does), inside the given
-    /// connection/transaction so a test can observe a mid-cascade failure or a caller-owned
     /// <summary>Runs the real hard-delete cascade through the actual production entry point
     /// (ISqlExecutor.ExecuteProjectDeletionAsync — re-derives and re-checks the tier first,
     /// resolves ambiguous/alternate-form references exactly as the real code path does). Pass
