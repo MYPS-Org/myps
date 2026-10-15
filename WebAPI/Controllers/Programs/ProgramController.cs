@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Microsoft.Extensions.Logging;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Table;
@@ -22,7 +23,8 @@ namespace WebAPI.Controllers.Programs
     public class ProgramController : CoreController
     {
         private readonly ISqlExecutor _sql;
-        public ProgramController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler, ISqlExecutor sql) : base(db, hub, pcma, exceptionHandler) { _sql = sql; }
+        private readonly ILogger<ProgramController>? _logger;
+        public ProgramController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler, ISqlExecutor sql, ILogger<ProgramController>? logger = null) : base(db, hub, pcma, exceptionHandler) { _sql = sql; _logger = logger; }
         #region Program Lists
 
         [HttpPost]
@@ -143,6 +145,33 @@ namespace WebAPI.Controllers.Programs
                                 result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
+                }
+
+                // 2026-10-16: whether each listed program can be deleted, and why not, from the same
+                // rule DeleteProgram enforces (Functions/GetProgramDeletionEligibility.sql) -- one
+                // query for the page, so the Delete button never repeats the rule client-side.
+                // Opt-in (only the Program list asks), and optional: if it fails (scripts missing,
+                // see [RequiresDeletionObjects], or a database error) the list still loads with
+                // CanDelete unset, the failure is logged, and DeleteProgram still decides.
+                if (dto.IncludeDeleteEligibility)
+                {
+                    try
+                    {
+                        var eligibility = await _sql.DetermineProgramDeletionEligibilitiesAsync(
+                            result.Data.lists.Select(x => x.ProgramPK), cancellationToken);
+                        foreach (var program in result.Data.lists)
+                        {
+                            if (eligibility.TryGetValue(program.ProgramPK, out var row))
+                            {
+                                program.CanDelete = row.Eligibility != "Blocked";
+                                program.DeleteBlockedReason = program.CanDelete == true ? null : row.RefusalMessage;
+                            }
+                        }
+                    }
+                    catch (Exception ex) when (ex is IOException or Microsoft.Data.SqlClient.SqlException)
+                    {
+                        _logger?.LogError(ex, "Program list: delete eligibility could not be read; Delete buttons fall back to the client default.");
+                    }
                 }
 
                 return Ok(result.Data);
@@ -498,19 +527,20 @@ namespace WebAPI.Controllers.Programs
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
 
-                // The whole decision and the cascade live in ProgramHelper.ExecuteProgramDeletionAsync:
-                // program eligibility (Blocked when the program is Approved or has advanced past
-                // its first stage) and every child's tier, decided inside the delete transaction
-                // on locked rows. Any refusal is a DeletionRefusedException, caught below, and
-                // nothing is written.
-                var deletedProjectIds = await ProgramHelper.ExecuteProgramDeletionAsync(
+                // The whole decision lives in ProgramHelper.ExecuteProgramDeletionAsync, inside the
+                // delete transaction on locked rows: Blocked when the program is Approved, has
+                // advanced past its first stage, or (2026-10-16, NO CASCADE) still has a live
+                // project -- its projects are deleted first, by a user allowed to. Only leftovers of
+                // projects users already deleted go with it. Any refusal is a
+                // DeletionRefusedException, caught below, and nothing is written.
+                var removedLeftovers = await ProgramHelper.ExecuteProgramDeletionAsync(
                     _sql, ProgramParent.ProgramPK, _Session.UserId, CurrentDate, cancellationToken);
 
                 return Ok(new
                 {
-                    Message = $"Program {dto.ProgramId} and its projects have been permanently deleted.",
+                    Message = $"Program {dto.ProgramId} has been deleted.",
                     Title = "Program Deleted",
-                    DeletedProjects = deletedProjectIds
+                    DeletedProjects = removedLeftovers
                 });
             }
             catch (ProjectHelper.DeletionRefusedException ex)

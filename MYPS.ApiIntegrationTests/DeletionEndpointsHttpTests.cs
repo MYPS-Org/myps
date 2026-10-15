@@ -83,13 +83,12 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
 
     [Fact]
     [Trait("Layer", "HttpIntegration")]
-    public async Task DeleteProgram_RealHttpCall_HardDeletesAnEligibleProgramAndWritesAuditRows()
+    public async Task DeleteProgram_RealHttpCall_RefusedWhileItHasProjects_DeletedOnceAPermittedUserDeletedThem()
     {
         if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         var (programFK, project1FK, project2FK) = await SeedProgramWithTwoProjectsAsync(programStatus: 3 /* Working, not Approved */);
         using var client = _fixture.CreateAuthenticatedClient();
-
-        var response = await client.PostAsJsonAsync("/api/Program/DeleteProgram", new
+        var deleteProgram = new
         {
             Id = 0,
             ProgramId = programFK,
@@ -97,17 +96,29 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
             StageName = "BP",
             Name = "",
             DataSecurityGroup = Array.Empty<string>()
-        });
+        };
 
+        // No cascade (2026-10-16): the program still has its two projects.
+        var refused = await client.PostAsJsonAsync("/api/Program/DeleteProgram", deleteProgram);
+        string refusedBody = await refused.Content.ReadAsStringAsync();
+        Assert.True(refused.StatusCode == HttpStatusCode.BadRequest, $"Expected 400, got {refused.StatusCode}: {refusedBody}");
+        Assert.Contains("still has 2 project(s)", refusedBody);
+        Assert.Equal(1, await CountAsync($"SELECT COUNT(*) FROM dbo.tPrograms WHERE ProgramPK = '{programFK}'"));
+        Assert.Equal(2, await CountAsync($"SELECT COUNT(*) FROM dbo.tProjects WHERE ProgramFK = '{programFK}'"));
+
+        // A user allowed to Batch Delete deletes them (first stage entry: permanently).
+        var batchDelete = await client.PostAsJsonAsync("/api/Program/BatchDelete", new { ProgramId = programFK, ProjectIds = $"{project1FK},{project2FK}" });
+        Assert.True(batchDelete.StatusCode == HttpStatusCode.OK, $"Batch Delete: {batchDelete.StatusCode}: {await batchDelete.Content.ReadAsStringAsync()}");
+
+        var response = await client.PostAsJsonAsync("/api/Program/DeleteProgram", deleteProgram);
         string body = await response.Content.ReadAsStringAsync();
         Assert.True(response.StatusCode == HttpStatusCode.OK, $"Expected 200, got {response.StatusCode}: {body}");
 
         Assert.Equal(0, await CountAsync($"SELECT COUNT(*) FROM dbo.tPrograms WHERE ProgramPK = '{programFK}'"));
-        Assert.Equal(0, await CountAsync($"SELECT COUNT(*) FROM dbo.tProjects WHERE ProgramFK = '{programFK}'"));
         Assert.Equal(2, await CountAsync(
             $"SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId IN ('{project1FK}', '{project2FK}') AND TransactionType = 'Delete' AND NewValue = 'Permanently deleted'"));
         Assert.Equal(1, await CountAsync(
-            $"SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId = '{programFK}' AND OldValue LIKE '%\"ProjectsDeleted\":2%'"));
+            $"SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId = '{programFK}' AND OldValue LIKE '%\"ProjectsDeleted\":0%'"));
     }
 
     [Fact]

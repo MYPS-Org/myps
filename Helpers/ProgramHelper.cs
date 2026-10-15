@@ -161,55 +161,78 @@ namespace Helpers
         // not re-implement the eligibility rule here in C# -- the rule lives in
         // GetProgramDeletionEligibility.sql; this only runs it and maps the result.
         //
-        // POLICY (see the script's own header for the full rationale): replaces the
-        // old hardcoded StagesToCheck/AllowedStages lists in ProgramController.DeleteProgram
-        // (RISK-112's root cause) with one rule uniform across all 12 EnumProgramStage
-        // values: StageCount(ProgramFK) <= 1 -> Eligible, else Blocked. There is no
-        // soft-delete at the program level. This check does NOT check any child
-        // project's IsPublished flag -- that is a separate, independent check performed in
-        // DeleteProgramInTransactionAsync's own PASS 2 (per GetProjectDeletionTier.sql), not here.
+        // POLICY (see the script's own header for the full rationale): Blocked when the program
+        // is Approved, has progressed past its first stage, or (2026-10-16, NO CASCADE) still has
+        // a live project -- its projects must be deleted first, by a user allowed to (Batch
+        // Delete, or the Lump Sum module). There is no soft-delete at the program level.
         public class ProgramDeletionEligibilityResult
         {
             public string ProgramFK { get; set; } = string.Empty;
             public int StageCount { get; set; }
             /// <summary>The program's current status code (1 = Approved, 3 = Working), resolved as vProgramLatest resolves the badge.</summary>
             public int? CurrentStatus { get; set; }
+            /// <summary>Projects with a live (IsDeleted = 0) revision under the program. Any refuses the
+            /// delete. Counted only when the program is neither Approved nor progressed (else 0).</summary>
+            public int LiveProjects { get; set; }
+            /// <summary>Which rule refused: "Approved", "Progressed" or "LiveProjects"; null when Eligible.</summary>
+            public string? BlockedBy { get; set; }
             public string Eligibility { get; set; } = string.Empty;
-            /// <summary>Why it is Blocked ("program is approved", "progressed beyond its initial stage"); empty when Eligible.</summary>
+            /// <summary>Why it is Blocked ("program is approved", "progressed beyond its initial stage",
+            /// "it still has N project(s) that have not been deleted"); empty when Eligible.</summary>
             public string Reason { get; set; } = string.Empty;
+
+            /// <summary>The refusal a user sees: the reason, plus where to go when it is projects.</summary>
+            public string RefusalMessage => BlockedBy == "LiveProjects"
+                ? $"This program cannot be deleted: {Reason}. Delete them first (Batch Delete in Program Details; Lump Sum projects from the Lump Sum module)."
+                : $"This program cannot be deleted: {Reason}.";
         }
 
         private const string GetProgramDeletionEligibilityScript = "Functions/GetProgramDeletionEligibility.sql";
         private const string ExecuteProgramDeletionScript = "Stored Procedures/ExecuteProgramDeletion.sql";
+        private const int DeletionCommandTimeoutSeconds = 120;
+
+        private static object EligibilityParameters(IEnumerable<string> programFKs) =>
+            new { ProgramFKs = System.Text.Json.JsonSerializer.Serialize(programFKs.Distinct().ToArray()) };
 
         /// <summary>
         /// Runs Functions/GetProgramDeletionEligibility.sql for one program. Returns null when
         /// the program does not exist (the script returns zero rows in that case -- mirrors
         /// GetProjectDeletionTier.sql's own contract) -- it does NOT fall back to a false
-        /// 'Eligible' result, so callers must check for null. Read-only; runs on its own
-        /// connection, no transaction needed.
+        /// 'Eligible' result, so callers must check for null. Read-only.
         /// </summary>
         public static async Task<ProgramDeletionEligibilityResult?> DetermineProgramDeletionEligibilityAsync(
             this ISqlExecutor sql, string programFK, CancellationToken cancellationToken = default)
+            => (await sql.DetermineProgramDeletionEligibilitiesAsync(new[] { programFK }, cancellationToken))
+                .Values.FirstOrDefault();
+
+        /// <summary>
+        /// The same rule for many programs in ONE query (a Program list page), keyed by ProgramPK.
+        /// A ProgramPK that does not exist has no entry. Read-only.
+        /// </summary>
+        public static async Task<Dictionary<string, ProgramDeletionEligibilityResult>> DetermineProgramDeletionEligibilitiesAsync(
+            this ISqlExecutor sql, IEnumerable<string> programFKs, CancellationToken cancellationToken = default)
         {
+            var keys = programFKs.Where(x => !string.IsNullOrEmpty(x)).ToList();
+            if (keys.Count == 0)
+            {
+                return new Dictionary<string, ProgramDeletionEligibilityResult>(StringComparer.OrdinalIgnoreCase);
+            }
             var rows = await sql.ExecuteScriptFileInTransactionAsync<ProgramDeletionEligibilityResult>(
-                GetProgramDeletionEligibilityScript,
-                new { ProgramFK = programFK },
-                ct: cancellationToken);
-            return rows.FirstOrDefault();
+                GetProgramDeletionEligibilityScript, EligibilityParameters(keys), ct: cancellationToken);
+            return rows.ToDictionary(x => x.ProgramFK, StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>
-        /// Deletes one Program and every one of its child projects, all in ONE ISqlExecutor-managed
-        /// transaction (<see cref="DeleteProgramInTransactionAsync"/>): lock the program's rows,
-        /// decide on the locked state -- program eligibility, then every child's tier, refusing with
-        /// every blocking child named -- and only then delete. Any exception rolls back every child
-        /// delete and the program delete together; nothing commits.
+        /// Deletes one Program, in ONE ISqlExecutor-managed transaction
+        /// (<see cref="DeleteProgramInTransactionAsync"/>). NO CASCADE (2026-10-16): a program that
+        /// still has a live project is refused -- its projects are deleted first, by a user allowed
+        /// to. What is removed with the program is only what users already deleted (soft-deleted
+        /// projects' leftover rows, within this program). Any exception rolls everything back.
         ///
         /// Throws <see cref="ProjectHelper.DeletionRefusedException"/> when the program is not
-        /// found, is Approved or has progressed beyond its initial stage, or has a child that
-        /// cannot be permanently deleted -- callers translate this straight to a user-facing
-        /// refusal. Returns every project that was deleted, for audit-trail logging.
+        /// found, is Approved, has progressed beyond its initial stage, still has live projects,
+        /// or has a leftover that cannot be removed -- callers translate this straight to a
+        /// user-facing refusal. Returns the leftover projects that were removed, for audit logging.
         /// </summary>
         public static Task<IEnumerable<string>> ExecuteProgramDeletionAsync(
             this ISqlExecutor sql, string programFK, string userId, DateTime currentDate,
@@ -219,20 +242,19 @@ namespace Helpers
                     programFK, userId, currentDate, connection, transaction, cancellationToken),
                 ct: cancellationToken);
 
-        private const int DeletionCommandTimeoutSeconds = 120;
-
         /*  Taken first inside the delete transaction. It decides nothing: it holds every row the
             decision reads until commit, so nothing can change them between the decision and the
             delete -- an approval or status change (tProgramRevisions.Status), a stage advance
-            (tProgramStages / tProjectStages inserts), a publish (tProjects.IsPublished) or a new
-            child (tProjects insert).
+            (tProgramStages / tProjectStages inserts), a publish (tProjects.IsPublished), a new
+            project (tProjects / tProjectRevisions insert) or a restore (tProjectRevisions.IsDeleted,
+            which is what makes a project live).
 
             Each statement READS the columns the decision depends on, not COUNT(*): a COUNT is
             answered from the nonclustered ProgramFK index alone, which locks only those index keys,
             and an UPDATE of IsPublished or Status (columns outside that index) then goes straight
             through (reproduced on localhost UAT 2026-10-16). Reading the columns forces the lookup
             into the table's own rows, so they are locked too. HOLDLOCK makes the locks range locks,
-            so an INSERT for this program waits as well. All five tables are indexed on ProgramFK /
+            so an INSERT for this program waits as well. All six tables are indexed on ProgramFK /
             ProgramPK, which keeps the ranges to this one program; RELEASE_DELETE_POLICY.md step 2
             checks that the target database has those indexes. */
         private const string LockProgramForDeletionSql = """
@@ -242,32 +264,43 @@ namespace Helpers
             SELECT @Int = MAX(RevisionId + StageId) FROM dbo.tProgramStages WITH (UPDLOCK, HOLDLOCK) WHERE ProgramFK = @ProgramFK;
             SELECT @Int = MAX(CAST(IsPublished AS INT) + CAST(IsRevised AS INT)), @Text = MAX(CONCAT(ProjectType, ParentProjectId))
               FROM dbo.tProjects WITH (UPDLOCK, HOLDLOCK) WHERE ProgramFK = @ProgramFK;
+            SELECT @Int = MAX(CAST(IsDeleted AS INT)) FROM dbo.tProjectRevisions WITH (UPDLOCK, HOLDLOCK) WHERE ProgramFK = @ProgramFK;
             SELECT @Int = MAX(RevisionId + StageId) FROM dbo.tProjectStages WITH (UPDLOCK, HOLDLOCK) WHERE ProgramFK = @ProgramFK;
             """;
 
-        /*  The program's projects: every project created under it (tProjects.ProgramFK), and every
-            project that has history under it while belonging to another program (a multi-year
-            project carried in) -- GetProjectDeletionTier.sql resolves both, and the delete of the
-            second kind removes only its history under this program. */
-        private const string ProgramProjectsSql = """
-            SELECT ProjectPK FROM dbo.tProjects WHERE ProgramFK = @ProgramFK
-            UNION
-            SELECT ProjectFK FROM dbo.tProjectRevisions WHERE ProgramFK = @ProgramFK
-            UNION
-            SELECT ProjectFK FROM dbo.tProjectStages WHERE ProgramFK = @ProgramFK;
+        /*  The program's DELETED projects: every project linked to it -- created under it
+            (tProjects.ProgramFK), or with history under it while belonging to another program --
+            that has no live revision under it. Users already deleted them; only their leftover rows
+            remain. (Once eligibility has passed there is no live project, so this is every linked
+            project; the filter states the intent and keeps a racing restore out.) */
+        private const string DeletedProgramProjectsSql = """
+            SELECT linked.ProjectFK
+            FROM (
+                SELECT ProjectPK AS ProjectFK FROM dbo.tProjects WHERE ProgramFK = @ProgramFK
+                UNION
+                SELECT ProjectFK FROM dbo.tProjectRevisions WHERE ProgramFK = @ProgramFK
+                UNION
+                SELECT ProjectFK FROM dbo.tProjectStages WHERE ProgramFK = @ProgramFK
+            ) linked
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.tProjectRevisions r
+                              WHERE r.ProjectFK = linked.ProjectFK AND r.ProgramFK = @ProgramFK AND r.IsDeleted = 0);
             """;
 
         /// <summary>
         /// The transactional body of <see cref="ExecuteProgramDeletionAsync"/>, on a transaction the
         /// caller owns and rolls back on any exception (<see cref="ISqlExecutor.ExecuteTransactionAsync{T}"/>
-        /// does). Locks the program's rows, then decides on the locked state: program eligibility
-        /// (Functions/GetProgramDeletionEligibility.sql) and every child's tier
-        /// (Functions/GetProjectDeletionTier.sql), refusing with every blocking child named. Then
-        /// PASS 3 hard-deletes each child through
-        /// <see cref="ProjectHelper.ExecuteProjectDeletionAsync(ISqlExecutor, string, string, string, DateTime, IDbTransaction?, CancellationToken)"/>
-        /// (which asks the tier script again, as every hard delete does), PASS 3.5 checks that
-        /// nothing of any project is left under the program, and PASS 4 removes the program's own
-        /// rows. Public so the database tests can run it after changing the data, without racing.
+        /// does). Locks the program's rows, then decides on the locked state:
+        ///   PASS 1   Functions/GetProgramDeletionEligibility.sql -- refuses an Approved or progressed
+        ///            program, and one that still has a live project (no cascade);
+        ///   PASS 2   every leftover of an already-deleted project, through
+        ///            Functions/GetProjectDeletionTier.sql -- one refusal names every one that cannot go;
+        ///   PASS 3   removes each leftover through
+        ///            <see cref="ProjectHelper.ExecuteProjectDeletionAsync(ISqlExecutor, string, string, string, DateTime, IDbTransaction?, CancellationToken)"/>,
+        ///            which deletes its rows under THIS program only and keeps the project's history in
+        ///            other programs (and its tProjects row while another program has history for it);
+        ///   PASS 3.5 nothing of any project may be left under the program;
+        ///   PASS 4   the program's own rows.
+        /// Public so the database tests can run it after changing the data, without racing.
         /// </summary>
         public static async Task<IEnumerable<string>> DeleteProgramInTransactionAsync(
             this ISqlExecutor sql, string programFK, string userId, DateTime currentDate,
@@ -277,9 +310,9 @@ namespace Helpers
                 LockProgramForDeletionSql, new { ProgramFK = programFK }, transaction,
                 DeletionCommandTimeoutSeconds, cancellationToken: cancellationToken));
 
-            // PASS 1 -- the program.
+            // PASS 1 -- the program, including "no live project left".
             var eligibility = (await sql.ExecuteScriptFileInTransactionAsync<ProgramDeletionEligibilityResult>(
-                GetProgramDeletionEligibilityScript, new { ProgramFK = programFK }, transaction, ct: cancellationToken))
+                GetProgramDeletionEligibilityScript, EligibilityParameters(new[] { programFK }), transaction, ct: cancellationToken))
                 .FirstOrDefault();
             if (eligibility == null)
             {
@@ -287,17 +320,17 @@ namespace Helpers
             }
             if (eligibility.Eligibility == "Blocked")
             {
-                throw new ProjectHelper.DeletionRefusedException($"This program cannot be deleted: {eligibility.Reason}.");
+                throw new ProjectHelper.DeletionRefusedException(eligibility.RefusalMessage);
             }
 
-            // PASS 2 -- every child's tier. A program is deleted only when EVERY child is 'Hard'; one
-            // refusal names every child that is not.
-            var childProjectFKs = (await connection.QueryAsync<string>(new CommandDefinition(
-                ProgramProjectsSql, new { ProgramFK = programFK }, transaction,
+            // PASS 2 -- the leftovers of projects users already deleted, judged by the single
+            // project rule; one refusal names every one that cannot be removed.
+            var leftoverProjectFKs = (await connection.QueryAsync<string>(new CommandDefinition(
+                DeletedProgramProjectsSql, new { ProgramFK = programFK }, transaction,
                 DeletionCommandTimeoutSeconds, cancellationToken: cancellationToken))).ToList();
 
             var blocked = new List<string>();
-            foreach (var projectFK in childProjectFKs)
+            foreach (var projectFK in leftoverProjectFKs)
             {
                 var row = (await sql.ExecuteScriptFileInTransactionAsync<ProjectHelper.ProjectDeletionTierResult>(
                     ProjectHelper.GetProjectDeletionTierScript,
@@ -316,19 +349,19 @@ namespace Helpers
             if (blocked.Count > 0)
             {
                 throw new ProjectHelper.DeletionRefusedException(
-                    $"This program cannot be deleted because some of its projects cannot be permanently deleted: {string.Join(", ", blocked)}");
+                    $"This program cannot be deleted because some of its deleted projects cannot be removed: {string.Join(", ", blocked)}");
             }
 
-            // PASS 3 -- hard-delete every child.
-            foreach (var projectFK in childProjectFKs)
+            // PASS 3 -- remove each leftover, within this program only.
+            foreach (var projectFK in leftoverProjectFKs)
             {
                 await sql.ExecuteProjectDeletionAsync(projectFK, programFK, userId, currentDate, transaction, cancellationToken);
             }
 
             // PASS 3.5 -- postcondition: nothing of any project may be left under this program
             // (the multi-year guard in ExecuteProjectDeletion.sql keeps a tProjects row that another
-            // program still has history for). Anything left refuses the delete; everything above
-            // rolls back.
+            // program still has history for, and that row would point at a deleted program).
+            // Anything left refuses the delete; everything above rolls back.
             var survivorCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
                 """
                 SELECT (SELECT COUNT(*) FROM dbo.tProjects WHERE ProgramFK = @ProgramFK)
@@ -350,11 +383,11 @@ namespace Helpers
                     ProgramFK = programFK,
                     UserId = userId,
                     CurrentDate = currentDate,
-                    ProjectsDeleted = childProjectFKs.Count
+                    ProjectsDeleted = leftoverProjectFKs.Count
                 },
                 transaction, ct: cancellationToken);
 
-            return childProjectFKs;
+            return leftoverProjectFKs;
         }
         #endregion
     }

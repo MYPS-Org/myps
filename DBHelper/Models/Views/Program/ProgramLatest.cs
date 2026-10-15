@@ -26,5 +26,14 @@ namespace DBHelper.Models.Views.Program
         public int[] UserGroup { get; set; } = Array.Empty<int>();
         public int? NumberOfProjects { get; set; }
         public int StartYear { get; set; }
+
+        /// <summary>Not a view column: set by ProgramController.ShowProgram from
+        /// Functions/GetProgramDeletionEligibility.sql, so the list's Delete button follows the server rule.</summary>
+        [NotMapped]
+        public bool? CanDelete { get; set; }
+
+        /// <summary>Why the program cannot be deleted (the same text DeleteProgram refuses with); null when it can.</summary>
+        [NotMapped]
+        public string? DeleteBlockedReason { get; set; }
     }
 }
