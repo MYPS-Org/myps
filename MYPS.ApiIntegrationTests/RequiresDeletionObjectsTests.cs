@@ -16,10 +16,11 @@ using Xunit;
 
 namespace MYPS.ApiIntegrationTests;
 
-/*  The 503 safety net for a release that skipped `Main.exe --apply-sql-objects --yes`
-    (documents/plans/delete-policy-release-blockers.md, 2.2): every action that uses the deletion SQL
-    objects answers 503 "Delete Unavailable" while IDeletionObjectsStatus says they are not deployed,
-    and runs normally once they are. The filter is exercised directly with a stub status (this
+/*  The 503 safety net (documents/plans/delete-policy-release-blockers.md 2.2, reworded by
+    documents/plans/delete-policy-must-fix.md): every action that runs the deletion SQL scripts
+    answers 503 "Delete Unavailable" while IDeletionObjectsStatus says the feature cannot run (a
+    script missing from the build, the database unreachable or too old), and runs normally once it
+    can. The filter is exercised directly with a stub status (this
     codebase has no authenticated end-to-end HTTP pattern); the database side of the status is
     covered by MYPS.DatabaseTests/DeletionObjectsStatusTests. */
 public sealed class RequiresDeletionObjectsTests
@@ -27,7 +28,7 @@ public sealed class RequiresDeletionObjectsTests
     private sealed class StubStatus : IDeletionObjectsStatus
     {
         public bool Ready { get; init; }
-        public string? Problem => Ready ? null : "dbo.fProjectDeletionTier is missing";
+        public string? Problem => Ready ? null : @"Functions/GetProjectDeletionTier.sql is missing from C:\inetpub\myps\Resources";
         public Task<bool> EnsureReadyAsync(CancellationToken ct = default) => Task.FromResult(Ready);
     }
 
@@ -58,8 +59,10 @@ public sealed class RequiresDeletionObjectsTests
         Assert.Equal(StatusCodes.Status503ServiceUnavailable, result.StatusCode);
         string body = System.Text.Json.JsonSerializer.Serialize(result.Value);
         Assert.Contains(RequiresDeletionObjectsAttribute.Title, body);
-        Assert.Contains("--apply-sql-objects --yes", body);
-        Assert.Contains("dbo.fProjectDeletionTier is missing", body);
+        Assert.Contains("Redeploy the build", body);
+        // What is wrong names server paths and SQL errors: it goes to the log, never to the caller.
+        Assert.DoesNotContain("GetProjectDeletionTier", body);
+        Assert.DoesNotContain("inetpub", body);
     }
 
     [Fact]

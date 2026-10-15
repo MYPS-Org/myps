@@ -70,6 +70,8 @@ public sealed class SqlObjectDeployerTests : IAsyncLifetime
     [InlineData("SELECT * FROM dbo.fProjectDeletionTier(@ProjectRef, @ProgramFK)", false)]
     [InlineData("DELETE FROM dbo.tProjects WHERE ProjectPK = @ProjectFK;", false)]
     [InlineData("/* a header mentioning CREATE FUNCTION in prose, never as code */\nSELECT 1 AS Col;", false)]
+    [InlineData("CREATE TABLE #Ids (Id INT PRIMARY KEY);\nDELETE FROM dbo.tProjects WHERE ProjectPK IN (SELECT Id FROM #Ids);", false)]
+    [InlineData("CREATE INDEX IX_Work ON #Work (Id);", false)]
     [InlineData("CREATE OR ALTER FUNCTION dbo.fX() RETURNS TABLE AS RETURN (SELECT 1 AS One);", true)]
     [InlineData("CREATE OR ALTER VIEW dbo.vX AS SELECT 1 AS One;", true)]
     [InlineData("CREATE OR ALTER PROCEDURE dbo.pX AS BEGIN SELECT 1; END", true)]
@@ -107,6 +109,27 @@ public sealed class SqlObjectDeployerTests : IAsyncLifetime
 
         Assert.DoesNotContain("Stored Procedures/DeleteSomethingForDapper.sql", applied);
         Assert.Equal(3, await CountObjectsAsync(FixtureObjects)); // the 3 real fixture objects still deployed normally
+    }
+
+    [Fact]
+    public async Task OnlyRuntimeScripts_NothingToDeploy_ListsThem_AndDemandsNoDdlRights()
+    {
+        // The real folder today: runtime scripts only. The command must say so, name what it
+        // skipped, check only the compatibility level they need, and not ask for DDL rights.
+        Write("Functions/GetSomething.sql", "SELECT 1 AS One WHERE @X = 1;");
+        Write("Stored Procedures/DoSomething.sql", "CREATE TABLE #Ids (Id INT);\nDELETE FROM #Ids WHERE Id = @Id;");
+        var log = new StringWriter();
+
+        var applied = await Deployer.ApplyAsync(_fixtureRoot, execute: true, log);
+
+        Assert.Empty(applied);
+        string output = log.ToString();
+        Assert.Contains("Nothing to deploy", output);
+        Assert.Contains("Functions/GetSomething.sql", output);
+        Assert.Contains("Stored Procedures/DoSomething.sql", output);
+        Assert.Contains("[ok] compatibility level", output);
+        Assert.DoesNotContain("CREATE FUNCTION", output);
+        Assert.DoesNotContain("Committed", output);
     }
 
     [Fact]
@@ -230,8 +253,8 @@ public sealed class SqlObjectDeployerTests : IAsyncLifetime
         // 2026-10-16: the project/program hard-delete feature stopped deploying compiled DB
         // objects (fProjectDeletionTier, fProgramDeletionEligibility, pExecuteProjectDeletion,
         // pExecuteProgramDeletion) -- it now reads and runs its .sql files directly at request
-        // time via ISqlExecutor.ExecuteScriptFile*InTransactionAsync (Main/Resources/Internal/
-        // SQLScripts/Deletion/, see Helpers/ProjectHelper.cs and Helpers/ProgramHelper.cs), not
+        // time via ISqlExecutor.ExecuteScriptFile*InTransactionAsync (they live in this same
+        // folder as runtime scripts, see Helpers/ProjectHelper.cs and Helpers/ProgramHelper.cs), not
         // through this deployer. Main/Resources/Internal/SQLObjects/ is scaffolded for a FUTURE
         // migration of legacy Views/Stored Procedures/Functions (none has moved yet), so the
         // real checked-in folder legitimately applies zero objects today; this replaces the
