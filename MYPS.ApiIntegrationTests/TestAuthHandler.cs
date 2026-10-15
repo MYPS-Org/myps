@@ -10,7 +10,7 @@ namespace MYPS.ApiIntegrationTests;
     puts on a signed-in request -- ClaimTypes.NameIdentifier, "HostName" -- to every request
     made through a WebApplicationFactory client configured with this handler, bypassing only
     the password check. Every DOWNSTREAM check this session's deep-protocol plan identified
-    still runs for real against real myps_db_dev: CoreController.OnActionExecuting's own
+    still runs for real against the configured database: CoreController.OnActionExecuting's own
     vUsers re-resolution, and PermissionFilter's vUsers/vUserActionPermission lookups -- this
     handler only answers "who is making this request", not "are they allowed to do this".
 

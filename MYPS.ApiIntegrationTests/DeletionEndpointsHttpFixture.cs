@@ -3,37 +3,27 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace MYPS.ApiIntegrationTests;
 
-/*  DEEP-PROTOCOL (2026-10-15/16): the first REAL authenticated HTTP-level test fixture in this
-    repo. Every prior "integration" test either asserted static source text
-    (ProgramControllerPublishRestrictionContractTests) or exercised a filter directly with a
-    stub (RequiresDeletionObjectsTests, whose own header comment says "this codebase has no
-    authenticated end-to-end HTTP pattern") -- never a real POST through Kestrel's test host,
-    through the real [PermissionFilter] -> CoreController.OnActionExecuting chain, against a
-    real database.
+/*  The first real authenticated HTTP-level fixture in this repo: a WebApplicationFactory<Program>
+    whose requests go through Kestrel's test host, the real [PermissionFilter] ->
+    CoreController.OnActionExecuting chain and the real delete code, against a real MYPS database.
+    TestAuthHandler bypasses only the password check; every DB-driven permission check still runs.
 
-    This fixture: builds a WebApplicationFactory<Program> pointed at the REAL myps_db_dev
-    (the same database this session's earlier live smoke test already proved safe for
-    disposable rows, independently re-verified with a zero-residue check afterward), registers
-    TestAuthHandler as the default auth scheme (bypasses only the password check -- every
-    downstream DB-driven permission check still runs for real), and inserts one disposable
-    test user + group + role + tApiActions grant covering exactly the 5 delete actions this
-    gap targets. Everything it creates is deleted in DisposeAsync, unconditionally, mirroring
-    the pattern already proven in this session's earlier live ExecuteProgramDeletionAsync test.
+    OPT-IN AND LOCAL ONLY (2026-10-16, documents/plans/delete-policy-must-fix.md). The fixture
+    writes a disposable user, group and grant plus ZZTEST program/project rows, so it runs only
+    when MYPS_HTTP_TEST_MYPSDB holds a connection string, and only against a local server
+    (localhost, ".", "(local)", 127.0.0.1 or LocalDB). Unset, it touches nothing and every test
+    returns early; a remote server is refused outright. The database needs the real schema (the
+    auth chain alone reads tUsers, tUserGroups, tGroups, tGroupRoles, tApiActions, vUsers,
+    vUserActionPermission), e.g. a local copy of UAT -- run it under a snapshot and revert.
+    Everything it creates is deleted again in DisposeAsync, unconditionally.
 
-    Why myps_db_dev and not a fresh throwaway database: the auth chain alone touches 6 real
-    tables/views (tUsers, tUserGroups, tGroups, tGroupRoles, tApiActions, vUsers,
-    vUserActionPermission) plus 2 real inline functions/views the delete actions themselves
-    need (fProgramStages, vProgramLatest) -- recreating all of that from scratch in a disposable
-    database would mean re-deriving the real schema a second time, with no guarantee of staying
-    in sync with it. Disposable, unmistakably-prefixed rows against the real schema is the
-    pattern this session already used and verified; this fixture reuses it rather than
-    inventing a second approach. */
+    The delete actions are granted by NAME: tApiActions.Id differs per database (the
+    PreviewBatchDelete permission migration matches by name for the same reason). */
 public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
 {
     public const string TestPrefix = "ZZTEST-HttpTest-";
@@ -42,16 +32,28 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
     public string TestUserId { get; } = $"{TestPrefix}{Guid.NewGuid():N}"[..40];
     public string ConnectionString { get; private set; } = string.Empty;
 
-    // Real tApiActions.Id values for the 5 delete endpoints, confirmed live against myps_db_dev
-    // (SELECT Id, ControllerName, ActionName FROM dbo.tApiActions WHERE ActionName IN (...)):
-    //   13  ProgramController.BatchDelete
-    //   22  ProgramController.DeleteProgram
-    //  153  LumpsumController.DeleteItemizedProject
-    //  154  LumpsumController.DeleteLumpSum
-    //  160  ProgramController.PreviewBatchDelete
-    private static readonly int[] DeleteActionIds = { 13, 22, 153, 154, 160 };
+    /// <summary>Holds the connection string of the local database to run against; unset = disabled.</summary>
+    public const string ConnectionStringVariable = "MYPS_HTTP_TEST_MYPSDB";
+
+    /// <summary>The actions behind [RequiresDeletionObjects], granted to the test user by name.</summary>
+    private static readonly (string Controller, string Action)[] DeleteActions =
+    {
+        ("ProgramController", "BatchDelete"),
+        ("ProgramController", "DeleteProgram"),
+        ("ProgramController", "PreviewBatchDelete"),
+        ("ProgramController", "BatchAddExistingProject"),
+        ("LumpsumController", "DeleteItemizedProject"),
+        ("LumpsumController", "DeleteLumpSum"),
+    };
+
+    private static readonly string[] LocalHosts = { "localhost", ".", "(local)", "127.0.0.1" };
+
+    /// <summary>False when <see cref="ConnectionStringVariable"/> is unset: nothing was created and
+    /// every test returns without asserting.</summary>
+    public bool Enabled { get; private set; }
 
     private int _groupId;
+    private string? _previousMypsDb;
 
     public async Task InitializeAsync()
     {
@@ -60,8 +62,18 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
         // own eager config reads, which is this project's 3 pre-existing
         // MYPS.ApiIntegrationTests failures' actual root cause (also fixed this session, see
         // ApplicationFactorySmokeTests.cs).
+        string? configured = Environment.GetEnvironmentVariable(ConnectionStringVariable);
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            return; // opt-in: disabled, nothing touched
+        }
+        ConnectionString = RequireLocalServer(configured);
+        Enabled = true;
+
         TestHostEnvironment.EnsureTestEnvironmentVariablesSet();
-        Environment.SetEnvironmentVariable("ConnectionStrings__MYPSDb", ReadDevConnectionString());
+        // Restored in DisposeAsync so it cannot leak into another test class in this run.
+        _previousMypsDb = Environment.GetEnvironmentVariable("ConnectionStrings__MYPSDb");
+        Environment.SetEnvironmentVariable("ConnectionStrings__MYPSDb", ConnectionString);
 
         Factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -79,8 +91,6 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
                 });
             });
 
-        ConnectionString = ReadDevConnectionString();
-
         await using var conn = new SqlConnection(ConnectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
@@ -95,6 +105,8 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
         cmd.Parameters.AddWithValue("@UserId", TestUserId);
         _groupId = (int)(await cmd.ExecuteScalarAsync())!;
 
+        int[] actionIds = await ReadDeleteActionIdsAsync(conn);
+
         await using var cmd2 = conn.CreateCommand();
         cmd2.CommandText = """
             INSERT INTO dbo.tUserGroups (UserId, GroupIds, CreatedBy, CreatedDate)
@@ -106,18 +118,54 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
         cmd2.Parameters.AddWithValue("@UserId", TestUserId);
         cmd2.Parameters.AddWithValue("@GroupIdsJson", $"[{_groupId}]");
         cmd2.Parameters.AddWithValue("@GroupId", _groupId);
-        cmd2.Parameters.AddWithValue("@ActionIdsJson", System.Text.Json.JsonSerializer.Serialize(DeleteActionIds));
+        cmd2.Parameters.AddWithValue("@ActionIdsJson", System.Text.Json.JsonSerializer.Serialize(actionIds));
         await cmd2.ExecuteNonQueryAsync();
     }
 
-    private static string ReadDevConnectionString()
+    /// <summary>Refuses any server but a local one: this fixture writes users and grants.</summary>
+    private static string RequireLocalServer(string connectionString)
     {
-        var config = new ConfigurationBuilder()
-            .SetBasePath(@"C:\Users\Msi\source\repos\myps_server\Main")
-            .AddJsonFile("appsettings.Development.json", optional: false)
-            .Build();
-        return config.GetConnectionString("MYPSDb")
-            ?? throw new InvalidOperationException("ConnectionStrings:MYPSDb missing from appsettings.Development.json.");
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        string host = builder.DataSource.Trim();
+        if (host.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase)) host = host[4..];
+        int comma = host.IndexOf(',');
+        if (comma >= 0) host = host[..comma];
+        bool isLocalDb = host.StartsWith("(localdb)", StringComparison.OrdinalIgnoreCase);
+        int slash = host.IndexOf('\\');
+        if (!isLocalDb && slash >= 0) host = host[..slash];
+
+        if (!isLocalDb && !LocalHosts.Contains(host, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"{ConnectionStringVariable} points at '{builder.DataSource}'. These tests create users, grants and " +
+                "program rows, so they run only against a local server (localhost, '.', '(local)', 127.0.0.1 or LocalDB).");
+        }
+        return connectionString;
+    }
+
+    private static async Task<int[]> ReadDeleteActionIdsAsync(SqlConnection conn)
+    {
+        var ids = new List<int>();
+        var missing = new List<string>();
+        foreach (var (controller, action) in DeleteActions)
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT Id FROM dbo.tApiActions
+                WHERE ControllerName = @Controller AND ActionName COLLATE Latin1_General_BIN2 = @Action;
+                """;
+            cmd.Parameters.AddWithValue("@Controller", controller);
+            cmd.Parameters.AddWithValue("@Action", action);
+            if (await cmd.ExecuteScalarAsync() is int id) ids.Add(id);
+            else missing.Add($"{controller}.{action}");
+        }
+        if (missing.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"tApiActions has no row for {string.Join(", ", missing)}. For PreviewBatchDelete run " +
+                "Main/Resources/Internal/SQLScripts/Migration.PreviewBatchDeletePermission.2026-10-15.sql first.");
+        }
+        return ids.ToArray();
     }
 
     public HttpClient CreateAuthenticatedClient()
@@ -129,6 +177,12 @@ public sealed class DeletionEndpointsHttpFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        if (!Enabled)
+        {
+            return;
+        }
+        Environment.SetEnvironmentVariable("ConnectionStrings__MYPSDb", _previousMypsDb);
+
         await using var conn = new SqlConnection(ConnectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
