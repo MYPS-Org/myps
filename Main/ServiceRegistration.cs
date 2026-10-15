@@ -51,6 +51,10 @@ namespace Main
             }
 
             Services.AddSingleton<ISqlExecutor>(new SqlExecutor());
+            // Delete endpoints answer 503 until the deletion SQL objects this build needs are
+            // deployed (Main.exe --apply-sql-objects --yes); see [RequiresDeletionObjects].
+            Services.AddSingleton<IDeletionObjectsStatus>(sp => new DeletionObjectsStatus(
+                Appsetting.DbConnections.MYPSDb, sp.GetService<ILogger<DeletionObjectsStatus>>()));
             return Services;
         }
         public static IServiceCollection AddCookieAuthentication(this IServiceCollection Services)

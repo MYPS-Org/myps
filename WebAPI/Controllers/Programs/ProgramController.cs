@@ -472,6 +472,7 @@ namespace WebAPI.Controllers.Programs
             }
         }
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto, CancellationToken cancellationToken)
         {
             try
@@ -2430,6 +2431,7 @@ namespace WebAPI.Controllers.Programs
         /// (restorable), which refused and why, and which were not found. Writes nothing.
         /// </summary>
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> PreviewBatchDelete([FromBody] BatchUnpublishTaggingDTO dto, CancellationToken cancellationToken)
         {
             try
@@ -2456,6 +2458,7 @@ namespace WebAPI.Controllers.Programs
         }
 
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> BatchDelete([FromBody] BatchUnpublishTaggingDTO dto, CancellationToken cancellationToken)
         {
             // 2026-09-21: the delete and the program cost recompute below must land together.
@@ -2569,6 +2572,7 @@ namespace WebAPI.Controllers.Programs
         }
 
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> BatchAddExistingProject([FromBody] BatchAddExistingProjectDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();

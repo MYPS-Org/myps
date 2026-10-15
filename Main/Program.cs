@@ -145,6 +145,17 @@ var app = builder.Build();
 // Console.WriteLine, which never reached the same log sink as the "MYPS ERROR EVENT" reports.
 APIRequest.Logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Helpers.APIRequest");
 
+// 2026-10-15: check once at startup whether the deletion SQL objects this build needs are deployed,
+// so a release that skipped `Main.exe --apply-sql-objects --yes` is visible in the log immediately.
+// Never fatal: only the delete endpoints answer 503 until it is ready ([RequiresDeletionObjects]),
+// and they re-check on their own, so applying the objects later needs no restart.
+// Skipped under the Testing environment: its connection string falls back to the base
+// appsettings.json, and a test host must not open a connection just by starting.
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    _ = app.Services.GetRequiredService<IDeletionObjectsStatus>().EnsureReadyAsync();
+}
+
 
 // ==========================================================
 // DEVELOPMENT

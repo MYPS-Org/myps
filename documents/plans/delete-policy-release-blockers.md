@@ -1,6 +1,6 @@
 # Plan: Fix the release blockers on feat/program-project-hard-delete-policy (PR #255)
 
-Status: Task 1 implemented; Task 2 open
+Status: Implemented
 Created: 2026-10-15
 Source: Release-blocker review of PR #255. User decisions: Approved program refuses every delete (Lump Sum itemized children exempt); Batch Delete server preview; audit row per project and per program; delete endpoints 503 until SQL objects are deployed; program-year gate DEFERRED.
 
@@ -267,3 +267,32 @@ Files changed:
 - `Helpers/{ProjectHelper,ProgramHelper}.cs`, `WebAPI/Controllers/Programs/ProgramController.cs`, `WebAPI/Controllers/Lumpsum/LumpsumController.Itemization.cs`, `Main/Main.csproj`
 - `FE/src/pages/Program/{Model.d.ts,Service.ts,Views/Program.tsx,dialogs/BatchTagDialog.tsx,dialogs/ConfirmDialogBatch.tsx,dialogs/DeleteProgramDialog.tsx}`
 - `MYPS.DatabaseTests/{ProjectDeletionTierTests,SqlObjectDeployerTests}.cs`, `e2e/tests/{program-hard-delete-policy,program-detail-batch-actions}.spec.ts`, `e2e/CLAUDE.md`
+
+## Completion Log — Task 2
+Date: 2026-10-15
+- Implementation:
+  - **2.1 Preflight.** `SqlObjectDeployer.PreflightAsync`, read-only, runs in the dry run too. It prints a checklist: compatibility level >= 130 (OPENJSON), SQL Server major >= 14 (STRING_AGG), CREATE FUNCTION / PROCEDURE / VIEW, and ALTER on dbo. Any failure throws, exits 1, and nothing is applied.
+  - **2.2 503 safety net.** `Helpers/DeletionObjectsStatus.cs` (`IDeletionObjectsStatus`, a singleton) probes `sys.columns` for the columns this build reads, the procedures for the `DELETE_REFUSED:` marker, and the compatibility level. It caches "ready" and re-checks every 30 s while not ready. `WebAPI/Controllers/RequiresDeletionObjectsAttribute.cs` returns 503 "Delete Unavailable" (with the problem and the fix command) on DeleteProgram, PreviewBatchDelete, BatchDelete, BatchAddExistingProject, DeleteLumpSum and DeleteItemizedProject. Registered in `ServiceRegistration`; `Program.cs` checks once at startup (logs, never fatal) except under the Testing environment.
+  - **2.3 Release order and runbook.** Release order checked: `main` has 0 references to the four objects, so applying them before publishing is safe by construction. The runbook is `documents/docs/RELEASE_DELETE_POLICY.md` (dry run / target check, preflight, DDL-login fallback, apply, permission script, publish, smoke incl. the gate-vs-badge consistency query, rollback). The SQLObjects README links it.
+- Tests:
+  - `MYPS.DatabaseTests` 81/81 (+9): `DeletionObjectsStatusTests` (7: missing / older function / older procedure / compat 120 / recovers without restart / caches within interval / ready after apply) and 2 deployer preflight cases (compat 120 refuses even the dry run; a login without DDL rights refuses and applies nothing). The temporary localhost login is dropped in `finally`.
+  - `MYPS.ApiIntegrationTests` 56/56 (+4): filter 503 vs pass-through; exactly the six delete actions are guarded; the status resolves under Testing without opening a connection.
+  - `MYPS.UnitTests` 37/37.
+- **2.4 Rehearsal** on localhost `myps_db_migrated_uat`, under a snapshot, with the target checked before every DB step:
+  - new build with no objects: startup log "NOT ready" naming all four; the delete endpoints answered 503, PreviewBatchDelete 403 (grant not yet run), ShowProgram 200;
+  - dry run (6/6 preflight ok) → `--yes` → permission script (0-row check);
+  - the same API process, not restarted, logged "ready" within 30 s; PreviewBatchDelete 200, BatchDelete normal 400 for an unknown id;
+  - `program-hard-delete-policy` + `program-detail-batch-actions` 15/15 against it;
+  - snapshot reverted; counts match the baseline on 108 tables.
+- Documentation: `RELEASE_DELETE_POLICY.md` (new), SQLObjects README, `e2e/CLAUDE.md` coverage row (503 note).
+Deviations / flags:
+- The plan's "old build + new objects" check was done by evidence instead of running an old build: production code (`main`) never calls the objects. This branch's earlier commits are not deployed anywhere except shared dev, which was restored to its 4a97caf1 versions.
+- The `PreviewBatchDelete` 403 before the grant is expected and documented (runbook step 4); code-review finding 2 from Task 1 (Batch Delete depends on that grant) is still open.
+- The startup probe is skipped under `ASPNETCORE_ENVIRONMENT=Testing`: that environment falls back to the base appsettings.json connection, which must never be dialled.
+- The PR #255 description still needs its deploy section pointed at the runbook (can't edit the PR from here).
+Files changed:
+- `Helpers/SqlObjectDeployer.cs`, `Helpers/DeletionObjectsStatus.cs` (new), `WebAPI/Controllers/RequiresDeletionObjectsAttribute.cs` (new)
+- `WebAPI/Controllers/Programs/ProgramController.cs`, `WebAPI/Controllers/Lumpsum/LumpsumController.Itemization.cs` (attributes only)
+- `Main/ServiceRegistration.cs`, `Main/Program.cs`
+- `MYPS.DatabaseTests/{DeletionObjectsStatusTests (new),SqlObjectDeployerTests}.cs`, `MYPS.ApiIntegrationTests/RequiresDeletionObjectsTests.cs` (new)
+- `documents/docs/RELEASE_DELETE_POLICY.md` (new), `Main/Resources/Internal/SQLObjects/README.md`, `e2e/CLAUDE.md`, this plan

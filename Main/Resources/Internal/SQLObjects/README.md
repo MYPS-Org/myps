@@ -28,7 +28,14 @@ ASPNETCORE_ENVIRONMENT=Development ./Main.exe --apply-sql-objects --yes  # apply
 - Two runs at once cannot interleave: the second fails on the `MYPS_SqlObjectDeploy` app lock.
 - The login needs `CREATE`/`ALTER` permission on `dbo`.
 
-Run it after deploying a build that changes anything in this folder.
+- The dry run also runs a **preflight**: compatibility level ≥ 130, SQL Server 2017+, and CREATE/ALTER
+  rights. Any `[FAIL]` exits 1 and nothing is applied.
+- The API checks at startup whether these objects are deployed and current. Until they are, the delete
+  endpoints answer **503 "Delete Unavailable"**. They recover on their own, within 30 s, once the objects
+  are applied.
+
+Run it **before** publishing a build that changes anything in this folder. For the delete-policy release,
+follow `documents/docs/RELEASE_DELETE_POLICY.md` step by step.
 
 ## Writing a file here
 

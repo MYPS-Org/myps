@@ -225,6 +225,7 @@ namespace WebAPI.Controllers.Lumpsum
         /// module, so a published child must be handled there.
         /// </summary>
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> DeleteItemizedProject([FromBody] ItemizedProjectIdDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
@@ -439,6 +440,7 @@ namespace WebAPI.Controllers.Lumpsum
         /// Either non-blocked outcome leaves no orphaned children behind.
         /// </summary>
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> DeleteLumpSum([FromBody] DeleteLumpSumDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);

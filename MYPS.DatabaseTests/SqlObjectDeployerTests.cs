@@ -102,6 +102,71 @@ public sealed class SqlObjectDeployerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Preflight_CompatibilityBelow130_RefusesEvenTheDryRun_AndAppliesNothing()
+    {
+        WriteFixture();
+        await ExecuteMasterAsync($"ALTER DATABASE [{LocalDbSafety.ValidateDatabaseName(_databaseName)}] SET COMPATIBILITY_LEVEL = 120");
+
+        var log = new StringWriter();
+        var dryRun = await Assert.ThrowsAsync<InvalidOperationException>(() => Deployer.ApplyAsync(_fixtureRoot, execute: false, log));
+        Assert.Contains("compatibility level 120", dryRun.Message);
+        Assert.Contains("[FAIL] compatibility level 120", log.ToString());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Deployer.ApplyAsync(_fixtureRoot, execute: true, TextWriter.Null));
+        Assert.Equal(0, await CountObjectsAsync(FixtureObjects));
+    }
+
+    [Fact]
+    public async Task Preflight_LoginWithoutDdlRights_RefusesAndAppliesNothing()
+    {
+        WriteFixture();
+        if (await IntegratedSecurityOnlyAsync())
+            return; // a SQL login cannot connect to this server (e.g. LocalDB); nothing to prove here
+
+        string login = $"MYPS_Test_login_{Guid.NewGuid():N}";
+        string password = $"Pw!{Guid.NewGuid():N}";
+        await ExecuteMasterAsync($"CREATE LOGIN [{login}] WITH PASSWORD = N'{password}', CHECK_POLICY = OFF;");
+        try
+        {
+            await ExecuteAsync($"CREATE USER [{login}] FOR LOGIN [{login}]; ALTER ROLE db_datareader ADD MEMBER [{login}];");
+            string lowPrivilege = new SqlConnectionStringBuilder(ConnectionString)
+            {
+                IntegratedSecurity = false,
+                UserID = login,
+                Password = password,
+                Pooling = false
+            }.ConnectionString;
+
+            var deployer = new SqlObjectDeployer(new SqlExecutor(lowPrivilege), lowPrivilege);
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => deployer.ApplyAsync(_fixtureRoot, execute: true, TextWriter.Null));
+            Assert.Contains("CREATE FUNCTION", ex.Message);
+            Assert.Contains("ALTER on schema dbo", ex.Message);
+            Assert.Equal(0, await CountObjectsAsync(FixtureObjects));
+        }
+        finally
+        {
+            // The login is server-level: dropping the test database does not remove it.
+            await ExecuteMasterAsync($"IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'{login}') DROP LOGIN [{login}];");
+        }
+    }
+
+    private static async Task<bool> IntegratedSecurityOnlyAsync()
+    {
+        await using var connection = new SqlConnection(LocalDbSafety.MasterConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand("SELECT CAST(SERVERPROPERTY('IsIntegratedSecurityOnly') AS INT);", connection);
+        return Convert.ToInt32(await command.ExecuteScalarAsync()) == 1;
+    }
+
+    private async Task ExecuteAsync(string sql)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(sql, connection) { CommandTimeout = 60 };
+        await command.ExecuteNonQueryAsync();
+    }
+
+    [Fact]
     public async Task Apply_WhileAnotherRunHoldsTheLock_FailsFast()
     {
         WriteFixture();
