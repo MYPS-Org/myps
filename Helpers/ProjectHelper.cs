@@ -663,8 +663,66 @@ namespace Helpers
             public bool IsPublished { get; set; }
             public bool IsRevised { get; set; }
             public int StageCount { get; set; }
+            /// <summary>The program is Approved (current status as vProgramLatest shows it). An Approved
+            /// program refuses every delete except a Lump Sum itemized child's.</summary>
+            public bool ProgramApproved { get; set; }
             public string Tier { get; set; } = string.Empty;
             public string Reason { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// A delete the single deletion rule refused, carrying the plain-language reason the
+        /// procedures raise after their 'DELETE_REFUSED: ' token (e.g. "Project X cannot be
+        /// permanently deleted: program is approved."). Controllers turn it into a 400 whose
+        /// Message is <see cref="Reason"/>; ExceptionHandler would otherwise reduce it to a
+        /// generic database error. Same pattern as <see cref="ProjectIdRangeExhaustedException"/>.
+        /// </summary>
+        public sealed class DeletionRefusedException : Exception
+        {
+            public const string Token = "DELETE_REFUSED:";
+            public string Reason { get; }
+
+            public DeletionRefusedException(string reason, Exception? inner = null) : base(reason, inner) => Reason = reason;
+
+            public static bool Matches(SqlException ex) => ex.Message.Contains(Token, StringComparison.Ordinal);
+
+            /// <summary>The refusal error's own text, without the token (an exception can carry several errors).</summary>
+            public static DeletionRefusedException From(SqlException ex)
+            {
+                string message = ex.Errors.Cast<SqlError>()
+                    .Select(e => e.Message)
+                    .FirstOrDefault(m => m.Contains(Token, StringComparison.Ordinal)) ?? ex.Message;
+                int at = message.IndexOf(Token, StringComparison.Ordinal);
+                string reason = (at >= 0 ? message[(at + Token.Length)..] : message).Trim();
+                return new DeletionRefusedException(reason, ex);
+            }
+        }
+
+        /// <summary>
+        /// Audit rows for a soft delete (or its restore): one tTransactionLog row per project,
+        /// IsDeleted false -> true (or back), added to <paramref name="db"/>'s change tracker so
+        /// they commit with the caller's transaction. Hard deletes are logged by
+        /// dbo.pExecuteProjectDeletion itself.
+        /// </summary>
+        public static void AddSoftDeleteAuditRows(
+            this MYPSDbContext db, IEnumerable<(string ProjectFK, int RevisionId, string? StageName)> revisions,
+            bool deleted, string userId, DateTime createdDate)
+        {
+            foreach (var (projectFK, revisionId, stageName) in revisions)
+            {
+                db.tTransactionLog.Add(new DBHelper.Models.Table.TransactionLog
+                {
+                    ReferenceId = projectFK,
+                    TransactionType = (deleted ? EnumTransactionType.Delete : EnumTransactionType.Update).ToString(),
+                    AffectedTable = "tProjectRevisions",
+                    AffectedColumn = "IsDeleted",
+                    OldValue = System.Text.Json.JsonSerializer.Serialize(new { RevisionId = revisionId, StageName = stageName, IsDeleted = !deleted }),
+                    NewValue = deleted ? "true" : "false",
+                    CreatedBy = userId,
+                    Hostname = Environment.MachineName,
+                    CreatedDate = createdDate
+                });
+            }
         }
 
         /// <summary>
@@ -678,7 +736,7 @@ namespace Helpers
         {
             string refs = System.Text.Json.JsonSerializer.Serialize(projectRefs.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
             return await db.Database.SqlQuery<ProjectDeletionTierResult>($"""
-                SELECT t.Ref, t.ProjectFK, t.ProgramFK, t.MatchedBy, t.Kind, t.IsPublished, t.IsRevised, t.StageCount, t.Tier, t.Reason
+                SELECT t.Ref, t.ProjectFK, t.ProgramFK, t.MatchedBy, t.Kind, t.IsPublished, t.IsRevised, t.StageCount, t.ProgramApproved, t.Tier, t.Reason
                 FROM OPENJSON({refs}) WITH (Ref NVARCHAR(200) '$') j
                 CROSS APPLY dbo.fProjectDeletionTier(j.Ref, {programFK}) t
                 """).ToListAsync(cancellationToken);
@@ -693,13 +751,23 @@ namespace Helpers
         /// Hard-deletes one project under one program through dbo.pExecuteProjectDeletion, inside
         /// the transaction <paramref name="db"/> has open (the procedure then neither commits nor
         /// rolls back; the caller does). The procedure re-checks the tier and refuses anything but
-        /// 'Hard' with a SqlException, so call it only for a project whose tier is Hard.
+        /// 'Hard' with <see cref="DeletionRefusedException"/>, so call it only for a project whose
+        /// tier is Hard. It also writes the project's tTransactionLog row.
         /// </summary>
-        public static Task<int> ExecuteProjectDeletionAsync(
+        public static async Task<int> ExecuteProjectDeletionAsync(
             this MYPSDbContext db, string projectFK, string programFK, string userId, DateTime currentDate, CancellationToken cancellationToken = default)
-            => db.Database.ExecuteSqlInterpolatedAsync(
-                $"EXEC dbo.pExecuteProjectDeletion @ProjectFK = {projectFK}, @ProgramFK = {programFK}, @UserId = {userId}, @CurrentDate = {currentDate}",
-                cancellationToken);
+        {
+            try
+            {
+                return await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"EXEC dbo.pExecuteProjectDeletion @ProjectFK = {projectFK}, @ProgramFK = {programFK}, @UserId = {userId}, @CurrentDate = {currentDate}",
+                    cancellationToken);
+            }
+            catch (SqlException ex) when (DeletionRefusedException.Matches(ex))
+            {
+                throw DeletionRefusedException.From(ex);
+            }
+        }
 
         /// <summary>Dapper form of <see cref="DetermineProjectDeletionTierAsync(MYPSDbContext, string, string, CancellationToken)"/>.</summary>
         public static async Task<List<ProjectDeletionTierResult>> DetermineProjectDeletionTierAsync(
@@ -727,11 +795,18 @@ namespace Helpers
             parameters.Add("@UserId", userId, DbType.String, ParameterDirection.Input);
             parameters.Add("@CurrentDate", currentDate, DbType.DateTime2, ParameterDirection.Input);
 
-            await sql.ExecuteAsync(
-                "EXEC dbo.pExecuteProjectDeletion @ProjectFK = @ProjectFK, @ProgramFK = @ProgramFK, @UserId = @UserId, @CurrentDate = @CurrentDate",
-                parameters,
-                tx: tx,
-                ct: cancellationToken);
+            try
+            {
+                await sql.ExecuteAsync(
+                    "EXEC dbo.pExecuteProjectDeletion @ProjectFK = @ProjectFK, @ProgramFK = @ProgramFK, @UserId = @UserId, @CurrentDate = @CurrentDate",
+                    parameters,
+                    tx: tx,
+                    ct: cancellationToken);
+            }
+            catch (SqlException ex) when (DeletionRefusedException.Matches(ex))
+            {
+                throw DeletionRefusedException.From(ex);
+            }
         }
         #endregion
     }

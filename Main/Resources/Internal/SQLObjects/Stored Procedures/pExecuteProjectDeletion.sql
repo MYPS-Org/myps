@@ -12,6 +12,13 @@
     function). A ProjectPK always names its own project; any other reference that
     names more than one project is refused as ambiguous.
 
+    REFUSALS start with 'DELETE_REFUSED: ' followed by a plain-language reason; the
+    C# wrappers (Helpers/ProjectHelper.cs) turn exactly those into
+    DeletionRefusedException so the reason reaches the user as a 400.
+
+    AUDIT: one tTransactionLog row per hard-deleted project (ReferenceId = ProjectPK,
+    OldValue = a JSON snapshot of its stages and ids), in the same transaction.
+
     TRANSACTIONS: opens its own transaction only when none is active, and commits or
     rolls back only what it opened. Inside a caller's transaction (Delete Program's
     procedure, Batch Delete's and the Lump Sum actions' EF transaction) it never
@@ -59,11 +66,12 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @Matches INT, @Tier NVARCHAR(20), @Reason NVARCHAR(100), @ResolvedFK NVARCHAR(200);
+    DECLARE @Matches INT, @Tier NVARCHAR(20), @Reason NVARCHAR(100), @ResolvedFK NVARCHAR(200),
+            @Kind NVARCHAR(20), @StageCount INT;
 
     -- A ProjectPK names exactly its own project, even when the same string is also
     -- another project's revision ProjectId (the function returns both rows).
-    SELECT @Tier = Tier, @Reason = Reason, @ResolvedFK = ProjectFK
+    SELECT @Tier = Tier, @Reason = Reason, @ResolvedFK = ProjectFK, @Kind = Kind, @StageCount = StageCount
     FROM dbo.fProjectDeletionTier(@ProjectFK, @ProgramFK)
     WHERE ProjectFK = @ProjectFK;
 
@@ -74,23 +82,25 @@ BEGIN
 
         IF @Matches = 0
         BEGIN
-            RAISERROR(N'pExecuteProjectDeletion: Project %s was not found under Program %s.', 16, 1, @ProjectFK, @ProgramFK);
+            RAISERROR(N'DELETE_REFUSED: Project %s was not found in this program.', 16, 1, @ProjectFK);
             RETURN;
         END
 
         IF @Matches > 1
         BEGIN
-            RAISERROR(N'pExecuteProjectDeletion: Project reference %s matches more than one project under Program %s. Use the ProjectPK.', 16, 1, @ProjectFK, @ProgramFK);
+            RAISERROR(N'DELETE_REFUSED: Project ID %s matches more than one project in this program.', 16, 1, @ProjectFK);
             RETURN;
         END
 
-        SELECT @Tier = Tier, @Reason = Reason, @ResolvedFK = ProjectFK
+        SELECT @Tier = Tier, @Reason = Reason, @ResolvedFK = ProjectFK, @Kind = Kind, @StageCount = StageCount
         FROM dbo.fProjectDeletionTier(@ProjectFK, @ProgramFK);
     END
 
     IF @Tier <> N'Hard'
     BEGIN
-        RAISERROR(N'pExecuteProjectDeletion: Project %s cannot be hard-deleted (%s: %s).', 16, 1, @ResolvedFK, @Tier, @Reason);
+        -- The DELETE_REFUSED: token is what the C# wrappers turn into DeletionRefusedException,
+        -- whose text reaches the user verbatim; keep the reason in plain language.
+        RAISERROR(N'DELETE_REFUSED: Project %s cannot be permanently deleted: %s.', 16, 1, @ResolvedFK, @Reason);
         RETURN;
     END
 
@@ -120,6 +130,26 @@ BEGIN
         WHERE w.ComponentCostFK IN (SELECT Id FROM @CostIds);
 
         -- Formal revisions (tRevisionDetails and everything hanging off it)
+        -- AUDIT (2026-10-15): one tTransactionLog row per hard-deleted project, written in
+        -- the same transaction as the delete, BEFORE the rows go, so OldValue can say what
+        -- the project was. It rolls back with the delete if anything below fails.
+        DECLARE @Snapshot NVARCHAR(MAX) = (
+            SELECT @ProjectFK AS ProjectPK, @ProgramFK AS ProgramFK, @Kind AS Kind,
+                   @StageCount AS StageCount, @Reason AS Reason,
+                   (SELECT s.StageName, r.ProjectId
+                    FROM dbo.tProjectStages s
+                    JOIN dbo.tProjectRevisions r ON r.Id = s.RevisionId
+                    WHERE s.ProjectFK = @ProjectFK AND s.ProgramFK = @ProgramFK
+                    ORDER BY s.Id
+                    FOR JSON PATH) AS Stages
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER);
+
+        INSERT INTO dbo.tTransactionLog
+            (ReferenceId, TransactionType, AffectedTable, AffectedColumn, OldValue, NewValue, CreatedBy, Hostname, CreatedDate)
+        VALUES
+            (@ProjectFK, N'Delete', N'tProjects, tProjectRevisions, tProjectStages (+ child rows)', N'Row',
+             ISNULL(@Snapshot, N'{}'), N'Permanently deleted', ISNULL(@UserId, N''), ISNULL(HOST_NAME(), N''), @CurrentDate);
+
         DECLARE @RevDetailIds TABLE (Id INT PRIMARY KEY);
         INSERT INTO @RevDetailIds (Id)
         SELECT d.Id FROM dbo.tRevisionDetails d

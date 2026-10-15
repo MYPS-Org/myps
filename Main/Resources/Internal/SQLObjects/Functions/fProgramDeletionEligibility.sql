@@ -11,30 +11,27 @@
     program sitting at RBP/RDIP/PIP even after genuinely progressing through
     several real stages, destroying real history.
 
-    The replacement is ONE rule, uniform across ALL 12 EnumProgramStage
-    values (BP, NEP, NEPE, HGAB, HGABI, GAA, GAAR, RBP, RDIP, PIP, TF, TFR)
-    -- there is no more stage-name logic anywhere in this decision:
+    RULE, first match wins (Reason is returned for the user-facing refusal):
+      Blocked   the program's CURRENT status is Approved      'program is approved'
+                (2026-10-15: an Approved program refuses every delete)
+      Blocked   StageCount(ProgramFK) > 1                     'progressed beyond its initial stage'
+                (genuinely advanced at least once, by any path)
+      Eligible  otherwise (never advanced past its very first recorded stage,
+                whatever that stage's name is)
 
-      StageCount(ProgramFK) <= 1 (never advanced past its very first
-      recorded stage, whatever that stage's name is) -> Eligible.
-
-      StageCount(ProgramFK) > 1 (genuinely advanced at least once, by any
-      path -- normal BP->NEP->... progression OR a formal
-      pPublishProgram/UpdateProgramStage transition) -> Blocked.
+    CURRENT STATUS = the Status of the revision the program's CURRENT STAGE ROW
+    points at: tProgramStages ordered by tOptionProgramStage.StageHierarchy DESC,
+    then Id DESC, joined to tProgramRevisions on RevisionId. This is exactly how
+    dbo.vProgramLatest resolves the Status badge users see (verified against the
+    live view definition 2026-10-15). It is NOT the newest tProgramRevisions row:
+    on myps_db_migrated_uat that pick disagrees with the badge on 6 of 103
+    programs, all GAA-R programs shown Approved whose newest revision is Working.
+    Compared as the code (EnumProgramStatus.Approved = 1), never the name.
 
     There is no soft-delete at the Program level. A Program that passes
-    this check is always fully hard-deleted, along with every one of its
-    child projects (see pExecuteProgramDeletion) -- "no more program
-    soft-delete, all will be hard-delete" (operator instruction).
-
-    This function does NOT check tProjects.IsPublished anywhere -- that
-    check belongs to fProjectDeletionTier and is evaluated per child project
-    inside pExecuteProgramDeletion's own Pass 1. A program could in theory
-    have StageCount = 1 at the program level while one of its children is
-    independently flagged IsPublished = 1 through a path this function does
-    not see; pExecuteProgramDeletion's two-pass design (program eligibility,
-    then child-published check) is what actually closes that gap end to
-    end, not this function alone. */
+    this check is fully hard-deleted, along with every one of its child
+    projects (see pExecuteProgramDeletion). Child projects are judged
+    separately by fProjectDeletionTier inside pExecuteProgramDeletion. */
 SET QUOTED_IDENTIFIER ON;
 GO
 CREATE OR ALTER FUNCTION dbo.fProgramDeletionEligibility
@@ -48,16 +45,31 @@ RETURN
     SELECT
         pr.ProgramPK                                            AS ProgramFK,
         ISNULL(st.StageCount, 0)                                AS StageCount,
+        cur.Status                                              AS CurrentStatus,
         CASE
-            WHEN ISNULL(st.StageCount, 0) <= 1 THEN N'Eligible'
-            ELSE N'Blocked'
-        END                                                      AS Eligibility
+            WHEN cur.Status = 1                    THEN N'Blocked'
+            WHEN ISNULL(st.StageCount, 0) > 1      THEN N'Blocked'
+            ELSE N'Eligible'
+        END                                                      AS Eligibility,
+        CASE
+            WHEN cur.Status = 1                    THEN N'program is approved'
+            WHEN ISNULL(st.StageCount, 0) > 1      THEN N'progressed beyond its initial stage'
+            ELSE N''
+        END                                                      AS Reason
     FROM dbo.tPrograms pr
     OUTER APPLY (
         SELECT COUNT(*) AS StageCount
         FROM dbo.tProgramStages s
         WHERE s.ProgramFK = pr.ProgramPK
     ) st
+    OUTER APPLY (
+        SELECT TOP (1) rv.Status
+        FROM dbo.tProgramStages ps
+        JOIN dbo.tOptionProgramStage o ON o.Id = ps.StageId
+        LEFT JOIN dbo.tProgramRevisions rv ON rv.Id = ps.RevisionId
+        WHERE ps.ProgramFK = pr.ProgramPK
+        ORDER BY o.StageHierarchy DESC, ps.Id DESC
+    ) cur
     WHERE pr.ProgramPK = @ProgramFK
 );
 GO

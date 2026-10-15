@@ -172,7 +172,11 @@ namespace Helpers
         {
             public string ProgramFK { get; set; } = string.Empty;
             public int StageCount { get; set; }
+            /// <summary>The program's current status code (1 = Approved, 3 = Working), resolved as vProgramLatest resolves the badge.</summary>
+            public int? CurrentStatus { get; set; }
             public string Eligibility { get; set; } = string.Empty;
+            /// <summary>Why it is Blocked ("program is approved", "progressed beyond its initial stage"); empty when Eligible.</summary>
+            public string Reason { get; set; } = string.Empty;
         }
 
         /// <summary>
@@ -217,11 +221,18 @@ namespace Helpers
             // (e.g. ProgramController.cs's "EXEC dbo.pRecomputeProjectPublishable @ProgramFK = ...").
             // No `tx` parameter is exposed here deliberately -- this call must never be
             // nested inside a caller-owned transaction (see summary above).
-            var deletedProjectIds = await sql.QueryAsync<string>(
-                "EXEC dbo.pExecuteProgramDeletion @ProgramFK = @ProgramFK, @UserId = @UserId, @CurrentDate = @CurrentDate",
-                parameters,
-                ct: cancellationToken);
-            return deletedProjectIds;
+            try
+            {
+                var deletedProjectIds = await sql.QueryAsync<string>(
+                    "EXEC dbo.pExecuteProgramDeletion @ProgramFK = @ProgramFK, @UserId = @UserId, @CurrentDate = @CurrentDate",
+                    parameters,
+                    ct: cancellationToken);
+                return deletedProjectIds;
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex) when (ProjectHelper.DeletionRefusedException.Matches(ex))
+            {
+                throw ProjectHelper.DeletionRefusedException.From(ex);
+            }
         }
         #endregion
     }

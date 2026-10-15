@@ -418,6 +418,11 @@ namespace WebAPI.Controllers.Lumpsum
                     Title = "Delete Complete"
                 });
             }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                await SafeRollbackAsync(transaction, cancellationToken);
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Blocked" });
+            }
             catch (Exception ex)
             {
                 await SafeRollbackAsync(transaction, cancellationToken);
@@ -519,7 +524,12 @@ namespace WebAPI.Controllers.Lumpsum
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "Cannot delete a published Lump Sum Project. Cancel it through Programs, which owns publishing.",
+                        /*  Blocked is "published" or, since 2026-10-15, "program is approved" at
+                            any stage (the GAA-R case was already refused above with the
+                            module's own wording). Say which. */
+                        Message = TierRow.ProgramApproved && !TierRow.IsPublished
+                            ? "Cannot delete a Lump Sum Project in an Approved program. Set the program back to Working first."
+                            : "Cannot delete a published Lump Sum Project. Cancel it through Programs, which owns publishing.",
                         Title = "Delete Blocked"
                     });
                 }
@@ -540,6 +550,13 @@ namespace WebAPI.Controllers.Lumpsum
                     var Revisions = await _db.tProjectRevisions
                         .Where(x => x.ProjectFK == Project.ProjectPK)
                         .ToListAsync(cancellationToken);
+
+                    // 2026-10-15: one audit row per revision this flags (hard deletes are logged
+                    // by dbo.pExecuteProjectDeletion), committed with the soft delete.
+                    _db.AddSoftDeleteAuditRows(
+                        Revisions.Where(x => !x.IsDeleted).Select(x => (Project.ProjectPK, x.Id, (string?)null)),
+                        deleted: true, UserId, CurrentDate);
+
                     foreach (var Revision in Revisions)
                     {
                         Revision.IsDeleted = true;
@@ -563,6 +580,11 @@ namespace WebAPI.Controllers.Lumpsum
                         : "Lump Sum Project deleted and kept for history.",
                     Title = "Delete Complete"
                 });
+            }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                await SafeRollbackAsync(transaction, cancellationToken);
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Blocked" });
             }
             catch (Exception ex)
             {

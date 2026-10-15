@@ -133,13 +133,20 @@ public sealed class SqlObjectDeployerTests : IAsyncLifetime
         Assert.Equal(4, await CountObjectsAsync("fProgramDeletionEligibility", "fProjectDeletionTier", "pExecuteProgramDeletion", "pExecuteProjectDeletion"));
     }
 
-    /// <summary>Only what the inline functions reference must exist at CREATE time; procedures resolve late.</summary>
+    /// <summary>
+    /// Every table the functions read must exist at CREATE time. A procedure may reference a
+    /// table that does not exist yet (deferred name resolution), but NOT a missing column of a
+    /// table that does — so any table created here carries every column the objects use.
+    /// </summary>
     private const string MinimalSchemaSql = """
-        CREATE TABLE dbo.tPrograms (ProgramPK NVARCHAR(200) PRIMARY KEY);
-        CREATE TABLE dbo.tProgramStages (Id INT IDENTITY PRIMARY KEY, ProgramFK NVARCHAR(200));
+        CREATE TABLE dbo.tPrograms (ProgramPK NVARCHAR(200) PRIMARY KEY, StartYear INT);
+        CREATE TABLE dbo.tProgramStages (Id INT IDENTITY PRIMARY KEY, ProgramFK NVARCHAR(200), StageId INT, StageName NVARCHAR(20), RevisionId INT);
+        CREATE TABLE dbo.tOptionProgramStage (Id INT PRIMARY KEY, StageHierarchy INT);
+        CREATE TABLE dbo.tProgramRevisions (Id INT IDENTITY PRIMARY KEY, ProgramFK NVARCHAR(200), Name NVARCHAR(200), Status INT);
         CREATE TABLE dbo.tProjects (ProjectPK NVARCHAR(200) PRIMARY KEY, ProgramFK NVARCHAR(200), IsPublished BIT, IsRevised BIT,
             ProjectType NVARCHAR(10), ParentProjectId NVARCHAR(200));
-        CREATE TABLE dbo.tProjectStages (Id INT IDENTITY PRIMARY KEY, ProjectFK NVARCHAR(200), ProgramFK NVARCHAR(200), StageId INT);
+        CREATE TABLE dbo.tProjectStages (Id INT IDENTITY PRIMARY KEY, ProjectFK NVARCHAR(200), ProgramFK NVARCHAR(200), StageId INT,
+            StageName NVARCHAR(20), RevisionId INT);
         CREATE TABLE dbo.tProjectRevisions (Id INT IDENTITY PRIMARY KEY, ProjectFK NVARCHAR(200), ProgramFK NVARCHAR(200), ProjectId NVARCHAR(200));
         """;
 

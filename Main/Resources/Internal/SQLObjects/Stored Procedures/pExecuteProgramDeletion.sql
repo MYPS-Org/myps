@@ -104,18 +104,20 @@ BEGIN
     SET XACT_ABORT ON;
 
     -- PASS 1: Program-level eligibility. Read-only, no transaction yet.
-    DECLARE @Eligibility NVARCHAR(20);
-    SELECT @Eligibility = Eligibility FROM dbo.fProgramDeletionEligibility(@ProgramFK);
+    DECLARE @Eligibility NVARCHAR(20), @EligibilityReason NVARCHAR(100);
+    SELECT @Eligibility = Eligibility, @EligibilityReason = Reason
+    FROM dbo.fProgramDeletionEligibility(@ProgramFK);
 
     IF @Eligibility IS NULL
     BEGIN
-        RAISERROR(N'pExecuteProgramDeletion: Program %s was not found.', 16, 1, @ProgramFK);
+        RAISERROR(N'DELETE_REFUSED: Program %s was not found.', 16, 1, @ProgramFK);
         RETURN;
     END
 
     IF @Eligibility = N'Blocked'
     BEGIN
-        RAISERROR(N'pExecuteProgramDeletion: Program %s cannot be deleted because it has progressed beyond its initial stage.', 16, 1, @ProgramFK);
+        -- Reason comes from the function: 'program is approved' or 'progressed beyond its initial stage'.
+        RAISERROR(N'DELETE_REFUSED: Program %s cannot be deleted: %s.', 16, 1, @ProgramFK, @EligibilityReason);
         RETURN;
     END
 
@@ -138,7 +140,7 @@ BEGIN
         DECLARE @BlockedList NVARCHAR(MAX) = (
             SELECT STRING_AGG(ProjectFK + N' (' + Reason + N')', N', ') FROM @Projects WHERE Tier <> N'Hard'
         );
-        RAISERROR(N'pExecuteProgramDeletion: Program %s has project(s) that cannot be hard-deleted: %s', 16, 1, @ProgramFK, @BlockedList);
+        RAISERROR(N'DELETE_REFUSED: Program %s cannot be deleted because some of its projects cannot be permanently deleted: %s', 16, 1, @ProgramFK, @BlockedList);
         RETURN;
     END
 
@@ -179,8 +181,31 @@ BEGIN
             DECLARE @SurvivingList NVARCHAR(MAX) = (
                 SELECT STRING_AGG(ProjectPK, N', ') FROM dbo.tProjects WHERE ProgramFK = @ProgramFK
             );
-            RAISERROR(N'pExecuteProgramDeletion: Program %s cannot be deleted because project(s) could not be fully removed: %s', 16, 1, @ProgramFK, @SurvivingList);
+            RAISERROR(N'DELETE_REFUSED: Program %s cannot be deleted because some of its projects could not be fully removed: %s', 16, 1, @ProgramFK, @SurvivingList);
         END
+
+        -- AUDIT (2026-10-15): one tTransactionLog row for the program itself, in this
+        -- transaction (each child already wrote its own row in pExecuteProjectDeletion).
+        DECLARE @ProgramSnapshot NVARCHAR(MAX) = (
+            SELECT pg.ProgramPK, cur.Name, pg.StartYear, cur.StageName,
+                   (SELECT COUNT(*) FROM @Projects) AS ProjectsDeleted
+            FROM dbo.tPrograms pg
+            OUTER APPLY (
+                SELECT TOP (1) rv.Name, ps.StageName
+                FROM dbo.tProgramStages ps
+                JOIN dbo.tOptionProgramStage o ON o.Id = ps.StageId
+                LEFT JOIN dbo.tProgramRevisions rv ON rv.Id = ps.RevisionId
+                WHERE ps.ProgramFK = pg.ProgramPK
+                ORDER BY o.StageHierarchy DESC, ps.Id DESC
+            ) cur
+            WHERE pg.ProgramPK = @ProgramFK
+            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER);
+
+        INSERT INTO dbo.tTransactionLog
+            (ReferenceId, TransactionType, AffectedTable, AffectedColumn, OldValue, NewValue, CreatedBy, Hostname, CreatedDate)
+        VALUES
+            (@ProgramFK, N'Delete', N'tPrograms, tProgramRevisions, tProgramStages', N'Row',
+             ISNULL(@ProgramSnapshot, N'{}'), N'Permanently deleted', ISNULL(@UserId, N''), ISNULL(HOST_NAME(), N''), @CurrentDate);
 
         -- PASS 4: only reached if PASS 3.5 raised nothing.
         DELETE FROM dbo.tProgramStages WHERE ProgramFK = @ProgramFK;
@@ -195,7 +220,7 @@ BEGIN
             CLOSE ProjectCursor;
             DEALLOCATE ProjectCursor;
         END
-        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        IF @StartedOwnTran = 1 AND @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH
 

@@ -13,10 +13,16 @@
          even when revised, so no row keeps holding its reserved Project ID. The ID
          allocator (tProjectIdSequence) is not rewound: re-itemizing issues a new one.
       A published project is never deleted by any path.
+      4. (2026-10-15) An APPROVED program refuses every delete of its projects, soft or
+         hard — except Lump Sum itemized children, which stay deletable so an import
+         mistake in an Approved program remains correctable (Lump Sum rule 2026-09-09).
+         "Approved" is the program's CURRENT status as dbo.vProgramLatest shows it; see
+         fProgramDeletionEligibility's header for how that revision is resolved.
 
     TIER, first match wins:
       Blocked  tProjects.IsPublished = 1.
-      Hard     Kind = 'LSChild'                 (rule 3).
+      Hard     Kind = 'LSChild'                 (rule 3, exempt from rule 4).
+      Blocked  program is Approved              (rule 4).
       Hard     StageCount = 1                   (rule 1).
       Soft     otherwise — including StageCount = 0: with no stage history there is
                no evidence of a first stage entry, so nothing is destroyed on it.
@@ -86,21 +92,35 @@ RETURN
         p.IsPublished,
         p.IsRevised,
         st.StageCount,
+        CAST(CASE WHEN prog.Status = 1 THEN 1 ELSE 0 END AS BIT) AS ProgramApproved,
         CASE
             WHEN p.IsPublished = 1     THEN N'Blocked'
             WHEN k.Kind = N'LSChild'   THEN N'Hard'
+            WHEN prog.Status = 1       THEN N'Blocked'
             WHEN st.StageCount = 1     THEN N'Hard'
             ELSE N'Soft'
         END                                                     AS Tier,
         CASE
             WHEN p.IsPublished = 1     THEN N'published'
             WHEN k.Kind = N'LSChild'   THEN N'Lump Sum itemized project'
+            WHEN prog.Status = 1       THEN N'program is approved'
             WHEN st.StageCount = 1     THEN N'first stage entry'
             WHEN st.StageCount = 0     THEN N'no stage history under this program'
             ELSE N'progressed past its first stage'
         END                                                     AS Reason
     FROM Chosen c
     JOIN dbo.tProjects p ON p.ProjectPK = c.ProjectPK
+    /*  The program's CURRENT status, resolved exactly as dbo.vProgramLatest resolves
+        the Status badge (see fProgramDeletionEligibility's header): the current
+        stage row's revision, not the newest revision row. */
+    OUTER APPLY (
+        SELECT TOP (1) rv.Status
+        FROM dbo.tProgramStages ps
+        JOIN dbo.tOptionProgramStage o ON o.Id = ps.StageId
+        LEFT JOIN dbo.tProgramRevisions rv ON rv.Id = ps.RevisionId
+        WHERE ps.ProgramFK = @ProgramFK
+        ORDER BY o.StageHierarchy DESC, ps.Id DESC
+    ) prog
     CROSS APPLY (
         SELECT CASE
                    WHEN p.ParentProjectId IS NOT NULL THEN N'LSChild'
