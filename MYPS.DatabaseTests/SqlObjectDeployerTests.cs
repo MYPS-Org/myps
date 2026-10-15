@@ -66,6 +66,49 @@ public sealed class SqlObjectDeployerTests : IAsyncLifetime
         Assert.Equal("Views/vDeployOne.sql", SqlObjectDeployer.Discover(_fixtureRoot)[0]);
     }
 
+    [Theory]
+    [InlineData("SELECT * FROM dbo.fProjectDeletionTier(@ProjectRef, @ProgramFK)", false)]
+    [InlineData("DELETE FROM dbo.tProjects WHERE ProjectPK = @ProjectFK;", false)]
+    [InlineData("/* a header mentioning CREATE FUNCTION in prose, never as code */\nSELECT 1 AS Col;", false)]
+    [InlineData("CREATE OR ALTER FUNCTION dbo.fX() RETURNS TABLE AS RETURN (SELECT 1 AS One);", true)]
+    [InlineData("CREATE OR ALTER VIEW dbo.vX AS SELECT 1 AS One;", true)]
+    [InlineData("CREATE OR ALTER PROCEDURE dbo.pX AS BEGIN SELECT 1; END", true)]
+    [InlineData("/* header */\nSET QUOTED_IDENTIFIER ON;\nGO\nCREATE OR ALTER FUNCTION dbo.fX() RETURNS TABLE AS RETURN (SELECT 1 AS One);\nGO\n", true)]
+    public void IsDeployableObject_DistinguishesDdlFromPlainScripts(string script, bool expected)
+    {
+        // Guards the 2026-10-16 fix: SqlObjectDeployer must never try to execute a plain
+        // parameterized Dapper script (grouped into Functions/Views/Stored Procedures by
+        // convention, not deployed by this tool) as if it were CREATE OR ALTER DDL -- that
+        // would run an unparameterized query/cascade and either error immediately (undeclared
+        // @ProjectFK etc.) or, worse, execute with whatever happened to be bound.
+        Assert.Equal(expected, SqlObjectDeployer.IsDeployableObject(script));
+    }
+
+    [Fact]
+    public void Discover_SkipsAPlainParameterizedScript_EvenInsideADeployedFolder()
+    {
+        WriteFixture();
+        Write("Functions/GetSomethingForDapper.sql", "SELECT * FROM dbo.tProjects WHERE ProjectPK = @ProjectFK;");
+
+        var discovered = SqlObjectDeployer.Discover(_fixtureRoot);
+
+        Assert.DoesNotContain("Functions/GetSomethingForDapper.sql", discovered);
+        Assert.Contains("Functions/fDeployOne.sql", discovered); // the real DDL fixture is unaffected
+    }
+
+    [Fact]
+    public async Task ApplyAsync_NeverExecutesAPlainParameterizedScript()
+    {
+        WriteFixture();
+        Write("Stored Procedures/DeleteSomethingForDapper.sql",
+            "DELETE FROM dbo.fDeployOne WHERE 1 = 0; -- would error/no-op if ever actually run here");
+
+        var applied = await Deployer.ApplyAsync(_fixtureRoot, execute: true, TextWriter.Null);
+
+        Assert.DoesNotContain("Stored Procedures/DeleteSomethingForDapper.sql", applied);
+        Assert.Equal(3, await CountObjectsAsync(FixtureObjects)); // the 3 real fixture objects still deployed normally
+    }
+
     [Fact]
     public async Task DryRun_ExecutesNothing()
     {

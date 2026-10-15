@@ -4,7 +4,7 @@ namespace MYPS.DatabaseTests;
 
 /*  Helpers.DeletionObjectsStatus decides whether the delete endpoints answer 503. Converted
     2026-10-16 along with the feature itself: the deletion rule now runs DIRECTLY from the 4
-    .sql files under Main/Resources/Internal/SQLScripts/Deletion/ via ISqlExecutor.
+    .sql files under Main/Resources/Internal/SQLObjects/ via ISqlExecutor.
     ExecuteScriptFile*InTransactionAsync — no compiled dbo.fProjectDeletionTier /
     dbo.fProgramDeletionEligibility / dbo.pExecuteProjectDeletion / dbo.pExecuteProgramDeletion
     objects exist for this feature any longer, so there is no "deployed version is older than
@@ -19,7 +19,7 @@ public sealed class DeletionObjectsStatusTests : IDisposable
 {
     private readonly string _databaseName = LocalDbSafety.RequiredPrefix + Guid.NewGuid().ToString("N");
     private string ConnectionString => LocalDbSafety.BuildConnectionString(_databaseName);
-    private readonly string _realScriptsRoot = FindRepositoryDirectory("Main/Resources/Internal/SQLScripts");
+    private readonly string _realScriptsRoot = FindRepositoryDirectory("Main/Resources/Internal/SQLObjects");
     private readonly string _emptyScriptsRoot;
 
     public DeletionObjectsStatusTests()

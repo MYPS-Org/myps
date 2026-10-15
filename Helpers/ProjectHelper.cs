@@ -632,7 +632,7 @@ namespace Helpers
 
         #region ProjectDeletionTier — the single project-deletion rule (file-based SQL)
         // Converted 2026-10-16: runs the deletion rule DIRECTLY from the .sql files under
-        // Main/Resources/Internal/SQLScripts/Deletion/ via ISqlExecutor.ExecuteScriptFile*
+        // Main/Resources/Internal/SQLObjects/ via ISqlExecutor.ExecuteScriptFile*
         // InTransactionAsync — no compiled DB function/procedure is used for this feature any
         // longer. The script IS the rule — hard only on a project's first stage entry, soft
         // once it has progressed, Lump Sum itemized projects always hard, published never,
@@ -653,10 +653,10 @@ namespace Helpers
             public const string LSChild = "LSChild";
         }
 
-        internal const string GetProjectDeletionTierScript = "Deletion/Functions/GetProjectDeletionTier.sql";
-        internal const string ExecuteProjectDeletionScript = "Deletion/Stored Procedures/ExecuteProjectDeletion.sql";
+        internal const string GetProjectDeletionTierScript = "Functions/GetProjectDeletionTier.sql";
+        internal const string ExecuteProjectDeletionScript = "Stored Procedures/ExecuteProjectDeletion.sql";
 
-        /// <summary>One row of Deletion/Functions/GetProjectDeletionTier.sql. <see cref="Ref"/> is the reference as given
+        /// <summary>One row of Functions/GetProjectDeletionTier.sql. <see cref="Ref"/> is the reference as given
         /// (ProjectPK or any revision ProjectId, BP- or P-form); <see cref="ProjectFK"/> is what it resolved to.</summary>
         public class ProjectDeletionTierResult
         {
@@ -711,7 +711,7 @@ namespace Helpers
         /// Audit rows for a soft delete (or its restore): one tTransactionLog row per project,
         /// IsDeleted false -> true (or back), added to <paramref name="db"/>'s change tracker so
         /// they commit with the caller's transaction. Hard deletes are logged by
-        /// Deletion/Stored Procedures/ExecuteProjectDeletion.sql itself.
+        /// Stored Procedures/ExecuteProjectDeletion.sql itself.
         /// </summary>
         public static void AddSoftDeleteAuditRows(
             this MYPSDbContext db, IEnumerable<(string ProjectFK, int RevisionId, string? StageName)> revisions,
@@ -812,12 +812,12 @@ namespace Helpers
         }
 
         /// <summary>
-        /// Hard-deletes one project under one program by running Deletion/Stored Procedures/ExecuteProjectDeletion.sql,
+        /// Hard-deletes one project under one program by running Stored Procedures/ExecuteProjectDeletion.sql,
         /// inside the transaction <paramref name="db"/> has open (REQUIRED — this call must run
         /// inside a caller-owned <c>db.Database.BeginTransactionAsync</c>, exactly as it did
         /// before this conversion, so the cascade commits or rolls back together with the rest
         /// of the caller's action; throws <see cref="InvalidOperationException"/> if none is
-        /// open). Re-derives the project's tier from Deletion/Functions/GetProjectDeletionTier.sql first —
+        /// open). Re-derives the project's tier from Functions/GetProjectDeletionTier.sql first —
         /// defense in depth, mirrors the former stored procedure's own re-check — and refuses
         /// with <see cref="DeletionRefusedException"/> for anything but 'Hard', never trusting an
         /// earlier caller-side tier read without re-verifying here. It also writes the project's

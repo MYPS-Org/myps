@@ -155,7 +155,7 @@ namespace Helpers
         #region ProgramDeletionEligibility (file-based SQL via ISqlExecutor)
         // Added 2026-10-14, operator-directed deep-protocol engagement; converted 2026-10-16
         // to run the deletion rule DIRECTLY from the .sql files under Main/Resources/Internal/
-        // SQLScripts/Deletion/ via ISqlExecutor.ExecuteScriptFile*InTransactionAsync -- no
+        // SQLObjects/ via ISqlExecutor.ExecuteScriptFile*InTransactionAsync -- no
         // compiled DB function/procedure is used for this feature any longer. Global, usable
         // anywhere ISqlExecutor is injected, for "can this Program be deleted right now?". Do
         // not re-implement the eligibility rule here in C# -- the rule lives in
@@ -179,13 +179,13 @@ namespace Helpers
             public string Reason { get; set; } = string.Empty;
         }
 
-        private const string GetProgramDeletionEligibilityScript = "Deletion/Functions/GetProgramDeletionEligibility.sql";
-        private const string GetProjectDeletionTierScript = "Deletion/Functions/GetProjectDeletionTier.sql";
-        private const string ExecuteProjectDeletionScript = "Deletion/Stored Procedures/ExecuteProjectDeletion.sql";
-        private const string ExecuteProgramDeletionScript = "Deletion/Stored Procedures/ExecuteProgramDeletion.sql";
+        private const string GetProgramDeletionEligibilityScript = "Functions/GetProgramDeletionEligibility.sql";
+        private const string GetProjectDeletionTierScript = "Functions/GetProjectDeletionTier.sql";
+        private const string ExecuteProjectDeletionScript = "Stored Procedures/ExecuteProjectDeletion.sql";
+        private const string ExecuteProgramDeletionScript = "Stored Procedures/ExecuteProgramDeletion.sql";
 
         /// <summary>
-        /// Runs Deletion/Functions/GetProgramDeletionEligibility.sql for one program. Returns null when
+        /// Runs Functions/GetProgramDeletionEligibility.sql for one program. Returns null when
         /// the program does not exist (the script returns zero rows in that case -- mirrors
         /// GetProjectDeletionTier.sql's own contract) -- it does NOT fall back to a false
         /// 'Eligible' result, so callers must check for null. Read-only; runs on its own
@@ -203,7 +203,7 @@ namespace Helpers
 
         /// <summary>
         /// Deletes one Program and every one of its child projects, running the five passes
-        /// directly from the .sql files under Main/Resources/Internal/SQLScripts/Deletion/ --
+        /// directly from the .sql files under Main/Resources/Internal/SQLObjects/ --
         /// PASS 1 (program eligibility) and PASS 2 (every child's tier) are read-only and run
         /// BEFORE any transaction opens, exactly as the former self-atomic stored procedure did.
         /// PASS 3 (hard-delete every child), PASS 3.5 (postcondition: no project may survive

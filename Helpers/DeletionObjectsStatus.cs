@@ -5,7 +5,7 @@ namespace Helpers
 {
     /// <summary>
     /// Whether this build's deletion feature can actually run right now: the 4 .sql script
-    /// files it reads at request time (Main/Resources/Internal/SQLScripts/Deletion/) are present
+    /// files it reads at request time (Main/Resources/Internal/SQLObjects/) are present
     /// on disk, and the target database is reachable and new enough for the syntax they use
     /// (FOR JSON PATH needs compatibility level >= 130). The delete endpoints answer 503 while
     /// either is not true, instead of failing with a 500 on first use; the rest of the API is
@@ -41,13 +41,13 @@ namespace Helpers
         public static readonly TimeSpan RecheckInterval = TimeSpan.FromSeconds(30);
 
         /// <summary>The 4 script files this build's deletion feature reads at request time, relative
-        /// to Appsetting.Resources.SQLScripts. A missing one means the feature cannot run at all.</summary>
+        /// to Appsetting.Resources.SQLObjects. A missing one means the feature cannot run at all.</summary>
         public static readonly IReadOnlyList<string> RequiredScriptFiles = new[]
         {
-            "Deletion/Functions/GetProjectDeletionTier.sql",
-            "Deletion/Functions/GetProgramDeletionEligibility.sql",
-            "Deletion/Stored Procedures/ExecuteProjectDeletion.sql",
-            "Deletion/Stored Procedures/ExecuteProgramDeletion.sql",
+            "Functions/GetProjectDeletionTier.sql",
+            "Functions/GetProgramDeletionEligibility.sql",
+            "Stored Procedures/ExecuteProjectDeletion.sql",
+            "Stored Procedures/ExecuteProgramDeletion.sql",
         };
 
         /// <summary>The scripts use FOR JSON PATH for their audit-log snapshots (SQL Server 2016 /
@@ -63,7 +63,7 @@ namespace Helpers
         private volatile bool _ready;
 
         public DeletionObjectsStatus(string connectionString, ILogger<DeletionObjectsStatus>? logger = null, TimeSpan? recheckInterval = null)
-            : this(connectionString, Appsetting.Resources.SQLScripts, logger, recheckInterval)
+            : this(connectionString, Appsetting.Resources.SQLObjects, logger, recheckInterval)
         {
         }
 
@@ -150,10 +150,10 @@ namespace Helpers
             return problems.Count == 0 ? null : string.Join("; ", problems);
         }
 
-        /// <summary>Back-compat overload using the statically configured Appsetting.Resources.SQLScripts
+        /// <summary>Back-compat overload using the statically configured Appsetting.Resources.SQLObjects
         /// (set by Main's startup from appsettings.json) -- for any remaining caller that only has the
         /// connection string at hand.</summary>
         public static Task<string?> ProbeAsync(string connectionString, CancellationToken ct = default)
-            => ProbeAsync(connectionString, Appsetting.Resources.SQLScripts, ct);
+            => ProbeAsync(connectionString, Appsetting.Resources.SQLObjects, ct);
     }
 }

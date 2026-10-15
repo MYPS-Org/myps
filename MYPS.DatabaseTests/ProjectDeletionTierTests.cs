@@ -5,7 +5,7 @@ using Xunit;
 namespace MYPS.DatabaseTests;
 
 /*  The project/program hard-delete rule is implemented by 4 .sql script files under
-    Main/Resources/Internal/SQLScripts/Deletion/ (GetProjectDeletionTier.sql,
+    Main/Resources/Internal/SQLObjects/ (GetProjectDeletionTier.sql,
     GetProgramDeletionEligibility.sql, ExecuteProjectDeletion.sql, ExecuteProgramDeletion.sql),
     read and run directly by ISqlExecutor.ExecuteScriptFile*InTransactionAsync — no compiled DB
     function/procedure exists for this feature (converted 2026-10-16; documents/plans/
