@@ -101,8 +101,9 @@ namespace WebAPI.Controllers.Lumpsum
 
                 /*  NO PROGRAM-APPROVAL GATE HERE (rule revised 2026-09-09). Itemizing
                     an Approved GAA-R program is the work that stage exists for, so
-                    approval does not reach this action — only CreateLumpSum and
-                    DeleteLumpSum. See AssertProgramNotApprovedAsync. */
+                    approval does not reach this action — only CreateLumpSum
+                    (AssertProgramNotApprovedAsync) and DeleteLumpSum (the deletion
+                    rule's own Approved refusal). */
 
                 if (!RevisionStages.Contains(LSProject.StageName ?? string.Empty))
                 {

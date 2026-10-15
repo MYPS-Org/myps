@@ -471,8 +471,54 @@ namespace WebAPI.Controllers.Lumpsum
                 var Denied = await AssertLumpSumVisibleAsync(LumpSumProject.Id, cancellationToken);
                 if (Denied != null) return Denied;
 
-                var Frozen = await AssertProgramNotApprovedAsync(LumpSumProject.ProgramFK, "Deleting a Lump Sum Project", cancellationToken);
-                if (Frozen != null) return Frozen;
+                /*  2026-10-15: THE TIER COMES FROM THE SINGLE DELETION RULE,
+                    Functions/GetProjectDeletionTier.sql: 'Hard' only on the parent's first
+                    stage entry, 'Soft' once it has progressed with its program, 'Blocked'
+                    when published or when the program is Approved. 2026-10-16: the Approved
+                    refusal is the tier's too -- this action no longer runs its own
+                    AssertProgramNotApprovedAsync -- and is read before the live-children
+                    guard so an Approved program is still the first thing reported. The
+                    live-children guard below is this module's own precondition; the
+                    hard/soft choice is not made here. The hard cascade runs inside this
+                    action's transaction (ProjectHelper.ExecuteProjectDeletionAsync). */
+                var TierRow = (await _db.DetermineProjectDeletionTierAsync(LumpSumProject.ProjectPK, LumpSumProject.ProgramFK, cancellationToken))
+                    .FirstOrDefault(x => x.ProjectFK == LumpSumProject.ProjectPK); // the PK's own row
+
+                if (TierRow == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Lump Sum Project {dto.LumpSumId} was not found.",
+                        Title = "Not Found"
+                    });
+                }
+
+                if (TierRow.Tier == ProjectHelper.ProjectDeletionTiers.Blocked)
+                {
+                    if (TierRow.ProgramApproved && !TierRow.IsPublished)
+                    {
+                        /*  The tier decided; this only picks the words. On a revision stage
+                            the module's own "Program Approved" message names the program
+                            and the stage, as CreateLumpSum's does. */
+                        var Approval = await ReadProgramApprovalAsync(LumpSumProject.ProgramFK, cancellationToken);
+                        return new BadRequestObjectResult(Approval != null
+                            ? new
+                            {
+                                Message = ProgramApprovedMessage("Deleting a Lump Sum Project", Approval),
+                                Title = ProgramApprovedTitle
+                            }
+                            : new
+                            {
+                                Message = "Cannot delete a Lump Sum Project in an Approved program. Set the program back to Working first.",
+                                Title = "Delete Blocked"
+                            });
+                    }
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Cannot delete a published Lump Sum Project. Cancel it through Programs, which owns publishing.",
+                        Title = "Delete Blocked"
+                    });
+                }
 
                 /*  Children by ParentProjectId. Deleting a parent that still has
                     itemized projects would strand them pointing at nothing, and
@@ -499,40 +545,6 @@ namespace WebAPI.Controllers.Lumpsum
                     {
                         Message = $"Lump Sum Project {dto.LumpSumId} was not found.",
                         Title = "Not Found"
-                    });
-                }
-
-                /*  2026-10-15: THE TIER COMES FROM THE SINGLE DELETION RULE,
-                    dbo.fProjectDeletionTier (documents/plans/project-deletion-single-rule.md):
-                    'Hard' only on the parent's first stage entry, 'Soft' once it has
-                    progressed with its program, 'Blocked' when published. The two
-                    guards above (Approved program, live children) are preconditions of
-                    this module and stay; the hard/soft choice is no longer made here.
-                    The hard cascade is dbo.pExecuteProjectDeletion, inside this
-                    action's transaction. */
-                var TierRow = (await _db.DetermineProjectDeletionTierAsync(Project.ProjectPK, LumpSumProject.ProgramFK, cancellationToken))
-                    .FirstOrDefault(x => x.ProjectFK == Project.ProjectPK); // the PK's own row
-
-                if (TierRow == null)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = $"Lump Sum Project {dto.LumpSumId} was not found.",
-                        Title = "Not Found"
-                    });
-                }
-
-                if (TierRow.Tier == ProjectHelper.ProjectDeletionTiers.Blocked)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        /*  Blocked is "published" or, since 2026-10-15, "program is approved" at
-                            any stage (the GAA-R case was already refused above with the
-                            module's own wording). Say which. */
-                        Message = TierRow.ProgramApproved && !TierRow.IsPublished
-                            ? "Cannot delete a Lump Sum Project in an Approved program. Set the program back to Working first."
-                            : "Cannot delete a published Lump Sum Project. Cancel it through Programs, which owns publishing.",
-                        Title = "Delete Blocked"
                     });
                 }
 

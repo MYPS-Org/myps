@@ -1,7 +1,10 @@
 /*  GetProjectDeletionTier.sql — THE single decision for deleting a project. Every
-    delete path asks this script and nothing else: Batch Delete, Delete Program
-    (via ExecuteProgramDeletion.sql), Delete Lump Sum and Delete Itemized Project,
-    and ExecuteProjectDeletion.sql itself before it removes a row. Do not restate
+    delete path asks this script and nothing else: Batch Delete (and its preview),
+    Delete Program, Delete Lump Sum and Delete Itemized Project; Batch Restore uses it
+    only to resolve ids. Every hard delete goes through ProjectHelper.ExecuteProjectDeletionAsync
+    (EF or ISqlExecutor form), which runs this script AGAIN inside the delete's own
+    transaction and refuses anything but 'Hard'. ExecuteProjectDeletion.sql does not
+    check anything itself, so never run it except through that helper. Do not restate
     the rule in C# or in another script; run this and read Tier.
 
     RUNTIME SCRIPT (2026-10-15 architecture): this is the former dbo.fProjectDeletionTier
