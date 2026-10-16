@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.12
-**Date:** October 14, 2026
+**Version:** 3.14
+**Date:** October 15, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -36,6 +36,8 @@
 | 3.10 | August 25, 2026 | RP | RP | Section 5.3.6 Component Targets updated: in the expanded per-component table the **Source** column was replaced by **Stage Name** (the stage's full display name, e.g. `NEP-Errata` rather than `NEP-E`) and the **Component ID** column was replaced by **Project Description** (the project's description as it stood at that stage); the Project Description, Component Description, Type of Work and Target Unit columns now wrap long text onto multiple lines instead of forcing the panel to scroll sideways |
 | 3.11 | September 10, 2026 | RP | RP | Synced against Deliverable 48 User Manual V5 (27 Aug 2026): added Section 5.6 Reports (5.6.1 Report Filters, 5.6.2 Programs Selection Panel) and Section 5.10 Lump Sum Projects (5.10.1–5.10.8), documenting the now-live Reports and Lump Sum Projects sidebar modules; former Sections 5.6–5.8 (Code Tables, User Management, Infra Management) renumbered to 5.7–5.9; Section 4.1 module map and Section 9 updated to reflect Reports/Lump Sum as active modules (only Multi-Year Management remains inactive); user-group terminology standardized throughout from DEO/RO/AUC to **DPC** (District Planning Coordinator) / **RPC** (Regional Planning Coordinator) / **PS Admin**, matching V5 — Section 5.4.9 retitled "RPC Endorsement Actions" and its action renamed Approve → Endorse to match the existing Section 5.4.1 terminology note; added a consolidated RPCStatus/PSStatus reference table after Workflow 5; added DPC/RPC to Appendix C. Section 5.3.6 Component Targets was retained even though V5 omits it — the docx appears to predate that feature's documentation despite its later date; flagged back to the manual's author. See `documents/UserManual_DocxDiff_V5.md` for the full diff. |
 | 3.12 | October 14, 2026 | RP | RP | Section 5.1 Dashboard rewritten for the current executive dashboard (it still described an old user-info screen): header controls including the new **Category** filter (lists every category on click, narrows as you type, marks inactive categories, Live DB only) and the header staying pinned as one row while scrolling; the rule for what counts toward a fiscal year (that year's programs and cost year, budget stages BP–GAA-R and TF/TF-R only — RBP/RDIP/PIP planning proposals excluded — approved formal revisions at their revised amount, region and island group from the project's Province); every section described, including "Relative Project Count" (formerly "Relative Volume Density"), the now-clickable Annual Budget bars, project-count wording in the project list, and removal of the Live Audit Feed; Common Outcomes added |
+| 3.13 | October 14, 2026 | RP | RP | Section 5.1 Dashboard: the header title is now **Program Stage**, with a line under it naming the stage the figures cover (a stage's code and full name, or "All budget stages"); new **Program Type** and **Program Stage Name** filters beside Category (Live DB only), which narrow every section together with Category and the fiscal year; the regional map's badge names the chosen stage; choosing a header stage clears a stage selected in the Project Stages chart; the details of the FY Infrastructure Budget, Active Portfolio Projects and Publication Compliance cards list their projects per program (program rows adding up to the card, each expanding to its projects in Program Details' columns, no per-project amount); selecting a project opens that project's details page (a Lump Sum Project opens in Lump Sum Projects) instead of the Projects list, and its Project ID can be opened in a new tab; a Common Outcome explains why a project's total cost can exceed what the Dashboard counts; the region tables follow DPWH's region order (tOptionAdminAreaRegion.Hierarchy) and Northern/Southern Luzon show their amount; the Annual Budget chart prints each year's two amounts and no longer disappears when a year is selected; the Project Stages box became **Project Categories**, which applies the Category filter; changing the year or a filter keeps the page where it is, with sections showing their previous figures marked **Updating…** while they reload; Step-by-Step, pinned-header step, On Success and Common Outcomes updated |
+| 3.14 | October 15, 2026 | RP | RP | Section 5.1 Dashboard: every program is read at one program stage, as Program Details shows it — the stage chosen in **Program Stage Name**, or else the program's current stage (the line under the title and the region map badge read **Current program stages**; the dropdown's first choice is now **Current stages**). A program is shown under its name at that stage (e.g. *NEP 2025 OO-1*), and its projects, project count ("*5,121 of 5,121 projects*") and amounts are the ones Program Details lists for that stage; the **at \<stage\>** marker on project rows was removed, since all of a program's projects are now at its stage. Projects that stopped at an earlier stage than their program's current stage count only when that stage is chosen. "What counts toward a fiscal year", the Summary cards row and Common Outcomes updated, including why the Programs list can show a slightly different count or amount for a stage. In a card's details, a program's name opens its Program Details in a new tab and the footer's Project Repository button was removed; the FY Regional Infrastructure Portfolio no longer shows a per-project amount or page total, and its project summary's Project Repository opens that project's details page in a new tab; Project Categories shows each share to two decimal places |
 
 ### Consultant
 
@@ -384,6 +386,8 @@ The following table maps each active sidebar item to its route and source compon
 
 **Prerequisites:** Successful login (see Section 3.1). The figures cover only the projects your user group is allowed to see.
 
+**Title:** The header is titled **Program Stage**. The line under the title names the stage the figures cover: the stage chosen in **Program Stage Name**, shown as its code and full name (for example *NEP-E · National Expenditure Program with Errata*), or **Current program stages** when none is chosen: each program at its current stage.
+
 **Header Controls:**
 
 | Control | What it does |
@@ -391,6 +395,8 @@ The following table maps each active sidebar item to its route and source compon
 | Live DB / Demo Data | **Live DB** shows figures from the MYPS database. **Demo Data** shows fixed sample figures for presentations; it never reads the database. |
 | Light / Dark | Switches the Dashboard's color theme. |
 | Category | Narrows every section of the Dashboard to one project category (for example *OO1: Ensure Safe and Reliable National Road System*). Click in the box to see every category; type any part of a name to shorten the list, then pick one. Retired categories are marked **Inactive** but can still be chosen, since older projects use them. The chosen category appears as **Category: \<name\>**; select **×** to return to all categories. Available in Live DB only. |
+| Program Type | Narrows every section to the projects in one type of program: Regular Infrastructure, External Infrastructure, Trust Fund or Automatic Appropriation. Choose **All program types** to return to all. Available in Live DB only. |
+| Program Stage Name | Reads every program at one budget stage, the way Program Details shows that stage: the projects in the program's stage, their amounts at that stage, and the program's name there (for example *NEP 2025 OO-1* at NEP, *GAA 2025 OO-1 as Approved* at GAA). The stages are listed in stage order from BP to TF-R with each stage's full name. Planning stages (RBP, RDIP, PIP) are not listed, because the Dashboard never counts them. The chosen stage appears under the **Program Stage** title. Choose **Current stages** to read each program at its current stage again. Available in Live DB only. |
 | Fiscal year buttons (e.g. 2024–2028) | Selects the fiscal year every section shows. The years offered are the years that have programs. |
 | Refresh | Reloads every section. |
 | Project Repository | Opens the Projects list (Section 5.3). |
@@ -399,47 +405,52 @@ The following table maps each active sidebar item to its route and source compon
 
 - Only projects in **that fiscal year's programs** are counted. A multi-year project in last year's program does not add to this year.
 - Only the cost **scheduled in that fiscal year** is counted.
-- Only projects at a **budget stage** are counted: BP, NEP, NEP-E, HGAB, HGAB-I, GAA, GAA-R, TF and TF-R. Planning proposals (**RBP, RDIP, PIP**) are not budget and are not counted.
-- A project with an **approved formal revision** (endorsed by RPC and approved by Central Office) is counted at its revised amount, the same amount Program Details shows.
+- Each program is read at **one stage**: the stage chosen in **Program Stage Name**, or, when none is chosen, the program's **current stage** (the stage the Programs list opens with **View**). Its projects are the ones Program Details lists for that stage, each with its cost at that stage. A project that stopped at an earlier stage than its program's current stage (for example, one dropped before the GAA) is counted only when that earlier stage is chosen.
+- Only **budget stages** are counted: BP, NEP, NEP-E, HGAB, HGAB-I, GAA, GAA-R, TF and TF-R. Planning proposals (**RBP, RDIP, PIP**) are not budget and are not counted.
+- A project with an **approved formal revision** (endorsed by RPC and approved by Central Office) is counted at its revised amount at the stage it revises, the same amount Program Details shows.
 - A project's **region and island group come from its Province**. A project with no province recorded is shown as **Unassigned**.
 
-Every section follows the same rule, so the totals agree: the FY Infrastructure Budget card, Total Program Outlays, the regional map and the island-group cards all show the same amount for the same year and category.
+Every section follows the same rule, so the totals agree: the FY Infrastructure Budget card, Total Program Outlays, the regional map and the island-group cards all show the same amount for the same year and filters. Category, Program Type and Program Stage Name combine: a project must match every one that is chosen.
 
 **Dashboard Sections:**
 
 | Section | Contents |
 |---------|----------|
-| Summary cards | FY Infrastructure Budget, Active Portfolio Projects, Lump Sum (LS) Itemized, Publication Compliance and Revision Queue. Select a card to open its details, including how the figure is calculated. |
+| Summary cards | FY Infrastructure Budget, Active Portfolio Projects, Lump Sum (LS) Itemized, Publication Compliance and Revision Queue. Select a card to open its details, including how the figure is calculated. **FY Infrastructure Budget**, **Active Portfolio Projects** and **Publication Compliance** list their projects **per program**: one row per program, under its name at the stage it is read at, with that stage, how many of its projects count (for example *5,121 of 5,121 projects*; the second number is the program's project count at that stage, the list Program Details pages through) and its amount for the fiscal year, largest first. Select a program's name to open its Program Details, at the stage shown, in a new tab. The program amounts add up to the card. Expand a program to see its projects, 10 per page, with the same columns as Program Details: Project ID, Description, Category, SubProgram, Implementing Office, Operating Unit, Publishable and Published. All of a program's projects are at the program's stage. Select a project to open its details page at that stage (a Lump Sum Project opens in Lump Sum Projects, Section 5.10); right-click its Project ID, or Ctrl+click or middle-click the row, to open it in a new tab. |
 | Total Program Outlays | The fiscal year's budget by program, as a donut chart and a list. Select a program to see its amount and share. |
 | No. of Infrastructure Projects | The number of projects per fiscal year. **Relative Project Count** compares the years' project counts as bars. Select a year card or a bar to switch the Dashboard to that year. |
-| Distribution of Budget by Region | The budget share of Luzon, Visayas and Mindanao, their sub-groups (NCR, Northern Luzon, Southern Luzon) and each region, on an interactive map or as pie analytics. Select a region to zoom to it. |
-| Annual Budget & Lump Sum Itemization Trend | Each year's infrastructure budget and itemized Lump Sum amount. Point to a year to see both amounts; select it to switch the Dashboard to that year. |
-| Project Stages | The number of projects at each budget stage. Select a stage to filter the project list below. |
+| Distribution of Budget by Region | The budget share of Luzon, Visayas and Mindanao, their sub-groups (NCR, Northern Luzon, Southern Luzon) and each region, on an interactive map or as pie analytics. The tables beside the map list each group's regions in DPWH's order: Southern Luzon (Region IV-A, MIMAROPA, Region V), Northern Luzon (CAR, Regions I, II, III), Visayas (Negros Island Region, Regions VI, VII, VIII) and Mindanao (Regions IX to XIII, BARMM). Every group header shows its share and its amount. NCR, Northern Luzon and Southern Luzon are the Dashboard's own grouping of Luzon's regions; the database records only the island group. Select a region to zoom to it. Its badge names the fiscal year and the chosen stage, for example *FY 2027 General Appropriations Act*, or *Current program stages*. |
+| Annual Budget & Lump Sum Itemization Trend | Each year's infrastructure budget and itemized Lump Sum amount, both printed under the year's bars (blue: budget; amber: LS Itemized); the line below the chart repeats the selected year's. Select a year's bars to switch the Dashboard to that year: the chart stays as it is and only the highlight moves. While a filter change reloads it, the chart stays on screen marked **Updating…**. |
+| Project Categories | The fiscal year's projects per project category (the categories of the **Category** filter): each with its number of projects, share (to two decimal places, for example *16.86%*) and amount, most projects first. The categories add up to the year's projects. Select a category to filter the whole Dashboard by it, as the **Category** filter does; select it again, or **Clear Filter**, to remove it. |
 | Island-Group Allocation | One card per island group with its budget share and project count. Select a card to filter the project list below. |
-| FY Regional Infrastructure Portfolio | The fiscal year's projects, largest budget first, with their region, stage, island group and budget. Search by project ID, description or region; select **View** for a project's summary. The count shown is a number of **projects**. |
+| FY Regional Infrastructure Portfolio | The fiscal year's projects, largest FY amount first, with their region, stage and island group. Search by project ID, description or region; select **View** for a project's summary (stage, program, region, category and implementing office, as on its details page), where **Project Repository** opens the project's details page in a new tab. No amount is shown per project, as in the cards' project lists. The count shown is a number of **projects**. |
+
+**Changing the year or a filter:** the page stays where you are. When you select a year, a category or another filter, from the header or from a chart, the sections reload, and each keeps showing its previous figures, dimmed and marked **Updating…**, until the new ones arrive. The part of the page you clicked stays in place on screen while they do. Scrolling yourself always takes over.
 
 **Step-by-Step:**
 
 1. Log in to the system (see Section 3.1). The Dashboard opens.
 2. Select **Live DB** to see database figures.
 3. Select a fiscal year in the header.
-4. *(Optional)* Click in **Category** and pick a category from the list (type part of its name to find it faster).
+4. *(Optional)* Click in **Category** and pick a category from the list (type part of its name to find it faster). Choose a **Program Type** and/or a **Program Stage Name** from their lists; the chosen stage appears under the **Program Stage** title.
 5. Review the sections. To look at another year, select a year in the header, a year card or bar under *No. of Infrastructure Projects*, or a bar in the *Annual Budget* chart.
-6. To list one island group's or stage's projects, select its card. Select **Reset Filter** in the project list to clear it.
-7. Scroll down freely: the header stays pinned at the top of the page as a single row (**Viewing FY \<year\>**, the data source, Category, the fiscal years and Refresh), so you can always see which filters the figures below are under, and change them without scrolling back up.
+6. To list one island group's projects, select its card; select **Reset Filter** in the project list to clear it. To narrow the whole Dashboard to one category, select it under *Project Categories*.
+7. Scroll down freely: the header stays pinned at the top of the page in a compact form (**Viewing FY \<year\>**, the data source, Category, Program Type, Program Stage Name, the fiscal years and Refresh), so you can always see which filters the figures below are under, and change them without scrolling back up.
 
 [Insert Screenshot: Dashboard Screen]
 
-**On Success:** Every section shows the selected fiscal year (and category, if chosen), and their totals agree.
+**On Success:** Every section shows the selected fiscal year (and the category, program type and stage, if chosen), and their totals agree.
 
 **Common Outcomes:**
 
 | Situation | What you see |
 |-----------|--------------|
 | No category matches what you typed | "No categories match ..." Clear the box to see the whole list again. |
-| A category with no projects in the fiscal year | The cards show ₱0 and 0 projects, and the sections say no records are recorded for that year. |
-| Demo Data selected | Sample figures are shown with the notice "Demo data is for demonstration only and does not come from the live database." The Category control is unavailable. |
+| A category, program type or stage (or a combination of them) with no projects in the fiscal year | The cards show ₱0 and 0 projects, and the sections say no records are recorded for that year. |
+| Demo Data selected | Sample figures are shown with the notice "Demo data is for demonstration only and does not come from the live database." The Category, Program Type and Program Stage Name controls are unavailable, the line under the title reads **All budget stages**, and choosing Demo Data clears any category, program type or stage chosen in Live DB. |
 | A project's province is not recorded | The project is counted under **Unassigned** in the island-group cards and listed with region "Not recorded". |
+| A project's details page shows a larger total cost than the Dashboard counts for it | Expected. The details page shows the project's whole multi-year cost (each component's Total). The Dashboard counts only the cost scheduled in the selected fiscal year, which is why a card's details and the FY Regional Infrastructure Portfolio show no per-project amount. If a project's yearly amounts add up to less than its Total, part of its cost has not been scheduled to any year; correct it in the project's component costs. |
+| The Programs list shows a slightly different project count or amount for a program's stage than the Dashboard | Expected in three cases. The Programs list counts projects that were removed from the stage, which Program Details and the Dashboard do not list (GAA 2025 OO-1 at GAA-R: 5,121 on the Programs list, 5,119 in Program Details and on the Dashboard). It adds the program's Lump Sum allocation to every stage row, even a stage where the Lump Sum did not exist yet. And for a project scheduled in a single year, it counts that year's cost even when it is not the fiscal year. The Dashboard counts only the cost scheduled in the selected fiscal year. |
 
 ---
 

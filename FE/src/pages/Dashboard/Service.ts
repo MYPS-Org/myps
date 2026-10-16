@@ -29,11 +29,16 @@ export interface DashboardSummary {
     Category: string;
     StageName: string;
     ImplementingOffice: string;
+    /** Program Details' SubProgram and Operating Unit; only in a per-program list. */
+    SubProgram?: string | null;
+    OperatingUnit?: string | null;
     FundingSource: string;
     AllocatedBudget: number;
     IsPublished: boolean;
     IsPublishable: boolean;
     IsRevised: boolean;
+    /** Live DB only; Demo Data rows are never Lump Sum Projects. */
+    IsLumpSum?: boolean;
     UpdatedAt: string;
   }>;
   LsProjects: Array<{
@@ -374,10 +379,11 @@ function resolveYear(year?: number): number {
 // ---------------------------------------------------------------------------
 // Split endpoints — one per dashboard section, replacing the old single
 // /Dashboard/Summary call so each section can load (and lazy-load) independently.
-// Every real-mode call posts { Year, CategoryId } and the backend scopes its aggregate to
-// that fiscal year's programs (and the category, when one is chosen); the year list the
-// switcher offers comes back from /Dashboard/Kpis as AvailableYears. Demo Data ignores the
-// category: its figures are presentation samples with no real categories behind them. Benchmark mode still supports any year in REGIONAL_TOTAL_BY_YEAR
+// Every real-mode call posts the Year plus the header filters (filterBody: CategoryId,
+// ProgramType, StageName) and the backend scopes its aggregate to that fiscal year's programs,
+// narrowed by whichever filters are chosen; the year list the switcher offers comes back from
+// /Dashboard/Kpis as AvailableYears. Demo Data ignores the filters: its figures are
+// presentation samples with no real categories, types or stages behind them. Benchmark mode still supports any year in REGIONAL_TOTAL_BY_YEAR
 // for the Demo Data experience. (/Dashboard/Summary itself still exists on the
 // backend for the dashboard-live-data-integrity e2e contract, but nothing on the
 // frontend calls it anymore.)
@@ -406,61 +412,130 @@ export interface DashboardTrendRow {
 export interface DashboardRegionRow {
   Region: string;
   Island: string;
+  /** tOptionAdminAreaRegion.Hierarchy, DPWH's region order (NCR 10101 … BARMM 10317); null when unknown. */
+  Hierarchy?: string | null;
   Budget: number;
   ProjectCount: number;
 }
+
+/** One category's share of the fiscal year (the breakdown box beside the trend chart). */
+export interface DashboardCategoryShare {
+  /** tOptionProjectCategory.CategoryId; Demo Data's are sample numbers. */
+  CategoryId: number;
+  Name: string;
+  ProjectCount: number;
+  Budget: number;
+}
+
+// Demo Data's regions in tOptionAdminAreaRegion.Hierarchy order, keyed by template code.
+const BENCHMARK_REGION_HIERARCHY: Record<string, string> = {
+  NCR: '10101', CAR: '10102', R1: '10103', R2: '10104', R3: '10105', R4A: '10106', R4B: '10107', R5: '10108',
+  NIR: '10202', R6: '10209', R7: '10210', R8: '10211',
+  R9: '10312', R10: '10313', R11: '10314', R12: '10315', R13: '10316',
+};
 
 export interface DashboardProjectsFilter {
   Search?: string;
   Island?: string;
   Status?: string;
+  /** One program's projects (a KPI detail's per-program list); its rows then carry Program Details' values. */
+  ProgramPK?: string;
+  /** The Active Portfolio tabs: published, or publishable but not yet published. */
+  Publication?: DashboardPublication;
 }
 
-export async function fetchDashboardKpis(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
+export type DashboardPublication = 'published' | 'forpublish';
+
+/** One program's share of a KPI figure (Dashboard/Programs). */
+export interface DashboardProgram {
+  ProgramPK: string;
+  Name: string;
+  /** The program's current stage. */
+  StageName: string;
+  /** Every project in the program at its stage, counted or not. */
+  ProgramProjectCount: number;
+  ProjectCount: number;
+  Budget: number;
+  PublishedCount: number;
+  PublishedBudget: number;
+  ForPublishCount: number;
+  ForPublishBudget: number;
+}
+
+/** The header filters every section is narrowed by, together; null means "all". */
+export interface DashboardFilters {
+  /** tOptionProjectCategory.CategoryId. */
+  categoryId: number | null;
+  /** tOptionProgramType.NameId (tPrograms.Type). */
+  programType: number | null;
+  /** tOptionProgramStage.Name of a budget stage, e.g. 'NEP-E'. */
+  stageName: string | null;
+}
+
+export const NO_DASHBOARD_FILTERS: DashboardFilters = { categoryId: null, programType: null, stageName: null };
+
+function filterBody(filters: DashboardFilters) {
+  return { CategoryId: filters.categoryId, ProgramType: filters.programType, StageName: filters.stageName };
+}
+
+export async function fetchDashboardKpis(year: number | undefined, useBenchmark: boolean, filters: DashboardFilters = NO_DASHBOARD_FILTERS) {
   if (useBenchmark) {
     const summary = getBenchmarkSummary(resolveYear(year));
     return { SelectedYear: summary.SelectedYear, AvailableYears: summary.AvailableYears, Kpis: summary.Kpis };
   }
   const response = await httpClient.post<{ SelectedYear: number; AvailableYears: number[]; Kpis: DashboardSummary['Kpis'] }>(
     '/Dashboard/Kpis',
-    { Year: resolveYear(year), CategoryId: categoryId },
+    { Year: resolveYear(year), ...filterBody(filters) },
     { silent: true }
   );
   return response.Data;
 }
 
-export async function fetchDashboardTrend(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
+export async function fetchDashboardTrend(year: number | undefined, useBenchmark: boolean, filters: DashboardFilters = NO_DASHBOARD_FILTERS) {
   if (useBenchmark) {
     return { AnnualTrend: getBenchmarkSummary(resolveYear(year)).AnnualTrend };
   }
   const response = await httpClient.post<{ AnnualTrend: DashboardTrendRow[] }>(
     '/Dashboard/Trend',
-    { Year: resolveYear(year), CategoryId: categoryId },
+    { Year: resolveYear(year), ...filterBody(filters) },
     { silent: true }
   );
   return response.Data;
 }
 
-export async function fetchDashboardBudgetBreakdown(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
+export async function fetchDashboardBudgetBreakdown(year: number | undefined, useBenchmark: boolean, filters: DashboardFilters = NO_DASHBOARD_FILTERS) {
   if (useBenchmark) {
     return { BudgetBreakdown: getBenchmarkSummary(resolveYear(year)).BudgetBreakdown };
   }
   const response = await httpClient.post<{ BudgetBreakdown: DashboardSummary['BudgetBreakdown'] }>(
     '/Dashboard/BudgetBreakdown',
-    { Year: resolveYear(year), CategoryId: categoryId },
+    { Year: resolveYear(year), ...filterBody(filters) },
     { silent: true }
   );
   return response.Data;
 }
 
-export async function fetchDashboardStatuses(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
+export async function fetchDashboardStatuses(year: number | undefined, useBenchmark: boolean, filters: DashboardFilters = NO_DASHBOARD_FILTERS) {
   if (useBenchmark) {
     const summary = getBenchmarkSummary(resolveYear(year));
-    return { Statuses: summary.Statuses, Islands: summary.Islands };
+    const byCategory = new Map<string, DashboardCategoryShare>();
+    for (const project of summary.Projects) {
+      const share = byCategory.get(project.Category)
+        ?? { CategoryId: byCategory.size + 1, Name: project.Category, ProjectCount: 0, Budget: 0 };
+      share.ProjectCount += 1;
+      share.Budget += project.AllocatedBudget;
+      byCategory.set(project.Category, share);
+    }
+    const categories = [...byCategory.values()].sort((a, b) => b.ProjectCount - a.ProjectCount || b.Budget - a.Budget);
+    return { Statuses: summary.Statuses, Islands: summary.Islands, Categories: categories };
   }
-  const response = await httpClient.post<{ Statuses: DashboardSummary['Statuses']; Islands: DashboardSummary['Islands'] }>(
+  const response = await httpClient.post<{
+    Statuses: DashboardSummary['Statuses'];
+    Islands: DashboardSummary['Islands'];
+    Categories: DashboardCategoryShare[];
+  }>(
     '/Dashboard/Statuses',
-    { Year: resolveYear(year), CategoryId: categoryId },
+    { Year: resolveYear(year), ...filterBody(filters) },
     { silent: true }
   );
   return response.Data;
@@ -475,18 +550,27 @@ function getBenchmarkRegionalBreakdown(year: number): DashboardRegionRow[] {
     current.count += 1;
     byRegion.set(project.Region, current);
   }
+  const hierarchyByName = new Map(
+    BASE_17_REGIONAL_TEMPLATES.map((template) => [template.name, BENCHMARK_REGION_HIERARCHY[template.code] ?? null])
+  );
   return Array.from(byRegion.entries())
-    .map(([region, data]) => ({ Region: region, Island: data.island, Budget: data.budget, ProjectCount: data.count }))
+    .map(([region, data]) => ({
+      Region: region,
+      Island: data.island,
+      Hierarchy: hierarchyByName.get(region) ?? null,
+      Budget: data.budget,
+      ProjectCount: data.count,
+    }))
     .sort((a, b) => b.Budget - a.Budget);
 }
 
-export async function fetchDashboardRegionalBreakdown(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
+export async function fetchDashboardRegionalBreakdown(year: number | undefined, useBenchmark: boolean, filters: DashboardFilters = NO_DASHBOARD_FILTERS) {
   if (useBenchmark) {
     return { Regions: getBenchmarkRegionalBreakdown(resolveYear(year)) };
   }
   const response = await httpClient.post<{ Regions: DashboardRegionRow[] }>(
     '/Dashboard/RegionalBreakdown',
-    { Year: resolveYear(year), CategoryId: categoryId },
+    { Year: resolveYear(year), ...filterBody(filters) },
     { silent: true }
   );
   return response.Data;
@@ -495,27 +579,27 @@ export async function fetchDashboardRegionalBreakdown(year: number | undefined, 
 export async function fetchDashboardRevisions(
   year: number | undefined,
   useBenchmark: boolean,
-  categoryId: number | null = null
+  filters: DashboardFilters = NO_DASHBOARD_FILTERS
 ): Promise<DashboardRevisionSummary> {
   if (useBenchmark) {
     return getBenchmarkSummary(resolveYear(year)).Revisions;
   }
   const response = await httpClient.post<DashboardRevisionSummary>(
     '/Dashboard/Revisions',
-    // The queue is not fiscal-year scoped; only the category narrows it.
-    { CategoryId: categoryId },
+    // The queue is not fiscal-year scoped; only the header filters narrow it.
+    filterBody(filters),
     { silent: true }
   );
   return response.Data;
 }
 
-export async function fetchDashboardLsProjects(year: number | undefined, useBenchmark: boolean, categoryId: number | null = null) {
+export async function fetchDashboardLsProjects(year: number | undefined, useBenchmark: boolean, filters: DashboardFilters = NO_DASHBOARD_FILTERS) {
   if (useBenchmark) {
     return { LsProjects: getBenchmarkSummary(resolveYear(year)).LsProjects };
   }
   const response = await httpClient.post<{ LsProjects: DashboardSummary['LsProjects'] }>(
     '/Dashboard/LumpSum',
-    { Year: resolveYear(year), CategoryId: categoryId },
+    { Year: resolveYear(year), ...filterBody(filters) },
     { silent: true }
   );
   return response.Data;
@@ -533,12 +617,15 @@ function mapProjectDtoToWatchlist(project: DashboardSummary['Projects'][number])
     category: project.Category,
     stageName: project.StageName,
     implementingOffice: project.ImplementingOffice,
+    subProgram: project.SubProgram ?? null,
+    operatingUnit: project.OperatingUnit ?? null,
     fundingSource: project.FundingSource,
     allocatedBudget: project.AllocatedBudget,
     updatedAt: project.UpdatedAt,
     isPublished: project.IsPublished,
     isPublishable: project.IsPublishable,
     isRevised: project.IsRevised,
+    isLumpSum: project.IsLumpSum ?? false,
   };
 }
 
@@ -565,6 +652,15 @@ function paginateBenchmarkProjects(
   }
   if (filters?.Status) {
     filtered = filtered.filter((project) => project.stageName === filters.Status);
+  }
+  // Demo projects have no program key: their sample program is keyed by its name.
+  if (filters?.ProgramPK) {
+    filtered = filtered.filter((project) => project.programName === filters.ProgramPK);
+  }
+  if (filters?.Publication === 'published') {
+    filtered = filtered.filter((project) => project.isPublished);
+  } else if (filters?.Publication === 'forpublish') {
+    filtered = filtered.filter((project) => project.isPublishable && !project.isPublished);
   }
 
   const ordered = [...filtered].sort((a, b) => b.allocatedBudget - a.allocatedBudget);
@@ -600,7 +696,7 @@ export async function fetchDashboardProjects(
   request: PaginatedRequest<DashboardProjectsFilter>,
   year: number | undefined,
   useBenchmark: boolean,
-  categoryId: number | null = null
+  filters: DashboardFilters = NO_DASHBOARD_FILTERS
 ): Promise<{ Data: PaginationResponse<WatchlistProject> }> {
   if (useBenchmark) {
     const projects = getBenchmarkSummary(resolveYear(year)).Projects.map(mapProjectDtoToWatchlist);
@@ -608,10 +704,58 @@ export async function fetchDashboardProjects(
   }
   const response = await httpClient.post<PaginationResponse<DashboardSummary['Projects'][number]>>(
     '/Dashboard/Projects',
-    { ...request, Year: resolveYear(year), CategoryId: categoryId },
+    { ...request, Year: resolveYear(year), ...filterBody(filters) },
     { silent: true }
   );
   return { Data: { ...response.Data, lists: response.Data.lists.map(mapProjectDtoToWatchlist) } };
+}
+
+// Demo Data's sample projects all sit in one sample program, keyed by its name.
+function getBenchmarkPrograms(year: number): DashboardProgram[] {
+  const byName = new Map<string, DashboardProgram>();
+  for (const project of getBenchmarkSummary(year).Projects) {
+    const program = byName.get(project.ProgramName) ?? {
+      ProgramPK: project.ProgramName,
+      Name: project.ProgramName,
+      StageName: year === 2027 ? 'NEP' : 'GAA',
+      ProgramProjectCount: 0,
+      ProjectCount: 0,
+      Budget: 0,
+      PublishedCount: 0,
+      PublishedBudget: 0,
+      ForPublishCount: 0,
+      ForPublishBudget: 0,
+    };
+    program.ProgramProjectCount += 1;
+    program.ProjectCount += 1;
+    program.Budget += project.AllocatedBudget;
+    if (project.IsPublished) {
+      program.PublishedCount += 1;
+      program.PublishedBudget += project.AllocatedBudget;
+    } else if (project.IsPublishable) {
+      program.ForPublishCount += 1;
+      program.ForPublishBudget += project.AllocatedBudget;
+    }
+    byName.set(project.ProgramName, program);
+  }
+  return [...byName.values()].sort((a, b) => b.Budget - a.Budget);
+}
+
+/** Each program's share of the fiscal year's figure, largest first; they add up to the KPI tiles. */
+export async function fetchDashboardPrograms(
+  year: number | undefined,
+  useBenchmark: boolean,
+  filters: DashboardFilters = NO_DASHBOARD_FILTERS
+): Promise<DashboardProgram[]> {
+  if (useBenchmark) {
+    return getBenchmarkPrograms(resolveYear(year));
+  }
+  const response = await httpClient.post<{ Programs: DashboardProgram[] }>(
+    '/Dashboard/Programs',
+    { Year: resolveYear(year), ...filterBody(filters) },
+    { silent: true }
+  );
+  return response.Data?.Programs ?? [];
 }
 
 export interface DashboardCategoryOption {
@@ -629,4 +773,32 @@ export async function fetchDashboardCategories(): Promise<DashboardCategoryOptio
     { silent: true }
   );
   return response.Data?.Categories ?? [];
+}
+
+export interface DashboardProgramTypeOption {
+  /** tOptionProgramType.NameId: the value sent back as ProgramType. */
+  ProgramType: number;
+  Name: string;
+}
+
+export interface DashboardStageOption {
+  /** e.g. 'NEP-E': the value sent back as StageName. */
+  StageName: string;
+  /** e.g. 'National Expenditure Program with Errata'. */
+  FullName: string;
+}
+
+export interface DashboardFilterOptions {
+  ProgramTypes: DashboardProgramTypeOption[];
+  /** Only the budget stages the dashboard counts, in stage order. */
+  Stages: DashboardStageOption[];
+}
+
+/** The Program Type and Program Stage Name dropdowns' options: two short, fixed lists. */
+export async function fetchDashboardFilterOptions(): Promise<DashboardFilterOptions> {
+  const response = await httpClient.post<DashboardFilterOptions>('/Dashboard/FilterOptions', {}, { silent: true });
+  return {
+    ProgramTypes: response.Data?.ProgramTypes ?? [],
+    Stages: response.Data?.Stages ?? [],
+  };
 }

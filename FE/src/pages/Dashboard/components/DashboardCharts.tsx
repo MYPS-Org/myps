@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { AnimatedCurrency, formatCompactMoney } from './AnimatedCounter';
 import { useDashboardTheme } from '../DashboardTheme';
+import UpdatingBadge from './UpdatingBadge';
 
 export interface MonthlyTrend {
   month: string;
@@ -28,43 +29,49 @@ export interface IslandAllocation {
   projectCount: number;
 }
 
+/** One project category's share of the fiscal year (Dashboard/Statuses Categories). */
+export interface CategoryShare {
+  /** tOptionProjectCategory.CategoryId: what the header Category filter takes. */
+  id: number;
+  name: string;
+  projectCount: number;
+  budget: number;
+}
+
 interface Props {
   selectedYear: number;
   monthlyData: MonthlyTrend[];
-  statusData: StatusSegment[];
+  categories: CategoryShare[];
   islandData: IslandAllocation[];
   /** Trend comes from a separate fetch (useDashboardTrend) than statuses/islands, so it gets its own flag. */
   isTrendLoading?: boolean;
-  /** Statuses and islands share one fetch (useDashboardStatuses). */
+  /** Categories and islands share one fetch (useDashboardStatuses). */
   isStatusesLoading?: boolean;
   /** Clicking a year's bars selects that fiscal year for the whole dashboard, as the trajectory chart does. */
-  onSelectYear?: (year: number) => void;
-  onStatusSelect?: (name: string | null) => void;
-  activeStatusFilter?: string | null;
+  onSelectYear?: (year: number, anchor?: Element) => void;
+  /** The header Category filter's value, highlighted in the categories box. */
+  selectedCategoryId?: number | null;
+  /** Clicking a category applies it as the header Category filter; null clears it. Omit to make the rows read-only (Demo Data). */
+  onSelectCategory?: (category: { id: number; name: string } | null, anchor?: Element) => void;
   onSelectIsland?: (island: string | null) => void;
   activeIslandFilter?: string | null;
 }
 
-const STAGE_NAME_COLORS: Record<string, { bg: string; text: string; hex: string }> = {
-  BP: { bg: 'bg-sky-500', text: 'text-sky-600', hex: '#0284c7' },
-  NEP: { bg: 'bg-amber-500', text: 'text-amber-600', hex: '#f59e0b' },
-  'NEP-Errata': { bg: 'bg-purple-500', text: 'text-purple-600', hex: '#8b5cf6' },
-  HGAB: { bg: 'bg-cyan-500', text: 'text-cyan-600', hex: '#06b6d4' },
-  'HGAB-Amendments': { bg: 'bg-pink-500', text: 'text-pink-600', hex: '#ec4899' },
-  GAA: { bg: 'bg-emerald-500', text: 'text-emerald-600', hex: '#10b981' },
-  'GAA-Revisions': { bg: 'bg-rose-500', text: 'text-rose-600', hex: '#f43f5e' },
-};
+const CATEGORY_COLORS = [
+  'bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500',
+  'bg-sky-500', 'bg-rose-500', 'bg-teal-500', 'bg-orange-500',
+];
 
 export const DashboardCharts: React.FC<Props> = ({
   selectedYear,
   monthlyData,
-  statusData,
+  categories,
   islandData,
   isTrendLoading = false,
   isStatusesLoading = false,
   onSelectYear,
-  onStatusSelect,
-  activeStatusFilter,
+  selectedCategoryId,
+  onSelectCategory,
   onSelectIsland,
   activeIslandFilter,
 }) => {
@@ -87,10 +94,22 @@ export const DashboardCharts: React.FC<Props> = ({
     ? 'flex-1 min-w-[3px] max-w-[10px]'
     : 'flex-1 min-w-[8px] max-w-4 sm:max-w-6';
   const trendLabelSize = isDenseTrend ? 'text-[10px] px-0' : 'text-xs';
-  const visibleStatuses = statusData.filter((s) => s.count > 0);
-  const displayStatuses = visibleStatuses.length > 0 ? visibleStatuses : statusData;
-  const totalStatuses = displayStatuses.reduce((sum, item) => sum + item.count, 0);
+  // Each year's two amounts are printed under its label, so they read without hovering. A dense
+  // series has no room for them; the footer then carries the selected year's, and hover the rest.
+  const showBarValues = !isDenseTrend;
+  const trendBarArea = showBarValues ? 'h-[164px]' : 'h-[200px]';
+  // The series is kept on screen while a filter change reloads it (useDashboardTrend keeps the
+  // previous data); only a first load, with nothing to show yet, gets the skeleton.
+  const showTrendSkeleton = isTrendLoading && monthlyData.length === 0;
+  const isTrendUpdating = isTrendLoading && monthlyData.length > 0;
+  const selectedTrend = monthlyData.find((item) => Number(item.month) === selectedYear);
+
+  const visibleCategories = categories.filter((category) => category.projectCount > 0);
+  const totalCategoryProjects = visibleCategories.reduce((sum, item) => sum + item.projectCount, 0);
+  const selectedCategory = visibleCategories.find((category) => category.id === selectedCategoryId);
   const totalIslandBudget = islandData.reduce((sum, item) => sum + item.budget, 0);
+  // Categories and islands reloading for a new year or filter, the previous ones still shown.
+  const isStatusesUpdating = isStatusesLoading && (categories.length > 0 || islandData.length > 0);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -123,6 +142,7 @@ export const DashboardCharts: React.FC<Props> = ({
             </div>
 
             <div className="flex items-center gap-4 text-xs font-semibold">
+              {isTrendUpdating && <UpdatingBadge isLight={isLight} />}
               <span className={`flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
                 <span className="w-3 h-3 rounded bg-blue-600 shadow-xs" />
                 Infrastructure Budget
@@ -134,7 +154,7 @@ export const DashboardCharts: React.FC<Props> = ({
             </div>
           </div>
 
-          {isTrendLoading ? (
+          {showTrendSkeleton ? (
             <div className="mt-6 h-64 flex items-end gap-3 sm:gap-6 px-3 pb-1">
               {Array.from({ length: 5 }).map((_, index) => (
                 <div key={index} className="relative flex-1 h-full flex items-end gap-1.5 justify-center">
@@ -154,7 +174,11 @@ export const DashboardCharts: React.FC<Props> = ({
               No historical budget records available in database.
             </div>
           ) : (
-            <div className={`mt-6 h-64 flex items-end ${trendRowGap} border-b px-3 pb-1 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+            <div
+              data-testid="annual-trend-chart"
+              aria-busy={isTrendUpdating}
+              className={`mt-6 h-64 flex items-end ${trendRowGap} border-b px-3 pb-1 transition-opacity ${isTrendUpdating ? 'opacity-60' : ''} ${isLight ? 'border-slate-200' : 'border-slate-800'}`}
+            >
               {monthlyData.map((item) => {
                 const isSelected = Number(item.month) === selectedYear;
                 const bVal = item.budget || 0;
@@ -169,7 +193,7 @@ export const DashboardCharts: React.FC<Props> = ({
                     className={`relative flex-1 min-w-0 h-full flex flex-col justify-end group cursor-pointer rounded-t-md focus:outline-none focus-visible:ring-2 ${
                       isLight ? 'focus-visible:ring-blue-500' : 'focus-visible:ring-amber-400'
                     }`}
-                    onClick={() => onSelectYear?.(Number(item.month))}
+                    onClick={(event) => onSelectYear?.(Number(item.month), event.currentTarget)}
                     onMouseEnter={() => setHoveredTrend(item)}
                     onMouseLeave={() => setHoveredTrend(null)}
                     onFocus={() => setHoveredTrend(item)}
@@ -187,7 +211,7 @@ export const DashboardCharts: React.FC<Props> = ({
                     )}
 
                     {/* Bars */}
-                    <div className={`flex items-end justify-center ${trendBarGap} h-[200px]`}>
+                    <div className={`flex items-end justify-center ${trendBarGap} ${trendBarArea}`}>
                       <motion.div
                         initial={{ height: 0 }}
                         animate={{ height: `${budgetHeight}%` }}
@@ -227,6 +251,16 @@ export const DashboardCharts: React.FC<Props> = ({
                     >
                       {item.month}
                     </div>
+                    {showBarValues && (
+                      <div className="pt-1 text-center leading-tight whitespace-nowrap" data-testid={`trend-values-${item.month}`}>
+                        <div className={`text-[11px] font-bold ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>
+                          {formatCompactMoney(bVal)}
+                        </div>
+                        <div className={`text-[10px] font-semibold ${isLight ? 'text-amber-600' : 'text-amber-300'}`}>
+                          {formatCompactMoney(aVal)}
+                        </div>
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -237,13 +271,20 @@ export const DashboardCharts: React.FC<Props> = ({
         <div className={`mt-4 pt-3 border-t flex items-center justify-between text-xs ${isLight ? 'border-slate-100 text-slate-500' : 'border-slate-800 text-slate-400'}`}>
           <span>
             Active Scope: <strong className={isLight ? 'text-blue-700' : 'text-amber-400'}>FY {selectedYear}</strong>
+            {selectedTrend && (
+              <>
+                {' · '}Budget <strong className={isLight ? 'text-blue-700' : 'text-blue-300'}>{formatCompactMoney(selectedTrend.budget || 0)}</strong>
+                {' · '}LS Itemized <strong className={isLight ? 'text-amber-600' : 'text-amber-300'}>{formatCompactMoney(selectedTrend.actual || 0)}</strong>
+              </>
+            )}
             {onSelectYear && <span className={isLight ? 'text-slate-400' : 'text-slate-500'}> · click a year to switch</span>}
           </span>
           <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Amounts shown in standard valuation</span>
         </div>
       </section>
 
-      {/* 2. Project Stages Breakdown (Col 4) */}
+      {/* 2. Project Categories Breakdown (Col 4): the year's projects per category, the same
+          categories the header Category filter offers. Selecting one applies that filter. */}
       <section
         className={`lg:col-span-4 rounded-2xl p-6 sm:p-7 border shadow-md flex flex-col justify-between transition-all duration-200 ${
           isLight
@@ -262,61 +303,73 @@ export const DashboardCharts: React.FC<Props> = ({
                 <ChartPieIcon className="w-4 h-4" />
               </span>
               <div>
-                <h3 className={`text-base font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Project Stages</h3>
-                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>FY {selectedYear} Legislative Stage Breakdown</p>
+                <h3 className={`text-base font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Project Categories</h3>
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>FY {selectedYear} projects per category</p>
               </div>
             </div>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                isLight ? 'bg-slate-100 text-slate-800 border-slate-200' : 'bg-slate-800 text-amber-400 border-slate-700'
-              }`}
-            >
-              {totalStatuses.toLocaleString()} Projects
+            <span className="flex flex-col items-end gap-1">
+              <span
+                className={`shrink-0 whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                  isLight ? 'bg-slate-100 text-slate-800 border-slate-200' : 'bg-slate-800 text-amber-400 border-slate-700'
+                }`}
+              >
+                {totalCategoryProjects.toLocaleString()} Projects
+              </span>
+              {isStatusesUpdating && <UpdatingBadge isLight={isLight} />}
             </span>
           </div>
 
-          <div className="mt-4 space-y-2">
-            {isStatusesLoading ? (
+          <div className={`mt-4 space-y-2 max-h-[22rem] overflow-y-auto pr-1 transition-opacity ${isStatusesUpdating ? 'opacity-60' : ''}`}>
+            {isStatusesLoading && categories.length === 0 ? (
               Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className={`h-14 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
               ))
-            ) : displayStatuses.length === 0 ? (
+            ) : visibleCategories.length === 0 ? (
               <div className={`py-12 text-center text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                No staged projects recorded for FY {selectedYear}.
+                No categorized projects recorded for FY {selectedYear}.
               </div>
             ) : (
-              displayStatuses.map((item) => {
-                const pct = totalStatuses ? Math.round((item.count / totalStatuses) * 100) : 0;
-                const isSelected = activeStatusFilter === item.name;
-                const theme = STAGE_NAME_COLORS[item.name] || {
-                  bg: 'bg-blue-500',
-                  text: 'text-blue-600',
-                  hex: '#3b82f6',
-                };
+              visibleCategories.map((item, index) => {
+                const pct = totalCategoryProjects ? (item.projectCount / totalCategoryProjects) * 100 : 0;
+                const isSelected = selectedCategoryId === item.id;
+                const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
 
                 return (
                   <button
-                    key={item.name}
-                    onClick={() => onStatusSelect?.(isSelected ? null : item.name)}
-                    className={`w-full p-2.5 rounded-xl text-left border transition-all ${
+                    key={item.id}
+                    type="button"
+                    disabled={!onSelectCategory}
+                    // The box, not the row, is held in place: rows come and go as the list reloads.
+                    onClick={(event) => onSelectCategory?.(
+                      isSelected ? null : { id: item.id, name: item.name },
+                      event.currentTarget.closest('section') ?? undefined
+                    )}
+                    aria-pressed={isSelected}
+                    title={onSelectCategory ? (isSelected ? 'Clear the Category filter' : 'Filter the Dashboard by this category') : undefined}
+                    className={`w-full p-2.5 rounded-xl text-left border transition-all disabled:cursor-default ${
                       isLight
                         ? isSelected
                           ? 'bg-blue-50 border-blue-500/60 ring-1 ring-blue-500/30 shadow-sm'
-                          : 'bg-slate-50/70 hover:bg-slate-100 border-slate-200'
+                          : 'bg-slate-50/70 enabled:hover:bg-slate-100 border-slate-200'
                         : isSelected
                         ? 'bg-slate-800 border-amber-500/60 ring-2 ring-amber-500/30 shadow-md'
-                        : 'bg-slate-800/40 hover:bg-slate-800/70 border-slate-800 hover:border-slate-700'
+                        : 'bg-slate-800/40 enabled:hover:bg-slate-800/70 border-slate-800 enabled:hover:border-slate-700'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 truncate">
-                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${theme.bg}`} />
-                        <span className={`font-bold tracking-wide truncate ${isSelected ? (isLight ? 'text-blue-700' : 'text-amber-300') : (isLight ? 'text-slate-800' : 'text-slate-100')}`}>
-                          {item.name}
+                    <div className="flex items-start justify-between gap-2 text-xs">
+                      <div className="flex items-start gap-2 min-w-0">
+                        <span className={`mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0 ${color}`} />
+                        <span className="min-w-0">
+                          <span className={`block font-bold break-words ${isSelected ? (isLight ? 'text-blue-700' : 'text-amber-300') : (isLight ? 'text-slate-800' : 'text-slate-100')}`}>
+                            {item.name}
+                          </span>
+                          <span className={`block text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            {formatCompactMoney(item.budget)}
+                          </span>
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className={`font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{item.count.toLocaleString()}</span>
+                        <span className={`font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{item.projectCount.toLocaleString()}</span>
                         <span
                           className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
                             isLight
@@ -324,14 +377,14 @@ export const DashboardCharts: React.FC<Props> = ({
                               : 'bg-slate-900 text-slate-300 border-slate-700'
                           }`}
                         >
-                          {pct}%
+                          {pct.toFixed(2)}%
                         </span>
                       </div>
                     </div>
 
                     <div className={`mt-2 w-full h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-slate-900'}`}>
                       <motion.div
-                        className={`h-full rounded-full ${theme.bg}`}
+                        className={`h-full rounded-full ${color}`}
                         initial={{ width: 0 }}
                         animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -344,11 +397,14 @@ export const DashboardCharts: React.FC<Props> = ({
           </div>
         </div>
 
-        {activeStatusFilter && (
+        {selectedCategory && onSelectCategory && (
           <div className={`mt-3 pt-2 border-t flex items-center justify-between text-xs ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
-            <span className={`font-medium truncate ${isLight ? 'text-blue-700' : 'text-amber-300'}`}>Filtering: {activeStatusFilter}</span>
+            <span className={`font-medium truncate ${isLight ? 'text-blue-700' : 'text-amber-300'}`} title={selectedCategory.name}>
+              Filtering: {selectedCategory.name}
+            </span>
             <button
-              onClick={() => onStatusSelect?.(null)}
+              type="button"
+              onClick={(event) => onSelectCategory(null, event.currentTarget.closest('section') ?? undefined)}
               className={`text-xs font-bold underline shrink-0 ml-2 ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}
             >
               Clear Filter
@@ -384,13 +440,14 @@ export const DashboardCharts: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className={`text-xs font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+          <div className={`flex items-center gap-2 text-xs font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+            {isStatusesUpdating && <UpdatingBadge isLight={isLight} />}
             Total Outlay: <strong className={isLight ? 'text-blue-700' : 'text-amber-400'}>{formatCompactMoney(totalIslandBudget)}</strong>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
-          {isStatusesLoading ? (
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 mt-5 transition-opacity ${isStatusesUpdating ? 'opacity-60' : ''}`}>
+          {isStatusesLoading && islandData.length === 0 ? (
             Array.from({ length: 3 }).map((_, index) => (
               <div key={index} className={`h-28 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
             ))

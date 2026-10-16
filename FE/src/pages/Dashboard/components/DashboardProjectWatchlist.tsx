@@ -9,16 +9,15 @@ import {
 } from '@heroicons/react/24/outline';
 import type { WatchlistProject } from './ProjectQuickDetailModal';
 export type { WatchlistProject } from './ProjectQuickDetailModal';
-import { formatCompactMoney } from './AnimatedCounter';
 import { useDashboardTheme } from '../DashboardTheme';
 import { usePagination } from '../../../hooks/usePagination';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
-import { fetchDashboardProjects, type DashboardProjectsFilter } from '../Service';
+import { fetchDashboardProjects, type DashboardFilters, type DashboardProjectsFilter } from '../Service';
 
 interface Props {
   year: number;
-  /** Header category filter (tOptionProjectCategory.CategoryId); null for all categories. */
-  categoryId: number | null;
+  /** Header filters (category, program type, stage); memoised by the parent. */
+  filters: DashboardFilters;
   dataSourceMode: 'real' | 'benchmark';
   /** Gates the first fetch — pass viewport visibility so this section only loads once reached. */
   enabled: boolean;
@@ -26,7 +25,6 @@ interface Props {
    *  this component's pagination state isn't atom-backed like the other sections', so the parent
    *  can't just clear a cache atom to trigger it. */
   refreshSignal?: number;
-  activeStatusFilter?: string | null;
   activeIslandFilter?: string | null;
   onClearFilters?: () => void;
   onSelectProject: (project: WatchlistProject) => void;
@@ -38,11 +36,10 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 export const DashboardProjectWatchlist: React.FC<Props> = ({
   year,
-  categoryId,
+  filters,
   dataSourceMode,
   enabled,
   refreshSignal = 0,
-  activeStatusFilter,
   activeIslandFilter,
   onClearFilters,
   onSelectProject,
@@ -59,8 +56,8 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
 
   const fetchFn = useCallback(
     (params: Parameters<typeof fetchDashboardProjects>[0]) =>
-      fetchDashboardProjects(params, year, dataSourceMode === 'benchmark', categoryId),
-    [year, dataSourceMode, categoryId]
+      fetchDashboardProjects(params, year, dataSourceMode === 'benchmark', filters),
+    [year, dataSourceMode, filters]
   );
 
   // enabled: false — this component drives every fetch itself (below), keyed off viewport
@@ -76,27 +73,22 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
     pagination.applyFilters({
       Search: debouncedSearch || undefined,
       Island: activeIslandFilter ?? undefined,
-      Status: activeStatusFilter ?? undefined,
     });
-    // pagination.applyFilters is stable unless year/dataSourceMode/categoryId change (it's rebuilt
+    // pagination.applyFilters is stable unless year/dataSourceMode/filters change (it's rebuilt
     // from fetchFn, which depends on those) — safe to omit here, matching usePagination.ts's own
     // mount-effect convention.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, year, categoryId, dataSourceMode, refreshSignal, debouncedSearch, activeIslandFilter, activeStatusFilter]);
+  }, [enabled, year, filters, dataSourceMode, refreshSignal, debouncedSearch, activeIslandFilter]);
 
   const projects = pagination.data.lists;
   // The server's total is a count of projects, one row each (QA read it as regions: "8460 Regions?").
   const totalProjects = pagination.data.total ?? 0;
   const projectCountLabel = `${totalProjects.toLocaleString()} ${totalProjects === 1 ? 'project' : 'projects'}`;
-  const pageBudget = projects.reduce((sum, project) => sum + project.allocatedBudget, 0);
   const isInitialLoad = pagination.isLoading && projects.length === 0;
 
   const getSubtitle = () => {
     if (activeIslandFilter) {
       return `Filtered: ${activeIslandFilter} Group (${projectCountLabel})`;
-    }
-    if (activeStatusFilter) {
-      return `Filtered: Stage ${activeStatusFilter} (${projectCountLabel})`;
     }
     return `Strategic Regional Capital Investment Portfolio (${projectCountLabel})`;
   };
@@ -169,17 +161,12 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
         </div>
 
         {/* Active Filter Chips */}
-        {(activeStatusFilter || activeIslandFilter || searchInput) && (
+        {(activeIslandFilter || searchInput) && (
           <div className={`flex items-center gap-2 px-6 py-2.5 border-b text-xs flex-wrap ${isLight ? 'bg-slate-50/80 border-slate-100' : 'bg-slate-950/80 border-slate-800'}`}>
             <span className={`font-medium text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Active Filter:</span>
             {activeIslandFilter && (
               <span className={`px-2.5 py-0.5 rounded-full border font-bold text-[11px] ${isLight ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'}`}>
                 {activeIslandFilter} Island Group ({projectCountLabel})
-              </span>
-            )}
-            {activeStatusFilter && (
-              <span className={`px-2.5 py-0.5 rounded-full border font-bold text-[11px] ${isLight ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-blue-500/20 text-blue-300 border-blue-500/30'}`}>
-                Stage: {activeStatusFilter}
               </span>
             )}
             {searchInput && (
@@ -209,7 +196,6 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
                 <th className="pl-6 pr-4 py-3 whitespace-nowrap">Regional Investment Program</th>
                 <th className="px-3 py-3 hidden sm:table-cell whitespace-nowrap">Stage</th>
                 <th className="px-3 py-3 hidden md:table-cell whitespace-nowrap">Island Group</th>
-                <th className="px-4 py-3 text-right whitespace-nowrap">FY Regional Outlay</th>
                 <th className="pl-2 pr-6 py-3 text-right whitespace-nowrap">Action</th>
               </tr>
             </thead>
@@ -217,7 +203,7 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
               {isInitialLoad ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index}>
-                    <td className="pl-6 pr-4 py-3.5" colSpan={5}>
+                    <td className="pl-6 pr-4 py-3.5" colSpan={4}>
                       <div className={`h-6 rounded animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
                     </td>
                   </tr>
@@ -258,12 +244,6 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
                   <td className="px-3 py-3.5 hidden md:table-cell whitespace-nowrap">
                     <div className={`font-semibold text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}>{project.island} Group</div>
                     <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{project.category}</div>
-                  </td>
-
-                  <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                    <div className={`font-black text-xs sm:text-sm ${isLight ? 'text-blue-700' : 'text-amber-400'}`}>
-                      {formatCompactMoney(project.allocatedBudget)}
-                    </div>
                   </td>
 
                   <td className="pl-2 pr-6 py-3.5 text-right whitespace-nowrap">
@@ -313,9 +293,9 @@ export const DashboardProjectWatchlist: React.FC<Props> = ({
           <CheckBadgeIcon className="w-4 h-4 text-emerald-600" />
           Showing <strong>{projects.length}</strong> of <strong>{totalProjects.toLocaleString()}</strong> {totalProjects === 1 ? 'project' : 'projects'}
         </span>
-        <span className="text-xs font-black">
-          Page Total: <span className={isLight ? 'text-blue-700' : 'text-amber-400'}>{formatCompactMoney(pageBudget)}</span>
-        </span>
+        {/* No amounts per project or page, as in the KPI cards' project lists: a project's FY
+            share read beside its multi-year Total Cost on its details page looked contradictory. */}
+        <span>Largest FY {year} cost first</span>
       </div>
     </section>
   );

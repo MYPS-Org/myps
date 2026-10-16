@@ -1,4 +1,4 @@
-import { fetchDashboardRegionalBreakdown } from '../Service';
+import { fetchDashboardRegionalBreakdown, type DashboardFilters } from '../Service';
 import { regionalBreakdownCacheAtom } from '../atoms/dashboardSectionCache.atom';
 import { useSectionData } from './useSectionData';
 import type { RegionalBreakdownRow } from '../components/DashboardRegionalMatrix';
@@ -7,6 +7,7 @@ function mapRegionalBreakdown(raw: Awaited<ReturnType<typeof fetchDashboardRegio
   return (raw.Regions ?? []).map((item) => ({
     region: item.Region,
     island: item.Island,
+    hierarchy: item.Hierarchy ?? null,
     budget: item.Budget ?? 0,
     projectCount: item.ProjectCount ?? 0,
   }));
@@ -14,7 +15,7 @@ function mapRegionalBreakdown(raw: Awaited<ReturnType<typeof fetchDashboardRegio
 
 export function useDashboardRegionalBreakdown(
   year: number,
-  categoryId: number | null,
+  filters: DashboardFilters,
   dataSourceMode: 'real' | 'benchmark',
   enabled: boolean
 ) {
@@ -23,8 +24,10 @@ export function useDashboardRegionalBreakdown(
     fetchFn: fetchDashboardRegionalBreakdown,
     map: mapRegionalBreakdown,
     year,
-    categoryId,
+    filters,
     dataSourceMode,
     enabled,
+    // Kept on screen while a new year or filter loads, so the page does not shift.
+    keepPreviousData: true,
   });
 }

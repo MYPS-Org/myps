@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useSetAtom } from 'jotai';
-import { fetchDashboardKpis } from '../Service';
+import { fetchDashboardKpis, type DashboardFilters } from '../Service';
 import { kpisCacheAtom, liveAvailableYearsAtom, type KpiSection } from '../atoms/dashboardSectionCache.atom';
 import { useSectionData } from './useSectionData';
 
@@ -23,7 +23,7 @@ function mapKpis(raw: Awaited<ReturnType<typeof fetchDashboardKpis>>): KpiSectio
 
 export function useDashboardKpis(
   year: number,
-  categoryId: number | null,
+  filters: DashboardFilters,
   dataSourceMode: 'real' | 'benchmark',
   enabled: boolean
 ) {
@@ -32,7 +32,7 @@ export function useDashboardKpis(
     fetchFn: fetchDashboardKpis,
     map: mapKpis,
     year,
-    categoryId,
+    filters,
     dataSourceMode,
     enabled,
   });
