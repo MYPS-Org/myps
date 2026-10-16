@@ -12,7 +12,8 @@ namespace MYPS.ApiIntegrationTests;
     routing, the real [PermissionFilter] + CoreController.OnActionExecuting auth chain, and the
     real production entry points (ProgramHelper.ExecuteProgramDeletionAsync etc.) against a real
     LOCAL MYPS database -- nothing here is a direct C# method call or a stub. Opt-in: set
-    MYPS_HTTP_TEST_MYPSDB (see DeletionEndpointsHttpFixture); unset, every test returns early.
+    MYPS_HTTP_TEST_MYPSDB (see DeletionEndpointsHttpFixture); unset, every test is reported as
+    skipped ([LocalDatabaseFact]).
 
     See DeletionEndpointsHttpFixture for the disposable test user/group/permission setup and
     unconditional cleanup; see this session's earlier live ExecuteProgramDeletionAsync test
@@ -81,11 +82,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
         return (programFK, project1FK, project2FK);
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task DeleteProgram_RealHttpCall_RefusedWhileItHasProjects_DeletedOnceAPermittedUserDeletedThem()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         var (programFK, project1FK, project2FK) = await SeedProgramWithTwoProjectsAsync(programStatus: 3 /* Working, not Approved */);
         using var client = _fixture.CreateAuthenticatedClient();
         var deleteProgram = new
@@ -121,11 +121,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
             $"SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId = '{programFK}' AND OldValue LIKE '%\"ProjectsDeleted\":0%'"));
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task DeleteProgram_RealHttpCall_RefusesAnApprovedProgram_AndDeletesNothing()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         var (programFK, _, _) = await SeedProgramWithTwoProjectsAsync(programStatus: 1 /* Approved */);
         using var client = _fixture.CreateAuthenticatedClient();
 
@@ -145,11 +144,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
         Assert.Equal(1, await CountAsync($"SELECT COUNT(*) FROM dbo.tPrograms WHERE ProgramPK = '{programFK}'"));
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task DeleteProgram_RealHttpCall_NoAuthHeader_Returns401()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         using var client = _fixture.Factory.CreateClient(); // no X-Test-UserId header attached
 
         var response = await client.PostAsJsonAsync("/api/Program/DeleteProgram", new
@@ -165,11 +163,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task DeleteProgram_RealHttpCall_UserWithNoPermissionGrant_Returns403()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         // A real authenticated user (vUsers resolves them), but with no tApiActions grant for
         // ProgramController.DeleteProgram -- proves PermissionFilter's vUserActionPermission
         // check is actually exercised, not bypassed by TestAuthHandler.
@@ -223,11 +220,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
         }
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task PreviewBatchDelete_RealHttpCall_ReportsHardTierWithoutDeletingAnything()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         var (programFK, project1FK, project2FK) = await SeedProgramWithTwoProjectsAsync(programStatus: 3);
         using var client = _fixture.CreateAuthenticatedClient();
 
@@ -247,11 +243,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
         Assert.Equal(0, await CountAsync($"SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId IN ('{project1FK}', '{project2FK}')"));
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task BatchDelete_RealHttpCall_HardDeletesTheNamedProjectsAndWritesAuditRows()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         var (programFK, project1FK, project2FK) = await SeedProgramWithTwoProjectsAsync(programStatus: 3);
         using var client = _fixture.CreateAuthenticatedClient();
 
@@ -271,11 +266,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
         Assert.Equal(1, await CountAsync($"SELECT COUNT(*) FROM dbo.tPrograms WHERE ProgramPK = '{programFK}'"));
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task DeleteItemizedProject_RealHttpCall_HardDeletesAnOrdinaryProjectAndWritesAuditRow()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         // DeleteItemizedProject requires the target to resolve a real Lump Sum parent via
         // ParentProjectId -> vLumpSumSet (ProjectType='LS', no parent of its own, holds an LS
         // component) -- a project with none is refused ("not itemized from a Lump Sum
@@ -347,11 +341,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
         return (lsParentFK, id);
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task DeleteLumpSum_RealHttpCall_HardDeletesTheParentAndWritesAuditRow()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         var (programFK, _, _) = await SeedProgramWithTwoProjectsAsync(programStatus: 3);
         var (lsParentFK, lsParentId) = await SeedLumpSumParentAsync(programFK);
         using var client = _fixture.CreateAuthenticatedClient();
@@ -369,11 +362,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
             $"SELECT COUNT(*) FROM dbo.tTransactionLog WHERE ReferenceId = '{lsParentFK}' AND TransactionType = 'Delete' AND NewValue = 'Permanently deleted'"));
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task DeleteLumpSum_RealHttpCall_NotFoundId_Returns400()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         using var client = _fixture.CreateAuthenticatedClient();
 
         var response = await client.PostAsJsonAsync("/api/Lumpsum/DeleteLumpSum", new
@@ -384,11 +376,10 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task DeleteItemizedProject_RealHttpCall_NotFoundProject_Returns400AndDeletesNothing()
     {
-        if (!_fixture.Enabled) return; // opt-in: see DeletionEndpointsHttpFixture
         using var client = _fixture.CreateAuthenticatedClient();
         string missingId = $"{DeletionEndpointsHttpFixture.TestPrefix}DoesNotExist";
 
