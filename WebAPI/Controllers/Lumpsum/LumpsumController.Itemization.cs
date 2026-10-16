@@ -312,9 +312,10 @@ namespace WebAPI.Controllers.Lumpsum
                     parent's has been read for a decision yet — only the child, above. */
                 var Busy = await AcquireLumpSumLockAsync(LSParent.Id, cancellationToken);
                 if (Busy != null) return Busy;
-                // 2026-10-16: then the per-program delete lock (Shared), after the module's own lock --
-                // a Delete Program of the same program never runs alongside this delete.
-                await _db.AcquireProgramDeletionLockAsync(Project.ProgramFK, exclusive: false, cancellationToken);
+                // 2026-10-16: then the per-program delete lock, after the module's own lock -- every
+                // delete in the program queues behind it (Delete Program never takes the Lump Sum lock,
+                // so the two locks cannot form a cycle).
+                await _db.AcquireProgramDeletionLockAsync(Project.ProgramFK, cancellationToken);
 
                 // LSParent is non-null from here — the refusal above guarantees it.
                 decimal ReturnedAmount = 0m;
@@ -481,8 +482,8 @@ namespace WebAPI.Controllers.Lumpsum
                 var Denied = await AssertLumpSumVisibleAsync(LumpSumProject.Id, cancellationToken);
                 if (Denied != null) return Denied;
 
-                // 2026-10-16: the per-program delete lock (Shared), after the module's own lock.
-                await _db.AcquireProgramDeletionLockAsync(LumpSumProject.ProgramFK, exclusive: false, cancellationToken);
+                // 2026-10-16: the per-program delete lock, after the module's own lock.
+                await _db.AcquireProgramDeletionLockAsync(LumpSumProject.ProgramFK, cancellationToken);
 
                 /*  2026-10-15: THE TIER COMES FROM THE SINGLE DELETION RULE,
                     Functions/GetProjectDeletionTier.sql: 'Hard' only on the parent's first

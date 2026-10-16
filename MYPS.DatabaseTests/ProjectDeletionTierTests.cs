@@ -185,13 +185,38 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Cascade_RefusesAnAdvancedProject_NamedByItsPFormId()
+    public async Task Cascade_TakesProjectPKsOnly_AndRefusesARevisionId()
     {
-        // The P-form revision id resolves to the BP-form project, which has progressed: refused, nothing written.
+        // 2026-10-17: the destructive path acts on the ProjectPK it is given and nothing else. A P-form
+        // revision id is resolved by the caller (Batch Delete's plan) before it gets here; handed one
+        // directly, it is refused as not found, nothing written.
         await SeedProjectAsync("BP01000012LZ", (BP, "BP01000012LZ"), (NEP, "P01000012LZ"));
         var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecSql("P01000012LZ"));
-        Assert.Equal("Project BP01000012LZ cannot be permanently deleted: progressed past its first stage.", ex.Reason);
+        Assert.Equal("Project P01000012LZ was not found in this program.", ex.Reason);
         Assert.Equal(1, await CountAsync("dbo.tProjects", "ProjectPK = 'BP01000012LZ'"));
+        Assert.Equal(2, await CountAsync("dbo.tProjectRevisions", "ProjectFK = 'BP01000012LZ'"));
+    }
+
+    [Fact]
+    public async Task LockedDecision_NeverActsOnAnotherProject_WhenTheKeyIsGone()
+    {
+        // Risk #1 (2026-10-17). P01100002LZ is a PK; BP01100002LZ carries the same string as its revision
+        // ProjectId (BP/P digits are shared) and, on one stage, rates Hard. Once the first delete has
+        // removed P01100002LZ, a second delete of the same PK used to fall back to BP01100002LZ -- a
+        // project nobody asked for, whose rows were never locked -- and hard-delete it.
+        await SeedProjectAsync("P01100002LZ", (NEP, "P01100002LZ"));
+        await SeedProjectAsync("BP01100002LZ", (NEP, "P01100002LZ"));
+        Assert.Equal("Hard", (await TierAsync("P01100002LZ")).Single(x => x.ProjectFK == "BP01100002LZ").Tier);
+
+        await ExecSql("P01100002LZ");
+        Assert.Equal(0, await CountAsync("dbo.tProjects", "ProjectPK = 'P01100002LZ'"));
+
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecSql("P01100002LZ"));
+        Assert.Equal("Project P01100002LZ was not found in this program.", ex.Reason);
+        Assert.Equal(1, await CountAsync("dbo.tProjects", "ProjectPK = 'BP01100002LZ'"));
+        Assert.Equal(1, await CountAsync("dbo.tProjectRevisions", "ProjectFK = 'BP01100002LZ'"));
+        Assert.Equal(1, await CountAsync("dbo.tProjectStages", "ProjectFK = 'BP01100002LZ'"));
+        Assert.Equal(0, await CountAsync("dbo.tTransactionLog", "ReferenceId = 'BP01100002LZ'"));
     }
 
     [Fact]
@@ -546,28 +571,25 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     [Fact]
     public async Task ProgramDeletionLock_IsExclusiveAgainstOtherDeletesOfTheSameProgram()
     {
+        // Every delete path takes it exclusively (2026-10-16, round-3 #1): two deletes in one program
+        // queue -- the second waits, here 200 ms, then refuses -- and never meet on row locks.
         await using var holder = new SqlConnection(ConnectionString);
         await holder.OpenAsync();
         await using var holderTx = holder.BeginTransaction();
-        await holder.AcquireProgramDeletionLockAsync(holderTx, Program, exclusive: false);   // e.g. a Batch Delete
+        await holder.AcquireProgramDeletionLockAsync(holderTx, Program);   // e.g. a Batch Delete
 
         await using var other = new SqlConnection(ConnectionString);
         await other.OpenAsync();
-        await using (var sharedTx = other.BeginTransaction())
-        {
-            await other.AcquireProgramDeletionLockAsync(sharedTx, Program, exclusive: false); // another Batch Delete: fine
-            await sharedTx.RollbackAsync();
-        }
-        await using (var exclusiveTx = other.BeginTransaction())
+        await using (var sameProgramTx = other.BeginTransaction())
         {
             var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() =>
-                other.AcquireProgramDeletionLockAsync(exclusiveTx, Program, exclusive: true, timeoutMs: 200)); // Delete Program waits, then refuses
+                other.AcquireProgramDeletionLockAsync(sameProgramTx, Program, timeoutMs: 200)); // another delete: waits, then refuses
             Assert.Equal("Another delete in this program is in progress. Try again in a moment.", ex.Reason);
-            await exclusiveTx.RollbackAsync();
+            await sameProgramTx.RollbackAsync();
         }
         await using (var otherProgramTx = other.BeginTransaction())
         {
-            await other.AcquireProgramDeletionLockAsync(otherProgramTx, OtherProgram, exclusive: true, timeoutMs: 200); // other programs unaffected
+            await other.AcquireProgramDeletionLockAsync(otherProgramTx, OtherProgram, timeoutMs: 200); // other programs unaffected
             await otherProgramTx.RollbackAsync();
         }
         await holderTx.RollbackAsync();
@@ -708,8 +730,8 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     }
 
     /// <summary>Runs the real hard-delete cascade through the actual production entry point
-    /// (ISqlExecutor.ExecuteProjectDeletionAsync — re-derives and re-checks the tier first,
-    /// resolves ambiguous/alternate-form references exactly as the real code path does). Pass
+    /// (ISqlExecutor.ExecuteProjectDeletionAsync — decides the tier on locked rows first and acts on
+    /// the named ProjectPK only; a revision id is not resolved there). Pass
     /// <paramref name="transaction"/> so a test can observe a mid-cascade failure or a
     /// caller-owned rollback; when omitted, runs standalone.</summary>
     private Task ExecSql(string projectRef, SqlConnection? connection = null, SqlTransaction? transaction = null) =>

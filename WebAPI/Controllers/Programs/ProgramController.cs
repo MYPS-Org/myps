@@ -2497,9 +2497,9 @@ namespace WebAPI.Controllers.Programs
                 transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
                 DateTime currentDate = Functions.CurrentDate();
 
-                // 2026-10-16: the per-program delete lock first (Shared: Batch Deletes run alongside
-                // each other, never alongside Delete Program), then every decision on locked rows.
-                await _db.AcquireProgramDeletionLockAsync(plan.ProgramPK, exclusive: false, cancellationToken);
+                // 2026-10-16: the per-program delete lock first (every delete in a program queues behind
+                // it, so two never deadlock), then every decision on locked rows.
+                await _db.AcquireProgramDeletionLockAsync(plan.ProgramPK, cancellationToken);
 
                 // The plan was read before the transaction: decide every project again, on locked rows,
                 // in one pass, so an approval, publish or stage advance that landed in between refuses
@@ -2686,9 +2686,9 @@ namespace WebAPI.Controllers.Programs
                 // both find the project (only its ProjectFK is used; restore is not a delete).
                 // A hard-deleted project no longer exists and is reported as not found; an
                 // ambiguous reference (one string, two projects) is not restored.
-                // 2026-10-16: the per-program delete lock (Shared) before anything is read for the
-                // write, so a restore never runs alongside a Delete Program of the same program.
-                await _db.AcquireProgramDeletionLockAsync(ProgramParent.ProgramPK, exclusive: false, cancellationToken);
+                // 2026-10-16: the per-program delete lock before anything is read for the write, so a
+                // restore never runs alongside a delete in the same program.
+                await _db.AcquireProgramDeletionLockAsync(ProgramParent.ProgramPK, cancellationToken);
                 var resolved = await _db.DetermineProjectDeletionTiersAsync(projectIds, ProgramParent.ProgramPK, cancellationToken);
                 var projectFKByRef = resolved
                     .GroupBy(x => x.Ref, StringComparer.OrdinalIgnoreCase)

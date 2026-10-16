@@ -796,26 +796,18 @@ namespace Helpers
             => await db.DetermineProjectDeletionTiersAsync(new[] { projectRef }, programFK, cancellationToken);
 
         /// <summary>
-        /// Resolves a reference's tier row the same way the former stored procedure did: an
-        /// exact ProjectPK match wins even when the same string is also another project's
-        /// revision ProjectId (rows for both come back from the script); any other reference
-        /// must name exactly one project or it is refused as not-found / ambiguous.
+        /// The tier row of the project whose ProjectPK is <paramref name="projectPK"/> -- that row and no
+        /// other. The tier script also matches a reference against revision ProjectIds, and BP/P numbers
+        /// share digits (the BP->P swap), so one string can be one project's PK and another project's
+        /// revision id. A delete that holds a PK must never fall back to that other project: when the PK's
+        /// own row is not there (e.g. a concurrent delete already removed it), the delete is refused as
+        /// not found, never redirected to a project nobody asked for and whose rows were never locked
+        /// (2026-10-17). Resolving what a user typed, BP- or P-form, belongs to the caller before this
+        /// (Batch Delete's plan, restore), which refuses an ambiguous string.
         /// </summary>
-        private static ProjectDeletionTierResult ResolveTierRow(List<ProjectDeletionTierResult> tierRows, string reference, string programFK)
-        {
-            var exact = tierRows.FirstOrDefault(x => x.ProjectFK == reference);
-            if (exact != null) return exact;
-
-            if (tierRows.Count == 0)
-            {
-                throw new DeletionRefusedException($"Project {reference} was not found in this program.");
-            }
-            if (tierRows.Count > 1)
-            {
-                throw new DeletionRefusedException($"Project ID {reference} matches more than one project in program {programFK}.");
-            }
-            return tierRows[0];
-        }
+        private static ProjectDeletionTierResult RequireOwnTierRow(List<ProjectDeletionTierResult> tierRows, string projectPK)
+            => tierRows.FirstOrDefault(x => string.Equals(x.ProjectFK, projectPK, StringComparison.OrdinalIgnoreCase))
+               ?? throw new DeletionRefusedException($"Project {projectPK} was not found in this program.");
 
         /*  Taken before a delete decides. It decides nothing: it holds every row
             Functions/GetProjectDeletionTier.sql reads for one project until the transaction ends --
@@ -850,8 +842,10 @@ namespace Helpers
         /// THE decision for deleting projects, on locked rows, for a whole batch in two round trips:
         /// locks what the tier depends on (<see cref="LockProjectsForDeletionSql"/>), then reads
         /// Functions/GetProjectDeletionTier.sql once for all of them, inside <paramref name="tx"/>.
-        /// Every hard and soft delete decides here. <paramref name="projectFKs"/> must be ProjectPKs.
-        /// Returns each one's row; throws <see cref="DeletionRefusedException"/> when one is not found.
+        /// Every hard and soft delete decides here. <paramref name="projectFKs"/> must be ProjectPKs: a
+        /// BP- or P-form reference is resolved by the caller (Batch Delete's plan) before this point, and
+        /// each key gets its own project's row only (<see cref="RequireOwnTierRow"/>). Returns each one's
+        /// row; throws <see cref="DeletionRefusedException"/> when one is not found.
         /// </summary>
         public static async Task<Dictionary<string, ProjectDeletionTierResult>> DecideProjectDeletionsUnderLockAsync(
             this ISqlExecutor sql, IEnumerable<string> projectFKs, string programFK, IDbTransaction tx, CancellationToken cancellationToken = default)
@@ -870,7 +864,7 @@ namespace Helpers
                 GetProjectDeletionTierScript, TierParameters(keys, programFK), tx, ct: cancellationToken)).ToList();
             foreach (var key in keys)
             {
-                decided[key] = ResolveTierRow(rows.Where(x => string.Equals(x.Ref, key, StringComparison.OrdinalIgnoreCase)).ToList(), key, programFK);
+                decided[key] = RequireOwnTierRow(rows.Where(x => string.Equals(x.Ref, key, StringComparison.OrdinalIgnoreCase)).ToList(), key);
             }
             return decided;
         }
@@ -890,7 +884,7 @@ namespace Helpers
         /// (<see cref="LockProjectsForDeletionSql"/>), then reads Functions/GetProjectDeletionTier.sql
         /// inside <paramref name="tx"/>. Every hard and soft delete of a single project decides here.
         /// <paramref name="projectFK"/> must be the ProjectPK. Throws
-        /// <see cref="DeletionRefusedException"/> when it is not found or ambiguous.
+        /// <see cref="DeletionRefusedException"/> when that project is not found (never another one).
         /// </summary>
         public static async Task<ProjectDeletionTierResult> DecideProjectDeletionUnderLockAsync(
             this ISqlExecutor sql, string projectFK, string programFK, IDbTransaction tx, CancellationToken cancellationToken = default)
@@ -983,8 +977,8 @@ namespace Helpers
         /// <summary>
         /// ISqlExecutor form of the hard delete. With <paramref name="tx"/> it joins that transaction;
         /// without, it runs in its own. Either way it decides on locked rows first and refuses with
-        /// <see cref="DeletionRefusedException"/> when the project is not found, the reference is
-        /// ambiguous, or its tier is not Hard.
+        /// <see cref="DeletionRefusedException"/> when the project <paramref name="projectFK"/> (a
+        /// ProjectPK; a revision id is not resolved here) is not found, or its tier is not Hard.
         /// </summary>
         public static async Task ExecuteProjectDeletionAsync(
             this ISqlExecutor sql, string projectFK, string programFK, string userId, DateTime currentDate,

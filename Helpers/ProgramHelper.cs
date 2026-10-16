@@ -227,27 +227,30 @@ namespace Helpers
             return rows.ToDictionary(x => x.ProgramFK, StringComparer.OrdinalIgnoreCase);
         }
 
-        /*  ONE application lock per program, taken FIRST by every delete path, before any row lock
-            (2026-10-16). Delete Program takes it Exclusive; Batch Delete, Batch Restore and the two
-            Lump Sum deletes take it Shared, so none of them ever runs alongside a Delete Program of
-            the same program. (Among themselves they still queue on the program's rows, which each
-            locks while it decides.) Without it the two sides take row locks in opposite orders
-            (Delete Program: program rows, then project rows; a project delete: project rows, then
-            program rows) and deadlock. Transaction-owned: released at commit or rollback. Writers
-            outside the delete feature (a project save, an approval) do not take it; a deadlock with
-            one of those is answered 409 "try again" (IsDeadlock). */
+        /*  ONE application lock per program, taken EXCLUSIVELY and FIRST by every delete path --
+            Delete Program, Batch Delete, Batch Restore, DeleteLumpSum, DeleteItemizedProject -- before
+            any row lock (2026-10-16). Deletes in one program therefore queue, one at a time, instead of
+            meeting on row locks: Delete Program locks program rows then project rows while a project
+            delete goes project rows then program rows, and two project deletes on adjacent ids meet on
+            HOLDLOCK key-range locks (one holds the next key of the other's stage row while waiting for
+            tProgramRevisions) -- both deadlocked when the project deletes took this lock Shared. They
+            gained no parallelism from Shared anyway: each takes UPDLOCK on the program's
+            tProgramRevisions / tProgramStages rows. Deletes in OTHER programs are unaffected.
+            Transaction-owned: released at commit or rollback. Writers outside the delete feature (a
+            project save, an approval) do not take it; a deadlock with one of those is answered 409
+            "try again" (IsDeadlock). */
         public const string ProgramDeletionLockPrefix = "MYPS_ProgramDelete:";
         private const int ProgramDeletionLockTimeoutMs = 30000;
 
         /// <summary>Takes the per-program delete lock on <paramref name="transaction"/>. Throws
         /// <see cref="ProjectHelper.DeletionRefusedException"/> when it cannot be had in time.</summary>
         public static async Task AcquireProgramDeletionLockAsync(
-            this IDbConnection connection, IDbTransaction transaction, string programFK, bool exclusive,
+            this IDbConnection connection, IDbTransaction transaction, string programFK,
             CancellationToken cancellationToken = default, int timeoutMs = ProgramDeletionLockTimeoutMs)
         {
             int result = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                "DECLARE @r INT; EXEC @r = sp_getapplock @Resource = @Resource, @LockMode = @Mode, @LockOwner = 'Transaction', @LockTimeout = @Timeout; SELECT @r;",
-                new { Resource = ProgramDeletionLockPrefix + programFK, Mode = exclusive ? "Exclusive" : "Shared", Timeout = timeoutMs },
+                "DECLARE @r INT; EXEC @r = sp_getapplock @Resource = @Resource, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = @Timeout; SELECT @r;",
+                new { Resource = ProgramDeletionLockPrefix + programFK, Timeout = timeoutMs },
                 transaction, DeletionCommandTimeoutSeconds, cancellationToken: cancellationToken));
             if (result == -3)
             {
@@ -268,14 +271,14 @@ namespace Helpers
             public ProgramDeletionConflictException() : base("Chosen as deadlock victim while waiting for the program's delete lock.") { }
         }
 
-        /// <summary>EF form of <see cref="AcquireProgramDeletionLockAsync(IDbConnection, IDbTransaction, string, bool, CancellationToken)"/>,
+        /// <summary>EF form of <see cref="AcquireProgramDeletionLockAsync(IDbConnection, IDbTransaction, string, CancellationToken, int)"/>,
         /// on the transaction <paramref name="db"/> has open (required).</summary>
         public static async Task AcquireProgramDeletionLockAsync(
-            this MYPSDbContext db, string programFK, bool exclusive, CancellationToken cancellationToken = default)
+            this MYPSDbContext db, string programFK, CancellationToken cancellationToken = default)
         {
             var efTx = db.Database.CurrentTransaction?.GetDbTransaction()
                 ?? throw new InvalidOperationException("AcquireProgramDeletionLockAsync requires an open EF transaction.");
-            await efTx.Connection!.AcquireProgramDeletionLockAsync(efTx, programFK, exclusive, cancellationToken);
+            await efTx.Connection!.AcquireProgramDeletionLockAsync(efTx, programFK, cancellationToken);
         }
 
         /// <summary>True for SQL Server's deadlock-victim error (1205): the request lost a race with
@@ -374,7 +377,7 @@ namespace Helpers
         /// The transactional body of <see cref="ExecuteProgramDeletionAsync"/>, on a transaction the
         /// caller owns and rolls back on any exception (<see cref="ISqlExecutor.ExecuteTransactionAsync{T}"/>
         /// does). In order:
-        ///   the per-program delete lock (Exclusive), then the program's own rows;
+        ///   the per-program delete lock, then the program's own rows;
         ///   PASS 1   Functions/GetProgramDeletionEligibility.sql -- refuses an Approved or progressed
         ///            program, one that still has a live project (no cascade), or one whose leftovers
         ///            could never be removed -- without having locked a single project row;
@@ -392,7 +395,7 @@ namespace Helpers
             this ISqlExecutor sql, string programFK, string userId, DateTime currentDate,
             IDbConnection connection, IDbTransaction transaction, CancellationToken cancellationToken = default)
         {
-            await connection.AcquireProgramDeletionLockAsync(transaction, programFK, exclusive: true, cancellationToken);
+            await connection.AcquireProgramDeletionLockAsync(transaction, programFK, cancellationToken);
             await connection.ExecuteAsync(new CommandDefinition(
                 LockProgramRowsSql, new { ProgramFK = programFK }, transaction,
                 DeletionCommandTimeoutSeconds, cancellationToken: cancellationToken));
