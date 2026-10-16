@@ -152,3 +152,11 @@ Status: rounds 1 and 2 implemented and committed; round 3 open (see below).
   8. Lump Sum deletes read the tier twice;
   9. the app-lock helper duplicates the Lump Sum lock helper;
   10. missing tests (the stuck-leftover e2e case, the 409 paths, the plan/lock race).
+
+### Round 3 progress (2026-10-17)
+- **#1 done.** Every delete path takes the per-program delete lock exclusively. Shared allowed two project deletes in one program to deadlock on HOLDLOCK key ranges and bought no parallelism, since each already takes UPDLOCK on the program's rows. The lock test now asserts that a second delete in the same program waits, then refuses, while other programs are unaffected.
+- **#4 done** (risk-table #1, data loss). The locked decision accepts only the requested ProjectPK's own row (`RequireOwnTierRow`). It never falls back to another project that carries the same string as a revision ProjectId (BP/P shared digits), which a second delete of an already-deleted PK used to hard-delete.
+  - The destructive helpers take ProjectPKs only; BP/P-form resolution stays in Batch Delete's plan and in restore.
+  - Tests: `LockedDecision_NeverActsOnAnotherProject_WhenTheKeyIsGone`; `Cascade_TakesProjectPKsOnly_AndRefusesARevisionId` replaces the P-form cascade test.
+  - Results: DB 111/111, unit 37/37, API 77/77 (HTTP tests on, localhost, snapshot `_snap_t11`).
+- **Still open:** #2, #3, #5–#10; risk-table #2–#14 (notably: no Cost recompute after DeleteLumpSum and Batch Restore; the DeleteLumpSum soft path flags other programs' revisions).
