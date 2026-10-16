@@ -13,7 +13,9 @@
     column shape and logic below are UNCHANGED from the function version; only the calling
     mechanism changed (file-read + Dapper, not CREATE FUNCTION + EXEC/catalog call).
 
-    Params: @ProjectRef NVARCHAR(200), @ProgramFK NVARCHAR(200) — same contract as before.
+    Params: @ProjectRefs NVARCHAR(MAX) — a JSON array of references (2026-10-16: one query for a
+    whole Batch Delete, preview or restore, not one per id); @ProgramFK NVARCHAR(200).
+    Every row carries the reference it answers (Ref).
 
     POLICY (2026-10-15):
       1. A project may be HARD-deleted only on its first project-stage entry. Once it
@@ -43,7 +45,7 @@
     progressed. It is scoped by ProgramFK, which never changes, and never by
     ProgramId, which is regenerated on every stage advance.
 
-    PREFIX-AGNOSTIC RESOLVE (rule 2). @ProjectRef may be the project's ProjectPK, or
+    PREFIX-AGNOSTIC RESOLVE (rule 2). Each reference may be the project's ProjectPK, or
     ANY revision ProjectId it carries under @ProgramFK. The PK keeps its creation
     prefix forever (BP…), while a BP->NEP advance rewrites the revision ProjectId to
     P… (ProgramController.UpdateProgramStage, ReplaceFirst("BP", …)). Both forms
@@ -63,29 +65,34 @@
           'LSParent' ProjectType = 'LS' and no parent;
           'Ordinary' otherwise. */
 SET QUOTED_IDENTIFIER ON;
-WITH Resolved AS
+WITH Refs AS
 (
-    SELECT p.ProjectPK, 1 AS IsPKMatch
-    FROM dbo.tProjects p
-    WHERE p.ProjectPK = @ProjectRef
-      AND (   p.ProgramFK = @ProgramFK
-           OR EXISTS (SELECT 1 FROM dbo.tProjectRevisions r
-                      WHERE r.ProjectFK = p.ProjectPK AND r.ProgramFK = @ProgramFK))
+    SELECT DISTINCT j.Ref COLLATE DATABASE_DEFAULT AS Ref
+    FROM OPENJSON(@ProjectRefs) WITH (Ref NVARCHAR(200) '$') j
+),
+Resolved AS
+(
+    SELECT rf.Ref, p.ProjectPK, 1 AS IsPKMatch
+    FROM Refs rf
+    JOIN dbo.tProjects p ON p.ProjectPK = rf.Ref
+    WHERE p.ProgramFK = @ProgramFK
+       OR EXISTS (SELECT 1 FROM dbo.tProjectRevisions r
+                  WHERE r.ProjectFK = p.ProjectPK AND r.ProgramFK = @ProgramFK)
     UNION
-    SELECT r.ProjectFK, 0
-    FROM dbo.tProjectRevisions r
-    WHERE r.ProjectId = @ProjectRef
-      AND r.ProgramFK = @ProgramFK
+    SELECT rf.Ref, r.ProjectFK, 0
+    FROM Refs rf
+    JOIN dbo.tProjectRevisions r ON r.ProjectId = rf.Ref
+    WHERE r.ProgramFK = @ProgramFK
 ),
 Chosen AS
 (
-    SELECT ProjectPK,
+    SELECT Ref, ProjectPK,
            CASE WHEN MAX(IsPKMatch) = 1 THEN N'ProjectPK' ELSE N'ProjectId' END AS MatchedBy
     FROM Resolved
-    GROUP BY ProjectPK
+    GROUP BY Ref, ProjectPK
 )
 SELECT
-    @ProjectRef                                             AS Ref,
+    c.Ref                                                   AS Ref,
     p.ProjectPK                                             AS ProjectFK,
     @ProgramFK                                              AS ProgramFK,
     c.MatchedBy,

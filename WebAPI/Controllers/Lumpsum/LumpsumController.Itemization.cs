@@ -312,6 +312,9 @@ namespace WebAPI.Controllers.Lumpsum
                     parent's has been read for a decision yet — only the child, above. */
                 var Busy = await AcquireLumpSumLockAsync(LSParent.Id, cancellationToken);
                 if (Busy != null) return Busy;
+                // 2026-10-16: then the per-program delete lock (Shared), after the module's own lock --
+                // a Delete Program of the same program never runs alongside this delete.
+                await _db.AcquireProgramDeletionLockAsync(Project.ProgramFK, exclusive: false, cancellationToken);
 
                 // LSParent is non-null from here — the refusal above guarantees it.
                 decimal ReturnedAmount = 0m;
@@ -424,6 +427,12 @@ namespace WebAPI.Controllers.Lumpsum
                 await SafeRollbackAsync(transaction, cancellationToken);
                 return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Blocked" });
             }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                // Lost a race with another change to the same program (deadlock); nothing was written.
+                await SafeRollbackAsync(transaction, cancellationToken);
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
+            }
             catch (Exception ex)
             {
                 await SafeRollbackAsync(transaction, cancellationToken);
@@ -471,6 +480,9 @@ namespace WebAPI.Controllers.Lumpsum
 
                 var Denied = await AssertLumpSumVisibleAsync(LumpSumProject.Id, cancellationToken);
                 if (Denied != null) return Denied;
+
+                // 2026-10-16: the per-program delete lock (Shared), after the module's own lock.
+                await _db.AcquireProgramDeletionLockAsync(LumpSumProject.ProgramFK, exclusive: false, cancellationToken);
 
                 /*  2026-10-15: THE TIER COMES FROM THE SINGLE DELETION RULE,
                     Functions/GetProjectDeletionTier.sql: 'Hard' only on the parent's first
@@ -561,7 +573,13 @@ namespace WebAPI.Controllers.Lumpsum
                     /*  Soft: every revision is flagged, as before. Whether a Lump Sum
                         soft delete should flag only the current-stage revision, as
                         Batch Delete does, is OD-3 of the deletion redesign and is not
-                        changed here. */
+                        changed here. 2026-10-16: decided again on locked rows first, so an
+                        approval or publish that landed since the read above refuses. */
+                    var Locked = await _db.DecideProjectDeletionUnderLockAsync(Project.ProjectPK, LumpSumProject.ProgramFK, cancellationToken);
+                    if (Locked.Tier != ProjectHelper.ProjectDeletionTiers.Soft)
+                    {
+                        throw new ProjectHelper.DeletionRefusedException($"Lump Sum Project {dto.LumpSumId} can no longer be deleted: {Locked.Reason}.");
+                    }
                     var Revisions = await _db.tProjectRevisions
                         .Where(x => x.ProjectFK == Project.ProjectPK)
                         .ToListAsync(cancellationToken);
@@ -600,6 +618,12 @@ namespace WebAPI.Controllers.Lumpsum
             {
                 await SafeRollbackAsync(transaction, cancellationToken);
                 return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Blocked" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                // Lost a race with another change to the same program (deadlock); nothing was written.
+                await SafeRollbackAsync(transaction, cancellationToken);
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
             }
             catch (Exception ex)
             {

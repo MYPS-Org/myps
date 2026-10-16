@@ -168,7 +168,7 @@ namespace WebAPI.Controllers.Programs
                             }
                         }
                     }
-                    catch (Exception ex) when (ex is IOException or Microsoft.Data.SqlClient.SqlException)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         _logger?.LogError(ex, "Program list: delete eligibility could not be read; Delete buttons fall back to the client default.");
                     }
@@ -549,6 +549,12 @@ namespace WebAPI.Controllers.Programs
                 // progressed child, a change that raced the delete) — its reason is the message,
                 // not a generic database error.
                 return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Not Allowed" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                // Lost a race with another change to the same program (SQL Server error 1205). Nothing
+                // was written; the same request will normally go through on a second try.
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
             }
             catch (Exception ex)
             {
@@ -2491,10 +2497,29 @@ namespace WebAPI.Controllers.Programs
                 transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
                 DateTime currentDate = Functions.CurrentDate();
 
-                // Hard: the procedure removes the rows and writes each project's audit row.
+                // 2026-10-16: the per-program delete lock first (Shared: Batch Deletes run alongside
+                // each other, never alongside Delete Program), then every decision on locked rows.
+                await _db.AcquireProgramDeletionLockAsync(plan.ProgramPK, exclusive: false, cancellationToken);
+
+                // The plan was read before the transaction: decide every project again, on locked rows,
+                // in one pass, so an approval, publish or stage advance that landed in between refuses
+                // the batch instead of slipping by.
+                var decided = await _db.DecideProjectDeletionsUnderLockAsync(
+                    plan.Hard.Select(x => x.ProjectFK).Concat(plan.Soft.Select(x => x.ProjectFK)), plan.ProgramPK, cancellationToken);
+                foreach (var (softRef, softProjectFK, _) in plan.Soft)
+                {
+                    var tier = decided[softProjectFK];
+                    if (tier.Tier != ProjectHelper.ProjectDeletionTiers.Soft)
+                    {
+                        throw new ProjectHelper.DeletionRefusedException($"Project {softRef} can no longer be deleted here: {tier.Reason}.");
+                    }
+                }
+
+                // Hard: the script removes the rows and writes each project's audit row (it refuses
+                // anything the locked decision did not rate Hard).
                 foreach (var (_, projectFK) in plan.Hard)
                 {
-                    await _db.ExecuteProjectDeletionAsync(projectFK, plan.ProgramPK, _Session.UserId, currentDate, cancellationToken);
+                    await _db.DeleteDecidedProjectAsync(decided[projectFK], plan.ProgramPK, _Session.UserId, currentDate, cancellationToken);
                 }
 
                 var softRevisionIds = plan.Soft.Select(x => x.RevisionId).ToArray();
@@ -2546,6 +2571,14 @@ namespace WebAPI.Controllers.Programs
                     try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
                 }
                 return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Not Allowed" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                if (transaction != null)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                }
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
             }
             catch (Exception ex)
             {
@@ -2653,6 +2686,9 @@ namespace WebAPI.Controllers.Programs
                 // both find the project (only its ProjectFK is used; restore is not a delete).
                 // A hard-deleted project no longer exists and is reported as not found; an
                 // ambiguous reference (one string, two projects) is not restored.
+                // 2026-10-16: the per-program delete lock (Shared) before anything is read for the
+                // write, so a restore never runs alongside a Delete Program of the same program.
+                await _db.AcquireProgramDeletionLockAsync(ProgramParent.ProgramPK, exclusive: false, cancellationToken);
                 var resolved = await _db.DetermineProjectDeletionTiersAsync(projectIds, ProgramParent.ProgramPK, cancellationToken);
                 var projectFKByRef = resolved
                     .GroupBy(x => x.Ref, StringComparer.OrdinalIgnoreCase)
@@ -2723,6 +2759,12 @@ namespace WebAPI.Controllers.Programs
                     Message = "No deleted projects were found matching the provided IDs. They may already be active or do not belong to this program.",
                     Title = "No Projects Restored"
                 });
+            }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                // The program delete lock could not be had (a Delete Program of it is running).
+                try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Restore Not Possible" });
             }
             catch (Exception ex)
             {

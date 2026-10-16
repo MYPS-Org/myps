@@ -28,17 +28,20 @@
                 (2026-10-16: NO CASCADE. A program is deleted only after every one of its
                 projects has been deleted by a user allowed to -- Batch Delete in Program
                 Details, or the Lump Sum module for Lump Sum projects.)
+      Blocked   StuckLeftovers > 0                            'it has N deleted project(s) that cannot be removed
+                                                              automatically (e.g. X); an administrator must clean them up'
       Eligible  otherwise.
 
-    BlockedBy names the rule that refused ('Approved', 'Progressed', 'LiveProjects'; NULL when
-    Eligible), so callers branch on a code rather than on the Reason's wording.
-    LiveProjects is counted only when the first two rules pass (else 0).
-    LIVE PROJECT = a project with at least one tProjectRevisions row under the program
-    with IsDeleted = 0 (a project carried in from another program counts too). A project
-    with no live revision there was already deleted by a user (soft delete, e.g. the old
-    Batch Delete on main): it does not block, and Delete Program removes what is left of it,
-    only within this program; a project with history in other programs keeps it
-    (ProgramHelper.DeleteProgramInTransactionAsync, ExecuteProjectDeletion.sql).
+    BlockedBy names the rule that refused ('Approved', 'Progressed', 'LiveProjects',
+    'StuckLeftovers'; NULL when Eligible), so callers branch on a code rather than on wording.
+    The project counts are computed only when the first two rules pass (else 0).
+    LIVE PROJECT (2026-10-16) = what Batch Delete can act on: an IsDeleted = 0 revision reached
+    through a tProjectStages row at the program's CURRENT stage (ResolveBatchDeleteAsync's
+    liveAtStage). Any other project linked to the program is a leftover of a deleted one: it does
+    not block, and Delete Program removes it, only within this program; a project with history in
+    other programs keeps it (ProgramHelper.DeleteProgramInTransactionAsync, ExecuteProjectDeletion.sql).
+    STUCK LEFTOVERS (Step 3) are leftovers that delete could never remove; they refuse up front,
+    'an administrator must clean them up', so the list and DeleteProgram agree.
 
     CURRENT STATUS = the Status of the revision the program's CURRENT STAGE ROW
     points at: tProgramStages ordered by tOptionProgramStage.StageHierarchy DESC,
@@ -53,15 +56,18 @@
 SET QUOTED_IDENTIFIER ON;
 SET NOCOUNT ON;
 
-/*  Step 1: stage count and current status for every requested program (cheap). */
+/*  Step 1: stage count, current status and current stage for every requested program (cheap). */
 DECLARE @Programs TABLE (
     ProgramFK       NVARCHAR(200) COLLATE DATABASE_DEFAULT PRIMARY KEY,
     StageCount      INT NOT NULL,
     CurrentStatus   INT NULL,
-    LiveProjects    INT NOT NULL DEFAULT 0);
+    CurrentStageId  INT NULL,
+    LiveProjects    INT NOT NULL DEFAULT 0,
+    StuckLeftovers  INT NOT NULL DEFAULT 0,
+    StuckExample    NVARCHAR(200) COLLATE DATABASE_DEFAULT NULL);
 
-INSERT @Programs (ProgramFK, StageCount, CurrentStatus)
-SELECT pr.ProgramPK, ISNULL(st.StageCount, 0), cur.Status
+INSERT @Programs (ProgramFK, StageCount, CurrentStatus, CurrentStageId)
+SELECT pr.ProgramPK, ISNULL(st.StageCount, 0), cur.Status, cur.StageId
 FROM dbo.tPrograms pr
 OUTER APPLY (
     SELECT COUNT(*) AS StageCount
@@ -69,7 +75,7 @@ OUTER APPLY (
     WHERE s.ProgramFK = pr.ProgramPK
 ) st
 OUTER APPLY (
-    SELECT TOP (1) rv.Status
+    SELECT TOP (1) rv.Status, ps.StageId
     FROM dbo.tProgramStages ps
     JOIN dbo.tOptionProgramStage o ON o.Id = ps.StageId
     LEFT JOIN dbo.tProgramRevisions rv ON rv.Id = ps.RevisionId
@@ -82,33 +88,89 @@ WHERE pr.ProgramPK IN (SELECT j.ProgramFK COLLATE DATABASE_DEFAULT
 /*  Step 2: the live-project count, ONLY for programs the first two rules let through (not
     Approved, not progressed). A separate statement, so the counting really is skipped for
     the rest: an Approved GAA-R program can have 17,000+ projects, and counting them for a
-    Program list page took seconds on myps_db_migrated_uat (2026-10-16). */
+    Program list page took seconds on myps_db_migrated_uat (2026-10-16).
+    LIVE means what Batch Delete can act on (ProgramController.ResolveBatchDeleteAsync,
+    liveAtStage): an IsDeleted = 0 revision reached through a tProjectStages row at the
+    program's CURRENT stage. So "delete them first with Batch Delete" is always possible. */
 UPDATE p
 SET LiveProjects = (
         SELECT COUNT(DISTINCT r.ProjectFK)
-        FROM dbo.tProjectRevisions r
-        WHERE r.ProgramFK = p.ProgramFK
+        FROM dbo.tProjectStages s
+        JOIN dbo.tProjectRevisions r ON r.Id = s.RevisionId
+        WHERE s.ProgramFK = p.ProgramFK
+          AND s.StageId = p.CurrentStageId
           AND r.IsDeleted = 0)
 FROM @Programs p
 WHERE ISNULL(p.CurrentStatus, 0) <> 1
   AND p.StageCount <= 1;
 
-/*  Step 3: the rule, first match wins. */
+/*  Step 3: for a program with no live project, the projects linked to it that Delete Program
+    must NOT or could NEVER remove (2026-10-16). Stuck when it:
+      - still has a live revision under the program that Batch Delete cannot reach (no stage row at
+        the current stage) -- it was never deleted, so Delete Program must not remove it;
+      - is published (the project rule never removes a published project);
+      - has no stage row under the program and is not a Lump Sum itemized child (no stage history:
+        the rule says Soft; an itemized child is Hard regardless);
+      - has history under the program only through stage rows (the rule cannot resolve it);
+      - has no project row at all;
+      - was created here and has history in another program (its project row would have to stay
+        and point at a deleted program).
+    Only an administrator can clean those up; saying so here keeps the Program list and
+    DeleteProgram in agreement. DeleteProgram still decides on its own. */
+UPDATE p
+SET StuckLeftovers = x.Cnt,
+    StuckExample   = x.Example
+FROM @Programs p
+CROSS APPLY (
+    SELECT COUNT(*) AS Cnt, MIN(l.ProjectFK) AS Example
+    FROM (
+        SELECT own.ProjectPK AS ProjectFK FROM dbo.tProjects own WHERE own.ProgramFK = p.ProgramFK
+        UNION
+        SELECT r.ProjectFK FROM dbo.tProjectRevisions r WHERE r.ProgramFK = p.ProgramFK
+        UNION
+        SELECT s.ProjectFK FROM dbo.tProjectStages s WHERE s.ProgramFK = p.ProgramFK
+    ) l
+    LEFT JOIN dbo.tProjects pj ON pj.ProjectPK = l.ProjectFK
+    WHERE pj.ProjectPK IS NULL
+       OR EXISTS (SELECT 1 FROM dbo.tProjectRevisions r
+                  WHERE r.ProjectFK = l.ProjectFK AND r.ProgramFK = p.ProgramFK AND r.IsDeleted = 0)
+       OR pj.IsPublished = 1
+       OR (pj.ParentProjectId IS NULL
+           AND NOT EXISTS (SELECT 1 FROM dbo.tProjectStages s
+                           WHERE s.ProjectFK = l.ProjectFK AND s.ProgramFK = p.ProgramFK))
+       OR (pj.ProgramFK <> p.ProgramFK
+           AND NOT EXISTS (SELECT 1 FROM dbo.tProjectRevisions r
+                           WHERE r.ProjectFK = l.ProjectFK AND r.ProgramFK = p.ProgramFK))
+       OR (pj.ProgramFK = p.ProgramFK
+           AND (   EXISTS (SELECT 1 FROM dbo.tProjectRevisions r
+                           WHERE r.ProjectFK = l.ProjectFK AND r.ProgramFK <> p.ProgramFK)
+                OR EXISTS (SELECT 1 FROM dbo.tProjectStages s
+                           WHERE s.ProjectFK = l.ProjectFK AND s.ProgramFK <> p.ProgramFK)))
+) x
+WHERE ISNULL(p.CurrentStatus, 0) <> 1
+  AND p.StageCount <= 1
+  AND p.LiveProjects = 0;
+
+/*  Step 4: the rule, first match wins. */
 SELECT
     p.ProgramFK,
     p.StageCount,
     p.CurrentStatus,
     p.LiveProjects,
+    p.StuckLeftovers,
+    p.StuckExample,
     CASE
         WHEN p.CurrentStatus = 1   THEN N'Approved'
         WHEN p.StageCount > 1      THEN N'Progressed'
         WHEN p.LiveProjects > 0    THEN N'LiveProjects'
+        WHEN p.StuckLeftovers > 0  THEN N'StuckLeftovers'
         ELSE NULL
     END AS BlockedBy,
     CASE
         WHEN p.CurrentStatus = 1   THEN N'Blocked'
         WHEN p.StageCount > 1      THEN N'Blocked'
         WHEN p.LiveProjects > 0    THEN N'Blocked'
+        WHEN p.StuckLeftovers > 0  THEN N'Blocked'
         ELSE N'Eligible'
     END AS Eligibility,
     CASE
@@ -116,6 +178,9 @@ SELECT
         WHEN p.StageCount > 1      THEN N'progressed beyond its initial stage'
         WHEN p.LiveProjects > 0    THEN N'it still has ' + CAST(p.LiveProjects AS NVARCHAR(10))
                                         + N' project(s) that have not been deleted'
+        WHEN p.StuckLeftovers > 0  THEN N'it has ' + CAST(p.StuckLeftovers AS NVARCHAR(10))
+                                        + N' deleted project(s) that cannot be removed automatically (e.g. '
+                                        + p.StuckExample + N'); an administrator must clean them up'
         ELSE N''
     END AS Reason
 FROM @Programs p;

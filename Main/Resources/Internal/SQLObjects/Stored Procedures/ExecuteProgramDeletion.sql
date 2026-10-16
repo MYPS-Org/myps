@@ -8,10 +8,14 @@
     plain parameterized script run via ISqlExecutor.ExecuteScriptFileNonQueryInTransactionAsync
     (fileName, parameters, tx) — tx is the SAME caller-owned transaction that already ran,
     in order, inside ProgramHelper.DeleteProgramInTransactionAsync (2026-10-16: every pass
-    runs in that one transaction, after it locked the program's rows):
-      PASS 1   GetProgramDeletionEligibility.sql   (refused in C# if Blocked)
-      PASS 2   GetProjectDeletionTier.sql per child (refused in C#, naming every non-Hard child)
-      PASS 3   ExecuteProjectDeletion.sql per child, through ProjectHelper.ExecuteProjectDeletionAsync
+    runs in that one transaction, under the per-program delete lock and row locks). NO CASCADE:
+    a program with a live project is refused in PASS 1; only leftovers of projects users already
+    deleted are removed with it:
+      PASS 1   GetProgramDeletionEligibility.sql   (refused in C# if Blocked: Approved, progressed,
+               live projects, or leftovers that could never be removed)
+      PASS 2   GetProjectDeletionTier.sql, one call for every leftover (refused in C#, naming every
+               non-Hard one)
+      PASS 3   ExecuteProjectDeletion.sql per leftover (its rows under this program only)
       PASS 3.5 postcondition: C# checks that no tProjects, tProjectRevisions or tProjectStages
                row is left under @ProgramFK, immediately before calling this script. If any
                is, C# throws WITHOUT ever running this script, and the caller's transaction
@@ -25,7 +29,7 @@
       @ProgramFK        NVARCHAR(200)
       @UserId            NVARCHAR(100)
       @CurrentDate       DATETIME2
-      @ProjectsDeleted   INT — count of child projects hard-deleted in PASS 3, for the
+      @ProjectsDeleted   INT — count of leftovers removed in PASS 3 (normally 0), for the
                           audit snapshot only (matches the original procedure's
                           `(SELECT COUNT(*) FROM @Projects) AS ProjectsDeleted`).
 

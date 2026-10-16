@@ -368,7 +368,9 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     public async Task ProgramDeletion_ADeletedProjectCarriedIntoALaterYear_IsARefusal_AndRollsEverythingBack()
     {
         // Created in this program and carried into another: its tProjects row would have to stay
-        // and point at a deleted program, so the delete is refused and nothing is written.
+        // and point at a deleted program, so the delete is refused and nothing is written. Since
+        // 2026-10-16 the eligibility script says so up front (a stuck leftover), so the Program list
+        // and DeleteProgram agree.
         await SetProgramStageAsync(BP, status: Working);
         await SeedProjectAsync("BP01000034LZ", (BP, "BP01000034LZ"));
         await SeedProjectAsync("BP01000035LZ", (BP, "BP01000035LZ"));
@@ -377,8 +379,9 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         await ExecuteAsync($"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, IsDeleted) VALUES ('BP01000035LZ', '{OtherProgram}', 'P01000035LZ', 0);");
 
         var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecuteProgramDeletionAsync());
-        Assert.Equal("This program cannot be deleted: some of its projects still have history in another program.", ex.Reason);
-        await AssertNothingDeletedAsync("BP01000034LZ", "BP01000035LZ"); // the other leftover's removal rolled back too
+        Assert.Equal("This program cannot be deleted: it has 1 deleted project(s) that cannot be removed automatically (e.g. BP01000035LZ); an administrator must clean them up.", ex.Reason);
+        Assert.Equal(("Blocked", "StuckLeftovers"), await EligibilityCodeAsync());
+        await AssertNothingDeletedAsync("BP01000034LZ", "BP01000035LZ");
     }
 
     [Fact]
@@ -389,7 +392,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         await SoftDeleteAsync("BP01000015LZ");
 
         var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecuteProgramDeletionAsync());
-        Assert.Contains("BP01000015LZ (published)", ex.Reason);
+        Assert.Contains("(e.g. BP01000015LZ); an administrator must clean them up", ex.Reason);
         await AssertNothingDeletedAsync("BP01000015LZ");
     }
 
@@ -444,7 +447,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         await ExecuteAsync("UPDATE dbo.tProjects SET IsPublished = 1 WHERE ProjectPK = 'BP01000031LZ';");
 
         var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => DeleteProgramInTransactionAsync());
-        Assert.Contains("BP01000031LZ (published)", ex.Reason);
+        Assert.Contains("(e.g. BP01000031LZ)", ex.Reason);
         Assert.DoesNotContain("BP01000030LZ", ex.Reason); // only the blocking one is named
         await AssertNothingDeletedAsync("BP01000030LZ", "BP01000031LZ");
     }
@@ -459,6 +462,184 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => DeleteProgramInTransactionAsync());
         Assert.Equal("This program cannot be deleted: program is approved.", ex.Reason);
         Assert.Equal(1, await CountAsync("dbo.tPrograms", $"ProgramPK = '{Program}'"));
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Review fixes on top of main (2026-10-16, delete-policy-review-fixes.md)
+    // ---------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ProgramDeletion_NeverRemovesAProjectWithALiveRevision_EvenWhenBatchDeleteCannotReachIt()
+    {
+        // Round-2 fix 1: a program with no stage rows (no current stage) and a project with a live
+        // revision. Batch Delete cannot reach it, so it is not "live" -- but it was never deleted, so
+        // Delete Program must not remove it either: it is stuck, and nothing is written.
+        await SeedProjectAsync("BP01000046LZ", (BP, "BP01000046LZ"));
+
+        var row = (await new SqlExecutor(ConnectionString).DetermineProgramDeletionEligibilitiesAsync(new[] { Program }))[Program];
+        Assert.Equal((0, 1, "StuckLeftovers"), (row.LiveProjects, row.StuckLeftovers, row.BlockedBy));
+
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecuteProgramDeletionAsync());
+        Assert.Contains("(e.g. BP01000046LZ); an administrator must clean them up", ex.Reason);
+        await AssertNothingDeletedAsync("BP01000046LZ");
+        Assert.Equal(1, await CountAsync("dbo.tProjectRevisions", "ProjectFK = 'BP01000046LZ' AND IsDeleted = 0"));
+    }
+
+    [Fact]
+    public async Task ProgramDeletion_RemovesADeletedItemizedChildWithNoStageRow()
+    {
+        // Round-2 fix 4 (criterion 3): an itemized child is Hard whatever its stage history, so a
+        // deleted one with no stage row is a removable leftover, not "stuck".
+        await SetProgramStageAsync(GAAR, status: Working);
+        await SeedProjectAsync("P01000045LZ", Array.Empty<(int, string)>(), parentProjectId: "P01000099LS");
+        await ExecuteAsync($"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, IsDeleted) VALUES ('P01000045LZ', '{Program}', 'P01000045LZ', 1);");
+
+        var row = (await new SqlExecutor(ConnectionString).DetermineProgramDeletionEligibilitiesAsync(new[] { Program }))[Program];
+        Assert.Equal(("Eligible", 0), (row.Eligibility, row.StuckLeftovers));
+
+        var removed = await ExecuteProgramDeletionAsync();
+        Assert.Equal(new[] { "P01000045LZ" }, removed);
+        Assert.Equal(0, await CountAsync("dbo.tProjects", "ProjectPK = 'P01000045LZ'"));
+        Assert.Equal(0, await CountAsync("dbo.tPrograms", $"ProgramPK = '{Program}'"));
+    }
+
+    [Fact]
+    public async Task BatchDecision_LocksAndDecidesEveryProjectInOnePass()
+    {
+        // Round-2 fix 6: Batch Delete decides its whole batch on locked rows in one lock statement
+        // and one tier query. A project that is not there refuses the batch.
+        await SeedProjectAsync("BP01000047LZ", (BP, "BP01000047LZ"));
+        await SeedProjectAsync("BP01000048LZ", (BP, "BP01000048LZ"), (NEP, "P01000048LZ"));
+        var sql = new SqlExecutor(ConnectionString);
+
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using (var transaction = connection.BeginTransaction())
+        {
+            var decided = await sql.DecideProjectDeletionsUnderLockAsync(new[] { "BP01000047LZ", "BP01000048LZ" }, Program, transaction);
+            Assert.Equal(("Hard", "Soft"), (decided["BP01000047LZ"].Tier, decided["BP01000048LZ"].Tier));
+            await transaction.RollbackAsync();
+        }
+        await using (var transaction = connection.BeginTransaction())
+        {
+            var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() =>
+                sql.DecideProjectDeletionsUnderLockAsync(new[] { "BP01000047LZ", "BP09999999LZ" }, Program, transaction));
+            Assert.Equal("Project BP09999999LZ was not found in this program.", ex.Reason);
+            await transaction.RollbackAsync();
+        }
+    }
+
+    [Fact]
+    public async Task ProgramEligibility_ALiveRevisionWithNoStageRowAtTheCurrentStage_IsNotLive_ButStuck()
+    {
+        // Live means what Batch Delete can act on: a live revision reached through a stage row at the
+        // program's current stage. One with no stage row cannot be batch-deleted, so it is not "live";
+        // and Delete Program could not remove it either, so the program says an administrator must.
+        await SetProgramStageAsync(BP, status: Working);
+        await SeedProjectAsync("BP01000040LZ", Array.Empty<(int, string)>());
+        await ExecuteAsync($"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, IsDeleted) VALUES ('BP01000040LZ', '{Program}', 'BP01000040LZ', 0);");
+
+        var row = (await new SqlExecutor(ConnectionString).DetermineProgramDeletionEligibilitiesAsync(new[] { Program }))[Program];
+        Assert.Equal((0, 1, "BP01000040LZ", "StuckLeftovers"), (row.LiveProjects, row.StuckLeftovers, row.StuckExample, row.BlockedBy));
+    }
+
+    [Fact]
+    public async Task ProgramDeletionLock_IsExclusiveAgainstOtherDeletesOfTheSameProgram()
+    {
+        await using var holder = new SqlConnection(ConnectionString);
+        await holder.OpenAsync();
+        await using var holderTx = holder.BeginTransaction();
+        await holder.AcquireProgramDeletionLockAsync(holderTx, Program, exclusive: false);   // e.g. a Batch Delete
+
+        await using var other = new SqlConnection(ConnectionString);
+        await other.OpenAsync();
+        await using (var sharedTx = other.BeginTransaction())
+        {
+            await other.AcquireProgramDeletionLockAsync(sharedTx, Program, exclusive: false); // another Batch Delete: fine
+            await sharedTx.RollbackAsync();
+        }
+        await using (var exclusiveTx = other.BeginTransaction())
+        {
+            var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() =>
+                other.AcquireProgramDeletionLockAsync(exclusiveTx, Program, exclusive: true, timeoutMs: 200)); // Delete Program waits, then refuses
+            Assert.Equal("Another delete in this program is in progress. Try again in a moment.", ex.Reason);
+            await exclusiveTx.RollbackAsync();
+        }
+        await using (var otherProgramTx = other.BeginTransaction())
+        {
+            await other.AcquireProgramDeletionLockAsync(otherProgramTx, OtherProgram, exclusive: true, timeoutMs: 200); // other programs unaffected
+            await otherProgramTx.RollbackAsync();
+        }
+        await holderTx.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task ProgramDeletion_RefusedForAnApprovedProgram_LocksNoProjectRow()
+    {
+        // The refusal comes from the program's own rows; its (possibly thousands of) project rows
+        // are never locked for a delete that cannot happen.
+        await SetProgramStageAsync(GAAR, status: Approved);
+        await SeedProjectAsync("P01000041LZ", (GAAR, "P01000041LZ"));
+        await SeedProjectAsync("P01000042LZ", (GAAR, "P01000042LZ"));
+
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() =>
+            new SqlExecutor(ConnectionString).DeleteProgramInTransactionAsync(Program, "test", new DateTime(2026, 10, 16), connection, transaction));
+        Assert.Equal("This program cannot be deleted: program is approved.", ex.Reason);
+
+        await using var locks = connection.CreateCommand();
+        locks.Transaction = transaction;
+        locks.CommandText = """
+            SELECT COUNT(*) FROM sys.dm_tran_locks l
+            WHERE l.request_session_id = @@SPID
+              AND (   l.resource_associated_entity_id IN (SELECT p.hobt_id FROM sys.partitions p
+                                                          WHERE p.object_id IN (OBJECT_ID('dbo.tProjects'), OBJECT_ID('dbo.tProjectRevisions'), OBJECT_ID('dbo.tProjectStages')))
+                   OR (l.resource_type = 'OBJECT' AND l.request_mode NOT IN ('IS', 'Sch-S')
+                       AND l.resource_associated_entity_id IN (OBJECT_ID('dbo.tProjects'), OBJECT_ID('dbo.tProjectRevisions'), OBJECT_ID('dbo.tProjectStages'))));
+            """;
+        Assert.Equal(0, Convert.ToInt32(await locks.ExecuteScalarAsync()));
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task TierScript_AnswersSeveralReferencesInOneCall()
+    {
+        await SeedProjectAsync("BP01000043LZ", (BP, "BP01000043LZ"));
+        await SeedProjectAsync("BP01000044LZ", (BP, "BP01000044LZ"), (NEP, "P01000044LZ"));
+
+        var rows = (await new SqlExecutor(ConnectionString).ExecuteScriptFileInTransactionAsync<ProjectHelper.ProjectDeletionTierResult>(
+            "Functions/GetProjectDeletionTier.sql",
+            new { ProjectRefs = "[\"BP01000043LZ\",\"P01000044LZ\",\"NO-SUCH-PROJECT\"]", ProgramFK = Program })).ToList();
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal(("BP01000043LZ", "Hard"), (rows.Single(x => x.Ref == "BP01000043LZ").ProjectFK, rows.Single(x => x.Ref == "BP01000043LZ").Tier));
+        Assert.Equal(("BP01000044LZ", "ProjectId", "Soft"), (rows.Single(x => x.Ref == "P01000044LZ").ProjectFK, rows.Single(x => x.Ref == "P01000044LZ").MatchedBy, rows.Single(x => x.Ref == "P01000044LZ").Tier));
+    }
+
+    [Fact]
+    public void CurrentProgramStatus_IsResolvedIdenticallyInEveryScript()
+    {
+        // "Approved" must mean the same in the project rule, the program rule and the program delete's
+        // audit snapshot: the current stage row (StageHierarchy, then Id) and its revision -- as
+        // vProgramLatest resolves the badge. The scripts cannot share code, so this keeps the copies
+        // identical (the WHERE line differs only in how each names its program).
+        string root = FindRepositoryDirectory("Main/Resources/Internal/SQLObjects");
+        static string Resolution(string script)
+        {
+            var lines = script.Replace("\r\n", "\n").Split('\n').Select(l => l.Trim()).ToList();
+            int from = lines.FindIndex(l => l == "FROM dbo.tProgramStages ps");
+            int order = lines.FindIndex(from, l => l.StartsWith("ORDER BY o.StageHierarchy", StringComparison.Ordinal));
+            Assert.True(from >= 0 && order > from, "the current-status block was not found");
+            return string.Join("\n", lines.Skip(from).Take(order - from + 1).Where(l => !l.StartsWith("WHERE ", StringComparison.Ordinal)));
+        }
+
+        var blocks = new[] { "Functions/GetProjectDeletionTier.sql", "Functions/GetProgramDeletionEligibility.sql", "Stored Procedures/ExecuteProgramDeletion.sql" }
+            .Select(f => Resolution(File.ReadAllText(Path.Combine(root, f))))
+            .Distinct()
+            .ToList();
+        Assert.Single(blocks);
     }
 
     [Fact]
@@ -510,6 +691,13 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         int revisionId = await ScalarAsync(
             $"INSERT dbo.tProgramRevisions (ProgramFK, Name, Status) VALUES ('{Program}', 'Test program', {status}); SELECT CAST(SCOPE_IDENTITY() AS INT);");
         await ExecuteAsync($"INSERT dbo.tProgramStages (ProgramFK, StageId, StageName, RevisionId) VALUES ('{Program}', {stageId}, 'S{stageId}', {revisionId});");
+    }
+
+    private async Task<(string Eligibility, string? BlockedBy)> EligibilityCodeAsync()
+    {
+        var result = await new SqlExecutor(ConnectionString).DetermineProgramDeletionEligibilityAsync(Program);
+        Assert.NotNull(result);
+        return (result!.Eligibility, result.BlockedBy);
     }
 
     private async Task<(string Eligibility, string Reason)> EligibilityAsync()
