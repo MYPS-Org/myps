@@ -8,6 +8,15 @@ test.describe('Project form page', () => {
       '/api/Project/ShowProjectDropdowns',
       '/api/Project/ShowProjectComponentDropdowns',
     ]);
+    /*  The form's program type-ahead calls ShowProgram (on mount in add mode, then on typing).
+        Only the Program list asks for delete eligibility (fetchProgramList): it costs an extra
+        query per call, and this form never reads it (Risk #1, 2026-10-16). */
+    const showProgramBodies: string[] = [];
+    page.on('request', (request) => {
+      if (/\/program\/showprogram$/i.test(new URL(request.url()).pathname)) {
+        showProgramBodies.push(request.postData() ?? '');
+      }
+    });
 
     await login(page);
     await page.goto('/projects/addproject');
@@ -23,6 +32,11 @@ test.describe('Project form page', () => {
         answered, or the form renders with empty pickers and still "passes". */
     for (const call of apiCalls) {
       expect(call.status, `${call.url} -> ${JSON.stringify(call.responseBody)}`).toBe(200);
+    }
+
+    await expect.poll(() => showProgramBodies.length, { timeout: 30_000, message: 'the form loads its programs' }).toBeGreaterThanOrEqual(1);
+    for (const body of showProgramBodies) {
+      expect(body, 'the Project form must not ask ShowProgram for delete eligibility').not.toMatch(/"IncludeDeleteEligibility"\s*:\s*true/);
     }
 
     test.info().attach('project-form-api-calls', {

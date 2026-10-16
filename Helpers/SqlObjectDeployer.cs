@@ -19,11 +19,12 @@ namespace Helpers
     /// NOT every .sql file under Functions/Views/Stored Procedures is deployed (2026-10-16): some
     /// (e.g. the project/program deletion scripts) are plain parameterized scripts run directly by
     /// ISqlExecutor.ExecuteScriptFile*InTransactionAsync at request time, grouped into the same
-    /// folders for discoverability/convention but never CREATE OR ALTER DDL — a transitional shape
-    /// while the codebase migrates toward deploying everything through this tool. Discover() skips
-    /// any file whose batches contain no CREATE statement (<see cref="IsDeployableObject"/>), so
+    /// folders for discoverability/convention but never CREATE OR ALTER DDL. Discover() skips
+    /// any file with no CREATE [OR ALTER] FUNCTION/VIEW/PROCEDURE batch (<see cref="IsDeployableObject"/>), so
     /// running --apply-sql-objects --yes can never try to execute one as a bare, unparameterized
-    /// query/cascade.
+    /// query/cascade; the run lists what it skipped (<see cref="DiscoverRuntimeScripts"/>). With
+    /// nothing to deploy (the case today) it says so, checks only the compatibility level the
+    /// runtime scripts need, and demands no DDL rights.
     /// </summary>
     public sealed class SqlObjectDeployer
     {
@@ -90,8 +91,22 @@ namespace Helpers
                 log.WriteLine($"  {scripts.Count,2}. {file} ({SqlBatchSplitter.Split(script).Count} batch(es))");
             }
 
+            IReadOnlyList<string> runtimeScripts = DiscoverRuntimeScripts(root);
+            if (runtimeScripts.Count > 0)
+            {
+                log.WriteLine("Skipped (runtime scripts the API reads at request time; never deployed):");
+                foreach (string file in runtimeScripts)
+                    log.WriteLine($"   - {file}");
+            }
+
             // Read-only; runs in the dry run too, so the dry run says whether --yes would work.
-            await PreflightAsync(log, ct);
+            await PreflightAsync(log, ct, deploying: files.Count > 0);
+
+            if (files.Count == 0)
+            {
+                log.WriteLine("Nothing to deploy: no CREATE OR ALTER object files here. Nothing executed.");
+                return files;
+            }
 
             if (!execute)
             {
@@ -133,12 +148,14 @@ namespace Helpers
         /// <summary>
         /// Read-only checks that the target can take the objects, printed as a checklist. Throws
         /// (nothing applied) if any fails:
-        ///   compatibility level >= 130   — OPENJSON, used by Batch Delete's tier lookup;
-        ///   SQL Server 2017+ (major >= 14) — STRING_AGG, used by pExecuteProgramDeletion;
+        ///   compatibility level >= 130   — FOR JSON / OPENJSON, used by the runtime deletion
+        ///   scripts and the permission migration; checked even when there is nothing to deploy.
+        /// Only when <paramref name="deploying"/> (there are object files to apply):
+        ///   SQL Server 2017+ (major >= 14) — STRING_AGG and CREATE OR ALTER;
         ///   CREATE FUNCTION / PROCEDURE / VIEW on the database and ALTER on schema dbo — the
         ///   login the command runs as must be able to CREATE OR ALTER the objects.
         /// </summary>
-        public async Task<PreflightResult> PreflightAsync(TextWriter log, CancellationToken ct = default)
+        public async Task<PreflightResult> PreflightAsync(TextWriter log, CancellationToken ct = default, bool deploying = true)
         {
             var result = (await _sql.QueryAsync<PreflightResult>("""
                 SELECT
@@ -150,15 +167,21 @@ namespace Helpers
                     CAST(ISNULL(HAS_PERMS_BY_NAME('dbo', 'SCHEMA', 'ALTER'), 0) AS BIT) AS CanAlterDbo;
                 """, ct: ct)).Single();
 
-            var checks = new (bool Ok, string Text)[]
+            var checks = new List<(bool Ok, string Text)>
             {
-                (result.CompatibilityLevel >= 130, $"compatibility level {result.CompatibilityLevel} (need >= 130 for OPENJSON)"),
-                (result.ProductMajorVersion >= 14, $"SQL Server major version {result.ProductMajorVersion} (need >= 14 / 2017 for STRING_AGG)"),
-                (result.CanCreateFunction, "permission: CREATE FUNCTION"),
-                (result.CanCreateProcedure, "permission: CREATE PROCEDURE"),
-                (result.CanCreateView, "permission: CREATE VIEW"),
-                (result.CanAlterDbo, "permission: ALTER on schema dbo"),
+                (result.CompatibilityLevel >= 130, $"compatibility level {result.CompatibilityLevel} (need >= 130 for FOR JSON / OPENJSON)"),
             };
+            if (deploying)
+            {
+                checks.AddRange(new (bool Ok, string Text)[]
+                {
+                    (result.ProductMajorVersion >= 14, $"SQL Server major version {result.ProductMajorVersion} (need >= 14 / 2017 for STRING_AGG)"),
+                    (result.CanCreateFunction, "permission: CREATE FUNCTION"),
+                    (result.CanCreateProcedure, "permission: CREATE PROCEDURE"),
+                    (result.CanCreateView, "permission: CREATE VIEW"),
+                    (result.CanAlterDbo, "permission: ALTER on schema dbo"),
+                });
+            }
 
             log.WriteLine("Preflight:");
             foreach (var (ok, text) in checks)
@@ -172,21 +195,28 @@ namespace Helpers
             return result;
         }
 
+        // CREATE [OR ALTER] or ALTER of a programmable object only: a runtime script that opens
+        // with CREATE TABLE #work or CREATE INDEX is still a runtime script, never deployed.
+        private static readonly System.Text.RegularExpressions.Regex ObjectDdl = new(
+            @"^(CREATE(\s+OR\s+ALTER)?|ALTER)\s+(FUNCTION|VIEW|PROCEDURE|PROC|TRIGGER)\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
         /// <summary>
         /// True when any batch of <paramref name="script"/> (per <see cref="SqlBatchSplitter"/>, which
         /// already tracks comments/strings correctly) is, once its own leading comments and whitespace
-        /// are stripped, an actual CREATE statement -- CREATE [OR ALTER] FUNCTION/VIEW/PROCEDURE. A real
-        /// object file's DDL batch may follow a separate `SET QUOTED_IDENTIFIER ON; GO` batch, so every
-        /// batch is checked, not just the first. A plain parameterized script (a SELECT/DELETE/UPDATE
-        /// body meant for ISqlExecutor.ExecuteScriptFile*InTransactionAsync, not this deployer) has no
-        /// such batch and is reported false, so <see cref="Discover"/> skips it.
+        /// are stripped, CREATE [OR ALTER] or ALTER of a FUNCTION/VIEW/PROCEDURE/TRIGGER. A real object file's DDL
+        /// batch may follow a separate `SET QUOTED_IDENTIFIER ON; GO` batch, so every batch is checked,
+        /// not just the first. A plain parameterized script (a SELECT/DELETE/UPDATE body meant for
+        /// ISqlExecutor.ExecuteScriptFile*InTransactionAsync, not this deployer) has no such batch and
+        /// is reported false, so <see cref="Discover"/> skips it -- even when it opens with
+        /// CREATE TABLE #work.
         /// </summary>
         public static bool IsDeployableObject(string script)
         {
             foreach (SqlBatch batch in SqlBatchSplitter.Split(script))
             {
                 string stripped = StripLeadingComments(batch.Text).TrimStart();
-                if (stripped.StartsWith("CREATE", StringComparison.OrdinalIgnoreCase)) return true;
+                if (ObjectDdl.IsMatch(stripped)) return true;
             }
             return false;
         }
@@ -227,8 +257,8 @@ namespace Helpers
 
         /// <summary>The object files under <paramref name="root"/>, relative and '/'-separated, in apply
         /// order. Only files that are actually CREATE OR ALTER DDL (<see cref="IsDeployableObject"/>) --
-        /// a plain parameterized script grouped into these folders for convention is silently skipped,
-        /// never attempted as a bare query.</summary>
+        /// a plain parameterized script grouped into these folders for convention is skipped (and
+        /// listed by <see cref="DiscoverRuntimeScripts"/>), never attempted as a bare query.</summary>
         public static IReadOnlyList<string> Discover(string root)
         {
             var byFolder = new List<string>();
@@ -258,6 +288,24 @@ namespace Helpers
             }
             ordered.AddRange(byFolder.Where(f => !ordered.Contains(f)));
             return ordered;
+        }
+
+        /// <summary>The .sql files under the object folders that are NOT deployable objects (no CREATE
+        /// batch): runtime scripts the API reads at request time. Listed by the command so a skipped
+        /// file is never silent.</summary>
+        public static IReadOnlyList<string> DiscoverRuntimeScripts(string root)
+        {
+            var skipped = new List<string>();
+            foreach (string folder in Folders)
+            {
+                string dir = Path.Combine(root, folder);
+                if (!Directory.Exists(dir)) continue;
+                skipped.AddRange(Directory.EnumerateFiles(dir, "*.sql", SearchOption.TopDirectoryOnly)
+                    .Where(path => !IsDeployableObject(File.ReadAllText(path)))
+                    .Select(path => $"{folder}/{Path.GetFileName(path)}")
+                    .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+            }
+            return skipped;
         }
 
         /// <summary>A relative root resolves against the working directory, then the app's own folder.</summary>

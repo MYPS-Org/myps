@@ -5,6 +5,27 @@ export interface BatchActionResponse {
 	MissingProjectIds: string[];
 	/** Publish actions only: matched projects left untouched because they are already published. */
 	SkippedAlreadyPublishedProjectIds?: string[];
+	/** Batch Delete only: removed outright (first stage entry). */
+	HardDeletedProjectIds?: string[];
+	/** Batch Delete only: deleted at the current stage; restorable. */
+	SoftDeletedProjectIds?: string[];
+	/** Batch Delete only: ids it would not touch, and why. */
+	RefusedProjects?: BatchDeleteRefusal[];
+}
+export interface BatchDeleteRefusal {
+	ProjectId: string;
+	Reason: string;
+}
+/** What Batch Delete would do with a list of ids (POST /Program/PreviewBatchDelete); nothing is written. */
+export interface BatchDeletePreview {
+	Message: string;
+	Title: string;
+	/** Would be permanently deleted (first stage entry). */
+	HardProjectIds: string[];
+	/** Would be deleted at the current stage; restorable with Batch Restore. */
+	SoftProjectIds: string[];
+	RefusedProjects: BatchDeleteRefusal[];
+	MissingProjectIds: string[];
 }
 export interface ProgramModel {
 	Id: number;
@@ -51,6 +72,10 @@ export interface ProgramLatest {
 	UserGroup: string;
 	NumberOfProjects?: number;
 	StartYear: number;
+	/** From ShowProgram: whether DeleteProgram would accept this program (server rule). Unset when the server could not check. */
+	CanDelete?: boolean | null;
+	/** Why it cannot be deleted, in the words DeleteProgram refuses with; null when it can. */
+	DeleteBlockedReason?: string | null;
 	/** Not returned by the backend today (vProgramLatest has no end-year column); populated client-side where available (e.g. mapToProgramLatest), otherwise undefined. */
 	YearEnd?: number;
 	/** Not returned by the backend today; kept for Modification/Revision's excess-component cost fallback, which has no live backend wiring yet. */

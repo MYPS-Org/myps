@@ -96,7 +96,8 @@ navigate(`/programs/programdetails/${program.ProgramId}:${program.StageName}`);
 | Function | Endpoint | Payload | Notes |
 |----------|----------|---------|-------|
 | `fetchProgramEnums()` | `POST /Program/InitAddProgram` | null | Returns `{ Stages, Types, Groups, DataSecurity }` |
-| `fetchProgram(PaginatedRequest<ProgramFilter>)` | `POST /program/showprogram` | `PaginatedRequest<ProgramFilter>` | Returns `PaginationResponse<ProgramLatest>` (now includes `HasNext`, `HasPrevious`, `NextFilteredId`, `PreviousFilteredId`) |
+| `fetchProgram(PaginatedRequest<ProgramFilter>)` | `POST /program/showprogram` | `PaginatedRequest<ProgramFilter>` | Returns `PaginationResponse<ProgramLatest>` (now includes `HasNext`, `HasPrevious`, `NextFilteredId`, `PreviousFilteredId`). Used by the Project form's program search; no delete eligibility |
+| `fetchProgramList(PaginatedRequest<ProgramFilter>)` | `POST /program/showprogram` | the same, plus `IncludeDeleteEligibility: true` | The Program list's call: each row also carries `CanDelete` / `DeleteBlockedReason` (server rule, one extra query per page) |
 | `fetchProgramById(programId, StageName)` | `POST /Program/ProgramDetails` | `{ ProgramId, StageName }` | Returns `ProgramDetailsEnums` |
 | `addProgram(ProgramModel)` | `POST /Program/AddProgram` | `ProgramModel` | Returns new `ProgramModel` with `Id` |
 | `editProgram(ProgramDetails)` | `POST /Program/UpdateProgramDetails` | `ProgramDetails` | |
@@ -165,7 +166,7 @@ AIP/AIP02 payloads include all filter fields; RBP/RBPTier/RBPComponents/RDIP sen
 
 **Key behaviors**
 
-- Initial load: `usePagination` calls `fetchProgram` with `initialFilters` on mount
+- Initial load: `usePagination` calls `fetchProgramList` with `initialFilters` on mount
 - Search: `handleSearchChange` updates input only; `handleSearchSubmit` or Enter calls `pagination.applyFilters` with updated Name filter (resets to page 1)
 - Clear button: visible when `searchInput` or `pagination.currentFilters.Name` is set
 - Filters badge count: counts non-empty StartYear / GroupName / StageName values

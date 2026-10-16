@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Microsoft.Extensions.Logging;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Table;
@@ -21,7 +22,9 @@ namespace WebAPI.Controllers.Programs
     [Route("api/[controller]/[action]")]
     public class ProgramController : CoreController
     {
-        public ProgramController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
+        private readonly ISqlExecutor _sql;
+        private readonly ILogger<ProgramController>? _logger;
+        public ProgramController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler, ISqlExecutor sql, ILogger<ProgramController>? logger = null) : base(db, hub, pcma, exceptionHandler) { _sql = sql; _logger = logger; }
         #region Program Lists
 
         [HttpPost]
@@ -142,6 +145,33 @@ namespace WebAPI.Controllers.Programs
                                 result.ErrorMessage ??
                                 "Unable to retrieve the records."
                         });
+                }
+
+                // 2026-10-16: whether each listed program can be deleted, and why not, from the same
+                // rule DeleteProgram enforces (Functions/GetProgramDeletionEligibility.sql) -- one
+                // query for the page, so the Delete button never repeats the rule client-side.
+                // Opt-in (only the Program list asks), and optional: if it fails (scripts missing,
+                // see [RequiresDeletionObjects], or a database error) the list still loads with
+                // CanDelete unset, the failure is logged, and DeleteProgram still decides.
+                if (dto.IncludeDeleteEligibility)
+                {
+                    try
+                    {
+                        var eligibility = await _sql.DetermineProgramDeletionEligibilitiesAsync(
+                            result.Data.lists.Select(x => x.ProgramPK), cancellationToken);
+                        foreach (var program in result.Data.lists)
+                        {
+                            if (eligibility.TryGetValue(program.ProgramPK, out var row))
+                            {
+                                program.CanDelete = row.Eligibility != "Blocked";
+                                program.DeleteBlockedReason = program.CanDelete == true ? null : row.RefusalMessage;
+                            }
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        _logger?.LogError(ex, "Program list: delete eligibility could not be read; Delete buttons fall back to the client default.");
+                    }
                 }
 
                 return Ok(result.Data);
@@ -471,25 +501,15 @@ namespace WebAPI.Controllers.Programs
             }
         }
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
                 if (string.IsNullOrEmpty(dto.ProgramId))
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
-                string ProgramId = dto.ProgramId;
-                EnumProgramStage[] StagesToCheck =
-                {
-                    EnumProgramStage.NEP,
-                    EnumProgramStage.NEPE,
-                    EnumProgramStage.HGAB,
-                    EnumProgramStage.HGABI,
-                    EnumProgramStage.GAA,
-                    EnumProgramStage.GAAR,
-                };
                 DateTime CurrentDate = Functions.CurrentDate();
                 var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
                 {
@@ -506,95 +526,38 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
-                var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
-                var ProgramStage = ValidateProgramId.Data.ProgramStage;
-                if (StagesToCheck.Contains(ProgramStage.StageId))
-                {
-                    return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has progressed beyond the BP stage.", Title = "Delete Not Allowed" });
-                }
-                else
-                {
-                    EnumProgramStage[] AllowedStages =
-                    {
-                        EnumProgramStage.BP,
-                        EnumProgramStage.RBP,
-                        EnumProgramStage.RDIP,
-                        EnumProgramStage.PIP
-                    };
-                    if (!AllowedStages.Contains(ProgramStage.StageId))
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it is not in a deletable stage.", Title = "Delete Not Allowed" });
-                    }
-                    if (ProgramDetails.Cost > 0)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has projects associated with it.", Title = "Delete Not Allowed" });
-                    }
-                }
-                // 2026-09-05: this log entry previously claimed AffectedColumn = "IsDeleted",
-                // NewValue = "true" -- but nothing in this action sets that flag; the rows below
-                // are hard-deleted (RemoveRange/Remove), and tProjects/tProjectStages/
-                // tProgramRevisions/tProgramStages don't even have an IsDeleted column to set.
-                // Corrected to describe what actually happens. Converting this to a real
-                // soft-delete is tracked separately (RISK/REC, not part of this fix) -- it needs
-                // schema work (4 missing IsDeleted columns) and updating every consuming view
-                // (vProgramLatest currently has no IsDeleted filter either), not a quick patch.
-                var TransactionLog = new TransactionLog()
-                {
-                    ReferenceId = ProgramId,
-                    TransactionType = EnumTransactionType.Delete.ToString(),
-                    AffectedTable = "tPrograms, tProgramRevisions, tProgramStages, tProjects, tProjectRevisions, tProjectStages",
-                    AffectedColumn = "Row",
-                    NewValue = "Permanently deleted",
-                    OldValue = "Existed",
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate
-                };
-                await _db.tTransactionLog.AddRangeAsync(TransactionLog);
 
-                var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
-                if (ProgramRevisions == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
-                }
+                // The whole decision lives in ProgramHelper.ExecuteProgramDeletionAsync, inside the
+                // delete transaction on locked rows: Blocked when the program is Approved, has
+                // advanced past its first stage, or (2026-10-16, NO CASCADE) still has a live
+                // project -- its projects are deleted first, by a user allowed to. Only leftovers of
+                // projects users already deleted go with it. Any refusal is a
+                // DeletionRefusedException, caught below, and nothing is written.
+                var removedLeftovers = await ProgramHelper.ExecuteProgramDeletionAsync(
+                    _sql, ProgramParent.ProgramPK, _Session.UserId, CurrentDate, cancellationToken);
 
-                var ProjectsInProgram = await _db.tProjects.Where(x => x.ProgramId == ProgramRevisions.ProgramId).AsNoTracking().ToListAsync(cancellationToken);
-                HashSet<string> ReferenceIds = ProjectsInProgram.Select(x => x.ProjectPK).ToHashSet();
-                var ProjectRevisions = await _db.tProjectRevisions.Where(x => ReferenceIds.Contains(x.ProjectFK)).AsNoTracking().ToListAsync(cancellationToken);
-                var ProjectStages = await _db.tProjectStages.Where(x => ReferenceIds.Contains(x.ProjectFK)).AsNoTracking().ToListAsync(cancellationToken);
-
-                _db.tProjectStages.RemoveRange(ProjectStages);
-                await _db.SaveChangesAsync(cancellationToken);
-                _db.tProjectRevisions.RemoveRange(ProjectRevisions);
-                await _db.SaveChangesAsync(cancellationToken);
-
-                _db.tProjects.RemoveRange(ProjectsInProgram);
-                await _db.SaveChangesAsync(cancellationToken);
-
-                _db.tProgramStages.RemoveRange(ProgramStage);
-                await _db.SaveChangesAsync(cancellationToken);
-                _db.tProgramRevisions.RemoveRange(ProgramRevisions);
-                await _db.SaveChangesAsync(cancellationToken);
-
-                _db.tPrograms.Remove(ProgramParent);
-
-                //_db.tPrograms.Remove(ProgramParent);
-                //_db.tProgramRevisions.RemoveRange(ProgramRevisions);
-                //_db.tProgramStages.RemoveRange(ProgramStage);
-                //_db.tProjects.RemoveRange(ProjectsInProgram);
-                //_db.tProjectRevisions.RemoveRange(ProjectRevisions);
-                //_db.tProjectStages.RemoveRange(ProjectStages);
-
-                await _db.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Program deleted successfully.",
-                    Title = "Delete Complete"
+                    Message = $"Program {dto.ProgramId} has been deleted.",
+                    Title = "Program Deleted",
+                    DeletedProjects = removedLeftovers
                 });
+            }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                // A refusal from the deletion rule (Approved or progressed program, a published or
+                // progressed child, a change that raced the delete) — its reason is the message,
+                // not a generic database error.
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Not Allowed" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                // Lost a race with another change to the same program (SQL Server error 1205). Nothing
+                // was written; the same request will normally go through on a second try.
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
@@ -2288,7 +2251,225 @@ namespace WebAPI.Controllers.Programs
             }
         }
 
+        /// <summary>A project id Batch Delete will not touch, and why.</summary>
+        public sealed record BatchDeleteRefusal(string ProjectId, string Reason);
+
+        /// <summary>What Batch Delete would do, resolved by the single deletion rule.</summary>
+        private sealed class BatchDeletePlan
+        {
+            public string ProgramPK { get; init; } = string.Empty;
+            public string StageName { get; init; } = string.Empty;
+            public List<(string Ref, string ProjectFK)> Hard { get; } = new();
+            public List<(string Ref, string ProjectFK, int RevisionId)> Soft { get; } = new();
+            public List<BatchDeleteRefusal> Refused { get; } = new();
+            public string[] Missing { get; set; } = Array.Empty<string>();
+        }
+
+        /// <summary>
+        /// Validates a Batch Delete request and resolves every id through Functions/GetProjectDeletionTier.sql.
+        /// Read-only. Shared by <see cref="BatchDelete"/> and <see cref="PreviewBatchDelete"/> so the
+        /// preview a user confirms is exactly what the delete then does.
+        /// </summary>
+        private async Task<(IActionResult? Error, BatchDeletePlan? Plan)> ResolveBatchDeleteAsync(
+            BatchUnpublishTaggingDTO? dto, CancellationToken cancellationToken)
+        {
+            if (dto == null)
+            {
+                return (new BadRequestObjectResult(new { Message = "Request data is required.", Title = "Invalid Request" }), null);
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.ProgramId))
+            {
+                return (new BadRequestObjectResult(new { Message = "Program ID is required.", Title = "Invalid Program" }), null);
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.ProjectIds))
+            {
+                return (new BadRequestObjectResult(new { Message = "At least one project ID is required.", Title = "No Projects Selected" }), null);
+            }
+
+            var programDetails = await _db.vProgramLatest
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId, cancellationToken);
+
+            if (programDetails == null)
+            {
+                return (new BadRequestObjectResult(new
+                {
+                    Message =
+                        $"Program ID '{dto.ProgramId}' does not exist in the Programs table. " +
+                        "Please contact the administrator.",
+                    Title = "Program Not Found"
+                }), null);
+            }
+
+            var validationResult = await _db.ValidateProgramId(
+            new ProgramHelperParams
+            {
+                ProgramId = dto.ProgramId,
+                StageName = programDetails.StageName,
+                _Session = _Session
+            }, cancellationToken);
+
+            if (!validationResult.IsValid)
+            {
+                return (new BadRequestObjectResult(new { validationResult.Title, validationResult.Message }), null);
+            }
+
+            char[] delimiters = { ';', ',', ' ', '\n', '\r', '\t' };
+
+            var requestedProjectIds = dto.ProjectIds
+                .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (requestedProjectIds.Length == 0)
+            {
+                return (new BadRequestObjectResult(new { Message = "No valid project IDs were provided.", Title = "No Projects Selected" }), null);
+            }
+
+            /*
+             * 2026-10-15: ONE DELETION RULE, PREFIX-AGNOSTIC
+             * (documents/plans/project-deletion-single-rule.md).
+             *
+             * Every id is resolved and judged by Functions/GetProjectDeletionTier.sql, the same
+             * script Delete Program and both Lump Sum deletes use. It accepts the
+             * ProjectPK or any revision ProjectId of the project under this program, so
+             * after BP->NEP both BP01000002LZ (the PK) and P01000002LZ (the revision id)
+             * name the same project. Its tier decides what happens here:
+             *   Hard  (first stage entry)     -> ExecuteProjectDeletion.sql (via ProjectHelper), rows removed;
+             *   Soft  (progressed past it)    -> the current-stage revision is flagged, as before;
+             *   Blocked (published, or the program is Approved) -> refused.
+             * Lump Sum parents and itemized children are refused too: the Lump Sum module
+             * owns them, and only it returns a child's allocation to its parent.
+             *
+             * Scoped by ProgramPK and the program's current StageId through tProjectStages,
+             * not by vProjectLatest: the revision a soft delete flags is the project's live
+             * revision AT THIS STAGE, never an earlier stage's revision a cross-stage
+             * fallback might return.
+             */
+            var plan = new BatchDeletePlan
+            {
+                ProgramPK = validationResult.Data!.Program.ProgramPK,
+                StageName = programDetails.StageName ?? string.Empty
+            };
+            var currentStageId = validationResult.Data.ProgramStage.StageId;
+
+            var tiers = await _db.DetermineProjectDeletionTiersAsync(requestedProjectIds, plan.ProgramPK, cancellationToken);
+            var tiersByRef = tiers
+                .GroupBy(x => x.Ref, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            var candidates = new List<(string Ref, ProjectHelper.ProjectDeletionTierResult Tier)>();
+            var firstRefByProjectFK = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in requestedProjectIds)
+            {
+                if (!tiersByRef.TryGetValue(id, out var rows))
+                {
+                    continue; // reported in Missing below
+                }
+                if (rows.Count > 1)
+                {
+                    // One string, two projects (one's PK, another's revision id): never guess
+                    // which one a user meant when the outcome may be a hard delete.
+                    plan.Refused.Add(new BatchDeleteRefusal(id, "matches more than one project in this program"));
+                    continue;
+                }
+                var row = rows[0];
+                if (row.Tier == ProjectHelper.ProjectDeletionTiers.Blocked)
+                {
+                    plan.Refused.Add(new BatchDeleteRefusal(id, row.Reason));
+                }
+                else if (row.Kind != ProjectHelper.ProjectDeletionKinds.Ordinary)
+                {
+                    plan.Refused.Add(new BatchDeleteRefusal(id, "Lump Sum project; delete it from the Lump Sum module"));
+                }
+                else if (firstRefByProjectFK.TryGetValue(row.ProjectFK, out var firstRef))
+                {
+                    // The BP- and P-form of one project: deleted once, and the second form says so.
+                    plan.Refused.Add(new BatchDeleteRefusal(id, $"same project as {firstRef}"));
+                }
+                else
+                {
+                    firstRefByProjectFK[row.ProjectFK] = id;
+                    candidates.Add((id, row));
+                }
+            }
+
+            var candidateFKs = candidates.Select(x => x.Tier.ProjectFK).ToArray();
+            var programPK = plan.ProgramPK;
+            var liveAtStage = await (
+                    from stage in _db.tProjectStages
+                    join revision in _db.tProjectRevisions on stage.RevisionId equals revision.Id
+                    where stage.ProgramFK == programPK
+                          && stage.StageId == currentStageId
+                          && candidateFKs.Contains(stage.ProjectFK)
+                          && !revision.IsDeleted
+                    group revision by revision.ProjectFK into g
+                    select new { ProjectFK = g.Key, RevisionId = g.Max(x => x.Id) })
+                .ToDictionaryAsync(x => x.ProjectFK, x => x.RevisionId, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+            var notLiveHere = new List<string>();
+            foreach (var (projectRef, tier) in candidates)
+            {
+                if (!liveAtStage.TryGetValue(tier.ProjectFK, out var revisionId))
+                {
+                    notLiveHere.Add(projectRef); // not at this stage, or already deleted here
+                }
+                else if (tier.Tier == ProjectHelper.ProjectDeletionTiers.Hard)
+                {
+                    plan.Hard.Add((projectRef, tier.ProjectFK));
+                }
+                else
+                {
+                    plan.Soft.Add((projectRef, tier.ProjectFK, revisionId));
+                }
+            }
+
+            plan.Missing = requestedProjectIds
+                .Where(id => !tiersByRef.ContainsKey(id))
+                .Concat(notLiveHere)
+                .ToArray();
+
+            return (null, plan);
+        }
+
+        /// <summary>
+        /// What Batch Delete would do with these ids, without doing it: which projects would be
+        /// permanently deleted (first stage entry), which deleted at the current stage
+        /// (restorable), which refused and why, and which were not found. Writes nothing.
+        /// </summary>
         [HttpPost]
+        [RequiresDeletionObjects]
+        public async Task<IActionResult> PreviewBatchDelete([FromBody] BatchUnpublishTaggingDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var (error, plan) = await ResolveBatchDeleteAsync(dto, cancellationToken);
+                if (error != null) return error;
+
+                return Ok(new
+                {
+                    Message =
+                        $"{plan!.Hard.Count} project(s) would be permanently deleted, " +
+                        $"{plan.Soft.Count} deleted at the current stage.",
+                    Title = "Batch Delete Preview",
+                    HardProjectIds = plan.Hard.Select(x => x.Ref).ToArray(),
+                    SoftProjectIds = plan.Soft.Select(x => x.Ref).ToArray(),
+                    RefusedProjects = plan.Refused,
+                    MissingProjectIds = plan.Missing
+                });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+        }
+
+        [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> BatchDelete([FromBody] BatchUnpublishTaggingDTO dto, CancellationToken cancellationToken)
         {
             // 2026-09-21: the delete and the program cost recompute below must land together.
@@ -2298,173 +2479,63 @@ namespace WebAPI.Controllers.Programs
             IDbContextTransaction? transaction = null;
             try
             {
-                if (dto == null)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = "Request data is required.",
-                        Title = "Invalid Request"
-                    });
-                }
+                var (error, plan) = await ResolveBatchDeleteAsync(dto, cancellationToken);
+                if (error != null) return error;
 
-                if (string.IsNullOrWhiteSpace(dto.ProgramId))
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = "Program ID is required.",
-                        Title = "Invalid Program"
-                    });
-                }
-
-                if (string.IsNullOrWhiteSpace(dto.ProjectIds))
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = "At least one project ID is required.",
-                        Title = "No Projects Selected"
-                    });
-                }
-
-                var programDetails = await _db.vProgramLatest
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(
-                        x => x.ProgramId == dto.ProgramId,
-                        cancellationToken);
-
-                if (programDetails == null)
+                if (plan!.Hard.Count == 0 && plan.Soft.Count == 0)
                 {
                     return new BadRequestObjectResult(new
                     {
                         Message =
-                            $"Program ID '{dto.ProgramId}' does not exist in the Programs table. " +
-                            "Please contact the administrator.",
-                        Title = "Program Not Found"
-                    });
-                }
-
-                var validationResult = await _db.ValidateProgramId(
-                new ProgramHelperParams
-                {
-                    ProgramId = dto.ProgramId,
-                    StageName = programDetails.StageName,
-                    _Session = _Session
-                }, cancellationToken);
-
-                if (!validationResult.IsValid)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        validationResult.Title,
-                        validationResult.Message
-                    });
-                }
-
-                char[] delimiters =
-                {
-                    ';', ',', ' ', '\n', '\r', '\t'
-                };
-
-                var requestedProjectIds = dto.ProjectIds
-                    .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(x => x.Trim())
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToArray();
-
-                if (requestedProjectIds.Length == 0)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = "No valid project IDs were provided.",
-                        Title = "No Projects Selected"
-                    });
-                }
-
-                /*
-                 * Match the same way as BatchRestrictPublish.
-                 *
-                 * The ProgramId condition is important so projects from another
-                 * program cannot be deleted accidentally.
-                 */
-                var projectRevisions = await _db.vProjectLatest
-                    .AsNoTracking()
-                    .Where(x =>
-                        x.ProgramId == dto.ProgramId &&
-                        x.StageName == programDetails.StageName &&
-                        x.ProjectId != null &&
-                        requestedProjectIds.Contains(x.ProjectId))
-                    .Select(x => new
-                    {
-                        // 2026-09-21 (RISK: wrong-row delete): this used to select x.Id and
-                        // feed it to tProjectRevisions.Id below. vProjectLatest.Id is
-                        // tProjects.Id; the revision key is vProjectLatest.RevisionId. The two
-                        // are DIFFERENT for all 115,350 rows on myps_db_dev_200 -- never equal
-                        // by construction, since they are identities of different tables.
-                        //
-                        // Measured on that database, over the 115,350 projects a user could
-                        // paste in: the old key hit ANOTHER project's revision 112,115 times
-                        // (97%), hit nothing 2,064 times, and hit its own only 1,171 times by
-                        // coincidence of numbering. So Batch Delete either flagged an unrelated
-                        // project -- in another program, invisibly -- or silently did nothing
-                        // and still answered 200, which the UI shows as a success toast. Against
-                        // the project LIST (fProgramProjects, which joins tProjectStages
-                        // .RevisionId) the old key matched 0 of 109,790 listed rows and the new
-                        // one matches 109,788, so the deleted row could never have left the
-                        // table. That is the "batch delete does nothing" report.
-                        x.RevisionId,
-                        x.ProjectId
-                    })
-                    .ToListAsync(cancellationToken);
-
-                var existingProjectIds = projectRevisions
-                    .Where(x => !string.IsNullOrWhiteSpace(x.ProjectId))
-                    .Select(x => x.ProjectId!)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                var missingProjectIds = requestedProjectIds
-                    .Where(id => !existingProjectIds.Contains(id))
-                    .ToArray();
-
-                var revisionIds = projectRevisions
-                    .Select(x => x.RevisionId)
-                    .Distinct()
-                    .ToArray();
-
-                if (revisionIds.Length == 0)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message =
-                            "None of the supplied project IDs were found in the current program and stage.",
+                            "None of the supplied project IDs can be deleted from the current program and stage.",
                         Title = "Projects Not Found",
-                        MissingProjectIds = missingProjectIds
+                        MissingProjectIds = plan.Missing,
+                        RefusedProjects = plan.Refused
                     });
                 }
 
                 transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+                DateTime currentDate = Functions.CurrentDate();
 
-                var updatedCount = await _db.tProjectRevisions
-                    .Where(x =>
-                        revisionIds.Contains(x.Id) &&
-                        !x.IsDeleted)
-                    .ExecuteUpdateAsync(
-                        setters => setters.SetProperty(
-                            revision => revision.IsDeleted,
-                            true),
-                        cancellationToken);
+                // 2026-10-16: the per-program delete lock first (every delete in a program queues behind
+                // it, so two never deadlock), then every decision on locked rows.
+                await _db.AcquireProgramDeletionLockAsync(plan.ProgramPK, cancellationToken);
 
-                if (updatedCount == 0)
+                // The plan was read before the transaction: decide every project again, on locked rows,
+                // in one pass, so an approval, publish or stage advance that landed in between refuses
+                // the batch instead of slipping by.
+                var decided = await _db.DecideProjectDeletionsUnderLockAsync(
+                    plan.Hard.Select(x => x.ProjectFK).Concat(plan.Soft.Select(x => x.ProjectFK)), plan.ProgramPK, cancellationToken);
+                foreach (var (softRef, softProjectFK, _) in plan.Soft)
                 {
-                    return Ok(new
+                    var tier = decided[softProjectFK];
+                    if (tier.Tier != ProjectHelper.ProjectDeletionTiers.Soft)
                     {
-                        Message =
-                            "No changes were required because all matching project revisions " +
-                            "are already deleted.",
-                        Title = "No Changes Required",
-                        UpdatedCount = 0,
-                        MissingProjectIds = missingProjectIds
-                    });
+                        throw new ProjectHelper.DeletionRefusedException($"Project {softRef} can no longer be deleted here: {tier.Reason}.");
+                    }
                 }
+
+                // Hard: the script removes the rows and writes each project's audit row (it refuses
+                // anything the locked decision did not rate Hard).
+                foreach (var (_, projectFK) in plan.Hard)
+                {
+                    await _db.DeleteDecidedProjectAsync(decided[projectFK], plan.ProgramPK, _Session.UserId, currentDate, cancellationToken);
+                }
+
+                var softRevisionIds = plan.Soft.Select(x => x.RevisionId).ToArray();
+                var softCount = softRevisionIds.Length == 0
+                    ? 0
+                    : await _db.tProjectRevisions
+                        .Where(x => softRevisionIds.Contains(x.Id) && !x.IsDeleted)
+                        .ExecuteUpdateAsync(
+                            setters => setters.SetProperty(revision => revision.IsDeleted, true),
+                            cancellationToken);
+
+                // 2026-10-15: one audit row per soft-deleted project, in this transaction.
+                _db.AddSoftDeleteAuditRows(
+                    plan.Soft.Select(x => (x.ProjectFK, x.RevisionId, (string?)plan.StageName)),
+                    deleted: true, _Session.UserId, currentDate);
+                await _db.SaveChangesAsync(cancellationToken);
 
                 // 2026-09-21: a deleted project no longer counts toward its program's Cost
                 // (pRecomputeProgramCost counts ordinary projects on their latest live revision
@@ -2472,29 +2543,42 @@ namespace WebAPI.Controllers.Programs
                 // tProgramRevisions.Cost -- so without this the header kept the pre-delete
                 // figure until some other write recomputed it. Same helper every other
                 // project-mutating action uses (Helpers/ProgramCostRecompute.cs).
-                await _db.RecomputeProgramCostAsync(programDetails.ProgramPK, cancellationToken);
+                await _db.RecomputeProgramCostAsync(plan.ProgramPK, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
-                if (missingProjectIds.Length > 0)
-                {
-                    return Ok(new
-                    {
-                        Message =
-                            $"{updatedCount} project revision(s) were deleted. " +
-                            "Some project IDs were not found.",
-                        Title = "Project Deletion Partially Successful",
-                        UpdatedCount = updatedCount,
-                        MissingProjectIds = missingProjectIds
-                    });
-                }
-
+                var updatedCount = plan.Hard.Count + softCount;
+                bool partial = plan.Missing.Length > 0 || plan.Refused.Count > 0;
                 return Ok(new
                 {
-                    Message = $"{updatedCount} project revision(s) were deleted successfully.",
-                    Title = "Project Deletion Successful",
+                    Message =
+                        $"{plan.Hard.Count} project(s) permanently deleted (first stage entry), " +
+                        $"{softCount} project(s) deleted at the current stage." +
+                        (partial ? " Some project IDs were not found or cannot be deleted here." : string.Empty),
+                    Title = partial ? "Project Deletion Partially Successful" : "Project Deletion Successful",
                     UpdatedCount = updatedCount,
-                    MissingProjectIds = Array.Empty<string>()
+                    HardDeletedProjectIds = plan.Hard.Select(x => x.Ref).ToArray(),
+                    SoftDeletedProjectIds = plan.Soft.Select(x => x.Ref).ToArray(),
+                    MissingProjectIds = plan.Missing,
+                    RefusedProjects = plan.Refused
                 });
+            }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                // The procedure re-checked a tier and refused (e.g. the program was approved
+                // between the resolve and the delete). Nothing was committed.
+                if (transaction != null)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                }
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Not Allowed" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                if (transaction != null)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                }
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
             }
             catch (Exception ex)
             {
@@ -2526,6 +2610,7 @@ namespace WebAPI.Controllers.Programs
         }
 
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> BatchAddExistingProject([FromBody] BatchAddExistingProjectDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -2596,17 +2681,31 @@ namespace WebAPI.Controllers.Programs
                 // restoredSet came back empty (every id reported "not found") and `.Count() > 0`
                 // was false, so the action answered "No Projects Restored" and let the transaction
                 // dispose without a commit, rolling its own restore back. It could never succeed.
+                // 2026-10-15: ids are resolved by Functions/GetProjectDeletionTier.sql, the same resolver
+                // Batch Delete uses, so the BP-form ProjectPK and the P-form revision ProjectId
+                // both find the project (only its ProjectFK is used; restore is not a delete).
+                // A hard-deleted project no longer exists and is reported as not found; an
+                // ambiguous reference (one string, two projects) is not restored.
+                // 2026-10-16: the per-program delete lock before anything is read for the write, so a
+                // restore never runs alongside a delete in the same program.
+                await _db.AcquireProgramDeletionLockAsync(ProgramParent.ProgramPK, cancellationToken);
+                var resolved = await _db.DetermineProjectDeletionTiersAsync(projectIds, ProgramParent.ProgramPK, cancellationToken);
+                var projectFKByRef = resolved
+                    .GroupBy(x => x.Ref, StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Select(x => x.ProjectFK).Distinct().Count() == 1)
+                    .ToDictionary(g => g.Key, g => g.First().ProjectFK, StringComparer.OrdinalIgnoreCase);
+                var projectFKs = projectFKByRef.Values.Distinct().ToArray();
+
                 var latestDeletedRevisions = await (
                     from revision in _db.tProjectRevisions
                     where revision.ProgramFK == ProgramParent.ProgramPK
-                          && revision.ProjectId != null
-                          && projectIds.Contains(revision.ProjectId)
+                          && projectFKs.Contains(revision.ProjectFK)
                           && revision.IsDeleted
-                    group revision by revision.ProjectId
+                    group revision by revision.ProjectFK
                     into revisionGroup
                     select new
                     {
-                        ProjectId = revisionGroup.Key,
+                        ProjectFK = revisionGroup.Key,
                         Id = revisionGroup.Max(x => x.Id)
                     })
                     .ToListAsync(cancellationToken);
@@ -2618,9 +2717,9 @@ namespace WebAPI.Controllers.Programs
                             false),
                         cancellationToken);
 
-
+                var restoredFKs = latestDeletedRevisions.Select(x => x.ProjectFK).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var restoredSet = new HashSet<string>(
-                    latestDeletedRevisions.Select(x => x.ProjectId!),
+                    projectFKByRef.Where(x => restoredFKs.Contains(x.Value)).Select(x => x.Key),
                     StringComparer.OrdinalIgnoreCase
                 );
 
@@ -2630,8 +2729,22 @@ namespace WebAPI.Controllers.Programs
 
                 if (latestDeletedRevisions.Count > 0)
                 {
-                    // ExecuteUpdateAsync bypasses the change tracker, so there is nothing for
-                    // SaveChangesAsync to flush; the commit is what persists the restore.
+                    // 2026-10-15: one audit row per restored project (IsDeleted true -> false),
+                    // the inverse of Batch Delete's soft-delete row, in this transaction.
+                    var restoredStageNames = await _db.tProjectStages.AsNoTracking()
+                        .Where(x => ProjectRevisionIds.Contains(x.RevisionId))
+                        .Select(x => new { x.RevisionId, x.StageName })
+                        .ToListAsync(cancellationToken);
+                    _db.AddSoftDeleteAuditRows(
+                        latestDeletedRevisions.Select(x => (
+                            x.ProjectFK,
+                            x.Id,
+                            restoredStageNames.FirstOrDefault(s => s.RevisionId == x.Id)?.StageName)),
+                        deleted: false, _Session.UserId, CurrentDate);
+                    await _db.SaveChangesAsync(cancellationToken);
+
+                    // The restore itself went through ExecuteUpdateAsync (no change tracking);
+                    // the commit is what persists it, together with the audit rows.
                     await transaction.CommitAsync(cancellationToken);
 
                     return Ok(new
@@ -2646,6 +2759,12 @@ namespace WebAPI.Controllers.Programs
                     Message = "No deleted projects were found matching the provided IDs. They may already be active or do not belong to this program.",
                     Title = "No Projects Restored"
                 });
+            }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                // The program delete lock could not be had (a Delete Program of it is running).
+                try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Restore Not Possible" });
             }
             catch (Exception ex)
             {

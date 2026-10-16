@@ -29,6 +29,14 @@ Appsetting.RootPath = builder.Environment.ContentRootPath;
 
 Appsetting.PrepareAppsettings(builder.Configuration);
 
+// `Main --apply-sql-objects [--yes]`: apply Resources/Internal/SQLObjects to MYPSDb and exit,
+// before any service (Hangfire, SignalR, Kestrel) is registered. See Helpers/SqlObjectDeployer.cs.
+if (args.Contains(SqlObjectDeployer.CommandFlag))
+{
+    Environment.ExitCode = await SqlObjectDeployer.RunCommandAsync(args, Console.Out);
+    return;
+}
+
 
 // ==========================================================
 // SERVICES
@@ -136,6 +144,17 @@ var app = builder.Build();
 // to route its diagnostics through the same ILogger pipeline ExceptionHandler uses, instead of
 // Console.WriteLine, which never reached the same log sink as the "MYPS ERROR EVENT" reports.
 APIRequest.Logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Helpers.APIRequest");
+
+// 2026-10-15: check once at startup whether the delete feature can run -- its .sql script files are
+// in the build and the database is reachable and new enough -- so a bad publish is visible in the
+// log immediately. Never fatal: only the delete endpoints answer 503 until it is ready
+// ([RequiresDeletionObjects]), and they re-check on their own, so fixing the cause needs no restart.
+// Skipped under the Testing environment: its connection string falls back to the base
+// appsettings.json, and a test host must not open a connection just by starting.
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    _ = app.Services.GetRequiredService<IDeletionObjectsStatus>().EnsureReadyAsync();
+}
 
 
 // ==========================================================

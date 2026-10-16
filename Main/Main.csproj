@@ -75,16 +75,25 @@
     <None Include="libwkhtmltox.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- Ensure all Resources (templates, SQL scripts, etc.) are copied to output -->
-    <Content Include="Resources\**\*">
+    <!-- Ensure all Resources (templates, SQL scripts, etc.) are copied to output.
+         SQLObjects tooling is NOT shipped (2026-10-15): GenerateTables.ps1 and its DDL template
+         are developer tools that talk to a database, Tables\ is generated reference DDL, and the
+         README is for developers. The Functions/Views/Stored Procedures folders DO ship: the API
+         reads the deletion scripts there at request time, and the apply-sql-objects command reads
+         any deployable object files from the build output. -->
+    <Content Include="Resources\**\*"
+             Exclude="Resources\Internal\SQLObjects\GenerateTables.ps1;Resources\Internal\SQLObjects\GenerateTableDDL.template.sql;Resources\Internal\SQLObjects\Tables\**;Resources\Internal\SQLObjects\README.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Resources\Internal\SQLObjects\Tables\" />
+    <Folder Include="Resources\Internal\SQLObjects\Functions\" />
+    <Folder Include="Resources\Internal\SQLObjects\Stored Procedures\" />
     <Folder Include="Resources\Internal\SQLObjects\Views\" />
+    <Folder Include="Resources\Internal\SQLObjects\Tables\" />
   </ItemGroup>
+
 
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(SkipFrontendBuild)' != 'true'">
 		<!-- <Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;   call &quot;$(ProjectDir)React-PreBuild.bat&quot;&#xD;&#xA;)" /> -->

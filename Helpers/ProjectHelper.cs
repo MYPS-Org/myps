@@ -629,5 +629,373 @@ namespace Helpers
             return response;
         }
         #endregion
+
+        #region ProjectDeletionTier — the single project-deletion rule (file-based SQL)
+        // Converted 2026-10-16: runs the deletion rule DIRECTLY from the .sql files under
+        // Main/Resources/Internal/SQLObjects/ via ISqlExecutor.ExecuteScriptFile*
+        // InTransactionAsync — no compiled DB function/procedure is used for this feature any
+        // longer. The script IS the rule — hard only on a project's first stage entry, soft
+        // once it has progressed, Lump Sum itemized projects always hard, published never,
+        // independent of the BP/P prefix — and every delete path asks it: Batch Delete,
+        // Delete Program, Delete Lump Sum, Delete Itemized Project. Never re-state the rule
+        // in C#; read Tier.
+        public static class ProjectDeletionTiers
+        {
+            public const string Hard = "Hard";
+            public const string Soft = "Soft";
+            public const string Blocked = "Blocked";
+        }
+
+        public static class ProjectDeletionKinds
+        {
+            public const string Ordinary = "Ordinary";
+            public const string LSParent = "LSParent";
+            public const string LSChild = "LSChild";
+        }
+
+        internal const string GetProjectDeletionTierScript = "Functions/GetProjectDeletionTier.sql";
+        internal const string ExecuteProjectDeletionScript = "Stored Procedures/ExecuteProjectDeletion.sql";
+
+        /// <summary>One row of Functions/GetProjectDeletionTier.sql. <see cref="Ref"/> is the reference as given
+        /// (ProjectPK or any revision ProjectId, BP- or P-form); <see cref="ProjectFK"/> is what it resolved to.</summary>
+        public class ProjectDeletionTierResult
+        {
+            public string Ref { get; set; } = string.Empty;
+            public string ProjectFK { get; set; } = string.Empty;
+            public string ProgramFK { get; set; } = string.Empty;
+            public string MatchedBy { get; set; } = string.Empty;
+            public string Kind { get; set; } = string.Empty;
+            public bool IsPublished { get; set; }
+            public bool IsRevised { get; set; }
+            public int StageCount { get; set; }
+            /// <summary>The program is Approved (current status as vProgramLatest shows it). An Approved
+            /// program refuses every delete except a Lump Sum itemized child's.</summary>
+            public bool ProgramApproved { get; set; }
+            public string Tier { get; set; } = string.Empty;
+            public string Reason { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// A delete the single deletion rule refused, carrying the plain-language reason
+        /// (e.g. "Project X cannot be permanently deleted: program is approved."). Controllers
+        /// turn it into a 400 whose Message is <see cref="Reason"/>; ExceptionHandler would
+        /// otherwise reduce it to a generic database error. Same pattern as
+        /// <see cref="ProjectIdRangeExhaustedException"/>. Kept as a plain application
+        /// exception now (no SQL RAISERROR token to parse) — the refusal is raised directly
+        /// in C# wherever the tier check fails, before any script runs.
+        /// </summary>
+        public sealed class DeletionRefusedException : Exception
+        {
+            public const string Token = "DELETE_REFUSED:";
+            public string Reason { get; }
+
+            public DeletionRefusedException(string reason, Exception? inner = null) : base(reason, inner) => Reason = reason;
+
+            /// <summary>Kept for compatibility with any remaining caller that still catches a raw
+            /// SqlException carrying the legacy token (e.g. a not-yet-converted raw-SQL path).</summary>
+            public static bool Matches(SqlException ex) => ex.Message.Contains(Token, StringComparison.Ordinal);
+
+            /// <summary>The refusal error's own text, without the token (an exception can carry several errors).</summary>
+            public static DeletionRefusedException From(SqlException ex)
+            {
+                string message = ex.Errors.Cast<SqlError>()
+                    .Select(e => e.Message)
+                    .FirstOrDefault(m => m.Contains(Token, StringComparison.Ordinal)) ?? ex.Message;
+                int at = message.IndexOf(Token, StringComparison.Ordinal);
+                string reason = (at >= 0 ? message[(at + Token.Length)..] : message).Trim();
+                return new DeletionRefusedException(reason, ex);
+            }
+        }
+
+        /// <summary>
+        /// Audit rows for a soft delete (or its restore): one tTransactionLog row per project,
+        /// IsDeleted false -> true (or back), added to <paramref name="db"/>'s change tracker so
+        /// they commit with the caller's transaction. Hard deletes are logged by
+        /// Stored Procedures/ExecuteProjectDeletion.sql itself.
+        /// </summary>
+        public static void AddSoftDeleteAuditRows(
+            this MYPSDbContext db, IEnumerable<(string ProjectFK, int RevisionId, string? StageName)> revisions,
+            bool deleted, string userId, DateTime createdDate)
+        {
+            foreach (var (projectFK, revisionId, stageName) in revisions)
+            {
+                db.tTransactionLog.Add(new DBHelper.Models.Table.TransactionLog
+                {
+                    ReferenceId = projectFK,
+                    TransactionType = (deleted ? EnumTransactionType.Delete : EnumTransactionType.Update).ToString(),
+                    AffectedTable = "tProjectRevisions",
+                    AffectedColumn = "IsDeleted",
+                    OldValue = System.Text.Json.JsonSerializer.Serialize(new { RevisionId = revisionId, StageName = stageName, IsDeleted = !deleted }),
+                    NewValue = deleted ? "true" : "false",
+                    CreatedBy = userId,
+                    Hostname = Environment.MachineName,
+                    CreatedDate = createdDate
+                });
+            }
+        }
+
+        /// <summary>Opens <paramref name="db"/>'s underlying ADO.NET connection if it is not already open
+        /// (required before running a script against it directly, bypassing EF's own command pipeline).</summary>
+        private static async Task EnsureConnectionOpenAsync(MYPSDbContext db, CancellationToken cancellationToken)
+        {
+            if (db.Database.GetDbConnection().State != ConnectionState.Open)
+            {
+                await db.Database.OpenConnectionAsync(cancellationToken);
+            }
+        }
+
+        /// <summary>Parameters for Functions/GetProjectDeletionTier.sql: the references as a JSON array, so a
+        /// whole batch is answered by ONE query (2026-10-16).</summary>
+        internal static object TierParameters(IEnumerable<string> projectRefs, string programFK) => new
+        {
+            ProjectRefs = System.Text.Json.JsonSerializer.Serialize(projectRefs.Distinct(StringComparer.OrdinalIgnoreCase).ToArray()),
+            ProgramFK = programFK
+        };
+
+        /// <summary>An executor on the same database as <paramref name="db"/>, never the static default
+        /// connection string (a DbContext can point elsewhere, e.g. in a test host).</summary>
+        private static SqlExecutor ExecutorFor(MYPSDbContext db) => new SqlExecutor(db.Database.GetConnectionString());
+
+        /// <summary>
+        /// The tier of every reference in <paramref name="projectRefs"/>, in ONE call of
+        /// Functions/GetProjectDeletionTier.sql (it takes a JSON array). Runs inside the transaction
+        /// <paramref name="db"/> currently has open, if any, so it sees uncommitted writes already
+        /// made on it; otherwise on its own connection to the same database. A reference that
+        /// resolves to nothing has no row; one that matches more than one project has several and
+        /// must be refused as ambiguous (see the script header).
+        /// </summary>
+        public static async Task<List<ProjectDeletionTierResult>> DetermineProjectDeletionTiersAsync(
+            this MYPSDbContext db, IEnumerable<string> projectRefs, string programFK, CancellationToken cancellationToken = default)
+        {
+            var refs = projectRefs.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (refs.Count == 0)
+            {
+                return new List<ProjectDeletionTierResult>();
+            }
+
+            var sql = ExecutorFor(db);
+            var efTx = db.Database.CurrentTransaction?.GetDbTransaction();
+            IEnumerable<ProjectDeletionTierResult> rows;
+            if (efTx != null)
+            {
+                await EnsureConnectionOpenAsync(db, cancellationToken);
+                rows = await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                    GetProjectDeletionTierScript, TierParameters(refs, programFK), efTx, ct: cancellationToken);
+            }
+            else
+            {
+                rows = await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                    GetProjectDeletionTierScript, TierParameters(refs, programFK), ct: cancellationToken);
+            }
+            return rows.ToList();
+        }
+
+        /// <summary>Single-reference form of <see cref="DetermineProjectDeletionTiersAsync"/>.</summary>
+        public static async Task<List<ProjectDeletionTierResult>> DetermineProjectDeletionTierAsync(
+            this MYPSDbContext db, string projectRef, string programFK, CancellationToken cancellationToken = default)
+            => await db.DetermineProjectDeletionTiersAsync(new[] { projectRef }, programFK, cancellationToken);
+
+        /// <summary>
+        /// The tier row of the project whose ProjectPK is <paramref name="projectPK"/> -- that row and no
+        /// other. The tier script also matches a reference against revision ProjectIds, and BP/P numbers
+        /// share digits (the BP->P swap), so one string can be one project's PK and another project's
+        /// revision id. A delete that holds a PK must never fall back to that other project: when the PK's
+        /// own row is not there (e.g. a concurrent delete already removed it), the delete is refused as
+        /// not found, never redirected to a project nobody asked for and whose rows were never locked
+        /// (2026-10-17). Resolving what a user typed, BP- or P-form, belongs to the caller before this
+        /// (Batch Delete's plan, restore), which refuses an ambiguous string.
+        /// </summary>
+        private static ProjectDeletionTierResult RequireOwnTierRow(List<ProjectDeletionTierResult> tierRows, string projectPK)
+            => tierRows.FirstOrDefault(x => string.Equals(x.ProjectFK, projectPK, StringComparison.OrdinalIgnoreCase))
+               ?? throw new DeletionRefusedException($"Project {projectPK} was not found in this program.");
+
+        /*  Taken before a delete decides. It decides nothing: it holds every row
+            Functions/GetProjectDeletionTier.sql reads for one project until the transaction ends --
+            the program's current status and stages (an approval or stage advance), the project's own
+            row (a publish), and its stage rows under the program -- so the tier cannot change between
+            the decision and the delete. Reading the columns (not COUNT(*)) makes SQL Server lock the
+            rows themselves, not only the index keys; HOLDLOCK makes inserts wait too. The database
+            reads row versions (READ_COMMITTED_SNAPSHOT), so a plain read would not wait for a
+            concurrent publish -- the lock is what makes the decision current. Project rows FIRST, then
+            program rows: the order every other project writer uses (a project or revision save locks its
+            rows, then RecomputeProgramCostAsync updates tProgramRevisions), so a delete and a save queue
+            instead of deadlocking. (Delete Program, the one path that goes the other way, never runs
+            alongside a project delete: the per-program delete lock.) FORCESEEK on tProjects (ProjectPK is
+            always unique-indexed) keeps that lock to the named projects' own rows; tProjectStages is left
+            to the optimizer, because a FORCESEEK with no usable index is an error, not a slow plan (a
+            database without IX_tProjectStages_ProjectFK would fail every delete). Takes a JSON array, so a
+            whole Batch Delete locks in one round trip. */
+        internal const string LockProjectsForDeletionSql = """
+            DECLARE @Int INT, @Text NVARCHAR(400);
+            SELECT @Int = MAX(CAST(p.IsPublished AS INT) + CAST(p.IsRevised AS INT)), @Text = MAX(CONCAT(p.ProjectType, p.ParentProjectId))
+              FROM OPENJSON(@ProjectFKs) WITH (ProjectFK NVARCHAR(200) '$') j
+              JOIN dbo.tProjects p WITH (UPDLOCK, HOLDLOCK, FORCESEEK) ON p.ProjectPK = j.ProjectFK COLLATE DATABASE_DEFAULT;
+            SELECT @Int = MAX(s.RevisionId + s.StageId)
+              FROM OPENJSON(@ProjectFKs) WITH (ProjectFK NVARCHAR(200) '$') j
+              JOIN dbo.tProjectStages s WITH (UPDLOCK, HOLDLOCK) ON s.ProjectFK = j.ProjectFK COLLATE DATABASE_DEFAULT
+              WHERE s.ProgramFK = @ProgramFK;
+            SELECT @Int = MAX(Status) FROM dbo.tProgramRevisions WITH (UPDLOCK, HOLDLOCK) WHERE ProgramFK = @ProgramFK;
+            SELECT @Int = MAX(RevisionId + StageId) FROM dbo.tProgramStages WITH (UPDLOCK, HOLDLOCK) WHERE ProgramFK = @ProgramFK;
+            """;
+
+        /// <summary>
+        /// THE decision for deleting projects, on locked rows, for a whole batch in two round trips:
+        /// locks what the tier depends on (<see cref="LockProjectsForDeletionSql"/>), then reads
+        /// Functions/GetProjectDeletionTier.sql once for all of them, inside <paramref name="tx"/>.
+        /// Every hard and soft delete decides here. <paramref name="projectFKs"/> must be ProjectPKs: a
+        /// BP- or P-form reference is resolved by the caller (Batch Delete's plan) before this point, and
+        /// each key gets its own project's row only (<see cref="RequireOwnTierRow"/>). Returns each one's
+        /// row; throws <see cref="DeletionRefusedException"/> when one is not found.
+        /// </summary>
+        public static async Task<Dictionary<string, ProjectDeletionTierResult>> DecideProjectDeletionsUnderLockAsync(
+            this ISqlExecutor sql, IEnumerable<string> projectFKs, string programFK, IDbTransaction tx, CancellationToken cancellationToken = default)
+        {
+            var keys = projectFKs.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var decided = new Dictionary<string, ProjectDeletionTierResult>(StringComparer.OrdinalIgnoreCase);
+            if (keys.Count == 0)
+            {
+                return decided;
+            }
+            await tx.Connection!.ExecuteAsync(new CommandDefinition(
+                LockProjectsForDeletionSql,
+                new { ProjectFKs = System.Text.Json.JsonSerializer.Serialize(keys), ProgramFK = programFK },
+                tx, 120, cancellationToken: cancellationToken));
+            var rows = (await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                GetProjectDeletionTierScript, TierParameters(keys, programFK), tx, ct: cancellationToken)).ToList();
+            foreach (var key in keys)
+            {
+                decided[key] = RequireOwnTierRow(rows.Where(x => string.Equals(x.Ref, key, StringComparison.OrdinalIgnoreCase)).ToList(), key);
+            }
+            return decided;
+        }
+
+        /// <summary>EF form of <see cref="DecideProjectDeletionsUnderLockAsync(ISqlExecutor, IEnumerable{string}, string, IDbTransaction, CancellationToken)"/>,
+        /// on the transaction <paramref name="db"/> has open (required).</summary>
+        public static async Task<Dictionary<string, ProjectDeletionTierResult>> DecideProjectDeletionsUnderLockAsync(
+            this MYPSDbContext db, IEnumerable<string> projectFKs, string programFK, CancellationToken cancellationToken = default)
+        {
+            var efTx = RequireTransaction(db, nameof(DecideProjectDeletionsUnderLockAsync));
+            await EnsureConnectionOpenAsync(db, cancellationToken);
+            return await ExecutorFor(db).DecideProjectDeletionsUnderLockAsync(projectFKs, programFK, efTx, cancellationToken);
+        }
+
+        /// <summary>
+        /// THE decision for deleting one project, on locked rows: locks what the tier depends on
+        /// (<see cref="LockProjectsForDeletionSql"/>), then reads Functions/GetProjectDeletionTier.sql
+        /// inside <paramref name="tx"/>. Every hard and soft delete of a single project decides here.
+        /// <paramref name="projectFK"/> must be the ProjectPK. Throws
+        /// <see cref="DeletionRefusedException"/> when that project is not found (never another one).
+        /// </summary>
+        public static async Task<ProjectDeletionTierResult> DecideProjectDeletionUnderLockAsync(
+            this ISqlExecutor sql, string projectFK, string programFK, IDbTransaction tx, CancellationToken cancellationToken = default)
+            => (await sql.DecideProjectDeletionsUnderLockAsync(new[] { projectFK }, programFK, tx, cancellationToken))[projectFK];
+
+        /// <summary>EF form of <see cref="DecideProjectDeletionUnderLockAsync(ISqlExecutor, string, string, IDbTransaction, CancellationToken)"/>,
+        /// on the transaction <paramref name="db"/> has open (required).</summary>
+        public static async Task<ProjectDeletionTierResult> DecideProjectDeletionUnderLockAsync(
+            this MYPSDbContext db, string projectFK, string programFK, CancellationToken cancellationToken = default)
+        {
+            var efTx = RequireTransaction(db, nameof(DecideProjectDeletionUnderLockAsync));
+            await EnsureConnectionOpenAsync(db, cancellationToken);
+            return await ExecutorFor(db).DecideProjectDeletionUnderLockAsync(projectFK, programFK, efTx, cancellationToken);
+        }
+
+        private static IDbTransaction RequireTransaction(MYPSDbContext db, string caller) =>
+            db.Database.CurrentTransaction?.GetDbTransaction()
+            ?? throw new InvalidOperationException(
+                $"{caller} requires an open EF transaction (db.Database.BeginTransactionAsync) " +
+                "so the delete commits or rolls back together with the rest of the caller's action.");
+
+        /// <summary>
+        /// Runs Stored Procedures/ExecuteProjectDeletion.sql for a project whose tier was ALREADY
+        /// decided 'Hard' on rows this transaction holds locked (by
+        /// <see cref="DecideProjectDeletionUnderLockAsync(ISqlExecutor, string, string, IDbTransaction, CancellationToken)"/>
+        /// or ProgramHelper's program-wide lock). Refuses anything but 'Hard'. The script removes the
+        /// project's rows under <paramref name="programFK"/> only, and writes its tTransactionLog row.
+        /// </summary>
+        public static Task<int> DeleteDecidedProjectAsync(
+            this ISqlExecutor sql, ProjectDeletionTierResult tier, string programFK, string userId, DateTime currentDate,
+            IDbTransaction tx, CancellationToken cancellationToken = default)
+        {
+            if (tier.Tier != ProjectDeletionTiers.Hard)
+            {
+                throw new DeletionRefusedException($"Project {tier.ProjectFK} cannot be permanently deleted: {tier.Reason}.");
+            }
+            return sql.ExecuteScriptFileNonQueryInTransactionAsync(
+                ExecuteProjectDeletionScript,
+                new
+                {
+                    ProjectFK = tier.ProjectFK,
+                    ProgramFK = programFK,
+                    UserId = userId,
+                    CurrentDate = currentDate,
+                    Kind = tier.Kind,
+                    StageCount = tier.StageCount,
+                    Reason = tier.Reason
+                },
+                tx, ct: cancellationToken);
+        }
+
+        /// <summary>EF form of <see cref="DeleteDecidedProjectAsync(ISqlExecutor, ProjectDeletionTierResult, string, string, DateTime, IDbTransaction, CancellationToken)"/>:
+        /// only for a tier decided by <see cref="DecideProjectDeletionsUnderLockAsync(MYPSDbContext, IEnumerable{string}, string, CancellationToken)"/>
+        /// in this same transaction (its rows are still locked).</summary>
+        public static async Task<int> DeleteDecidedProjectAsync(
+            this MYPSDbContext db, ProjectDeletionTierResult tier, string programFK, string userId, DateTime currentDate,
+            CancellationToken cancellationToken = default)
+        {
+            var efTx = RequireTransaction(db, nameof(DeleteDecidedProjectAsync));
+            await EnsureConnectionOpenAsync(db, cancellationToken);
+            return await ExecutorFor(db).DeleteDecidedProjectAsync(tier, programFK, userId, currentDate, efTx, cancellationToken);
+        }
+
+        /// <summary>
+        /// Hard-deletes one project under one program, inside the transaction <paramref name="db"/>
+        /// has open (REQUIRED, so the cascade commits or rolls back with the rest of the caller's
+        /// action). Decides on locked rows first (<see cref="DecideProjectDeletionUnderLockAsync(MYPSDbContext, string, string, CancellationToken)"/>)
+        /// and refuses with <see cref="DeletionRefusedException"/> for anything but 'Hard'.
+        /// </summary>
+        public static async Task<int> ExecuteProjectDeletionAsync(
+            this MYPSDbContext db, string projectFK, string programFK, string userId, DateTime currentDate, CancellationToken cancellationToken = default)
+        {
+            var efTx = RequireTransaction(db, nameof(ExecuteProjectDeletionAsync));
+            await EnsureConnectionOpenAsync(db, cancellationToken);
+            var sql = ExecutorFor(db);
+            var tier = await sql.DecideProjectDeletionUnderLockAsync(projectFK, programFK, efTx, cancellationToken);
+            return await sql.DeleteDecidedProjectAsync(tier, programFK, userId, currentDate, efTx, cancellationToken);
+        }
+
+        /// <summary>File-based form of <see cref="DetermineProjectDeletionTierAsync(MYPSDbContext, string, string, CancellationToken)"/>
+        /// for callers holding an <see cref="ISqlExecutor"/> rather than a DbContext. Read-only, no lock.</summary>
+        public static async Task<List<ProjectDeletionTierResult>> DetermineProjectDeletionTierAsync(
+            this ISqlExecutor sql, string projectRef, string programFK, CancellationToken cancellationToken = default)
+        {
+            var rows = await sql.ExecuteScriptFileInTransactionAsync<ProjectDeletionTierResult>(
+                GetProjectDeletionTierScript, TierParameters(new[] { projectRef }, programFK), ct: cancellationToken);
+            return rows.ToList();
+        }
+
+        /// <summary>
+        /// ISqlExecutor form of the hard delete. With <paramref name="tx"/> it joins that transaction;
+        /// without, it runs in its own. Either way it decides on locked rows first and refuses with
+        /// <see cref="DeletionRefusedException"/> when the project <paramref name="projectFK"/> (a
+        /// ProjectPK; a revision id is not resolved here) is not found, or its tier is not Hard.
+        /// </summary>
+        public static async Task ExecuteProjectDeletionAsync(
+            this ISqlExecutor sql, string projectFK, string programFK, string userId, DateTime currentDate,
+            IDbTransaction? tx = null, CancellationToken cancellationToken = default)
+        {
+            if (tx != null)
+            {
+                var tier = await sql.DecideProjectDeletionUnderLockAsync(projectFK, programFK, tx, cancellationToken);
+                await sql.DeleteDecidedProjectAsync(tier, programFK, userId, currentDate, tx, cancellationToken);
+                return;
+            }
+            await sql.ExecuteTransactionAsync(async (_, transaction) =>
+            {
+                var tier = await sql.DecideProjectDeletionUnderLockAsync(projectFK, programFK, transaction, cancellationToken);
+                return await sql.DeleteDecidedProjectAsync(tier, programFK, userId, currentDate, transaction, cancellationToken);
+            }, ct: cancellationToken);
+        }
+        #endregion
     }
 }

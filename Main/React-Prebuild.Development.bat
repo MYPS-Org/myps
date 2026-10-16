@@ -8,6 +8,12 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
+:: echo Synchronizing Database Tables...
+:: powershell -ExecutionPolicy Bypass -File "%~dp0Resources\Internal\SQLObjects\GenerateTables.ps1"
+:: if %errorlevel% neq 0 (
+::     echo WARNING: Database table sync failed or database is unreachable. Continuing build...
+:: )
+
 :: echo Installing dependencies...
 :: call npm install
 :: if %errorlevel% neq 0 (

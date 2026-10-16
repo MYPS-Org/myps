@@ -10,7 +10,12 @@ using System.Threading.Tasks;
 
 namespace WebAPI.Controllers.Programs
 {
-    public class ShowProgramDTO : EnumPagination<ShowProgramFilterDTO> { }
+    public class ShowProgramDTO : EnumPagination<ShowProgramFilterDTO>
+    {
+        /// <summary>The Program list sets this to get CanDelete / DeleteBlockedReason per row; other
+        /// callers (e.g. the Project form's program type-ahead) leave it off and skip the query.</summary>
+        public bool IncludeDeleteEligibility { get; set; }
+    }
     public class ShowProgramFilterDTO
     {
         public string? Name { get; set; }

@@ -2,7 +2,7 @@
 import { httpClient } from '../../services/httpClient';
 import type { ImportProjectDTO } from '../Project/Model';
 
-import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, BatchActionResponse, ImportJobStatus } from './Model';
+import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, BatchActionResponse, BatchDeletePreview, ImportJobStatus } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -31,6 +31,11 @@ export const fetchProgram = async (data: PaginatedRequest<ProgramFilter>) => {
         throw error;
     }
 };
+
+/** The Program list's call: also asks for each program's delete eligibility (CanDelete /
+ *  DeleteBlockedReason), which costs an extra query, so other callers use fetchProgram. */
+export const fetchProgramList = (data: PaginatedRequest<ProgramFilter>) =>
+    fetchProgram({ ...data, IncludeDeleteEligibility: true } as PaginatedRequest<ProgramFilter>);
 
 export const fetchProgramById = async (programId: string, StageName: string) => {
     try {
@@ -184,6 +189,18 @@ export const downloadAIPReport = async (params: AIPReportParams) => {
     }
 };
 
+/** Read-only: what Batch Delete would do with these ids (permanent / at this stage / refused / not found). */
+export const previewBatchDelete = async (data: { ProgramId: string; ProjectIds: string }) => {
+    try {
+        const request = await httpClient.post<BatchDeletePreview>('/Program/PreviewBatchDelete', data, {
+            preloaderMessage: 'Checking projects...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error previewing batch delete:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
 export const batchDeleteProjects = async (data: { ProgramId: string; ProjectIds: string  }) => {
     try {
         const request = await httpClient.post<BatchActionResponse>('/Program/BatchDelete', data, {

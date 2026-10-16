@@ -172,12 +172,22 @@ namespace Helpers
             try
             {
                 var result = await action(connection, transaction);
-                transaction.Commit();
+                await transaction.CommitAsync(ct);
                 return result;
             }
             catch
             {
-                transaction.Rollback();
+                // After a deadlock (1205), a timeout or a severe error SQL Server has already ended the
+                // transaction, and Rollback() would throw "This SqlTransaction has completed" -- hiding
+                // the real error. Roll back when there is still something to roll back, never mask it.
+                try
+                {
+                    if (transaction.Connection != null) await transaction.RollbackAsync(CancellationToken.None);
+                }
+                catch
+                {
+                    // the original exception below is the one that matters
+                }
                 throw;
             }
         }

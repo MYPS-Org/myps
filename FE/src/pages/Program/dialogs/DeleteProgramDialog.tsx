@@ -47,6 +47,11 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
       handleClose();
     } catch (error) {
       console.error('Error deleting program:', error);
+      // The interceptor already toasted any API error that carried a Message (e.g. why the
+      // delete was refused); toast only when it stayed silent (network error, bare 500).
+      if (!(error as { Message?: string } | undefined)?.Message) {
+        showToast({ type: 'error', message: 'Failed to delete the program. Please try again.' });
+      }
       // Keep dialog open on error so user can retry
       setIsDeleting(false);
     }
@@ -108,22 +113,8 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
               </div>
             </div>
 
-            {/* Program Impact Warning - Uncomment when ProjectCount is available */}
-            {/* {program.ProjectCount && program.ProjectCount > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
-                  <div>
-                    <h4 className="text-sm font-medium text-yellow-800">
-                      Impact on Projects
-                    </h4>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      This program has {program.ProjectCount} project(s). Deleting this program may affect the associated projects.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )} */}
+            {/* No project impact to warn about: a program is deleted only once all its projects have
+                been deleted (2026-10-16, no cascade); the server refuses otherwise. */}
 
             {/* Confirmation Input */}
             <div>

@@ -216,6 +216,12 @@ test.describe('Batch Restrict/Allow Publishing skip already-published projects',
       }
     }
     if (programId) {
+      // 2026-10-16: Delete Program no longer takes live projects with it -- delete them first
+      // (both are on their first stage entry, so Batch Delete removes them for good).
+      const projectPKs = [unpublishedProjectPK, publishedProjectPK].filter(Boolean).join(',');
+      if (projectPKs) {
+        await post(page, '/api/Program/BatchDelete', { ProgramId: programId, ProjectIds: projectPKs });
+      }
       await post(page, '/api/Program/DeleteProgram', { ProgramId: programId, StageName: 'BP' });
     }
     await page.close();

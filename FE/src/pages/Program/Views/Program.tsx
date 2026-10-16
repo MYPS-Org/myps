@@ -1,7 +1,7 @@
 "use-client";
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchProgram, fetchProgramEnums, fetchStagesByProgramId } from '../Service';
+import { fetchProgramList, fetchProgramEnums, fetchStagesByProgramId } from '../Service';
 import type { ProgramEnums, ProgramLatest, ProgramFilter, StageList } from '../Model.d';
 import { usePagination } from '../../../hooks/usePagination';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
@@ -47,7 +47,7 @@ const Program: React.FC = () => {
 
     // Shared pagination hook — replaces the hand-rolled ProgramData/ProgramFilters/isLoading
     // state and the Paginate() function. Uses StartYear (renamed from YearStart in ProgramFilter).
-    const pagination = usePagination<ProgramFilter, ProgramLatest>(fetchProgram, {
+    const pagination = usePagination<ProgramFilter, ProgramLatest>(fetchProgramList, {
         initialFilters: { Name: '', StartYear: null, Type: '', StageName: '' },
         limit: 10,
     });
@@ -254,7 +254,17 @@ const Program: React.FC = () => {
                                     >
                                         View
                                     </Button>
-                                    <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramPK);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
+                                    {/* The server says whether this program can be deleted and why not (Approved,
+                                        progressed, or it still has projects to delete first); say so here rather
+                                        than let the user type DELETE into a refusal. DeleteProgram still decides. */}
+                                    <Button
+                                        color="red"
+                                        disabled={program.CanDelete === false || (program.CanDelete == null && program.Status === 'Approved')}
+                                        title={program.DeleteBlockedReason
+                                            ?? (program.CanDelete == null && program.Status === 'Approved' ? 'An Approved program cannot be deleted.' : 'Delete program')}
+                                        onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramPK);}}
+                                        className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded"
+                                    >
                                         <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
                                     </Button>
                                 </div>

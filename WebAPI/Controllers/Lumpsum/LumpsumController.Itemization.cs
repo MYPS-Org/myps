@@ -219,10 +219,13 @@ namespace WebAPI.Controllers.Lumpsum
         /// Deletes an itemized project and RESTORES ITS COST to the parent's LS
         /// component — the inverse of the deduction itemizing made.
         ///
+        /// Always a hard delete (Functions/GetProjectDeletionTier.sql rates every itemized
+        /// child 'Hard', revised or not), so no row keeps its reserved Project ID.
         /// Blocked on a published project: publishing belongs to the Programs
         /// module, so a published child must be handled there.
         /// </summary>
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> DeleteItemizedProject([FromBody] ItemizedProjectIdDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
@@ -309,6 +312,10 @@ namespace WebAPI.Controllers.Lumpsum
                     parent's has been read for a decision yet — only the child, above. */
                 var Busy = await AcquireLumpSumLockAsync(LSParent.Id, cancellationToken);
                 if (Busy != null) return Busy;
+                // 2026-10-16: then the per-program delete lock, after the module's own lock -- every
+                // delete in the program queues behind it (Delete Program never takes the Lump Sum lock,
+                // so the two locks cannot form a cycle).
+                await _db.AcquireProgramDeletionLockAsync(Project.ProgramFK, cancellationToken);
 
                 // LSParent is non-null from here — the refusal above guarantees it.
                 decimal ReturnedAmount = 0m;
@@ -326,7 +333,28 @@ namespace WebAPI.Controllers.Lumpsum
                         .SumAsync(x => (decimal?)x.Total, cancellationToken) ?? 0m;
                 }
 
-                if (Project.IsPublished)
+                /*  2026-10-15: THE TIER COMES FROM THE SINGLE DELETION RULE,
+                    Functions/GetProjectDeletionTier.sql (documents/plans/project-deletion-single-rule.md).
+                    An itemized child is ALWAYS 'Hard' there — even when revised — so no
+                    row keeps holding its reserved Project ID; a published child is
+                    'Blocked'. The inline "unrevised and one revision" test that used to
+                    live here soft-deleted every revised child instead, and its EF
+                    cascade missed work locations, supporting documents and the formal
+                    revision tables. The hard cascade is now ExecuteProjectDeletion.sql, run
+                    by ProjectHelper.ExecuteProjectDeletionAsync inside this action's transaction. */
+                var TierRow = (await _db.DetermineProjectDeletionTierAsync(Project.ProjectPK, Project.ProgramFK, cancellationToken))
+                    .FirstOrDefault(x => x.ProjectFK == Project.ProjectPK); // the PK's own row
+
+                if (TierRow == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Project '{dto.ProjectId}' was not found.",
+                        Title = "Not Found"
+                    });
+                }
+
+                if (TierRow.Tier == ProjectHelper.ProjectDeletionTiers.Blocked)
                 {
                     /*  PUBLISHING BELONGS TO PROGRAMS (decision 8), so that is
                         where the user is sent. This used to read "Request a
@@ -341,76 +369,19 @@ namespace WebAPI.Controllers.Lumpsum
                     });
                 }
 
-                var Revisions = await _db.tProjectRevisions
-                    .Where(x => x.ProjectFK == Project.ProjectPK)
-                    .ToListAsync(cancellationToken);
-
-                string Tier;
-                if (!Project.IsRevised && Revisions.Count <= 1)
+                if (TierRow.Tier != ProjectHelper.ProjectDeletionTiers.Hard)
                 {
-                    Tier = "Hard";
-
-                    var RevisionIds = Revisions.Select(x => x.Id).ToList();
-                    /*  Component costs and their per-year rows go first: they hang
-                        off the revision, so leaving them behind makes the revision
-                        delete fail on a foreign key. An itemized project always has
-                        them - its cost is what was drawn from the parent. */
-                    var CostIdsToDrop = await _db.tProjectComponentCost
-                        .Where(x => RevisionIds.Contains(x.ProjectRevisionFK))
-                        .Select(x => x.Id)
-                        .ToListAsync(cancellationToken);
-
-                    _db.tProjectComponentCostPerYear.RemoveRange(
-                        _db.tProjectComponentCostPerYear.Where(x => CostIdsToDrop.Contains(x.ComponentCostFK)));
-
-                    /*  MAJOR WORK ITEMS HANG OFF ComponentCostFK TOO.
-
-                        The reference deleted per-year rows and component costs but
-                        never these, so every hard delete leaked them — and with no
-                        foreign key on tProjectMajorWorkItem the database could not
-                        object. The orphans then collide by primary key the next time
-                        anything reloads the same ids. */
-                    _db.tProjectMajorWorkItem.RemoveRange(
-                        _db.tProjectMajorWorkItem.Where(x => CostIdsToDrop.Contains(x.ComponentCostFK)));
-                    _db.tProjectComponentCost.RemoveRange(
-                        _db.tProjectComponentCost.Where(x => RevisionIds.Contains(x.ProjectRevisionFK)));
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    /*  Notes via raw SQL for the same reason they are written that
-                        way: the ProjectNotes model does not declare the
-                        ProjectRevisionFK the table actually has. */
-                    foreach (var Rid in RevisionIds)
+                    return new BadRequestObjectResult(new
                     {
-                        await _db.Database.ExecuteSqlInterpolatedAsync(
-                            $"DELETE FROM dbo.tProjectNotes WHERE ProjectRevisionFK = {Rid}", cancellationToken);
-                    }
-
-                    _db.tProjectFundingProfile.RemoveRange(
-                        _db.tProjectFundingProfile.Where(x => RevisionIds.Contains(x.ProjectRevisionFK)));
-                    _db.tProjectStages.RemoveRange(
-                        _db.tProjectStages.Where(x => x.ProjectFK == Project.ProjectPK));
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    _db.tProjectRevisions.RemoveRange(Revisions);
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    _db.tProjects.Remove(Project);
-                }
-                else
-                {
-                    Tier = "Soft";
-                    foreach (var Revision in Revisions)
-                    {
-                        Revision.IsDeleted = true;
-                        Revision.UpdatedBy = UserId;
-                        Revision.UpdatedDate = CurrentDate;
-                    }
-                    // Nothing else needed: vLumpSumChildSet and vLumpSumBalance
-                    // both define "active" as having a live revision, so the draw
-                    // returns to Available the moment this commits.
+                        Message = $"Project '{dto.ProjectId}' cannot be deleted here ({TierRow.Reason}).",
+                        Title = "Delete Blocked"
+                    });
                 }
 
-                await _db.SaveChangesAsync(cancellationToken);
+                string Tier = TierRow.Tier;
+                // The procedure removes the row EF is tracking; stop tracking it first.
+                _db.Entry(Project).State = EntityState.Detached;
+                await _db.ExecuteProjectDeletionAsync(Project.ProjectPK, Project.ProgramFK, UserId, CurrentDate, cancellationToken);
                 /*  Return the allocation to the parent, and say so on the parent.
                     Done after the project rows are gone so a failure deleting the
                     child cannot leave the LS Project credited for a project that
@@ -448,11 +419,20 @@ namespace WebAPI.Controllers.Lumpsum
                 {
                     ProjectId = dto.ProjectId,
                     Tier,
-                    Message = Tier == "Hard"
-                        ? "Itemized project permanently deleted."
-                        : "Itemized project deleted and kept for history.",
+                    Message = "Itemized project permanently deleted.",
                     Title = "Delete Complete"
                 });
+            }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                await SafeRollbackAsync(transaction, cancellationToken);
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Blocked" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                // Lost a race with another change to the same program (deadlock); nothing was written.
+                await SafeRollbackAsync(transaction, cancellationToken);
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
             }
             catch (Exception ex)
             {
@@ -462,13 +442,16 @@ namespace WebAPI.Controllers.Lumpsum
         }
 
         /// <summary>
-        /// Deletes a Lump Sum Project. The tier is decided here, not by the caller:
-        ///   Blocked — a project is still itemized from it, or it is published.
-        ///   Hard    — never revised, one revision; the rows are removed.
-        ///   Soft    — otherwise; the revisions are flagged and kept for history.
-        /// Either non-blocked outcome leaves no orphaned children behind.
+        /// Deletes a Lump Sum Project. The tier is Functions/GetProjectDeletionTier.sql's,
+        /// read first:
+        ///   Blocked — it is published, or its program is Approved (refused before anything else).
+        ///   Hard    — still on its first stage entry; the rows are removed.
+        ///   Soft    — it has progressed with its program; the revisions are flagged and kept for history.
+        /// Then it is refused while a project is still itemized from it, so either
+        /// non-blocked outcome leaves no orphaned children behind.
         /// </summary>
         [HttpPost]
+        [RequiresDeletionObjects]
         public async Task<IActionResult> DeleteLumpSum([FromBody] DeleteLumpSumDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
@@ -499,8 +482,57 @@ namespace WebAPI.Controllers.Lumpsum
                 var Denied = await AssertLumpSumVisibleAsync(LumpSumProject.Id, cancellationToken);
                 if (Denied != null) return Denied;
 
-                var Frozen = await AssertProgramNotApprovedAsync(LumpSumProject.ProgramFK, "Deleting a Lump Sum Project", cancellationToken);
-                if (Frozen != null) return Frozen;
+                // 2026-10-16: the per-program delete lock, after the module's own lock.
+                await _db.AcquireProgramDeletionLockAsync(LumpSumProject.ProgramFK, cancellationToken);
+
+                /*  2026-10-15: THE TIER COMES FROM THE SINGLE DELETION RULE,
+                    Functions/GetProjectDeletionTier.sql: 'Hard' only on the parent's first
+                    stage entry, 'Soft' once it has progressed with its program, 'Blocked'
+                    when published or when the program is Approved. 2026-10-16: the Approved
+                    refusal is the tier's too -- this action no longer runs its own
+                    AssertProgramNotApprovedAsync -- and is read before the live-children
+                    guard so an Approved program is still the first thing reported. The
+                    live-children guard below is this module's own precondition; the
+                    hard/soft choice is not made here. The hard cascade runs inside this
+                    action's transaction (ProjectHelper.ExecuteProjectDeletionAsync). */
+                var TierRow = (await _db.DetermineProjectDeletionTierAsync(LumpSumProject.ProjectPK, LumpSumProject.ProgramFK, cancellationToken))
+                    .FirstOrDefault(x => x.ProjectFK == LumpSumProject.ProjectPK); // the PK's own row
+
+                if (TierRow == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Lump Sum Project {dto.LumpSumId} was not found.",
+                        Title = "Not Found"
+                    });
+                }
+
+                if (TierRow.Tier == ProjectHelper.ProjectDeletionTiers.Blocked)
+                {
+                    if (TierRow.ProgramApproved && !TierRow.IsPublished)
+                    {
+                        /*  The tier decided; this only picks the words. On a revision stage
+                            the module's own "Program Approved" message names the program
+                            and the stage, as CreateLumpSum's does. */
+                        var Approval = await ReadProgramApprovalAsync(LumpSumProject.ProgramFK, cancellationToken);
+                        return new BadRequestObjectResult(Approval != null
+                            ? new
+                            {
+                                Message = ProgramApprovedMessage("Deleting a Lump Sum Project", Approval),
+                                Title = ProgramApprovedTitle
+                            }
+                            : new
+                            {
+                                Message = "Cannot delete a Lump Sum Project in an Approved program. Set the program back to Working first.",
+                                Title = "Delete Blocked"
+                            });
+                    }
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Cannot delete a published Lump Sum Project. Cancel it through Programs, which owns publishing.",
+                        Title = "Delete Blocked"
+                    });
+                }
 
                 /*  Children by ParentProjectId. Deleting a parent that still has
                     itemized projects would strand them pointing at nothing, and
@@ -530,74 +562,35 @@ namespace WebAPI.Controllers.Lumpsum
                     });
                 }
 
-                if (Project.IsPublished)
+                string Tier = TierRow.Tier;
+                if (Tier == ProjectHelper.ProjectDeletionTiers.Hard)
                 {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = "Cannot delete a published Lump Sum Project. Request a revision to cancel it.",
-                        Title = "Delete Blocked"
-                    });
-                }
-
-                var Revisions = await _db.tProjectRevisions
-                    .Where(x => x.ProjectFK == Project.ProjectPK)
-                    .ToListAsync(cancellationToken);
-
-                string Tier;
-                if (!Project.IsRevised && Revisions.Count <= 1)
-                {
-                    Tier = "Hard";
-
-                    var RevisionIds = Revisions.Select(x => x.Id).ToList();
-
-                    /*  Child-first, or the revision delete fails on a foreign key.
-                        The chain is PerYear -> ComponentCost -> Revision -> Project,
-                        and a Lump Sum Project always has a component: the LS row
-                        holding its allocation. */
-                    var CostIdsToDrop = await _db.tProjectComponentCost
-                        .Where(x => RevisionIds.Contains(x.ProjectRevisionFK))
-                        .Select(x => x.Id)
-                        .ToListAsync(cancellationToken);
-
-                    _db.tProjectComponentCostPerYear.RemoveRange(
-                        _db.tProjectComponentCostPerYear.Where(x => CostIdsToDrop.Contains(x.ComponentCostFK)));
-
-                    /*  MAJOR WORK ITEMS HANG OFF ComponentCostFK TOO.
-
-                        The reference deleted per-year rows and component costs but
-                        never these, so every hard delete leaked them — and with no
-                        foreign key on tProjectMajorWorkItem the database could not
-                        object. The orphans then collide by primary key the next time
-                        anything reloads the same ids. */
-                    _db.tProjectMajorWorkItem.RemoveRange(
-                        _db.tProjectMajorWorkItem.Where(x => CostIdsToDrop.Contains(x.ComponentCostFK)));
-                    _db.tProjectComponentCost.RemoveRange(
-                        _db.tProjectComponentCost.Where(x => RevisionIds.Contains(x.ProjectRevisionFK)));
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    /*  Notes via raw SQL for the same reason they are written that
-                        way: the ProjectNotes model does not declare the
-                        ProjectRevisionFK the table actually has. */
-                    foreach (var Rid in RevisionIds)
-                    {
-                        await _db.Database.ExecuteSqlInterpolatedAsync(
-                            $"DELETE FROM dbo.tProjectNotes WHERE ProjectRevisionFK = {Rid}", cancellationToken);
-                    }
-
-                    _db.tProjectFundingProfile.RemoveRange(
-                        _db.tProjectFundingProfile.Where(x => RevisionIds.Contains(x.ProjectRevisionFK)));
-                    _db.tProjectStages.RemoveRange(
-                        _db.tProjectStages.Where(x => x.ProjectFK == Project.ProjectPK));
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    _db.tProjectRevisions.RemoveRange(Revisions);
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    _db.tProjects.Remove(Project);
+                    // The procedure removes the row EF is tracking; stop tracking it first.
+                    _db.Entry(Project).State = EntityState.Detached;
+                    await _db.ExecuteProjectDeletionAsync(Project.ProjectPK, LumpSumProject.ProgramFK, UserId, CurrentDate, cancellationToken);
                 }
                 else
                 {
-                    Tier = "Soft";
+                    /*  Soft: every revision is flagged, as before. Whether a Lump Sum
+                        soft delete should flag only the current-stage revision, as
+                        Batch Delete does, is OD-3 of the deletion redesign and is not
+                        changed here. 2026-10-16: decided again on locked rows first, so an
+                        approval or publish that landed since the read above refuses. */
+                    var Locked = await _db.DecideProjectDeletionUnderLockAsync(Project.ProjectPK, LumpSumProject.ProgramFK, cancellationToken);
+                    if (Locked.Tier != ProjectHelper.ProjectDeletionTiers.Soft)
+                    {
+                        throw new ProjectHelper.DeletionRefusedException($"Lump Sum Project {dto.LumpSumId} can no longer be deleted: {Locked.Reason}.");
+                    }
+                    var Revisions = await _db.tProjectRevisions
+                        .Where(x => x.ProjectFK == Project.ProjectPK)
+                        .ToListAsync(cancellationToken);
+
+                    // 2026-10-15: one audit row per revision this flags (hard deletes are logged
+                    // by ExecuteProjectDeletion.sql), committed with the soft delete.
+                    _db.AddSoftDeleteAuditRows(
+                        Revisions.Where(x => !x.IsDeleted).Select(x => (Project.ProjectPK, x.Id, (string?)null)),
+                        deleted: true, UserId, CurrentDate);
+
                     foreach (var Revision in Revisions)
                     {
                         Revision.IsDeleted = true;
@@ -621,6 +614,17 @@ namespace WebAPI.Controllers.Lumpsum
                         : "Lump Sum Project deleted and kept for history.",
                     Title = "Delete Complete"
                 });
+            }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                await SafeRollbackAsync(transaction, cancellationToken);
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Delete Blocked" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                // Lost a race with another change to the same program (deadlock); nothing was written.
+                await SafeRollbackAsync(transaction, cancellationToken);
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
             }
             catch (Exception ex)
             {

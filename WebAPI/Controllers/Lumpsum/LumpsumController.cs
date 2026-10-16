@@ -239,7 +239,9 @@ namespace WebAPI.Controllers.Lumpsum
         /// <summary>
         /// The program-approval gate, returning a ready-to-return refusal or null.
         ///
-        /// TWO CALLERS ONLY — CreateLumpSum and DeleteLumpSum. Adding it to a third
+        /// ONE CALLER — CreateLumpSum. DeleteLumpSum takes the same refusal from the
+        /// single deletion rule (Functions/GetProjectDeletionTier.sql, 2026-10-16) and
+        /// only borrows ProgramApprovedMessage for its wording. Adding this to another
         /// action means re-reading the rule above: every other mutator is allowed
         /// on an Approved program by decision, and a gate here would take Replenish
         /// and the funding-line removal with it. UpdateLumpSum READS the approval

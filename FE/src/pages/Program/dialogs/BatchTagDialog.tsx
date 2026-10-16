@@ -3,6 +3,8 @@ import { TagIcon, TrashIcon, EyeSlashIcon, CheckCircleIcon } from "@heroicons/re
 import { Button } from "../../../components/tailwindui/button";
 import { useState } from "react";
 import ConfirmDialogBatch from "./ConfirmDialogBatch";
+import { previewBatchDelete } from "../Service";
+import type { BatchDeletePreview } from "../Model";
 
 type BatchAction = 'tag' | 'delete' | 'unpublish' | 'publish';
 
@@ -26,13 +28,15 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
   const [projectIds, setProjectIds] = useState('');
   const [error, setError] = useState('');
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [deletePreview, setDeletePreview] = useState<BatchDeletePreview | undefined>(undefined);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const getActionConfig = () => {
     switch (action) {
       case 'delete':
         return {
           title: 'Batch Delete Projects',
-          description: 'Delete multiple projects at once. This action cannot be undone.',
+          description: 'Delete multiple projects at once. Projects still on their first stage are permanently deleted; projects that have moved on with the program are deleted at the current stage and can be restored. You will see which is which before you confirm.',
           icon: TrashIcon,
           iconColor: 'text-red-600',
           iconBg: 'bg-red-100',
@@ -78,13 +82,33 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
 
   const config = getActionConfig();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!projectIds.trim()) {
       setError('Please enter project IDs before submitting.');
       return;
     }
-    
+
     setError('');
+
+    /*  A delete asks the server first which projects would be permanently deleted, which
+        only deleted at this stage, and which refused (published, Approved program, Lump Sum,
+        not found) — the confirm dialog shows that, not a guess made from the typed list. */
+    if (action === 'delete') {
+      setIsPreviewing(true);
+      try {
+        const response = await previewBatchDelete({ ProgramId: programId, ProjectIds: projectIds });
+        setDeletePreview(response.Data);
+      } catch (previewError) {
+        // The interceptor already toasted any API error that carried a Message.
+        if (!(previewError as { Message?: string } | undefined)?.Message) {
+          setError('Could not check these projects. Please try again.');
+        }
+        return;
+      } finally {
+        setIsPreviewing(false);
+      }
+    }
+
     // Open confirmation dialog instead of directly submitting
     setIsConfirmDialogOpen(true);
   };
@@ -97,6 +121,7 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
   const handleClose = () => {
     setProjectIds('');
     setError('');
+    setDeletePreview(undefined);
     setIsConfirmDialogOpen(false);
     onClose();
   };
@@ -167,6 +192,7 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
                 <Button
                   color={config.buttonColor}
                   onClick={handleSubmit}
+                  disabled={isPreviewing}
                 >
                   {config.buttonText}
                 </Button>
@@ -185,6 +211,7 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
         programName={programName}
         projectIds={projectIds}
         projectCount={getProjectCount()}
+        deletePreview={action === 'delete' ? deletePreview : undefined}
       />
     </Dialog>
   );
