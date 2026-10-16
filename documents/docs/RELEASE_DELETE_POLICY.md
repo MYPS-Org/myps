@@ -113,6 +113,8 @@ Resources\Internal\SQLObjects\Stored Procedures\ExecuteProgramDeletion.sql
 
 - **Delete endpoints answer 503 after publishing:** read the `Deletion feature is NOT ready` line in the API log. A missing script means a bad publish: redeploy. A database problem means step 2. The endpoints recover by themselves within 30 seconds once fixed, with no restart.
 - **Batch Delete preview answers 403:** step 1 was skipped or ran against another database.
+- **"Try Again" (409), or "Another delete in this program is in progress":** two changes to the same program met at the same moment. Every delete path takes one lock per program first (Delete Program exclusively, Batch Delete, Batch Restore and the Lump Sum deletes shared), so they queue rather than deadlock; a deadlock with some other change (an approval, a stage advance) is answered 409. Nothing was written; repeat the request.
+- **"…deleted project(s) that cannot be removed automatically (e.g. X); an administrator must clean them up":** the program's only remaining projects are leftovers of deleted ones that the delete rule will never remove: published, no stage history under the program, created here but carried into another program, or rows with no project. The Program list shows this before anyone types DELETE. A DBA must fix those rows (unpublish, or remove the leftover history); nothing in the UI can.
 - **A delete fails with a permission error:** step 2. Nothing was deleted; every delete is one transaction.
 - **Roll back:** redeploy the previous build. There is nothing to undo in the database. The permission row from step 1 is harmless to the previous build, and so are the rights from step 2.
 
