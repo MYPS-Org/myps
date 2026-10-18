@@ -372,11 +372,10 @@ namespace WebAPI.Controllers.Programs
 
                 if (!string.IsNullOrEmpty(dto.Filters.ProjectId))
                     filters.Add(("v.ProjectId = @projectId", "@projectId", dto.Filters.ProjectId));
-                if (_Session.ApplyFilter)
+                // Each row is one project at the requested stage, so the stage's own revision decides.
+                if (!await filters.AddProjectListVisibilityAsync(_db, _Session, "v.RevisionId", cancellationToken))
                 {
-                    filters.Add((
-                        "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
-                        "@regCode", _Session.RegCode));
+                    return new ObjectResult(new { Title = ProjectHelper.NoProjectAccessTitle, Message = ProjectHelper.NoProjectAccessMessage }) { StatusCode = 403 };
                 }
                 if (!Enum.TryParse<EnumProgramStage>(
                     dto.StageName.Replace("-", ""),
