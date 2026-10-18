@@ -113,7 +113,8 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 | Project / program delete — the single deletion rule | `tests/program-hard-delete-policy.spec.ts` | **Yes** — API level, against `Functions/GetProjectDeletionTier.sql` (hard only on a project's first stage entry, soft once it has progressed, Lump Sum itemized always hard, published never, BP/P-prefix-agnostic, and since 2026-10-15 an **Approved program refuses every delete** except a Lump Sum itemized child's). Delete Program cases (a)–(g), (m), (n) — **no cascade since 2026-10-16**: a program with a live project is refused ("still has N project(s)") until Batch Delete removes them, then deleted; advanced program and Approved program refused (the refusal **reason** reaches the client); skip-BP program; the `tRevisionDetails` cascade on Batch Delete; audit rows per project (Batch Delete) plus one for the program; a program whose projects are all soft-deleted is deleted with their leftovers; and the Program list's `CanDelete`/`DeleteBlockedReason`. Batch Delete cases (h)–(l): first-stage hard delete, soft delete after BP→NEP by either the BP-form PK or the P-form id (restore too, each logged), refusal of Lump Sum and published rows, refusal in an Approved program, and `PreviewBatchDelete` returning the hard/soft/refused/missing groups while writing nothing. Seeds by `sqlcmd` and cleans up through nothing: **run it against a database snapshot**, with `E2E_SQL_*` naming the API's database. Before it runs: run `Main/Resources/Internal/SQLScripts/Migration.PreviewBatchDeletePermission.2026-10-15.sql` (the deletion scripts ship in the build; if they are missing the delete endpoints answer **503 "Delete Unavailable"**). `program-detail-batch-actions.spec.ts` case 1 also asserts the Batch Delete confirm dialog shows the server's "Permanently deleted (first stage entry)" group before DELETE |
 | — (not a test) | `tests/zz-manual-cleanup.spec.ts` | One-off cleanup script from 2026-10-05, excluded by `testIgnore`; runs only with `E2E_RUN_MANUAL=1` |
 | Batch Restrict/Allow Publishing — already-published guard | `tests/batch-restrict-allow-publish-skips-published.spec.ts` | Yes — API level. A mixed batch (one unpublished, one `IsPublished = 1`) must restrict/allow only the unpublished one and report the other in `SkippedAlreadyPublishedProjectIds`, verified against the table directly. The published flag is set by `sqlcmd`, so the file **self-skips unless `E2E_SQL_SERVER` and `E2E_SQL_DB` name the same database the API under test uses** (`E2E_SQL_USER`/`E2E_SQL_PASSWORD` for SQL auth, Windows auth otherwise; see `.env.example`) |
-| ProjectDetails | — | No |
+| ProjectDetails | `tests/project-visibility.spec.ts` | **Partly**: visibility only. A refused stage renders the "Project Not Available" panel instead of a blank page. The form itself is still uncovered |
+| Project view gate: DEO / Region, per stage | `tests/project-visibility.spec.ts` | Yes, API level plus 2 UI cases. Covers: DPC/RPC list and open only the stages whose DEO is in scope; Lump Sum parents hidden; 403 "No Project Access" for an office that doesn't fit; AUC and users outside the four groups unchanged; Program totals unchanged; an approved modification's DEO moves a stage (SQL probe, rolled back); Lump Sum and Code Tables hidden in the sidebar for DPC. Needs the fixture and `E2E_SQL_*`, see *Project view gate* below |
 | RevisionList / RevisionView / RevisionDetails | — | No |
 | ProjectGroupList / ProjectGroupDetails | — | No |
 | Reports | — | No |
@@ -443,3 +444,33 @@ them when the behaviour is fixed.
 
 **Still to do:** the same two accounts through the **UI** — a restricted user should find the
 list empty and a deep link refused. That is part of the phase-4 spec work.
+
+### Project view gate — `tests/project-visibility.spec.ts`
+
+The gate is the "Project view gate" region of `Helpers/ProjectHelper.cs`; see
+`documents/docs/engineering/PROJECT_VISIBILITY_RULE.md`. It is **per stage**: a stage is visible when its own DEO is
+in the user's scope.
+
+**Before it runs:** run `Main/Resources/Internal/SQLScripts/ProjectVisibility.Fixture.Dev.sql` against the API's
+database. It creates these accounts, each in one real group:
+
+| Account | Group | PlantillaOffice |
+|---|---|---|
+| `e2edpc` | DPC | OI122 Davao City DEO |
+| `e2erpc` | RPC | OI246 Region XI |
+| `e2eauc` | AUC | — |
+| `e2edpcnoscope` | DPC | OI246, a region, which is wrong for DPC |
+
+- OI122 is chosen because its projects move to OI3576 at GAA. `e2edpc` sees their early stages but not the later
+  ones, while `e2erpc` sees all of them.
+- The fixture refuses a non-local server.
+- It **asserts** the real groups' grants instead of granting them.
+
+**How it runs**
+- **Self-skips** without `E2E_SQL_SERVER` / `E2E_SQL_DB`. Expected sets come from SQL, using the same stage-DEO
+  expression as the gate.
+- **The UI cases need Vite on the same API.** Their Lump Sum check matches `/api/lumpsum/` calls only: Vite's dev
+  server also serves `/src/pages/LumpSum/*` modules, and a broader match is a false positive.
+
+`ProjectVisibility.UserRoles.Dev.sql` is separate and is not a fixture. It sets real local accounts for manual
+testing: asisjnt/yabutgj, caldokp/afundardb, ferrermaa/jopiojvc, and salaniokaes as Super Admin.
