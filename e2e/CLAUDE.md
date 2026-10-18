@@ -102,6 +102,7 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 | Route | Spec file | Covered? |
 |---|---|---|
 | ProjectList (`/projects`) | `tests/project-list.spec.ts` | Yes — asserts the list request came back **200** with rows, and that the first ProjectId is on screen. It previously died on `text=Projects` (three matches) and never ran past line 14 |
+| ProjectList paging — poisoned cursor plan | `tests/project-list-cursor-paging.spec.ts` | Yes — API level, as `E2E_USERNAME`. A cursor-0 Next (which used to poison SQL Server's cached Next plan so every later Next timed out at 90 s) followed by First → Next → Next → Previous → Page: all 200, each under 30 s, pages consistent. See `documents/docs/engineering/PROJECTS_LIST_CURSOR_PLAN_SNIFFING.md` |
 | AddProject (`/projects/addproject`) | `tests/project-form.spec.ts` | Yes — both dropdown endpoints must answer 200, not merely be requested |
 | Dashboard | `tests/dashboard-real-data.spec.ts` | Yes — the demo path asserts the page issues **no `/api/Dashboard/` request at all**; the live path (skipped against `LIVE_DB_ENABLED`) asserts eager KPIs, lazy per-section loading on scroll, and that the split endpoints reconcile with each other. See *The dashboard's Live DB switch* |
 | UserManagement | — | No |
