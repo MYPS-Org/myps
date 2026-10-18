@@ -704,9 +704,9 @@ export interface ShowProjectStageTargetsRequest {
 	limit: number;
 	page: number;
 	Navigation: number;
-	PreviousFilteredId: number;
-	NextFilteredId: number;
-	PageCursorId: number;
+	PreviousFilteredId: number | null;
+	NextFilteredId: number | null;
+	PageCursorId: number | null;
 	ProjectId: string;
 }
 

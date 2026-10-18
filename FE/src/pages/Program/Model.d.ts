@@ -178,9 +178,9 @@ export interface ShowProjectsInProgramRequest {
 	limit: number;
 	page: number;
 	Navigation: number;
-	PreviousFilteredId: number;
-	NextFilteredId: number;
-	PageCursorId: number;
+	PreviousFilteredId: number | null;
+	NextFilteredId: number | null;
+	PageCursorId: number | null;
 	ProgramId: string;
 	StageName: string;
 	StageDisplayName: string;

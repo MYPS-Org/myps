@@ -37,9 +37,9 @@ const ComponentTargetsPanel: React.FC<ComponentTargetsPanelProps> = ({ projectPK
                 limit: params.limit,
                 page: params.page,
                 Navigation: params.Navigation ?? 0,
-                PreviousFilteredId: params.PreviousFilteredId ?? 0,
-                NextFilteredId: params.NextFilteredId ?? 0,
-                PageCursorId: params.PageCursorId ?? 0,
+                PreviousFilteredId: params.PreviousFilteredId ?? null,
+                NextFilteredId: params.NextFilteredId ?? null,
+                PageCursorId: params.PageCursorId ?? null,
                 ProjectId: projectPK,
             });
             return response;
