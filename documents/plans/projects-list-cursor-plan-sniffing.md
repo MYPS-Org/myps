@@ -156,3 +156,24 @@ Files changed:
   - Tests: `e2e/tests/project-list-cursor-paging.spec.ts` (new), `e2e/CLAUDE.md`.
   - Docs: `documents/docs/engineering/PROJECTS_LIST_CURSOR_PLAN_SNIFFING.md` (new), this plan.
 
+### Review follow-ups (2026-10-18, approved R1, R2, R3, R6, R8)
+- **R1, cursor <= 0 is "missing".** `FilterDataCursor` treats `NextFilteredId` / `PreviousFilteredId` /
+  `PageCursorId` <= 0 like null, so the request is rejected ("… is required …") before any SQL runs and can't compile
+  a plan. The FE stops sending `?? 0` (`ProgramDetail.tsx`, `ComponentTargetsPanel.tsx`; the two request types are
+  widened to `number | null`). `ShowProjectsInProgram` (`fProgramProjects`) also opts in to `recompileCursorQueries`.
+- **R2, the spec can fail.** The opt-in case (`E2E_ALLOW_PLAN_EVICTION=1` + `E2E_SQL_*`) evicts the app's cursor
+  plans, injects the cursor-0 Next plan through sqlcmd under the app's set_options (251), checks it is cached, then
+  sends a real Next. Negative control: with `recompileCursorQueries: false` it failed with a 91.3 s timeout; with the
+  fix it passes. A tiny *real* cursor (oldest Id + 1) was tried first as the poison and did **not** reproduce the bad
+  plan (8.6 s), so injection is the only reliable trigger now that the API rejects cursor 0.
+- **R3, timeouts are visible.** `SqlException` -2 is rethrown instead of becoming `Error<T>`, so the controller's
+  `IMYPSExceptionHandler` logs it (`fail`, ErrorId, `SqlErrorNumber: -2`, method name). The client still gets 400,
+  now `SqlServerFailure` with an ErrorId: the handler maps every error to 400 by design.
+- **R6, tighter spec.** Cursor fetches must take < max(1.5 × first page, 10 s); it runs as `E2E_USERNAME` and e2eauc
+  (skipped when the account is missing), skips below 31 visible rows, and checks that all three cursor fields reject 0.
+- **R8.** `recompileCursorQueries` now sits before `ct` (every call site uses named arguments).
+- **Verification:** Main builds; `project-list-cursor-paging` 3/3 with the opt-in (2 pass + 1 skip without it);
+  `project-list` passes with Vite; FE `tsc -b` stays at the 21-error baseline (none in the touched files).
+  `program-detail-batch-actions` "batch delete removes the row" fails at the delete-preview text **with and without**
+  the FE change, so it is unrelated; the Program details table itself loads with null cursors.
+

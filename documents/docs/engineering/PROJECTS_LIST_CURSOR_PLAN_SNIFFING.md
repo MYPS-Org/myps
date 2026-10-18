@@ -42,7 +42,18 @@ SELECT TOP (@__take) v.* FROM [vProjectLatest] AS v WHERE v.[Id] < @__cursor ORD
 - When it is `true`, the cursor fetches (Next / Previous / Page n; anything with `@__cursor`) get `OPTION
   (RECOMPILE)`, so each one is compiled for its own cursor value and nothing poisoned can be reused.
 - First, Last and the count query are unchanged.
-- Only `ProjectController.ShowProjects` opts in. Every other list keeps its current behaviour.
+- `ProjectController.ShowProjects` and `ProgramController.ShowProjectsInProgram` (`fProgramProjects`, the heavy
+  per-program source) opt in. Every other list keeps its current behaviour.
+
+Two guards around it, for every caller of `FilterDataCursor`:
+- **A cursor of 0 or less is treated as missing.** `NextFilteredId` / `PreviousFilteredId` / `PageCursorId` <= 0 is
+  rejected with the usual "… is required …" 400 before any SQL runs, so it can't compile a plan. Keys are positive
+  identities, so a 0 only ever meant "not set": the FE used to send `?? 0` (Program details projects tab, component
+  targets panel) and now sends `null`.
+- **A command timeout is no longer swallowed.** `SqlException` -2 is rethrown, so the controller's exception handler
+  logs it at `fail` with an ErrorId, `SqlErrorNumber: -2` and the method name. Before, it became a plain
+  "Pagination error" 400 that was never logged. The client still gets a 400 (`SqlServerFailure`, with the ErrorId):
+  the handler maps every error to 400 by design.
 
 | After the fix | Result |
 |---|---|
@@ -57,7 +68,8 @@ SELECT TOP (@__take) v.* FROM [vProjectLatest] AS v WHERE v.[Id] < @__cursor ORD
 | Program list (`ShowProgram`, `vProgramLatest`) | 0.18 s | 0.04 s |
 | Program details projects tab (`ShowProjectsInProgram`, largest program) | 1.86 s | 3.29 s |
 
-Both use the same paging code and could be poisoned the same way. If they ever show it, the fix is a one-line opt-in:
+Both use the same paging code and could be poisoned the same way. The Program details tab was opted in on review
+(it is a heavy TVF); the Program list is fast and small, so it stays as is. Any other list that shows it needs only
 `recompileCursorQueries: true`.
 
 ## How to check for it
@@ -83,5 +95,17 @@ WHERE st.text LIKE '%FROM \[vProjectLatest\] AS v%@\_\_cursor%' ESCAPE '\';
 
 ## Regression test
 
-`e2e/tests/project-list-cursor-paging.spec.ts` runs a cursor-0 Next first, then First → Next → Next → Previous →
-Page. Every call must be 200 and under 30 s, and the pages must be consistent.
+`e2e/tests/project-list-cursor-paging.spec.ts`, API level:
+
+- **Always, as `E2E_USERNAME` and e2eauc** (skipped if the account doesn't exist): a cursor of 0 is rejected for
+  Next, Previous and Page. Then First → Next → Next → Previous → Page are all 200, each under max(1.5 × the first
+  page, 10 s), and the pages are consistent. Skipped below 31 visible rows.
+- **Opt-in, the poisoned plan itself** (`E2E_ALLOW_PLAN_EVICTION=1` plus `E2E_SQL_SERVER` / `E2E_SQL_DB` /
+  `E2E_SQL_USER` / `E2E_SQL_PASSWORD`, needs VIEW and ALTER SERVER STATE): it evicts the app's cursor plans, then
+  injects the cursor-0 Next plan with sqlcmd under the app's set_options (251) and checks that it is cached. A real
+  Next must then be 200 and fast, and the injected plan must be the only one cached. The plans are evicted again at
+  the end.
+  - The poison is injected because the API can no longer send cursor 0. A tiny *real* cursor (the oldest Id + 1) was
+    tried and did not reproduce the bad plan (8.6 s, no timeout).
+  - Negative control: with `recompileCursorQueries: false` this case fails with a 91.3 s timeout; with the fix it
+    passes.
