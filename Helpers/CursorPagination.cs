@@ -58,9 +58,20 @@ namespace Helpers
                     string ParamName,
                     object? Value)>? sourceParameters = null,
                 bool isTableValuedFunction = false,
-                CancellationToken ct = default)
+                CancellationToken ct = default,
+                bool recompileCursorQueries = false)
             where T : class
         {
+            /*
+             * recompileCursorQueries (2026-10-18): opt-in OPTION (RECOMPILE) on the cursor fetches only
+             * (Next / Previous / Page n -- the ones carrying @__cursor). Without it SQL Server caches ONE
+             * plan per fetch shape, compiled for whichever cursor value arrived first. On vProjectLatest a
+             * plan compiled for a cursor matching ~1 row (e.g. NextFilteredId = 0, or a page near the oldest
+             * rows) is all nested loops, and every later Next with a typical cursor reuses it and times out
+             * (90 s on localhost, for every user). See
+             * documents/docs/engineering/PROJECTS_LIST_CURSOR_PLAN_SNIFFING.md. First / Last and the count
+             * query carry no cursor and are unchanged.
+             */
             try
             {
                 // =========================================================
@@ -566,6 +577,14 @@ namespace Helpers
                     {fetchWhereSql}
                     ORDER BY {keyExpression} {fetchDirection}
                     """;
+
+                if (recompileCursorQueries &&
+                    cursorId.HasValue)
+                {
+                    fetchSql +=
+                        Environment.NewLine +
+                        "OPTION (RECOMPILE)";
+                }
 
                 // =========================================================
                 // FETCH PARAMETERS

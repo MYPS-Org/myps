@@ -288,7 +288,10 @@ namespace WebAPI.Controllers.Projects
                             keyColumn: "Id",
                             descending: true,
                             includeTotal: true,
-                            ct: cancellationToken);
+                            ct: cancellationToken,
+                            // A cached cursor plan compiled for an unusual cursor (e.g. 0) made every later Next
+                            // over this view time out for all users; compile each cursor fetch for its own value.
+                            recompileCursorQueries: true);
 
                 if (result.HasError)
                 {
