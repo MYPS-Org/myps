@@ -25,6 +25,187 @@ namespace Helpers
             public T? Data { get; set; }
         }
 
+        #region Project view gate (DPC / RPC / AUC / DPD Admin)
+        /*  2026-10-18 -- documents/plans/project-visibility-by-deo-region.md. VIEWING ONLY: the project
+            lists (ShowProjects, ShowProjectsInProgram) and the project-details reads. Saves, revisions,
+            programs, Lump Sum, Dashboard and Reports keep their current behaviour; a later change takes
+            those on. Self-contained on purpose -- it changes neither tGroups.ApplyFilter nor any SQL object
+            (v1 did, and the side effects reached every module).
+
+            The rule, per STAGE: a stage is visible when its DEO is in the user's scope, where a stage's DEO
+            is that stage revision's latest fully approved modification snapshot DEO, else the stage
+            revision's own tProjectRevisions.DEO (StageDeoSql). A project is listed when ANY of its stages
+            is visible. Scope by group:
+              AUC or DPD Admin   everything (wins over DPC/RPC)
+              DPC                the DEO in tUsers.PlantillaOffice
+              RPC                every DEO whose parent region is tUsers.PlantillaOffice
+              none of the four   unchanged: today's ApplyFilter behaviour ("Legacy")
+            A DPC/RPC user whose PlantillaOffice does not fit the group sees nothing (fail closed). Lump Sum
+            parents are never visible to a DPC/RPC user; itemized children follow the DEO rule. The group
+            names are matched by NAME -- renaming one in User Management silently breaks this. The frontend
+            mirrors the same set in FE/src/contexts/AuthContext.tsx. */
+
+        private const string ScopeGroupDPC = "DPC";
+        private const string ScopeGroupRPC = "RPC";
+        private static readonly string[] ScopeSeeAllGroups = { "AUC", "DPD Admin" };
+
+        public const string NoProjectAccessTitle = "No Project Access";
+        public const string NoProjectAccessMessage = "Your plantilla office is not set up for project access for your user group. Please contact your administrator.";
+
+        private enum ProjectViewScopeKind { Legacy, All, Deos }
+
+        private sealed class ProjectViewScope
+        {
+            public ProjectViewScopeKind Kind { get; init; }
+            public List<string> Deos { get; init; } = new();
+        }
+
+        private static async Task<ProjectViewScope> ResolveProjectViewScopeAsync(MYPSDbContext _db, DBHelper.Models.Views.Users session, CancellationToken cancellationToken)
+        {
+            var groups = session.UserGroupNames ?? Array.Empty<string>();
+            if (groups.Any(g => ScopeSeeAllGroups.Contains(g)))
+                return new ProjectViewScope { Kind = ProjectViewScopeKind.All };
+
+            bool isDpc = groups.Contains(ScopeGroupDPC);
+            bool isRpc = groups.Contains(ScopeGroupRPC);
+            if (!isDpc && !isRpc)
+                return new ProjectViewScope { Kind = ProjectViewScopeKind.Legacy };
+
+            // OFFICE SOURCE: the ONLY place this gate reads the user's office. If the office moves to
+            // another column, change this one line.
+            string? office = (await _db.tUsers.AsNoTracking()
+                .Where(u => u.UserId == session.UserId)
+                .Select(u => u.PlantillaOffice)
+                .FirstOrDefaultAsync(cancellationToken))?.Trim();
+
+            var deos = new HashSet<string>();
+            if (!string.IsNullOrEmpty(office))
+            {
+                if (isDpc && await _db.vAdminDEO.AsNoTracking().AnyAsync(d => d.ParticipantId == office, cancellationToken))
+                    deos.Add(office);
+                if (isRpc && await _db.tOptionAdminAreaRegion.AsNoTracking().AnyAsync(r => r.ParticipantId == office, cancellationToken))
+                    deos.UnionWith(await _db.vAdminDEO.AsNoTracking()
+                        .Where(d => d.RegionParticipantId == office)
+                        .Select(d => d.ParticipantId)
+                        .ToListAsync(cancellationToken));
+            }
+            return new ProjectViewScope { Kind = ProjectViewScopeKind.Deos, Deos = deos.ToList() };
+        }
+
+        /// <summary>
+        /// The one SQL definition of a stage's DEO, for the stage revision id in
+        /// <paramref name="stageRevisionIdExpr"/>: the latest fully approved modification's snapshot DEO for
+        /// that revision (same approval test as fProjectEffectiveRevision), else the revision's own DEO.
+        /// </summary>
+        private static string StageDeoSql(string stageRevisionIdExpr) =>
+            "COALESCE(" +
+            "(SELECT TOP 1 s.DEO FROM dbo.tRevisionDetails rd" +
+            " JOIN dbo.tRevisionProjectSnapshot s ON s.RevisionDetailFK = rd.Id AND s.IsDeleted = 0" +
+            " CROSS APPLY dbo.fRevisionApprovalStatus(rd.Id) a" +
+            $" WHERE rd.ProjectRevisionFK = {stageRevisionIdExpr} AND a.IsFullyApproved = 1 ORDER BY rd.Id DESC)," +
+            $" (SELECT pr.DEO FROM dbo.tProjectRevisions pr WHERE pr.Id = {stageRevisionIdExpr} AND pr.IsDeleted = 0))";
+
+        private const string IsLumpSumParentSql =
+            "EXISTS (SELECT 1 FROM dbo.tProjects lp WHERE lp.ProjectPK = {0} AND lp.ProjectType = 'LS' AND lp.ParentProjectId IS NULL)";
+
+        /// <summary>
+        /// Adds the view gate to a FilterDataCursor clause list over a source aliased <c>v</c> that exposes
+        /// <c>ProjectPK</c>. Pass <paramref name="stageRevisionColumn"/> when each row IS one stage
+        /// (ShowProjectsInProgram: <c>"v.RevisionId"</c>); leave it null when each row is a project
+        /// (ShowProjects), which is then listed if any of its stages is visible. Returns false when the user
+        /// has no office scope at all -- the caller answers 403 with <see cref="NoProjectAccessMessage"/>.
+        /// </summary>
+        public static async Task<bool> AddProjectListVisibilityAsync(
+            this List<(string Clause, string ParamName, object? Value)> filters,
+            MYPSDbContext _db,
+            DBHelper.Models.Views.Users session,
+            string? stageRevisionColumn,
+            CancellationToken cancellationToken)
+        {
+            var scope = await ResolveProjectViewScopeAsync(_db, session, cancellationToken);
+            switch (scope.Kind)
+            {
+                case ProjectViewScopeKind.Legacy:
+                    // Today's filter, moved here unchanged from ShowProjects / ShowProjectsInProgram.
+                    if (session.ApplyFilter)
+                        filters.Add((
+                            "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
+                            "@regCode", session.RegCode));
+                    return true;
+                case ProjectViewScopeKind.All:
+                    return true;
+            }
+            if (scope.Deos.Count == 0)
+                return false;
+
+            string deosJson = System.Text.Json.JsonSerializer.Serialize(scope.Deos);
+            const string InScope = " IN (SELECT [value] FROM OPENJSON(@scopeDeos))";
+
+            if (stageRevisionColumn != null)
+            {
+                // One row per stage, already narrowed to one program by the caller's source: check
+                // the row's own stage inline.
+                filters.Add((
+                    $"({StageDeoSql(stageRevisionColumn)}{InScope} AND NOT {string.Format(IsLumpSumParentSql, "v.ProjectPK")})",
+                    "@scopeDeos", deosJson));
+                return true;
+            }
+
+            // One row per project: listed when ANY of its stages is visible.
+            // PERFORMANCE (2026-10-18, localhost, 172k projects): any selective filter on vProjectLatest
+            // costs ~10 s per list call (count + page) against ~4 s unfiltered -- the view, not the
+            // rule: the same filter on the base revision DEO alone is no faster. Pre-resolving the
+            // visible ProjectPKs into an OPENJSON list was tried and is far worse (nested loops over the
+            // view, 90 s timeouts). A real fix needs an indexed DEO on the view or a new SQL object,
+            // both out of this change's scope.
+            filters.Add((
+                "(EXISTS (SELECT 1 FROM dbo.tProjectStages ps WHERE ps.ProjectFK = v.ProjectPK AND " + StageDeoSql("ps.RevisionId") + InScope + ")" +
+                $" AND NOT {string.Format(IsLumpSumParentSql, "v.ProjectPK")})",
+                "@scopeDeos", deosJson));
+            return true;
+        }
+
+        /// <summary>
+        /// The project URL check. Null: no restriction for this user. Otherwise the project's stages the user
+        /// may view (RevisionId = tProjectStages.RevisionId); empty means none -- answer "Project Not Found".
+        /// </summary>
+        public static async Task<List<(int RevisionId, string StageName)>?> GetViewableStagesAsync(
+            this MYPSDbContext _db,
+            DBHelper.Models.Views.Users session,
+            string projectPK,
+            CancellationToken cancellationToken)
+        {
+            var scope = await ResolveProjectViewScopeAsync(_db, session, cancellationToken);
+            switch (scope.Kind)
+            {
+                case ProjectViewScopeKind.Legacy:
+                    // Today's check, unchanged.
+                    if (!session.ApplyFilter)
+                        return null;
+                    bool visible = await _db.fUserVisibleProjects
+                        .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleProjects({session.UserId})")
+                        .AnyAsync(x => x.ProjectPK == projectPK, cancellationToken);
+                    return visible ? null : new List<(int, string)>();
+                case ProjectViewScopeKind.All:
+                    return null;
+            }
+            if (scope.Deos.Count == 0)
+                return new List<(int, string)>();
+
+            var stages = await _db.tProjectStages
+                .FromSqlRaw(
+                    "SELECT ps.* FROM dbo.tProjectStages ps WHERE ps.ProjectFK = @projectPK" +
+                    $" AND NOT {string.Format(IsLumpSumParentSql, "ps.ProjectFK")}" +
+                    $" AND {StageDeoSql("ps.RevisionId")} IN (SELECT [value] FROM OPENJSON(@scopeDeos))",
+                    new SqlParameter("@projectPK", projectPK),
+                    new SqlParameter("@scopeDeos", System.Text.Json.JsonSerializer.Serialize(scope.Deos)))
+                .AsNoTracking()
+                .Select(x => new { x.RevisionId, x.StageName })
+                .ToListAsync(cancellationToken);
+            return stages.Select(x => (x.RevisionId, x.StageName)).ToList();
+        }
+        #endregion
+
         #region ValidateProjectId
         public class ValidateProjectIdDataResult
         {
@@ -38,6 +219,12 @@ namespace Helpers
             public string StageName { get; set; } = string.Empty;
             public DBHelper.Models.Views.Users _Session { get; set; } = new DBHelper.Models.Views.Users();
             public bool ViewOldStage { get; set; } = false;
+            /// <summary>
+            /// Skips the ApplyFilter visibility check below. Only for a READ caller that applies the
+            /// project view gate itself (ShowProjectDetails → <see cref="GetViewableStagesAsync"/>);
+            /// every update and revision caller leaves it false and keeps today's check.
+            /// </summary>
+            public bool SkipVisibilityCheck { get; set; } = false;
         }
         public static async Task<ProjectHelperResponse<ValidateProjectIdDataResult>> ValidateProjectId(this MYPSDbContext _db, ValidateProjectIdParams p, CancellationToken cancellationToken)
         {
@@ -61,7 +248,7 @@ namespace Helpers
                 response.Message = $"The Project with ID '{p.ProjectId}' does not exist in the system.";
                 return response;
             }
-            if (p._Session.ApplyFilter)
+            if (p._Session.ApplyFilter && !p.SkipVisibilityCheck)
             {
                 var FilterProject = await _db.fUserVisibleProjects.FromSqlInterpolated($"SELECT * FROM fUserVisibleProjects({p._Session.UserId}) p WHERE p.ProjectPK = {GetProjectPK.ProjectFK}").FirstOrDefaultAsync(cancellationToken);
                 if (FilterProject == null)

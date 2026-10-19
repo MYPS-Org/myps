@@ -18,6 +18,22 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/*  2026-10-18: Lump Sum and Code Tables are hidden from DPC/RPC users -- in the FRONTEND ONLY for now;
+    the API for those modules is unchanged and will be restricted in a later change. Dropping the routes
+    from ViewAccess hides both the sidebar entries (AppSidebar) and the routes (usePermittedRoutes).
+    The group rule mirrors the backend project view gate (Helpers/ProjectHelper.cs): DPC or RPC, and
+    neither AUC nor DPD Admin. Keep the two in step. */
+const RESTRICTED_GROUPS = ['DPC', 'RPC'];
+const SEE_ALL_GROUPS = ['AUC', 'DPD Admin'];
+const ROUTES_HIDDEN_FROM_RESTRICTED = ['LumpSumList', 'AddWallet', 'LumpSumDetails', 'CodeTables'];
+
+const visibleRoutesFor = (user: User | null, viewAccess: string[]): string[] => {
+    const groups = user?.UserGroupNames ?? [];
+    const isRestricted = groups.some((g) => RESTRICTED_GROUPS.includes(g))
+        && !groups.some((g) => SEE_ALL_GROUPS.includes(g));
+    return isRestricted ? viewAccess.filter((r) => !ROUTES_HIDDEN_FROM_RESTRICTED.includes(r)) : viewAccess;
+};
+
 interface AuthProviderProps {
   children: ReactNode;
 }
@@ -47,7 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     user: { ...response.Data.Data.User,
                         // UserGroup: response.Data.Data.User.UserGroup
                         },
-                    ViewAccess: response.Data.Data.ViewAccess || []
+                    ViewAccess: visibleRoutesFor(response.Data.Data.User, response.Data.Data.ViewAccess || [])
                 });
                 if(window.location.pathname === '/login') {
                     const storedPath = localStorage.getItem('currentPath');

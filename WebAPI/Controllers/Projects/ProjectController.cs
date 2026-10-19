@@ -272,11 +272,9 @@ namespace WebAPI.Controllers.Projects
                 if (!string.IsNullOrEmpty(dto.Filters.ProjectId))
                     filters.Add(("v.ProjectId LIKE @projectId", "@projectId", $"%{dto.Filters.ProjectId}%"));
 
-                if (_Session.ApplyFilter)
+                if (!await filters.AddProjectListVisibilityAsync(_db, _Session, null, cancellationToken))
                 {
-                    filters.Add((
-                        "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
-                        "@regCode", _Session.RegCode));
+                    return new ObjectResult(new { Title = NoProjectAccessTitle, Message = NoProjectAccessMessage }) { StatusCode = 403 };
                 }
                 FilterDataResult<ProjectLatest> result =
                     await _db.FilterDataCursor<
@@ -343,22 +341,19 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                if (_Session.ApplyFilter)
-                {
-                    var isVisible = await _db.fUserVisibleProjects
-                        .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleProjects({_Session.UserId})")
-                        .AnyAsync(x => x.ProjectPK == dto.ProjectId, cancellationToken);
-
-                    if (!isVisible)
-                    {
-                        return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
-                    }
-                }
+                var (rejection, viewableStages) = await RejectIfProjectNotVisible(dto.ProjectId, cancellationToken);
+                if (rejection != null) return rejection;
 
                 var Stages = await _db.fProjectStages
                     .FromSqlInterpolated($"SELECT * FROM dbo.fProjectStages({dto.ProjectId})")
                     .AsNoTracking()
                     .ToListAsync(cancellationToken);
+                // Per-stage view gate: a restricted user sees only the stages whose DEO is in scope.
+                if (viewableStages != null)
+                {
+                    var visibleRevisionIds = viewableStages.Select(s => s.RevisionId).ToHashSet();
+                    Stages = Stages.Where(s => visibleRevisionIds.Contains(s.RevisionId)).ToList();
+                }
 
                 return Ok(new
                 {
@@ -377,19 +372,14 @@ namespace WebAPI.Controllers.Projects
         /// the project is visible (or filtering is off for this user's group), otherwise the
         /// same deliberately non-disclosing rejection ShowProjectStages returns.
         /// </summary>
-        private async Task<IActionResult?> RejectIfProjectNotVisible(string projectPK, CancellationToken cancellationToken)
+        private async Task<(IActionResult? Rejection, List<(int RevisionId, string StageName)>? ViewableStages)> RejectIfProjectNotVisible(string projectPK, CancellationToken cancellationToken)
         {
-            if (!_Session.ApplyFilter)
-                return null;
+            // ViewableStages null = no restriction; otherwise only those stages may be shown.
+            var viewableStages = await _db.GetViewableStagesAsync(_Session, projectPK, cancellationToken);
+            if (viewableStages == null || viewableStages.Count > 0)
+                return (null, viewableStages);
 
-            var isVisible = await _db.fUserVisibleProjects
-                .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleProjects({_Session.UserId})")
-                .AnyAsync(x => x.ProjectPK == projectPK, cancellationToken);
-
-            if (isVisible)
-                return null;
-
-            return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
+            return (new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" }), null);
         }
 
         /// <summary>
@@ -403,13 +393,19 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                var rejection = await RejectIfProjectNotVisible(dto.ProjectId, cancellationToken);
+                var (rejection, viewableStages) = await RejectIfProjectNotVisible(dto.ProjectId, cancellationToken);
                 if (rejection != null) return rejection;
 
                 var Targets = await _db.fProjectStageTargets
                     .FromSqlInterpolated($"SELECT * FROM dbo.fProjectStageTargets({dto.ProjectId})")
                     .AsNoTracking()
                     .ToListAsync(cancellationToken);
+                // Per-stage view gate: components and stage counts from visible stages only.
+                if (viewableStages != null)
+                {
+                    var visibleStageNames = viewableStages.Select(s => s.StageName).ToHashSet();
+                    Targets = Targets.Where(t => t.StageName != null && visibleStageNames.Contains(t.StageName)).ToList();
+                }
 
                 // Grouped in memory rather than in SQL: the TVF is already scoped to one
                 // project (a handful of stages x tens of work items), and COUNT(DISTINCT)
@@ -459,13 +455,18 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                var rejection = await RejectIfProjectNotVisible(dto.ProjectId, cancellationToken);
+                var (rejection, viewableStages) = await RejectIfProjectNotVisible(dto.ProjectId, cancellationToken);
                 if (rejection != null) return rejection;
 
                 var filters = new List<(
                     string Clause,
                     string ParamName,
                     object? Value)>();
+
+                // Per-stage view gate: only the visible stages' rows.
+                if (viewableStages != null)
+                    filters.Add(("v.StageName IN (SELECT [value] FROM OPENJSON(@viewableStages))", "@viewableStages",
+                        System.Text.Json.JsonSerializer.Serialize(viewableStages.Select(s => s.StageName).Distinct())));
 
                 if (!string.IsNullOrEmpty(dto.Filters.ComponentId))
                     filters.Add(("v.ComponentId = @componentId", "@componentId", dto.Filters.ComponentId));
@@ -759,7 +760,10 @@ namespace WebAPI.Controllers.Projects
                     ProjectId = dto.ProjectId,
                     StageName = dto.StageName,
                     _Session = _Session,
-                    ViewOldStage = true
+                    ViewOldStage = true,
+                    // The view gate below replaces ValidateProjectId's ApplyFilter check here only,
+                    // so DPD Admin (ApplyFilter = 1) can view every project. Updates keep the check.
+                    SkipVisibilityCheck = true
                 }, cancellationToken);
                 if (!ValidateProjectId.IsValid)
                 {
@@ -772,6 +776,17 @@ namespace WebAPI.Controllers.Projects
                 var ProjectParent = ValidateProjectId.Data.Project;
                 var ProjectRevisions = ValidateProjectId.Data.ProjectRevision;
                 var ProjectStage = ValidateProjectId.Data.ProjectStage;
+
+                // Per-stage view gate. Same words as a project that does not exist, on purpose.
+                var viewableStages = await _db.GetViewableStagesAsync(_Session, ProjectParent.ProjectPK, cancellationToken);
+                if (viewableStages != null && !viewableStages.Any(s => s.RevisionId == ProjectStage.RevisionId))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Project Not Found",
+                        Message = $"The Project with ID '{dto.ProjectId}' does not exist in the system."
+                    });
+                }
                 #endregion
 
                 string ProjectFK = ProjectParent.ProjectPK;
