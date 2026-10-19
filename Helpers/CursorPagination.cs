@@ -58,9 +58,20 @@ namespace Helpers
                     string ParamName,
                     object? Value)>? sourceParameters = null,
                 bool isTableValuedFunction = false,
+                bool recompileCursorQueries = false,
                 CancellationToken ct = default)
             where T : class
         {
+            /*
+             * recompileCursorQueries (2026-10-18): opt-in OPTION (RECOMPILE) on the cursor fetches only
+             * (Next / Previous / Page n -- the ones carrying @__cursor). Without it SQL Server caches ONE
+             * plan per fetch shape, compiled for whichever cursor value arrived first. On vProjectLatest a
+             * plan compiled for a cursor matching ~1 row (e.g. NextFilteredId = 0, or a page near the oldest
+             * rows) is all nested loops, and every later Next with a typical cursor reuses it and times out
+             * (90 s on localhost, for every user). See
+             * documents/docs/engineering/PROJECTS_LIST_CURSOR_PLAN_SNIFFING.md. First / Last and the count
+             * query carry no cursor and are unchanged.
+             */
             try
             {
                 // =========================================================
@@ -323,6 +334,16 @@ namespace Helpers
 
                 long? cursorId = null;
 
+                /*
+                 * Keys are positive identities, so a cursor <= 0 can only mean "missing" (the FE used to send
+                 * `?? 0`). Treat it exactly like null: it never reaches SQL, so it can never compile and cache
+                 * a ~1-row plan for the cursor fetch that later requests would reuse (the 90 s timeout in
+                 * documents/docs/engineering/PROJECTS_LIST_CURSOR_PLAN_SNIFFING.md).
+                 */
+                long? nextCursor = dto.NextFilteredId > 0 ? dto.NextFilteredId : null;
+                long? previousCursor = dto.PreviousFilteredId > 0 ? dto.PreviousFilteredId : null;
+                long? pageCursor = dto.PageCursorId > 0 ? dto.PageCursorId : null;
+
                 bool reverseRows = false;
 
                 bool useProbeRow = true;
@@ -359,7 +380,7 @@ namespace Helpers
 
                     case PaginationNavigation.Next:
                         {
-                            if (!dto.NextFilteredId.HasValue)
+                            if (!nextCursor.HasValue)
                             {
                                 return Error<T>(
                                     $"{nameof(dto.NextFilteredId)} " +
@@ -367,7 +388,7 @@ namespace Helpers
                             }
 
                             cursorId =
-                                dto.NextFilteredId.Value;
+                                nextCursor.Value;
 
                             string comparisonOperator =
                                 descending
@@ -393,7 +414,7 @@ namespace Helpers
 
                     case PaginationNavigation.Previous:
                         {
-                            if (!dto.PreviousFilteredId.HasValue)
+                            if (!previousCursor.HasValue)
                             {
                                 return Error<T>(
                                     $"{nameof(dto.PreviousFilteredId)} " +
@@ -401,7 +422,7 @@ namespace Helpers
                             }
 
                             cursorId =
-                                dto.PreviousFilteredId.Value;
+                                previousCursor.Value;
 
                             string comparisonOperator =
                                 descending
@@ -448,7 +469,7 @@ namespace Helpers
                              * Page 1 does not need a PageCursorId.
                              */
                             if (requestedPage == 1 &&
-                                !dto.PageCursorId.HasValue)
+                                !pageCursor.HasValue)
                             {
                                 fetchDirection =
                                     descending
@@ -458,7 +479,7 @@ namespace Helpers
                                 break;
                             }
 
-                            if (!dto.PageCursorId.HasValue)
+                            if (!pageCursor.HasValue)
                             {
                                 return Error<T>(
                                     $"{nameof(dto.PageCursorId)} " +
@@ -469,7 +490,7 @@ namespace Helpers
                             }
 
                             cursorId =
-                                dto.PageCursorId.Value;
+                                pageCursor.Value;
 
                             /*
                              * PageCursorId is the FIRST record of the
@@ -566,6 +587,14 @@ namespace Helpers
                     {fetchWhereSql}
                     ORDER BY {keyExpression} {fetchDirection}
                     """;
+
+                if (recompileCursorQueries &&
+                    cursorId.HasValue)
+                {
+                    fetchSql +=
+                        Environment.NewLine +
+                        "OPTION (RECOMPILE)";
+                }
 
                 // =========================================================
                 // FETCH PARAMETERS
@@ -827,6 +856,15 @@ namespace Helpers
             catch (OperationCanceledException)
                 when (ct.IsCancellationRequested)
             {
+                throw;
+            }
+            catch (SqlException ex) when (ex.Number == -2)
+            {
+                /*
+                 * A command timeout is a server fault, not a pagination error: rethrow it so the
+                 * controller's IMYPSExceptionHandler logs it with an ErrorId and diagnostics. Swallowing
+                 * it into Error<T>(ex.Message) is what kept the cursor-plan timeouts invisible.
+                 */
                 throw;
             }
             catch (Exception ex)

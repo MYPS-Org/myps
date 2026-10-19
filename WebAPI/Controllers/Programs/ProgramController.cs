@@ -407,6 +407,9 @@ namespace WebAPI.Controllers.Programs
                             keyColumn: "Id",
                             descending: true,
                             includeTotal: true,
+                            // Heavy per-program TVF (16k+ rows on the largest program): compile each cursor
+                            // fetch for its own value, as ShowProjects does (cursor plan sniffing).
+                            recompileCursorQueries: true,
                             ct: cancellationToken);
 
                 if (result.HasError)
