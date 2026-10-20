@@ -220,8 +220,11 @@ const ScopeOfWorkTable: React.FC = () => {
             WorkCategory: addForm.workCategory,
             Description: addForm.description,
             Measure: 0,
-            MinAmount: addForm.minAmount !== '' ? Number(addForm.minAmount) : null,
-            MaxAmount: addForm.maxAmount !== '' ? Number(addForm.maxAmount) : null,
+            // Min/Max are non-nullable ints on the server: a blank sent as null failed to deserialize.
+            MinAmount: Number(addForm.minAmount || 0),
+            MaxAmount: Number(addForm.maxAmount || 0),
+            // New scopes go straight into the Major Item dropdowns, which list active rows only.
+            IsActive: true,
           }));
           showToast({ type: 'success', message: 'Scope of work added successfully.' });
           await refetch();
@@ -253,8 +256,10 @@ const ScopeOfWorkTable: React.FC = () => {
             WorkCategory: editForm.workCategory,
             Description: editForm.description,
             Measure: item.measure,
-            MinAmount: editForm.minAmount !== '' ? Number(editForm.minAmount) : null,
-            MaxAmount: editForm.maxAmount !== '' ? Number(editForm.maxAmount) : null,
+            MinAmount: Number(editForm.minAmount || 0),
+            MaxAmount: Number(editForm.maxAmount || 0),
+            // Not on the form: without it the server read false and every edit deactivated the row.
+            IsActive: item.isActive,
           }));
           showToast({ type: 'success', message: 'Scope of work updated successfully.' });
           await refetch();
