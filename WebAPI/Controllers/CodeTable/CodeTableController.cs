@@ -1666,6 +1666,16 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The revision reason with id {data.Id} is not found, please select another revision reason."
                         });
                     }
+                    // FK -> tOptionRevisionHeader(RevisionGroupId): a missing group was a raw SQL error.
+                    if (dto.TransactionType != CodeTransactionType.Delete
+                        && !await _db.tOptionRevisionHeader.AsNoTracking().AnyAsync(x => x.RevisionGroupId == data.RevisionGroupId, cancellationToken))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Invalid RevisionGroupId",
+                            Message = $"The RevisionGroupId {data.RevisionGroupId} does not exist, please select a valid revision group."
+                        });
+                    }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
@@ -1692,7 +1702,8 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.RevisionGroupId}";
                             CheckUpdate.RevisionGroupId = data.RevisionGroupId;
                         }
-                        if (CheckUpdate.CategoryId != data.CategoryId)
+                        // Arrays: != compared references, so this branch ran on every edit.
+                        if (!CheckUpdate.CategoryId.SequenceEqual(data.CategoryId))
                         {
                             var validCategoryIds = await _db.tOptionRevisionCategory
                                 .Select(x => x.CategoryId)
@@ -1710,8 +1721,8 @@ namespace WebAPI.Controllers.CodeTable
                                 });
                             }
                             transactionLog.AffectedColumn = "CategoryId";
-                            transactionLog.NewValue = $"{data.CategoryId}";
-                            transactionLog.OldValue = $"{CheckUpdate.CategoryId}";
+                            transactionLog.NewValue = JsonConvert.SerializeObject(data.CategoryId);
+                            transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate.CategoryId);
                             CheckUpdate.CategoryId = data.CategoryId;
                         }
                         if (CheckUpdate.IsActive != data.IsActive)
@@ -1957,13 +1968,16 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Status has been selected, please select a revision status."
                         });
                     }
+                    // Approvals store the NameId, which an update never changes (only Name, Description and
+                    // IsActive are saved), so a used status only needs protecting from deletion. Blocking
+                    // updates too meant For Approval / Approved could never even get a description fix.
                     var CheckIfAlreadyUse = await _db.tRevisionApprovals.AsNoTracking().FirstOrDefaultAsync(x => x.Status == data.NameId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
+                    if (CheckIfAlreadyUse != null && dto.TransactionType == CodeTransactionType.Delete)
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Revision Status In Use",
-                            Message = "The selected revision status is currently in use and cannot be updated or deleted."
+                            Message = "The selected revision status is currently in use and cannot be deleted."
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionStatus.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);

@@ -92,7 +92,8 @@ const ModificationReasonTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          // Revisions only offer active reasons, so a new reason must be created active.
+          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
           showToast({ type: 'success', message: 'Revision reason added.' });
           await refetch();
         } catch {
@@ -136,7 +137,10 @@ const ModificationReasonTable: React.FC = () => {
 
   const saveEdit = async () => {
     try {
-      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+      // Start from the stored row: CategoryId and IsActive are not on the form, and leaving them
+      // out made the server clear the categories and deactivate the reason on every edit.
+      const original = data.find(r => r.Id === editId);
+      await updateCodeTable(CODE, 1, JSON.stringify({ ...original, ...editForm, Id: editId }));
       showToast({ type: 'success', message: 'Modification reason updated.' });
       await refetch();
     } catch {
