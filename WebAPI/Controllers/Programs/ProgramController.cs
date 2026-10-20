@@ -844,27 +844,91 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
                 }
 
+                // 2026-10-20: BatchDelete and the restore take this lock before they read or write a
+                // program's projects. Without it a delete or restore that commits while this advance
+                // runs is carried forward, or lost. Taken before anything below is read; it is held
+                // until this transaction ends.
+                await _db.AcquireProgramDeletionLockAsync(ProgramParent.ProgramPK, cancellationToken);
+
                 var checkProjects = await _db.vProjectLatest
                 .Where(x => x.ProgramFK == ProgramParent.ProgramPK)
                 .AsNoTracking()
                 .ToListAsync(cancellationToken);
 
-                // 2026-10-20: a project deleted at the stage being left is not advanced.
-                // vProjectLatest picks a project's newest LIVE revision whatever its stage, and a
-                // soft delete flags only the current-stage revision, so a project deleted at NEP
-                // fell back to its still-live BP revision and was carried into NEP-E under its BP
-                // ProjectId. Active = a live revision at the stage being left (advancement
-                // specification, section 10). A project with no stage row here at all (legacy
-                // import) is kept, as before.
-                var StageRevisionStates = await (
+                // 2026-10-20: a project deleted at the stage being left is not advanced, now or at any
+                // later advance. vProjectLatest returns a project's newest LIVE revision whatever its
+                // stage, and a soft delete flags only the current-stage revision, so a project deleted
+                // at NEP falls back to its still-live BP revision and would be carried forward under
+                // its BP ProjectId. Active = a live revision at the stage being left (advancement
+                // specification, section 10).
+                // "No row at this stage" does not mean "legacy": a project dropped by an earlier
+                // advance has none either, and must stay dropped (delete at NEP, advance to NEP-E,
+                // advance again). Only a project with NO stage row anywhere in this program was never
+                // staged (a legacy import), and that one is kept, as before.
+                var LiveAtThisStage = (await (
                         from stage in _db.tProjectStages.AsNoTracking()
                         join revision in _db.tProjectRevisions.AsNoTracking() on stage.RevisionId equals revision.Id
-                        where stage.ProgramFK == ProgramParent.ProgramPK && stage.StageId == ProgramStage.StageId
-                        group revision by revision.ProjectFK into g
-                        select new { ProjectFK = g.Key, HasLive = g.Any(x => !x.IsDeleted) })
-                    .ToListAsync(cancellationToken);
-                var DeletedAtThisStage = StageRevisionStates.Where(x => !x.HasLive).Select(x => x.ProjectFK).ToHashSet();
-                checkProjects = checkProjects.Where(x => !DeletedAtThisStage.Contains(x.ProjectPK)).ToList();
+                        where stage.ProgramFK == ProgramParent.ProgramPK && stage.StageId == ProgramStage.StageId && !revision.IsDeleted
+                        select revision.ProjectFK)
+                    .Distinct().ToListAsync(cancellationToken))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var HasAnyStageRow = (await _db.tProjectStages.AsNoTracking()
+                        .Where(x => x.ProgramFK == ProgramParent.ProgramPK)
+                        .Select(x => x.ProjectFK).Distinct().ToListAsync(cancellationToken))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                bool HadProjects = checkProjects.Count > 0;
+                checkProjects = checkProjects
+                    .Where(x => LiveAtThisStage.Contains(x.ProjectPK) || !HasAnyStageRow.Contains(x.ProjectPK))
+                    .ToList();
+
+                string HostName = User.FindFirstValue("HostName")!;
+                string Date = CurrentDate.ToString("MMddyyyy");
+                string Time = CurrentDate.ToString("HHmmss");
+                string NewProgramUniqueId = $"{HostName}_{Date}_{Time}";
+
+                // The program-level writes: the new program revision and stage row. Shared by the
+                // normal path (after the projects are copied) and by a program whose every project
+                // was deleted at this stage, which advances with no projects (advancement
+                // specification AT-STG-007).
+                async Task<IActionResult> AdvanceProgramAsync()
+                {
+                    var NewProgramRevision = new DBHelper.Models.Table.Program.ProgramRevisions()
+                    {
+                        ProgramFK = ProgramParent.ProgramPK,
+                        ProgramId = NewProgramUniqueId,
+                        Name = dto.Name,
+                        Status = EnumProgramStatus.Working,
+                        Cost = ProgramRevision.Cost,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    };
+                    await _db.tProgramRevisions.AddAsync(NewProgramRevision);
+                    await _db.SaveChangesAsync(cancellationToken);
+                    var newStage = new DBHelper.Models.Table.Program.ProgramStages()
+                    {
+                        ProgramFK = ProgramParent.ProgramPK,
+                        ProgramId = NewProgramUniqueId,
+                        RevisionId = NewProgramRevision.Id,
+                        StageId = dto.Stage,
+                        StageName = ValidateStage.Name,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    };
+                    await _db.tProgramStages.AddAsync(newStage);
+                    await _db.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync();
+                    return Ok(new
+                    {
+                        Message = "Program updated successfully.",
+                        Title = "Update Stage Complete"
+                    });
+                }
+
+                if (HadProjects && checkProjects.Count == 0)
+                {
+                    // Every project was deleted at this stage: nothing to copy, the program still advances.
+                    return await AdvanceProgramAsync();
+                }
 
                 if (checkProjects.Count > 0)
                 {
@@ -887,10 +951,6 @@ namespace WebAPI.Controllers.Programs
 
                     var SupportingDocuments = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => ProjectRevisionFK.Contains(x.ProjectRevisionFK)).ToListAsync(cancellationToken);
 
-                    string HostName = User.FindFirstValue("HostName")!;
-                    string Date = CurrentDate.ToString("MMddyyyy");
-                    string Time = CurrentDate.ToString("HHmmss");
-                    string NewProgramUniqueId = $"{HostName}_{Date}_{Time}";
                     var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => ProjectRevisionFK.Contains(x.Id) && !x.IsDeleted).ToListAsync(cancellationToken);
                     List<ProjectRevisions> NewRevisions = new List<ProjectRevisions>();
                     if (ProjectRevisions.Count > 0)
@@ -1404,42 +1464,7 @@ namespace WebAPI.Controllers.Programs
                         #endregion
 
                         #endregion
-                        #region Program Level
-                        #region Program Revisions
-                        var NewProgramRevision = new DBHelper.Models.Table.Program.ProgramRevisions()
-                        {
-                            ProgramFK = ProgramParent.ProgramPK,
-                            ProgramId = NewProgramUniqueId,
-                            Name = dto.Name,
-                            Status = EnumProgramStatus.Working,
-                            Cost = ProgramRevision.Cost,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        };
-                        await _db.tProgramRevisions.AddAsync(NewProgramRevision);
-                        await _db.SaveChangesAsync(cancellationToken);
-                        #endregion
-                        #region Program Stages
-                        var newStage = new DBHelper.Models.Table.Program.ProgramStages()
-                        {
-                            ProgramFK = ProgramParent.ProgramPK,
-                            ProgramId = NewProgramUniqueId,
-                            RevisionId = NewProgramRevision.Id,
-                            StageId = dto.Stage,
-                            StageName = ValidateStage.Name,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        };
-                        await _db.tProgramStages.AddAsync(newStage);
-                        #endregion
-                        #endregion
-                        await _db.SaveChangesAsync(cancellationToken);
-                        await transaction.CommitAsync();
-                        return Ok(new
-                        {
-                            Message = "Program updated successfully.",
-                            Title = "Update Stage Complete"
-                        });
+                        return await AdvanceProgramAsync();
                     }
                 }
 
@@ -1463,6 +1488,18 @@ namespace WebAPI.Controllers.Programs
                     Message = "No projects are linked to this program.",
                     Title = "Project Link Missing"
                 });
+            }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                // The program's lock could not be had: a delete of this program is in progress.
+                // Nothing was written.
+                try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Update Failed" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
             }
             catch (Exception ex)
             {
