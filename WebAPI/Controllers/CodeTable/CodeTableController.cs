@@ -1181,9 +1181,10 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     // Checked against the stored Enum: the UI never sends Enum, so data.Enum was always 0
-                    // and an in-use delete fell through to the FK_tProjectMajorWorkItem_WorkType error.
+                    // and an in-use delete fell through to the FK_tProjectMajorWorkItem_WorkType / FK_tRevWork_WorkType error.
                     if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete
-                        && await _db.tProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.WorkTypeFK == CheckUpdate.Enum, cancellationToken))
+                        && (await _db.tProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.WorkTypeFK == CheckUpdate.Enum, cancellationToken)
+                            || await _db.tRevisionProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.WorkTypeFK == CheckUpdate.Enum, cancellationToken)))
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -1341,10 +1342,11 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The infra type with id {data.Id} is not found, please select another infra type."
                         });
                     }
-                    // Major items reference the InfraCode (FK_tProjectMajorWorkItem_InfraType), not the
+                    // Major items reference the InfraCode (FK_tProjectMajorWorkItem_InfraType, FK_tRevWork_InfraType), not the
                     // name, so only a delete or a code change can break them.
                     if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.InfraCode != data.InfraCode)
-                        && await _db.tProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.InfraTypeFK == CheckUpdate.InfraCode, cancellationToken))
+                        && (await _db.tProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.InfraTypeFK == CheckUpdate.InfraCode, cancellationToken)
+                            || await _db.tRevisionProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.InfraTypeFK == CheckUpdate.InfraCode, cancellationToken)))
                     {
                         return new BadRequestObjectResult(new
                         {
