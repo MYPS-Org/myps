@@ -38,6 +38,7 @@ import { CROSS_STAGE_FIXTURE_PROGRAM, listPrograms, post, programByPK } from './
 export const STAGE_BP = 1;
 export const STAGE_NEP = 2;
 export const STAGE_NEPE = 3;
+export const STAGE_HGAB = 4;
 
 export interface CrossStageProgram {
   ProgramPK: string;
