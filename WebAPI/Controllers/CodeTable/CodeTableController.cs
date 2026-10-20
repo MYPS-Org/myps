@@ -2066,6 +2066,9 @@ namespace WebAPI.Controllers.CodeTable
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        // The column defaults to GETDATE() in SQL, but EF always sends the CLR value,
+                        // and DateTime.MinValue is out of range for datetime: every Add failed.
+                        data.CreatedDate = CurrentDate;
                         await _db.tOptionAdminAreaRegion.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
@@ -2091,7 +2094,9 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Code!;
                             existing.Code = data.Code;
                         }
-                        if (existing.Hierarchy != data.Hierarchy)
+                        // The Code Tables UI has no Hierarchy field; null means "not sent", so keep the
+                        // stored value instead of blanking it (which also broke the NOT NULL log row).
+                        if (data.Hierarchy != null && existing.Hierarchy != data.Hierarchy)
                         {
                             transactionLog.AffectedColumn = "Hierarchy";
                             transactionLog.NewValue = data.Hierarchy!;
@@ -2112,6 +2117,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Deprecated ? "True" : "False";
                             existing.Deprecated = data.Deprecated;
                         }
+                        existing.UpdatedDate = CurrentDate;
                         _db.tOptionAdminAreaRegion.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
@@ -2172,6 +2178,8 @@ namespace WebAPI.Controllers.CodeTable
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        // Not left to the SQL default: EF sends DateTime.MinValue, which datetime rejects.
+                        data.CreatedDate = CurrentDate;
                         await _db.tOptionAdminAreaProvince.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
@@ -2190,7 +2198,8 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Code!;
                             existing.Code = data.Code;
                         }
-                        if (existing.Hierarchy != data.Hierarchy)
+                        // null = not sent by the UI: keep the stored Hierarchy.
+                        if (data.Hierarchy != null && existing.Hierarchy != data.Hierarchy)
                         {
                             transactionLog.AffectedColumn = "Hierarchy";
                             transactionLog.NewValue = data.Hierarchy!;
@@ -2211,6 +2220,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Deprecated ? "True" : "False";
                             existing.Deprecated = data.Deprecated;
                         }
+                        existing.UpdatedDate = CurrentDate;
                         _db.tOptionAdminAreaProvince.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
@@ -2269,6 +2279,8 @@ namespace WebAPI.Controllers.CodeTable
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        // Not left to the SQL default: EF sends DateTime.MinValue, which datetime rejects.
+                        data.CreatedDate = CurrentDate;
                         await _db.tOptionAdminAreaCityMunicipality.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
@@ -2287,7 +2299,8 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Code!;
                             existing.Code = data.Code;
                         }
-                        if (existing.Hierarchy != data.Hierarchy)
+                        // null = not sent by the UI: keep the stored Hierarchy.
+                        if (data.Hierarchy != null && existing.Hierarchy != data.Hierarchy)
                         {
                             transactionLog.AffectedColumn = "Hierarchy";
                             transactionLog.NewValue = data.Hierarchy!;
@@ -2308,6 +2321,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Deprecated ? "True" : "False";
                             existing.Deprecated = data.Deprecated;
                         }
+                        existing.UpdatedDate = CurrentDate;
                         _db.tOptionAdminAreaCityMunicipality.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
@@ -2366,6 +2380,8 @@ namespace WebAPI.Controllers.CodeTable
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        // Not left to the SQL default: EF sends DateTime.MinValue, which datetime rejects.
+                        data.CreatedDate = CurrentDate;
                         await _db.tOptionAdminAreaCongressionalDistrict.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
@@ -2384,7 +2400,8 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Code!;
                             existing.Code = data.Code;
                         }
-                        if (existing.Hierarchy != data.Hierarchy)
+                        // null = not sent by the UI: keep the stored Hierarchy.
+                        if (data.Hierarchy != null && existing.Hierarchy != data.Hierarchy)
                         {
                             transactionLog.AffectedColumn = "Hierarchy";
                             transactionLog.NewValue = data.Hierarchy!;
@@ -2405,6 +2422,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Deprecated ? "True" : "False";
                             existing.Deprecated = data.Deprecated;
                         }
+                        existing.UpdatedDate = CurrentDate;
                         _db.tOptionAdminAreaCongressionalDistrict.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
@@ -2488,6 +2506,8 @@ namespace WebAPI.Controllers.CodeTable
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        // Not left to the SQL default: EF sends DateTime.MinValue, which datetime rejects.
+                        data.CreatedDate = CurrentDate;
                         await _db.tOptionAdminOffice.AddAsync(data, cancellationToken);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
@@ -2527,6 +2547,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = existing.Deprecated ? "True" : "False";
                             existing.Deprecated = data.Deprecated;
                         }
+                        existing.UpdatedDate = CurrentDate;
                         _db.tOptionAdminOffice.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)

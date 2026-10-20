@@ -63,7 +63,7 @@ const CityTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, Name: item.Name, Code: item.Code, ProvinceCode: item.ProvinceCode, Deprecated: !nextActive }));
+          await updateCodeTable(CODE, 1, JSON.stringify({ ...item, Deprecated: !nextActive }));
           showToast({ type: 'success', message: `City/Municipality ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
         } catch {
@@ -109,7 +109,10 @@ const CityTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          // Start from the stored row so columns the form does not show (Hierarchy,
+          // Deprecated) are sent back unchanged instead of as blanks.
+          const original = rows.find(r => r.Id === editId);
+          await updateCodeTable(CODE, 1, JSON.stringify({ ...original, ...editForm, Id: editId }));
           showToast({ type: 'success', message: 'City/Municipality updated.' });
           await refetch();
         } catch {

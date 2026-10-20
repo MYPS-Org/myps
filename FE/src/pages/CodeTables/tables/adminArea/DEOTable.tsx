@@ -101,7 +101,10 @@ const DEOTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          // Start from the stored row so columns the form does not show
+          // (ParentParticipantId) are sent back unchanged instead of as blanks.
+          const original = rows.find(r => r.Id === editId);
+          await updateCodeTable(CODE, 1, JSON.stringify({ ...original, ...editForm, Id: editId }));
           showToast({ type: 'success', message: 'DEO updated.' });
           await refetch();
         } catch {
