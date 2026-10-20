@@ -1,6 +1,6 @@
 # Plan: Stage advance must not bring back deleted projects (follow-ups to d74923df)
 
-Status: Approved
+Status: Implemented
 Created: 2026-10-20
 Source: Code review of commit d74923df ("Do not advance a project that was deleted at the stage being left") on branch `fix/advance-skips-deleted-projects`
 
@@ -115,3 +115,10 @@ All code changes are inside `UpdateProgramStage`.
 - **Assumption:** a project with `tProjectStages` rows in this program but none at the current stage was dropped by an earlier advance or restored at an older stage, so it should not be advanced. If the business wants restored-at-older-stage projects to rejoin on the next advance, that needs a separate decision.
 - **Assumption:** the current `vProjectLatest` still falls back across stages. The repo only has a pre-fix backup of the view (`Main/Resources/Internal/SQLScripts/vProjectLatest_backup_pre_split_brain_fix_20260910.sql`), so check the live definition on your local DB before relying on it.
 - The extra query (`HasAnyStageRow`) adds one round trip per advance. It reads only `tProjectStages` for one program, so the cost is small.
+
+## Completion Log
+Date: 2026-10-20
+- Implementation (all in `UpdateProgramStage`): the per-program lock is taken before anything is read, with the 400 / 409 catch clauses; the filter keeps a project only if it is live at the stage being left or has no stage row anywhere in the program, with case-insensitive matching; the program-level writes moved into a local `AdvanceProgramAsync()` so a program whose every project was deleted at this stage advances with no projects (AT-STG-007).
+- Tests: two opt-in cases added to `batch-delete-restore-cross-stage.spec.ts` (two-hop; all-deleted), `STAGE_HGAB` added to the fixture. The two-hop test goes to HGAB, not GAA. Against a first-fix-only build the two-hop test fails (A returns at HGAB) and the all-deleted test fails (400 "No projects are linked"); against the new build all four cross-stage tests pass.
+- Verification environment: the fix was run on `fix/projectid-shared-sequence` plus these commits, against the local `myps_db_dev`, because on `main` alone the BP to NEP advance collides on a P-family ProjectId before this code is reached (the shared-sequence defect that branch fixes). The e2e helper was pointed at Category 17 for the run (Category 1 is expired and refused by that branch) and reverted afterwards. The lock's 400 / 409 paths were not exercised.
+- Merge note: this branch and `fix/projectid-shared-sequence` both add `catch` clauses after `UpdateProgramStage`; whichever merges second conflicts there and keeps both sets.
