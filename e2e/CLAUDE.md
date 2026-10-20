@@ -106,7 +106,7 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 | AddProject (`/projects/addproject`) | `tests/project-form.spec.ts` | Yes — both dropdown endpoints must answer 200, not merely be requested |
 | Dashboard | `tests/dashboard-real-data.spec.ts` | Yes — the demo path asserts the page issues **no `/api/Dashboard/` request at all**; the live path (skipped against `LIVE_DB_ENABLED`) asserts eager KPIs, lazy per-section loading on scroll, and that the split endpoints reconcile with each other. See *The dashboard's Live DB switch* |
 | UserManagement | — | No |
-| InfraManagement | — | No |
+| InfraManagement — Roads pagination | `tests/rbia-road-pagination.spec.ts` | **Partly.** Covers only the pager: Next/Previous keyset hops carry `Navigation`+cursor and land on genuinely different rows; First/Last are one-shot jumps; a numbered page button walks hop-by-hop the first time it's visited and becomes a single `Navigation: Page` request once cached. Written against the exact bug the BE's keyset-only `ShowFutureRoads` has — a bare `{ page, limit }` silently defaults to `Navigation.First` and re-renders page 1 forever; confirmed to fail against the pre-fix hook. Road Sections / Bridges pagers, and the rest of the Roads tab (search, filter, add/edit/delete), are still uncovered. Asks the server for the road total first and **skips, naming the count, on a database with fewer than 41 future roads** (three pages of 20); every read of the captured calls waits via `expect.poll`, since `captureApiCalls` records a call only after its body is read |
 | ProgramList | — | No |
 | ProgramDetails — Batch Actions | `tests/program-detail-batch-actions.spec.ts` | **Partly** — the batch menu only. Batch Delete removes the row from the table **with no page reload**, which is the assertion the pre-fix build fails; the publish actions are asserted hidden until the program is Approved, and Restrict Publishing is asserted to re-query the table after its own call. Uses the approval fixture program, the only one the suite may approve. The rest of the page (header form, stage advance, publish to PCMA) is still uncovered |
 | ProgramDetails — Batch Delete / Restore across stages | `tests/batch-delete-restore-cross-stage.spec.ts` | **Partly** — API level. Default test: on the cross-stage fixture program, a delete at NEP leaves the project listed at BP (rule #1), a restore lists it at NEP again, and a second restore is refused. The true rule #2 test (restore after the program moved on) is **opt-in** (`E2E_ALLOW_ORPHANS=1`) and **fails today on a real product defect**; see *The cross-stage fixture program* |
@@ -196,6 +196,13 @@ sample fixture could not run and the module started empty:
   nothing else — so an `UpdateLumpSum` that rewrites the Description must write it again. One
   did not, stranding a parent holding 200,000,000 of a program's allocation, which is exactly
   the figure other specs assert on. **If a spec rewrites a Description, keep the marker.**
+
+A fourth, found 2026-10-20: **the pager test's last step searched for `RUN_TAG` but relied on
+the filter test before it to have made the only row carrying it.** `RUN_TAG` is computed when
+the file loads, so running the pager test alone (`-g`), or after the filter test failed
+(Playwright restarts the worker and `RUN_TAG` changes), searched for a tag no row carried and
+timed out on an empty table. It now provisions its own tagged row, after its paging
+assertions, so the row cannot move page 1 or the cursor under them.
 
 ### The dashboard's Live DB switch
 

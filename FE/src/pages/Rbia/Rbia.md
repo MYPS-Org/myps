@@ -224,6 +224,8 @@ interface RoadFilter     { RoadId?: string; Name?: string; Classification?: stri
 interface RoadSectionFilter { RoadId?: string; RoadSectionId?: string; DEO?: string; RoadLength?: string; }
 interface BridgeFilter   { RoadSectionId?: string; BridgeId?: string; Name?: string; From?: number; Length?: number; CarriageWay?: number; }
 
+// All three also carry the optional keyset-pagination fields (BE's FilterDataCursor contract):
+// Navigation?: PaginationNavigationValue; PreviousFilteredId?/NextFilteredId?/PageCursorId?: number | null;
 interface RoadPagination extends PaginationParams        { filters?: RoadFilter; sortField?: string; sortDirection?: 0 | 1; }
 interface RoadSectionPagination extends PaginationParams { filters?: RoadSectionFilter; sortField?: string; sortDirection?: 0 | 1; }
 interface BridgePagination extends PaginationParams      { filters?: BridgeFilter; sortField?: string; sortDirection?: 0 | 1; }
@@ -255,20 +257,28 @@ All three hooks follow the same contract pattern. Here is `useRoadData` as the c
   hasActiveFilters: boolean;           // Derived atom — true if any filter is non-empty
 
   // Data actions
-  initializeData(): Promise<void>;     // Fetches init enums + initial page data in parallel
-  fetchRoadData(filters?): Promise<void>;
+  initializeData(): Promise<void>;     // Fetches init enums only — the road list itself is
+                                        // fetched by the hook's internal usePagination instance
   handleSearch(searchTerm): Promise<void>;
   handleSearchInputChange(value): void;
   handleSearchSubmit(): Promise<void>;
   handleClearSearch(): Promise<void>;
-  handlePagination(page): Promise<void>;
+  handlePagination(page): void;
   handleSort(field, direction: 'asc'|'desc'): Promise<void>;
   handleFilterChange(newFilters): Promise<void>;
 
-  // Optimistic updates (modify atom state without re-fetch)
-  removeRoadFromState(roadId): void;
-  addRoadToState(newRoad): void;
-  updateRoadInState(updatedRoad): void;
+  // Keyset pagination controls (pass-through from FE/src/hooks/usePagination.ts)
+  hasPrevious: boolean;
+  hasNext: boolean;
+  goNext(): void;
+  goPrevious(): void;
+  goFirst(): void;
+  goLast(): void;
+
+  // Optimistic updates
+  removeRoadFromState(roadId): void;   // re-fetches page 1 via pagination.applyFilters()
+  addRoadToState(newRoad): void;       // dead code — not called by any dialog today
+  updateRoadInState(updatedRoad): void; // dead code — not called by any dialog today
 
   // Direct setters (escape hatch)
   setSearchInput(value): void;
@@ -277,25 +287,50 @@ All three hooks follow the same contract pattern. Here is `useRoadData` as the c
 }
 ```
 
+### Pagination
+
+As of the keyset-pagination fix, all three hooks delegate the actual list fetch to the shared
+`usePagination` hook (`FE/src/hooks/usePagination.ts`) instead of hand-rolling `{ page, limit,
+filters }` requests. The BE's `ShowFutureRoads`/`ShowFutureRoadSections`/`ShowFutureBridge`
+endpoints use keyset/cursor pagination (`Helpers.QueryPaginationExtensions.FilterDataCursor`) —
+every request must carry a `Navigation` enum (`First`/`Previous`/`Next`/`Last`/`Page`) plus the
+matching cursor (`PreviousFilteredId`/`NextFilteredId`/`PageCursorId`), or the BE silently forces
+page 1. Each hook defines a small adapter (same shape as `AddInfraDialog.tsx`'s
+`fetchRoadSectionsForDialog`/`fetchBridgesForDialog`) translating `usePagination`'s
+`PaginatedRequest<TFilter>` into the lowercase-`filters` shape the existing `fetchRoads`/
+`fetchRoadSectionData`/`fetchBridgeData` service calls expect. `usePagination`'s `data` is mirrored
+into the existing `roadDataAtom`/`roadSectionDataAtom`/`bridgeDataAtom` via a `useEffect`, so
+`roadsCountAtom`/legacy list atoms keep working unchanged. The three list components
+(`Road.tsx`/`RoadSection.tsx`/`Bridge.tsx`) render the shared `PaginationBar` component
+(`FE/src/components/tailwindui/PaginationBar.tsx`) wired to `hasPrevious`/`hasNext`/`goNext`/
+`goPrevious`/`goFirst`/`goLast`/`handlePagination`.
+
 ### Initialization Pattern
 
-Each hook's `initializeData` fires multiple parallel requests:
+Each hook's `initializeData` now only fetches init enums (classifications/DEO lists) — the list
+itself is fetched by `usePagination`'s own mount-time `Navigation: First` request, not by
+`initializeData`:
 
-- **`useRoadData`**: `Promise.all([fetchRoadInitData(), fetchRoadSectionInitData(), fetchRoads(filters)])`
-  - Loads road classifications + DEO list + first page of roads simultaneously.
-- **`useRoadSectionData`**: `Promise.all([fetchRoadSectionData(filters), fetchRoadSectionInitData()])`
-- **`useBridgeData`**: `Promise.all([fetchBridgeData(filters), fetchBridgeInitData()])`
+- **`useRoadData`**: `Promise.all([fetchRoadInitData(), fetchRoadSectionInitData()])`
+  - Loads road classifications + DEO list. The first page of roads is fetched separately by `usePagination`.
+- **`useRoadSectionData`**: `fetchRoadSectionInitData()`
+- **`useBridgeData`**: `fetchBridgeInitData()`
 
 ### Optimistic Update Pattern
 
 On delete:
 1. Dialog calls API → success → calls `onSubmit(id)`.
-2. Component calls `removeXFromState(id)` → write-only atom removes row from current paginated list.
-3. No re-fetch triggered. `total` is decremented by 1.
+2. Component calls `removeXFromState(id)` → calls `pagination.applyFilters(currentFilters)`,
+   which re-fetches from page 1 with cursors cleared. A keyset page's cursors can't be trusted
+   after a local splice, so this is a real re-fetch rather than an instant local removal — a brief
+   loading state may be visible where there previously wasn't one. `applyFilters` (not `refresh()`)
+   is used deliberately: if the deleted row was the last one on the last page, `refresh()` would
+   re-request that now-nonexistent page with a stale cursor (same fix applied in
+   `FE/src/pages/Program/Views/ProgramDetail.tsx`'s `refreshProjects`). The trade-off is that the
+   list always jumps back to page 1 after a delete, even when the current page is still valid.
 
-On add/edit:
-- `addRoadToState` prepends to `lists`, increments `total`.
-- `updateRoadInState` replaces matching row in `lists` by `RoadId`.
+On add/edit: `addXToState`/`updateXInState` still exist but, as before this fix, are not called by
+any dialog (see Known Issues).
 
 ---
 
@@ -448,7 +483,7 @@ Island code is the trailing alphabetic suffix: regex `/[A-Za-z]+$/`.
 ## Known Issues / Notes
 
 - **Tab re-mounts on switch**: Each time a tab is clicked, the component re-mounts and `initializeData()` re-fetches data. There is no keep-alive or data caching between tab switches.
-- **Counts vs. paginated totals**: `roadCount`, `roadSectionCount`, `bridgeCount` on the tab badges come from `getInfraCounts()` (fetched once on mount). They do not update after add/delete operations. The paginated `total` inside the data atom is updated optimistically and shown in the per-component footer.
+- **Counts vs. paginated totals**: `roadCount`, `roadSectionCount`, `bridgeCount` on the tab badges come from `getInfraCounts()` (fetched once on mount). They do not update after add/delete operations. The paginated `total` inside the data atom comes from the BE response and is refreshed (not optimistically patched) after a delete — see Pagination section above.
 - **Add Road Section / Add Bridge standalone**: Both "Add Road Section" and "Add Bridge" standalone buttons are commented out in `RoadSection.tsx` and `Bridge.tsx`. These entities can only be created from their parent entity row ("Add Section" on Road, "Add Bridge" on Road Section).
 - **Import checkboxes are UI-only granularity**: The GIS API has no per-entity import — only "import all infrastructure" and "import all admin/org lookups". So checking just "Roads" still imports road sections and bridges too (and vice versa); same for the two admin/org checkboxes.
 - **`FutureRoadDialog` optimistic add**: After `addFutureRoad` succeeds, the dialog pushes `formData` to the legacy `roadsAtom` array but does NOT update the paginated `roadDataAtom`. This means the table does not show the new road until a re-fetch. The `addRoadToState` optimistic helper exists in the hook but is not called from the dialog currently.

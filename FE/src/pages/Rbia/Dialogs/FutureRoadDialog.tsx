@@ -3,9 +3,8 @@ import { useAtom } from "jotai";
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
-import { roadsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
+import { roadsAtom, roadClassificationsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
 import { addFutureRoad, editFutureRoad } from "../Service";
-import { useRoadData } from "../hooks";
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface FutureRoadDialogProps {
@@ -16,8 +15,10 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
   const { showToast } = useToast();
   const [roads, setRoads] = useAtom(roadsAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
-  // Hook
-  const { roadClassifications } = useRoadData();
+  // Classifications are populated by the Road list's useRoadData() on mount; read the atom
+  // directly here instead of useRoadData() so opening this dialog doesn't also mount a
+  // second, unwanted paginated roads fetch (useRoadData() now owns a usePagination instance).
+  const [roadClassifications] = useAtom(roadClassificationsAtom);
   const [formData, setFormData] = useState<Road>({
     Id: 0,
     RoadId: "",

@@ -242,7 +242,16 @@ test.describe('Lump Sum — full UI walkthrough', () => {
 
     /*  A search that narrows below one page drops the bar entirely, which is
         the proof that applyFilters cleared the cursors rather than paging on
-        inside the old, wider set. */
+        inside the old, wider set.
+
+        THE ROW IT SEARCHES FOR IS MADE HERE. It used to be the filter probe from
+        the test above — but RUN_TAG is computed when the file loads, so running
+        this test alone, or after that one failed (Playwright restarts the worker,
+        and RUN_TAG changes with it), searched for a tag no row carried and timed
+        out on an empty table. One tagged row, made only now that the paging
+        assertions are done, so it cannot move page 1 or the cursor under them;
+        with the probe it is still two rows, well inside one page. */
+    await provisionLumpSum(page, 1_000_000, `${RUN_TAG} pager probe`);
     await page.getByPlaceholder('Search by description...').fill(RUN_TAG);
     await card.getByRole('button', { name: 'Search' }).click();
     /*  Rows present AND no Next — in one predicate. PaginationBar sits inside

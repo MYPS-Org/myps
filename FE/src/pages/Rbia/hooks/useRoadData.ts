@@ -1,43 +1,74 @@
 import { useAtom } from 'jotai';
-import { useCallback } from 'react';
-import { 
-  roadDataAtom, 
-  roadFiltersAtom, 
+import { useCallback, useEffect } from 'react';
+import {
+  roadFiltersAtom,
   roadClassificationsAtom,
   roadLoadingAtom,
   roadSearchInputAtom,
   updateRoadDataAtom,
   updateRoadFiltersAtom,
   clearRoadFiltersAtom,
-  hasActiveRoadFiltersAtom, 
+  hasActiveRoadFiltersAtom,
   deoListAtom
 } from '../state/rbiaAtoms';
 import { fetchRoads, fetchRoadInitData, fetchRoadSectionInitData } from '../Service';
-import type { RoadPagination } from '../Model.d';
+import type { FutureRoads, RoadFilter, RoadPagination } from '../Model.d';
+import { usePagination } from '../../../hooks/usePagination';
+
+// The BE's ShowFutureRoads endpoint uses keyset pagination (Helpers.QueryPaginationExtensions.
+// FilterDataCursor) — a request must carry Navigation (+ the matching cursor) or the BE silently
+// forces page 1 (its DTO default is Navigation.First). This adapter translates usePagination's
+// PaginatedRequest<RoadFilter> shape into the lowercase-`filters` request shape fetchRoads already
+// expects, forwarding the keyset fields through untouched.
+const fetchRoadsForPagination = (params: PaginatedRequest<RoadFilter>) =>
+  fetchRoads({
+    filters: params.Filters,
+    sortField: params.SortField ?? '',
+    sortDirection: params.sortDirection ?? 1,
+    page: params.page,
+    limit: params.limit,
+    Navigation: params.Navigation,
+    PreviousFilteredId: params.PreviousFilteredId,
+    NextFilteredId: params.NextFilteredId,
+    PageCursorId: params.PageCursorId,
+  } as RoadPagination);
 
 export const useRoadData = () => {
-  const [roadData] = useAtom(roadDataAtom);
   const [roadFilters] = useAtom(roadFiltersAtom);
   const [roadClassifications, setRoadClassifications] = useAtom(roadClassificationsAtom);
   const [initRoadSections, setInitRoadSections] = useAtom(deoListAtom);
-  const [isLoading, setIsLoading] = useAtom(roadLoadingAtom);
+  const [isInitLoading, setIsInitLoading] = useAtom(roadLoadingAtom);
   const [searchInput, setSearchInput] = useAtom(roadSearchInputAtom);
   const [hasActiveFilters] = useAtom(hasActiveRoadFiltersAtom);
   const [, updateRoadData] = useAtom(updateRoadDataAtom);
   const [, updateRoadFilters] = useAtom(updateRoadFiltersAtom);
   const [, clearRoadFilters] = useAtom(clearRoadFiltersAtom);
 
-  // Initialize data - fetch initial roads and classifications
+  const pagination = usePagination<RoadFilter, FutureRoads>(fetchRoadsForPagination, {
+    initialFilters: roadFilters.filters,
+    limit: roadFilters.limit,
+    sortField: roadFilters.sortField,
+    sortDirection: roadFilters.sortDirection,
+  });
+
+  // Mirror usePagination's data into roadDataAtom so other code reading it
+  // (roadsCountAtom, legacy roadsAtom, etc.) keeps working unchanged.
+  useEffect(() => {
+    updateRoadData(pagination.data);
+  }, [pagination.data, updateRoadData]);
+
+  const roadData = pagination.data;
+  const isLoading = isInitLoading || pagination.isLoading;
+
+  // Initialize data - fetch classifications and DEO sections (roads themselves are fetched by usePagination on mount)
   const initializeData = useCallback(async () => {
-    setIsLoading(true);
+    setIsInitLoading(true);
     try {
-      const [classificationsResponse, sectionResponse, roadsResponse] = await Promise.all([
+      const [classificationsResponse, sectionResponse] = await Promise.all([
         fetchRoadInitData(),
-        fetchRoadSectionInitData(),
-        fetchRoads(roadFilters)
+        fetchRoadSectionInitData()
       ]);
-      
-      updateRoadData(roadsResponse.Data);
+
       // Extract Classifications array from the response
       setRoadClassifications(classificationsResponse.Data.Classifications);
       setInitRoadSections(sectionResponse.Data.DEOs);
@@ -46,45 +77,19 @@ export const useRoadData = () => {
       console.error('Error initializing road data:', error);
       throw error;
     } finally {
-      setIsLoading(false);
+      setIsInitLoading(false);
     }
-  }, [roadFilters, updateRoadData, setRoadClassifications, setIsLoading]);
-
-  // Fetch roads with current filters
-  const fetchRoadData = useCallback(async (filters?: Partial<RoadPagination>) => {
-    setIsLoading(true);
-    try {
-      const filtersToUse: RoadPagination = {
-        ...roadFilters,
-        ...filters
-      };
-      const response = await fetchRoads(filtersToUse);
-      updateRoadData(response.Data);
-      
-      if (filters) {
-        updateRoadFilters(filters);
-      }
-    } catch (error) {
-      console.error('Error fetching road data:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [roadFilters, updateRoadData, updateRoadFilters, setIsLoading]);
+  }, [setRoadClassifications, setInitRoadSections, setIsInitLoading]);
 
   // Handle search functionality
   const handleSearch = useCallback(async (searchTerm: string) => {
-    const updatedFilters = {
-      ...roadFilters,
-      filters: {
-        ...roadFilters.filters,
-        Name: searchTerm
-      },
-      page: 1
+    const newFilters: RoadFilter = {
+      ...roadFilters.filters,
+      Name: searchTerm
     };
-    
-    await fetchRoadData(updatedFilters);
-  }, [roadFilters, fetchRoadData]);
+    updateRoadFilters({ filters: newFilters, page: 1 });
+    pagination.applyFilters(newFilters);
+  }, [roadFilters, updateRoadFilters, pagination]);
 
   // Handle search input change
   const handleSearchInputChange = useCallback((value: string) => {
@@ -99,75 +104,58 @@ export const useRoadData = () => {
   // Handle clear search/filters
   const handleClearSearch = useCallback(async () => {
     clearRoadFilters();
-    await fetchRoadData({
-      filters: {
-        Name: '',
-        RoadId: '',
-        Classification: ''
-      },
-      page: 1,
-      limit: 20,
-      sortField: '',
-      sortDirection: 1
-    });
-  }, [clearRoadFilters, fetchRoadData]);
+    const clearedFilters: RoadFilter = {
+      Name: '',
+      RoadId: '',
+      Classification: ''
+    };
+    pagination.applyFilters(clearedFilters);
+  }, [clearRoadFilters, pagination]);
 
   // Handle pagination
-  const handlePagination = useCallback(async (page: number) => {
-    const updatedFilters = {
-      ...roadFilters,
-      page
-    };
-    
-    await fetchRoadData(updatedFilters);
-  }, [roadFilters, fetchRoadData]);
+  const handlePagination = useCallback((page: number) => {
+    pagination.goToPage(page);
+  }, [pagination]);
 
-  // Handle sorting
+  // Handle sorting. NOTE: usePagination's sortField/sortDirection are frozen at hook-init time
+  // (by design — no column-sort UI wires this yet), so applyFilters here re-fetches with the
+  // *previous* sort order, not the new one. Not fixed here — Road.tsx never calls this (its sort
+  // headers only update local arrow-indicator state), pre-existing and out of scope for the
+  // pagination fix. Would need usePagination itself extended to support dynamic sort.
   const handleSort = useCallback(async (field: string, direction: 'asc' | 'desc') => {
-    const updatedFilters: Partial<RoadPagination> = {
-      ...roadFilters,
-      sortField: field,
-      sortDirection: direction === 'asc' ? 0 : 1,
-      page: 1 // Reset to first page when sorting
-    };
-    
-    await fetchRoadData(updatedFilters);
-  }, [roadFilters, fetchRoadData]);
+    const sortDirection = direction === 'asc' ? 0 : 1;
+    updateRoadFilters({ sortField: field, sortDirection, page: 1 });
+    pagination.applyFilters(roadFilters.filters ?? {});
+  }, [roadFilters, updateRoadFilters, pagination]);
 
   // Handle filter changes
   const handleFilterChange = useCallback(async (newFilters: Partial<RoadPagination>) => {
-    const updatedFilters = {
-      ...roadFilters,
-      ...newFilters,
-      page: 1 // Reset to first page when filtering
-    };
-    
-    await fetchRoadData(updatedFilters);
-  }, [roadFilters, fetchRoadData]);
+    updateRoadFilters({ ...newFilters, page: 1 });
+    pagination.applyFilters(newFilters.filters ?? roadFilters.filters ?? {});
+  }, [roadFilters, updateRoadFilters, pagination]);
 
-  // Remove road from local state (for optimistic updates)
+  // Remove road from local state (for optimistic updates) — re-fetches from the BE instead of
+  // splicing locally: a keyset page's cursors can't be trusted after a local splice. Uses
+  // applyFilters (page 1, cursors cleared) rather than refresh(): if the deleted row was the last
+  // one on the last page, refresh() would re-request that now-nonexistent page with a stale
+  // cursor (see FE/src/pages/Program/Views/ProgramDetail.tsx's refreshProjects for the same fix).
   const removeRoadFromState = useCallback((roadId: string) => {
-    const updatedLists = roadData.lists.filter(road => road.RoadId !== roadId);
-    updateRoadData({
-      ...roadData,
-      lists: updatedLists,
-      total: roadData.total - 1
-    });
-  }, [roadData, updateRoadData]);
+    void roadId; // kept for call-site compatibility
+    pagination.applyFilters(pagination.currentFilters ?? {});
+  }, [pagination]);
 
   // Add road to local state (for optimistic updates)
   const addRoadToState = useCallback((newRoad: any) => {
-    const updatedLists = [newRoad, ...roadData.lists];
     updateRoadData({
       ...roadData,
-      lists: updatedLists,
+      lists: [newRoad, ...roadData.lists],
       total: roadData.total + 1
     });
   }, [roadData, updateRoadData]);
 
   // Update road in local state (for optimistic updates)
   const updateRoadInState = useCallback((updatedRoad: any) => {
-    const updatedLists = roadData.lists.map(road => 
+    const updatedLists = roadData.lists.map(road =>
       road.RoadId === updatedRoad.RoadId ? updatedRoad : road
     );
     updateRoadData({
@@ -185,10 +173,9 @@ export const useRoadData = () => {
     isLoading,
     searchInput,
     hasActiveFilters,
-    
+
     // Actions
     initializeData,
-    fetchRoadData,
     handleSearch,
     handleSearchInputChange,
     handleSearchSubmit,
@@ -196,12 +183,20 @@ export const useRoadData = () => {
     handlePagination,
     handleSort,
     handleFilterChange,
-    
+
+    // Pagination (keyset) controls — see FE/src/hooks/usePagination.ts
+    hasPrevious: pagination.hasPrevious,
+    hasNext: pagination.hasNext,
+    goNext: pagination.goNext,
+    goPrevious: pagination.goPrevious,
+    goFirst: pagination.goFirst,
+    goLast: pagination.goLast,
+
     // Optimistic updates
     removeRoadFromState,
     addRoadToState,
     updateRoadInState,
-    
+
     // Direct state setters
     setSearchInput,
     updateRoadFilters,

@@ -23,6 +23,12 @@ export interface RoadPagination extends PaginationParams {
   filters?: RoadFilter;
   sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
   sortDirection?: 0 | 1;
+  // Optional keyset-pagination fields (BE's FilterDataCursor contract — see Pagination.d.ts).
+  // Additive/optional so existing callers that only send page/limit keep compiling untouched.
+  Navigation?: PaginationNavigationValue;
+  PreviousFilteredId?: number | null;
+  NextFilteredId?: number | null;
+  PageCursorId?: number | null;
 }
 export interface RoadFilter {
   RoadId?: string;
