@@ -197,6 +197,13 @@ sample fixture could not run and the module started empty:
   did not, stranding a parent holding 200,000,000 of a program's allocation, which is exactly
   the figure other specs assert on. **If a spec rewrites a Description, keep the marker.**
 
+A fourth, found 2026-10-20: **the pager test's last step searched for `RUN_TAG` but relied on
+the filter test before it to have made the only row carrying it.** `RUN_TAG` is computed when
+the file loads, so running the pager test alone (`-g`), or after the filter test failed
+(Playwright restarts the worker and `RUN_TAG` changes), searched for a tag no row carried and
+timed out on an empty table. It now provisions its own tagged row, after its paging
+assertions, so the row cannot move page 1 or the cursor under them.
+
 ### The dashboard's Live DB switch
 
 `FE/src/pages/Dashboard/Dashboard.tsx` exports `LIVE_DB_ENABLED`, and
