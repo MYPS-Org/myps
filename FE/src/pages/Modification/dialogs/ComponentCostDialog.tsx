@@ -428,19 +428,19 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         for (let i = 0; i < validPerYearCosts.length; i++) {
           const cost = validPerYearCosts[i];
           if (!cost.Year || cost.Year <= 0) {
-            showToast({ type: 'error', message: `Please enter a valid year for cost entry ${i + 1}.` });
+            showToast({ type: 'error', message: 'Please enter a valid year.' });
             return;
           }
           if (cost.Amount == null || cost.Amount < 0) {
-            showToast({ type: 'error', message: `Please enter a valid amount for cost entry ${i + 1}.` });
+            showToast({ type: 'error', message: 'Please enter a valid amount.' });
             return;
           }
           if (!cost.StartDate) {
-            showToast({ type: 'error', message: `Please select a Start Date for cost entry ${i + 1}.` });
+            showToast({ type: 'error', message: 'Please select a Start Date.' });
             return;
           }
           if (!cost.EndDate) {
-            showToast({ type: 'error', message: `Please select an End Date for cost entry ${i + 1}.` });
+            showToast({ type: 'error', message: 'Please select an End Date.' });
             return;
           }
         }
