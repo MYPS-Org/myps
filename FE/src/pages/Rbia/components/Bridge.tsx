@@ -12,7 +12,7 @@ import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
 import DeleteBridgeDialog from "../Dialogs/DeleteBridgeDialog";
 import FilterBridgeDialog from "../Dialogs/FilterBridgeDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
-import { Pagination, PaginationList, PaginationNext, PaginationPrevious, PaginationPage, PaginationGap } from "../../../components/tailwindui/pagination";
+import { PaginationBar } from "../../../components/tailwindui/PaginationBar";
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
   children, 
@@ -73,7 +73,13 @@ const FutureBridgeList: React.FC = () => {
     handleClearSearch,
     handlePagination,
     handleFilterChange,
-    removeBridgeFromState
+    removeBridgeFromState,
+    hasPrevious,
+    hasNext,
+    goNext,
+    goPrevious,
+    goFirst,
+    goLast
   } = useBridgeData();
 
   // Initialize data on component mount
@@ -287,55 +293,18 @@ const FutureBridgeList: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      <Pagination className="my-6">
-        {bridgeData.totalPages > 1 && (
-          <>
-            <PaginationPrevious 
-              onClick={async () => await Paginate(1)}
-              disabled={bridgeData.page <= 1 || isLoading}
-            >
-              First
-            </PaginationPrevious>
-            <PaginationList>
-              {Array.from({ length: bridgeData.totalPages }, (_, i) => {
-                const pageNum = i + 1;
-                const currentPage = bridgeData.page;
-                const totalPages = bridgeData.totalPages;
-                
-                // Show first page, last page, current page, and pages around current
-                if (
-                  pageNum === 1 ||
-                  pageNum === totalPages ||
-                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                ) {
-                  return (
-                    <PaginationPage
-                      key={pageNum}
-                      onClick={async () => await Paginate(pageNum)}
-                      current={pageNum === currentPage}
-                      // disabled={isLoading}
-                    >
-                      {pageNum}
-                    </PaginationPage>
-                  );
-                } else if (
-                  pageNum === currentPage - 2 ||
-                  pageNum === currentPage + 2
-                ) {
-                  return <PaginationGap key={pageNum} />;
-                }
-                return null;
-              })}
-            </PaginationList>
-            <PaginationNext 
-              onClick={async () => await Paginate(bridgeData.totalPages)}
-              disabled={bridgeData.page >= bridgeData.totalPages || isLoading}
-            >
-              Last
-            </PaginationNext>
-          </>
-        )}
-      </Pagination>
+      <PaginationBar
+        currentPage={bridgeData.page}
+        totalPages={bridgeData.totalPages}
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        onGoToPage={Paginate}
+        onNext={goNext}
+        onPrevious={goPrevious}
+        onFirst={goFirst}
+        onLast={goLast}
+        isLoading={isLoading}
+      />
 
       {/* Footer info */}
       <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>

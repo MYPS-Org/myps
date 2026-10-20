@@ -271,6 +271,17 @@ const EntityActions = ({ entity, entityType }: { entity: any, entityType: 'road'
 };
 ```
 
+> **Note on `removeXFromState` (post keyset-pagination fix):** the `removeRoadFromState`/
+> `removeRoadSectionFromState`/`removeBridgeFromState` calls shown above no longer just splice the
+> row out of local state — they trigger a real re-fetch via `usePagination`'s `applyFilters()`
+> (page 1, cursors cleared), not `refresh()`. This is because the BE's pagination is
+> keyset/cursor-based: a page's cursors can't be trusted once a row has been removed out from
+> under them, and `refresh()` specifically re-requests the *same* page number — if the deleted row
+> was the last one on the last page, that page no longer exists and its cursor is stale. See
+> `Rbia.md`'s "Pagination" section for the full keyset-pagination contract. `updateXInState` is
+> unaffected and still patches local state directly (though, as noted in `Rbia.md`'s Known Issues,
+> no dialog currently calls it).
+
 ## Benefits
 
 1. **Centralized State Management**: All entity-related state is managed consistently

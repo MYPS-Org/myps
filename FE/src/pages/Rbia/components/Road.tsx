@@ -14,7 +14,7 @@ import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
 import DeleteRoadDialog from "../Dialogs/DeleteRoadDialog";
 import FilterRoadDialog from "../Dialogs/FilterRoadDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
-import { Pagination, PaginationList, PaginationNext, PaginationPrevious, PaginationPage, PaginationGap } from "../../../components/tailwindui/pagination";
+import { PaginationBar } from "../../../components/tailwindui/PaginationBar";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -78,7 +78,13 @@ const FutureRoadList: React.FC = () => {
     handleClearSearch,
     handlePagination,
     handleFilterChange,
-    removeRoadFromState
+    removeRoadFromState,
+    hasPrevious,
+    hasNext,
+    goNext,
+    goPrevious,
+    goFirst,
+    goLast
   } = useRoadData();
 
   // Initialize data on component mount
@@ -279,55 +285,18 @@ const FutureRoadList: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      <Pagination className="my-6">
-        {roadData.totalPages > 1 && (
-          <>
-            <PaginationPrevious 
-              onClick={async () => await Paginate(1)}
-              disabled={roadData.page <= 1 || isLoading}
-            >
-              First
-            </PaginationPrevious>
-            <PaginationList>
-              {Array.from({ length: roadData.totalPages }, (_, i) => {
-                const pageNum = i + 1;
-                const currentPage = roadData.page;
-                const totalPages = roadData.totalPages;
-                
-                // Show first page, last page, current page, and pages around current
-                if (
-                  pageNum === 1 ||
-                  pageNum === totalPages ||
-                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                ) {
-                  return (
-                    <PaginationPage
-                      key={pageNum}
-                      onClick={async () => await Paginate(pageNum)}
-                      current={pageNum === currentPage}
-                      // disabled={isLoading}
-                    >
-                      {pageNum}
-                    </PaginationPage>
-                  );
-                } else if (
-                  pageNum === currentPage - 2 ||
-                  pageNum === currentPage + 2
-                ) {
-                  return <PaginationGap key={pageNum} />;
-                }
-                return null;
-              })}
-            </PaginationList>
-            <PaginationNext 
-              onClick={async () => await Paginate(roadData.totalPages)}
-              disabled={roadData.page >= roadData.totalPages || isLoading}
-            >
-              Last
-            </PaginationNext>
-          </>
-        )}
-      </Pagination>
+      <PaginationBar
+        currentPage={roadData.page}
+        totalPages={roadData.totalPages}
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        onGoToPage={Paginate}
+        onNext={goNext}
+        onPrevious={goPrevious}
+        onFirst={goFirst}
+        onLast={goLast}
+        isLoading={isLoading}
+      />
 
       {/* Footer info */}
       <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
