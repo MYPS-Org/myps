@@ -5,17 +5,23 @@ import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
 import { selectedItemAtom, roadsAtom, type RoadSection, type Road, deoListAtom } from "../state/rbiaAtoms";
 import { addFutureRoadSection, editFutureRoadSection } from "../Service";
+import type { FutureRoadSections } from "../Model.d";
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface FutureRoadSectionDialogProps {
   onClose: () => void;
   road?: Road; // Optional road prop to pre-fill RoadId
+  /** Called after a successful save so the list can re-fetch. */
+  onSaved?: () => void;
 }
 
-const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClose, road }) => {
+const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClose, road, onSaved }) => {
   const { showToast } = useToast();
   // const [futureRoadSections, setFutureRoadSections] = useAtom(roadSectionsAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
+  // Edit only for a selected *section* and never from a road row's "Add Section": the selection
+  // is shared, so after any edit the Add flow used to post an edit with Id 0 and fail.
+  const isEdit = !road && !!selectedItem && 'RoadSectionId' in selectedItem && !('BridgeId' in selectedItem);
   const [roads] = useAtom(roadsAtom);
   const [initRoadSections] = useAtom(deoListAtom);
   const getIslandCode = (roadId: string) => roadId.match(/[A-Za-z]+$/)?.[0] ?? "";
@@ -39,14 +45,14 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
   const currentIslandCode = getIslandCode(formData.RoadId);
 
   useEffect(() => {
-    if (selectedItem && 'RoadSectionId' in selectedItem) {
+    if (isEdit) {
       const item = selectedItem as RoadSection;
       setFormData(item);
       // Extract the 5-digit portion from the existing RoadSectionId (FS + 5digits + islandCode)
       const match = item.RoadSectionId.match(/^FS(\d{5})/);
       setSectionDigits(match ? match[1] : "");
     }
-  }, [selectedItem]);
+  }, [isEdit, selectedItem]);
 
   useEffect(() => {
     const islandCode = getIslandCode(formData.RoadId);
@@ -87,21 +93,16 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
         RoadLength: formData.RoadLength.toString(),
         DEO: formData.DEO
       };
-      const updatePayload = {...formData, Id: formData.Id};
-
-      if (selectedItem) {
-        const response = await editFutureRoadSection(updatePayload); // Call the service to add the future road section
-        if (response) {
-          console.log("Road section added successfully:", response);
-        }
-        handleClose();
+      if (isEdit) {
+        // RoadLength must go as text: the API rejects a number for it ("Please provide a valid text value").
+        await editFutureRoadSection({ ...formData, ...payload } as unknown as FutureRoadSections);
+        showToast({ type: 'success', message: 'Future road section updated.' });
       } else {
-        const response = await addFutureRoadSection(payload); // Call the service to add the future road section
-        if (response) {
-          console.log("Road section added successfully:", response);
-        }
-        handleClose();
+        await addFutureRoadSection(payload);
+        showToast({ type: 'success', message: 'Future road section added.' });
       }
+      onSaved?.();
+      handleClose();
     } catch (error) {
       console.error("Error saving road section:", error);
     }
@@ -143,11 +144,12 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
       
       {/* Full-screen container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl p-6">
+        {/* max-h + scroll: on a 720px-high screen the form ran past the viewport and the submit button could not be reached. */}
+        <DialogPanel className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg shadow-xl p-6">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
               {road ? `Add Road Section for ${road.RoadId} - ${road.Name}` : 
-               selectedItem ? "Edit Future Road Section" : "Add New Future Road Section"}
+               isEdit ? "Edit Future Road Section" : "Add New Future Road Section"}
             </DialogTitle>
             <button
               onClick={onClose}
@@ -183,6 +185,10 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                   >
                     <option value="">Select Parent Road</option>
+                    {/* roadsAtom only holds the page last shown in the Roads tab: keep the current parent selectable. */}
+                    {formData.RoadId && !roads.some(r => r.RoadId === formData.RoadId) && (
+                      <option value={formData.RoadId}>{formData.RoadId}</option>
+                    )}
                     {roads.map((road) => (
                       <option key={road.RoadId} value={road.RoadId}>
                         {road.RoadId} - {road.Name}
@@ -240,7 +246,7 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 value={formData.RoadLength}
                 onChange={(e) => handleChange('RoadLength', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                placeholder="Enter section length in kilometers (e.g., 5.2)"
+                placeholder="Enter section length in meters (e.g., 520)"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Enter the road section length as a decimal number
@@ -272,7 +278,7 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 Cancel
               </Button>
               <Button type="submit" color='orange'>
-                {selectedItem ? "Update Road Section" : "Create Road Section"}
+                {isEdit ? "Update Road Section" : "Create Road Section"}
               </Button>
             </div>
           </form>

@@ -3,18 +3,22 @@ import { useAtom } from "jotai";
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
-import { roadsAtom, roadClassificationsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
+import { roadClassificationsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
+import type { RoadFilter } from "../Model.d";
 import { addFutureRoad, editFutureRoad } from "../Service";
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface FutureRoadDialogProps {
   onClose: () => void;
+  /** Called after a successful save so the list can re-fetch. */
+  onSaved?: () => void;
 }
 
-const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
+const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose, onSaved }) => {
   const { showToast } = useToast();
-  const [roads, setRoads] = useAtom(roadsAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
+  // Only a selected *road* means Edit (the selection is shared with sections and bridges).
+  const isEdit = !!selectedItem && 'Classification' in selectedItem;
   // Classifications are populated by the Road list's useRoadData() on mount; read the atom
   // directly here instead of useRoadData() so opening this dialog doesn't also mount a
   // second, unwanted paginated roads fetch (useRoadData() now owns a usePagination instance).
@@ -32,14 +36,11 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
     UpdatedDate: ''
   });
 
-  // Debug log to see what we're getting
-  console.log('roadClassifications in dialog:', roadClassifications);
-
   useEffect(() => {
-    if (selectedItem && 'RoadId' in selectedItem && 'Classification' in selectedItem) {
+    if (isEdit) {
       setFormData(selectedItem as Road); // Populate form with selected item for editing
     }
-  }, [selectedItem]);
+  }, [isEdit, selectedItem]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,24 +60,20 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
       const roadPayload = {
         RoadId: formData.RoadId,
         Name: formData.Name,
-        Classification: formData.Classification.toString(), // Convert to string if API expects string
+        Classification: Number(formData.Classification),
       };
 
-      const updatePayload = {...formData, Id: formData.Id};
-
-      if (selectedItem) {
-        const response = await editFutureRoad(updatePayload); // Call the service to add the future road
-        if (response) {
-          setRoads([...roads, formData]);
-        }
-        handleClose();
-      }else {
-        const response = await addFutureRoad(roadPayload); // Call the service to add the future road
-        if (response) {
-          setRoads([...roads, formData]);
-        }
-        handleClose();
+      // The table is paginated from the server: re-fetch it (onSaved) instead of appending to the
+      // legacy roadsAtom, which the table never read, so new/edited roads did not show up.
+      if (isEdit) {
+        await editFutureRoad({ ...formData, Id: formData.Id, Classification: Number(formData.Classification) });
+        showToast({ type: 'success', message: 'Future road updated.' });
+      } else {
+        await addFutureRoad(roadPayload as unknown as RoadFilter);
+        showToast({ type: 'success', message: 'Future road added.' });
       }
+      onSaved?.();
+      handleClose();
     } catch (error) {
       console.error("Error saving road:", error);
     }
@@ -116,10 +113,11 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
       
       {/* Full-screen container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl p-6">
+        {/* max-h + scroll: on a 720px-high screen the form ran past the viewport and the submit button could not be reached. */}
+        <DialogPanel className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg shadow-xl p-6">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              {selectedItem ? "Edit Future Road" : "Add New Future Road"}
+              {isEdit ? "Edit Future Road" : "Add New Future Road"}
             </DialogTitle>
             <button
               onClick={onClose}
@@ -190,7 +188,7 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
                 Cancel
               </Button>
               <Button type="submit" color='orange'>
-                {selectedItem ? "Update Road" : "Create Road"}
+                {isEdit ? "Update Road" : "Create Road"}
               </Button>
             </div>
           </form>

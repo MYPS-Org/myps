@@ -142,9 +142,11 @@ export const editFutureBridge = async (bridge: FutureBridge) => {
     }
 }
 
+// The BE action really is named DeleteFutureBridg: that is the name tApiActions registers and groups are
+// granted, so calling "DeleteFutureBridge" 405-ed (and renaming the action would 403 until re-granted).
 export const deleteFutureBridge = async (bridgeId: string) => {
     try {
-        const response = await httpClient.post<{ success: boolean }>('/futureinfra/DeleteFutureBridge', { BridgeId: bridgeId });
+        const response = await httpClient.post<{ success: boolean }>('/futureinfra/DeleteFutureBridg', { BridgeId: bridgeId });
         return response;
     } catch (error) {
         console.error('Error deleting future bridge:', error);

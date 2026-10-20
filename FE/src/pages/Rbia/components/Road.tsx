@@ -84,7 +84,8 @@ const FutureRoadList: React.FC = () => {
     goNext,
     goPrevious,
     goFirst,
-    goLast
+    goLast,
+    refresh,
   } = useRoadData();
 
   // Initialize data on component mount
@@ -313,7 +314,17 @@ const FutureRoadList: React.FC = () => {
         )}
       </div>
 
-      {isDialogOpen && <FutureRoadDialog onClose={() => setIsDialogOpen(false)} />}
+      {isDialogOpen && (
+        <FutureRoadDialog
+          onClose={() => {
+            setIsDialogOpen(false);
+            // The selection is shared with the Add Section/Bridge dialogs, which would otherwise
+            // open in Edit mode after any edit.
+            setSelectedItem(null);
+          }}
+          onSaved={refresh}
+        />
+      )}
       {isSectionDialogOpen && roadToAddSection && (
         <FutureRoadSectionDialog 
           onClose={() => {

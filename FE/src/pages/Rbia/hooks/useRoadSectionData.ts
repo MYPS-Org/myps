@@ -19,8 +19,8 @@ import { usePagination } from '../../../hooks/usePagination';
 // forces page 1 (its DTO default is Navigation.First). This adapter translates usePagination's
 // PaginatedRequest<RoadSectionFilter> shape into the lowercase-`filters` request shape
 // fetchRoadSectionData already expects, forwarding the keyset fields through untouched.
-const fetchRoadSectionsForPagination = (params: PaginatedRequest<RoadSectionFilter>) =>
-  fetchRoadSectionData({
+const fetchRoadSectionsForPagination = async (params: PaginatedRequest<RoadSectionFilter>) => {
+  const response = await fetchRoadSectionData({
     filters: params.Filters,
     sortField: params.SortField ?? '',
     sortDirection: params.sortDirection ?? 1,
@@ -31,6 +31,22 @@ const fetchRoadSectionsForPagination = (params: PaginatedRequest<RoadSectionFilt
     NextFilteredId: params.NextFilteredId,
     PageCursorId: params.PageCursorId,
   } as RoadSectionPagination);
+  // The BE returns the table columns LengthM / DEOParticipantId, but the list and the edit dialog
+  // read RoadLength / DEO: without this the Length and Engineering District columns were blank and
+  // Edit stopped at "Please enter the length".
+  type ApiRoadSection = FutureRoadSections & { LengthM?: number; DEOParticipantId?: string };
+  return {
+    ...response,
+    Data: {
+      ...response.Data,
+      lists: (response.Data.lists as ApiRoadSection[]).map(s => ({
+        ...s,
+        RoadLength: s.RoadLength ?? s.LengthM ?? 0,
+        DEO: s.DEO ?? s.DEOParticipantId ?? '',
+      })),
+    },
+  };
+};
 
 export const useRoadSectionData = () => {
   const [roadSectionFilters] = useAtom(roadSectionFiltersAtom);
@@ -184,6 +200,8 @@ export const useRoadSectionData = () => {
 
     // Optimistic updates
     removeRoadSectionFromState,
+    // Re-fetch the current page with the current filters, e.g. after a dialog saved a row.
+    refresh: () => removeRoadSectionFromState(''),
     addRoadSectionToState,
     updateRoadSectionInState,
 

@@ -184,6 +184,8 @@ export const useBridgeData = () => {
 
     // Optimistic updates
     removeBridgeFromState,
+    // Re-fetch the current page with the current filters, e.g. after a dialog saved a row.
+    refresh: () => removeBridgeFromState(''),
     addBridgeToState,
     updateBridgeInState,
 

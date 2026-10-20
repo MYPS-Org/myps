@@ -86,7 +86,8 @@ const RoadSectionList: React.FC = () => {
     goNext,
     goPrevious,
     goFirst,
-    goLast
+    goLast,
+    refresh,
   } = useRoadSectionData();
 
   // Initialize data on component mount
@@ -259,7 +260,7 @@ const RoadSectionList: React.FC = () => {
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="orange" className="text-xs">
-                      {initRoadSections.find(d => d.DEOParticipantId === section.DEO)?.Name ?? section.DEO}
+                      {initRoadSections.find(d => d.ParticipantId === section.DEO)?.Name ?? section.DEO}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
@@ -335,7 +336,15 @@ const RoadSectionList: React.FC = () => {
         />
       )}
 
-      {isRoadSectionDialogOpen && <FutureRoadSectionDialog onClose={() => setIsRoadSectionDialogOpen(false)} />}
+      {isRoadSectionDialogOpen && (
+        <FutureRoadSectionDialog
+          onClose={() => {
+            setIsRoadSectionDialogOpen(false);
+            setSelectedItem(null);
+          }}
+          onSaved={refresh}
+        />
+      )}
       {isDeleteDialogOpen && roadSectionToDelete && (
         <DeleteRoadSectionDialog 
           isOpen={isDeleteDialogOpen}

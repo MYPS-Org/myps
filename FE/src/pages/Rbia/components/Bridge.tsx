@@ -79,7 +79,8 @@ const FutureBridgeList: React.FC = () => {
     goNext,
     goPrevious,
     goFirst,
-    goLast
+    goLast,
+    refresh,
   } = useBridgeData();
 
   // Initialize data on component mount
@@ -264,7 +265,7 @@ const FutureBridgeList: React.FC = () => {
                   </TableCell>
                   <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap">
                     <span className="text-gray-900">
-                      {bridge.CarriageWay} m
+                      {bridge.CarriageWay != null ? `${bridge.CarriageWay} m` : '—'}
                     </span>
                   </TableCell>
                   <TableCell className="text-row px-6 py-4 whitespace-nowrap">
@@ -321,7 +322,15 @@ const FutureBridgeList: React.FC = () => {
         )}
       </div>
 
-      {isDialogOpen && <FutureBridgeDialog onClose={() => setIsDialogOpen(false)} />}
+      {isDialogOpen && (
+        <FutureBridgeDialog
+          onClose={() => {
+            setIsDialogOpen(false);
+            setSelectedItem(null);
+          }}
+          onSaved={refresh}
+        />
+      )}
       {isDeleteDialogOpen && bridgeToDelete && (
         <DeleteBridgeDialog 
           isOpen={isDeleteDialogOpen}

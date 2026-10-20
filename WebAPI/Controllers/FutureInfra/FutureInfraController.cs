@@ -18,6 +18,24 @@ namespace WebAPI.Controllers.Programs
     {
         public FutureInfraController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
+        /// <summary>tOptionInfraNetworkStatus: 1 = RBIA (migrated), 2 = MYPS (created here).</summary>
+        private const int MypsNetworkStatusId = 2;
+
+        /// <summary>
+        /// Rows created in MYPS may be deleted; RBIA-migrated ones may not. Rows added before the Add
+        /// endpoints set NetworkStatusId were saved with 0, and they were created here too.
+        /// </summary>
+        private static bool IsCreatedInMyps(int networkStatusId) => networkStatusId == MypsNetworkStatusId || networkStatusId == 0;
+
+        private static string NormalizeInfraId(string id) => (id ?? string.Empty).Trim().ToUpperInvariant();
+
+        /// <summary>FS00001LZ under FR00001LZ: the last two letters (island code) must match.</summary>
+        private static bool SameIslandCode(string childId, string parentId) =>
+            childId.Length >= 2 && parentId.Length >= 2 && childId[^2..] == parentId[^2..];
+
+        private static bool TryParseLength(string? value, out double meters) =>
+            double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out meters) && meters > 0;
+
         [HttpPost]
         public async Task<IActionResult> GetInfraInfo()
         {
@@ -78,6 +96,10 @@ namespace WebAPI.Controllers.Programs
                 if (!string.IsNullOrEmpty(dto.Filters.RoadId))
                     filters.Add(("v.RoadId LIKE @RoadId", "@RoadId", $"%{dto.Filters.RoadId.Trim()}%"));
 
+                // The filter dialog sends the ClassificationId ("1".."4"); it was accepted but never applied.
+                if (int.TryParse(dto.Filters.Classification, out int classificationId))
+                    filters.Add(("v.Classification = @Classification", "@Classification", classificationId));
+
                 FilterDataResult<FutureRoads> result =
                     await _db.FilterDataCursor<
                         FutureRoads,
@@ -116,6 +138,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                dto.RoadId = NormalizeInfraId(dto.RoadId);
                 if (!"FR".IsValidFutureInfraId(dto.RoadId))
                 {
                     return new BadRequestObjectResult(new
@@ -135,13 +158,17 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} already exist in the system. Please use other Road ID", Title = "Invalid Road ID" });
                 }
-                var checkRoadName = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id);
+                // Was missing the name comparison, so any edit failed as soon as a second road existed.
+                var checkRoadName = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.Name == dto.Name);
                 if (checkRoadName != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road name {dto.Name} already exist in the system. Please use other name", Title = "Invalid Road Name" });
                 }
                 var CheckIfUsedInRoadSection = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == checkRoad.RoadId).ToListAsync(cancellationToken);
-                if (CheckIfUsedInRoadSection.Any())
+                // Projects reference the section/bridge IDs, never the road itself, so only a Road ID
+                // change (which re-parents the sections) needs the in-use check; a name or
+                // classification fix is always safe.
+                if (checkRoad.RoadId != dto.RoadId && CheckIfUsedInRoadSection.Any())
                 {
                     HashSet<string> RoadSectionIds = CheckIfUsedInRoadSection.Select(x => x.RoadSectionId).ToHashSet<string>();
                     var CheckIfUsedInProject = await _db.tProjectMajorWorkLocations.AsNoTracking().FirstOrDefaultAsync(x => RoadSectionIds.Contains(x.InfraId));
@@ -149,7 +176,7 @@ namespace WebAPI.Controllers.Programs
                     {
                         return new BadRequestObjectResult(new
                         {
-                            Message = "The selected road is currently in use and cannot be edited.",
+                            Message = "The selected road is currently in use, so its Road ID cannot be changed.",
                             Title = "Road In Use"
                         });
                     }
@@ -162,7 +189,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             return new BadRequestObjectResult(new
                             {
-                                Message = "The selected road is currently in use and cannot be edited.",
+                                Message = "The selected road is currently in use, so its Road ID cannot be changed.",
                                 Title = "Road In Use"
                             });
                         }
@@ -190,6 +217,14 @@ namespace WebAPI.Controllers.Programs
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
+                    // Sections point at the road by RoadId (no FK), so move them along or they are orphaned.
+                    foreach (var section in CheckIfUsedInRoadSection)
+                    {
+                        section.RoadId = dto.RoadId;
+                        section.UpdatedBy = UserId;
+                        section.UpdatedDate = currentDate;
+                    }
+                    _db.tFutureRoadSections.UpdateRange(CheckIfUsedInRoadSection);
                     checkRoad.RoadId = dto.RoadId;
                 }
                 if (checkRoad.Name != dto.Name)
@@ -235,8 +270,8 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                    Message = "Future Road added successfully.",
-                    Title = "Add Complete"
+                    Message = "Future Road updated successfully.",
+                    Title = "Update Complete"
                 });
             }
             catch (Exception ex)
@@ -252,6 +287,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                dto.RoadId = NormalizeInfraId(dto.RoadId);
                 if (!"FR".IsValidFutureInfraId(dto.RoadId))
                 {
                     return new BadRequestObjectResult(new
@@ -268,7 +304,7 @@ namespace WebAPI.Controllers.Programs
                 var checkRoadID = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId);
                 if (checkRoadID != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Future Road ID '{dto.Name}' already exists in the System.", Title = "Road ID Already Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Future Road ID '{dto.RoadId}' already exists in the System.", Title = "Road ID Already Exists" });
                 }
                 var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
                 if (checkClassification == null)
@@ -279,6 +315,9 @@ namespace WebAPI.Controllers.Programs
                 string UserId = _Session.UserId;
                 var newFutureRoad = new FutureRoads()
                 {
+                    // Created in MYPS (tOptionInfraNetworkStatus 2). Left at 0, the row could never be
+                    // deleted: DeleteFutureRoad only accepts MYPS-created roads.
+                    NetworkStatusId = MypsNetworkStatusId,
                     RoadId = dto.RoadId,
                     Name = dto.Name,
                     Classification = dto.Classification,
@@ -307,6 +346,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                dto.RoadId = NormalizeInfraId(dto.RoadId);
                 if (!"FR".IsValidFutureInfraId(dto.RoadId))
                 {
                     return new BadRequestObjectResult(new
@@ -320,7 +360,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
                 }
-                if (checkRoad.NetworkStatusId != 2)
+                if (!IsCreatedInMyps(checkRoad.NetworkStatusId))
                 {
                     return new BadRequestObjectResult(new
                     {
@@ -329,25 +369,13 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 var RoadSectionIds = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == dto.RoadId).ToListAsync(cancellationToken);
-                HashSet<string> RoadIds = RoadSectionIds.Select(x => x.RoadSectionId).ToHashSet<string>();
-                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => RoadIds.Contains(x.InfraId)).ToListAsync(cancellationToken);
-                if (ValidateRoadSections.Count > 0)
+                // No FK between the infra tables: deleting the road would orphan its sections.
+                if (RoadSectionIds.Count > 0)
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "The selected road has road sections that are currently in use and cannot be deleted.",
-                        Title = "Road In Use"
-                    });
-                }
-                var FutureBridgeIds = await _db.tFutureBridge.AsNoTracking().Where(x => RoadIds.Contains(x.RoadSectionId)).ToListAsync(cancellationToken);
-                HashSet<string> BridgeIds = FutureBridgeIds.Select(x => x.BridgeId).ToHashSet<string>();
-                var ValidateBridgeIds = await _db.tProjectMajorWorkLocations.Where(x => BridgeIds.Contains(x.InfraId)).ToListAsync(cancellationToken);
-                if (ValidateBridgeIds.Count > 0)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = "The selected road has bridge that are currently in use and cannot be deleted.",
-                        Title = "Bridge In Use"
+                        Message = $"The selected road still has {RoadSectionIds.Count} road section(s). Delete them in the Road Sections tab first.",
+                        Title = "Road Has Sections"
                     });
                 }
                 _db.tFutureRoads.Remove(checkRoad);
@@ -448,6 +476,8 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                dto.RoadId = NormalizeInfraId(dto.RoadId);
+                dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
                 if (!"FS".IsValidFutureInfraId(dto.RoadSectionId))
                 {
                     return new BadRequestObjectResult(new
@@ -455,6 +485,23 @@ namespace WebAPI.Controllers.Programs
                         Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FS12345LZ).",
                         Title = "Invalid Road Section ID Format"
                     });
+                }
+                var checkRoad = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId, cancellationToken);
+                if (checkRoad == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} does not exist in the system.", Title = "Invalid Road ID" });
+                }
+                if (!SameIslandCode(dto.RoadSectionId, dto.RoadId))
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} must end with the island code of road {dto.RoadId}.", Title = "Invalid Island Code" });
+                }
+                if (await _db.tFutureRoadSections.AsNoTracking().AnyAsync(x => x.RoadSectionId == dto.RoadSectionId, cancellationToken))
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} already exists in the system. Please use another number.", Title = "Road Section ID Already Exists" });
+                }
+                if (!TryParseLength(dto.RoadLength, out double lengthM))
+                {
+                    return new BadRequestObjectResult(new { Message = $"Length '{dto.RoadLength}' is not a valid number of meters greater than 0.", Title = "Invalid Length" });
                 }
                 var checkDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
@@ -465,10 +512,12 @@ namespace WebAPI.Controllers.Programs
                 string UserId = _Session.UserId;
                 var newFutureRoadSection = new FutureRoadSections()
                 {
+                    NetworkStatusId = MypsNetworkStatusId,
                     RoadId = dto.RoadId,
                     RoadSectionId = dto.RoadSectionId,
-                    LengthM = double.Parse(dto.RoadLength),
+                    LengthM = lengthM,
                     DEOParticipantId = dto.DEO,
+                    RegionParticipantId = checkDEO.RegionParticipantId,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
                 };
@@ -494,6 +543,8 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                dto.RoadId = NormalizeInfraId(dto.RoadId);
+                dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
                 if (!"FS".IsValidFutureInfraId(dto.RoadSectionId))
                 {
                     return new BadRequestObjectResult(new
@@ -505,31 +556,42 @@ namespace WebAPI.Controllers.Programs
                 var checkRoad = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (checkRoad == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
+                    return new BadRequestObjectResult(new { Message = $"Road section does not exists in the System", Title = "Invalid Road Section" });
                 }
-                var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id);
+                // Was missing the ID comparison, so any edit failed as soon as a second section existed.
+                var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} already exist in the system. Please use other Road ID.", Title = "Invalid Road Section ID" });
                 }
-                var CheckIfUsedinProject = await _db.tProjectMajorWorkLocations.AsNoTracking().FirstOrDefaultAsync(x => x.InfraId == checkRoad.RoadSectionId);
-                if (CheckIfUsedinProject != null)
+                // Projects reference the section by RoadSectionId, so only an ID or parent-road change
+                // needs the in-use check; length and DEO corrections are always allowed.
+                bool keyChange = checkRoad.RoadSectionId != dto.RoadSectionId || checkRoad.RoadId != dto.RoadId;
+                if (keyChange && await _db.tProjectMajorWorkLocations.AsNoTracking().AnyAsync(x => x.InfraId == checkRoad.RoadSectionId, cancellationToken))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "The selected road section is currently in use and cannot be edited.",
+                        Message = "The selected road section is currently in use, so its ID and parent road cannot be changed.",
                         Title = "Road Section In Use"
                     });
                 }
                 var checkRoadId = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId);
                 if (checkRoadId == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} does exist in the system.", Title = "Invalid Road ID" });
+                    return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} does not exist in the system.", Title = "Invalid Road ID" });
+                }
+                if (keyChange && !SameIslandCode(dto.RoadSectionId, dto.RoadId))
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} must end with the island code of road {dto.RoadId}.", Title = "Invalid Island Code" });
+                }
+                if (!TryParseLength(dto.RoadLength, out double lengthM))
+                {
+                    return new BadRequestObjectResult(new { Message = $"Length '{dto.RoadLength}' is not a valid number of meters greater than 0.", Title = "Invalid Length" });
                 }
                 var checkDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"DEO {dto.RoadId} does exist in the system.", Title = "Invalid DEO" });
+                    return new BadRequestObjectResult(new { Message = $"DEO '{dto.DEO}' is not valid.", Title = "Invalid DEO" });
                 }
                 DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
@@ -538,9 +600,9 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        ReferenceId = checkRoad.RoadId,
+                        ReferenceId = checkRoad.RoadSectionId,
                         TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tFutureRoads",
+                        AffectedTable = "tFutureRoadSections",
                         AffectedColumn = "RoadId",
                         OldValue = checkRoad.RoadId,
                         NewValue = dto.RoadId,
@@ -553,39 +615,47 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        ReferenceId = checkRoad.RoadId,
+                        ReferenceId = checkRoad.RoadSectionId,
                         TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tFutureRoads",
+                        AffectedTable = "tFutureRoadSections",
                         AffectedColumn = "RoadSectionId",
                         OldValue = checkRoad.RoadSectionId,
                         NewValue = dto.RoadSectionId,
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
+                    // Bridges point at the section by RoadSectionId (no FK): move them along.
+                    var bridges = await _db.tFutureBridge.Where(x => x.RoadSectionId == checkRoad.RoadSectionId).ToListAsync(cancellationToken);
+                    foreach (var bridge in bridges)
+                    {
+                        bridge.RoadSectionId = dto.RoadSectionId;
+                        bridge.UpdatedBy = UserId;
+                        bridge.UpdatedDate = currentDate;
+                    }
                     checkRoad.RoadSectionId = dto.RoadSectionId;
                 }
-                if (checkRoad.LengthM != double.Parse(dto.RoadLength))
+                if (checkRoad.LengthM != lengthM)
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        ReferenceId = checkRoad.RoadId,
+                        ReferenceId = checkRoad.RoadSectionId,
                         TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tFutureRoads",
+                        AffectedTable = "tFutureRoadSections",
                         AffectedColumn = "LengthM",
                         OldValue = checkRoad.LengthM.ToString(),
-                        NewValue = dto.RoadLength,
+                        NewValue = lengthM.ToString(),
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
-                    checkRoad.LengthM = double.Parse(dto.RoadLength);
+                    checkRoad.LengthM = lengthM;
                 }
                 if (checkRoad.DEOParticipantId != dto.DEO)
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        ReferenceId = checkRoad.RoadId,
+                        ReferenceId = checkRoad.RoadSectionId,
                         TransactionType = EnumTransactionType.Update.ToString(),
-                        AffectedTable = "tFutureRoads",
+                        AffectedTable = "tFutureRoadSections",
                         AffectedColumn = "DEOParticipantId",
                         OldValue = checkRoad.DEOParticipantId,
                         NewValue = dto.DEO,
@@ -593,6 +663,7 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = currentDate
                     });
                     checkRoad.DEOParticipantId = dto.DEO;
+                    checkRoad.RegionParticipantId = checkDEO.RegionParticipantId;
                 }
                 if (Transactions.Count > 0)
                 {
@@ -605,8 +676,8 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                    Message = "Future Road added successfully.",
-                    Title = "Add Complete"
+                    Message = "Future Road Section updated successfully.",
+                    Title = "Update Complete"
                 });
             }
             catch (Exception ex)
@@ -622,6 +693,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
                 if (!"FS".IsValidFutureInfraId(dto.RoadSectionId))
                 {
                     return new BadRequestObjectResult(new
@@ -635,7 +707,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road section does not exists in the System", Title = "Invalid Road Section" });
                 }
-                if (checkRoadSection.NetworkStatusId != 2)
+                if (!IsCreatedInMyps(checkRoadSection.NetworkStatusId))
                 {
                     return new BadRequestObjectResult(new
                     {
@@ -648,19 +720,18 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "The selected road has road sections that are currently in use and cannot be deleted.",
-                        Title = "Road In Use"
+                        Message = "The selected road section is currently in use by a project and cannot be deleted.",
+                        Title = "Road Section In Use"
                     });
                 }
-                var FutureBridgeIds = await _db.tFutureBridge.AsNoTracking().Where(x => x.RoadSectionId == dto.RoadSectionId).ToListAsync(cancellationToken);
-                HashSet<string> BridgeIds = FutureBridgeIds.Select(x => x.BridgeId).ToHashSet<string>();
-                var ValidateBridgeIds = await _db.tProjectMajorWorkLocations.Where(x => BridgeIds.Contains(x.InfraId)).ToListAsync(cancellationToken);
-                if (ValidateBridgeIds.Count > 0)
+                // No FK between the infra tables: deleting the section would orphan its bridges.
+                var BridgeCount = await _db.tFutureBridge.AsNoTracking().CountAsync(x => x.RoadSectionId == dto.RoadSectionId, cancellationToken);
+                if (BridgeCount > 0)
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "The selected bridge has locations that are currently in use and cannot be deleted.",
-                        Title = "Bridge In Use"
+                        Message = $"The selected road section still has {BridgeCount} bridge(s). Delete them in the Bridges tab first.",
+                        Title = "Road Section Has Bridges"
                     });
                 }
                 _db.tFutureRoadSections.Remove(checkRoadSection);
@@ -760,6 +831,8 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                dto.BridgeId = NormalizeInfraId(dto.BridgeId);
+                dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
                 if (!"FB".IsValidFutureInfraId(dto.BridgeId))
                 {
                     return new BadRequestObjectResult(new
@@ -773,15 +846,24 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge name '{dto.Name}' already exists in the System.", Title = "Bridge Already Exists" });
                 }
+                if (await _db.tFutureBridge.AsNoTracking().AnyAsync(x => x.BridgeId == dto.BridgeId, cancellationToken))
+                {
+                    return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} already exists in the system. Please use another number.", Title = "Bridge ID Already Exists" });
+                }
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section '{dto.RoadSectionId}' is not valid.", Title = "Invalid Road Section" });
                 }
+                if (!SameIslandCode(dto.BridgeId, dto.RoadSectionId))
+                {
+                    return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} must end with the island code of road section {dto.RoadSectionId}.", Title = "Invalid Island Code" });
+                }
                 DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
                 var newFutureBridge = new FutureBridge()
                 {
+                    NetworkStatusId = MypsNetworkStatusId,
                     RoadSectionId = dto.RoadSectionId,
                     BridgeId = dto.BridgeId,
                     Name = dto.Name,
@@ -814,37 +896,44 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                dto.BridgeId = NormalizeInfraId(dto.BridgeId);
+                dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
                 if (!"FB".IsValidFutureInfraId(dto.BridgeId))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FB12345LU).",
                         Title = "Invalid Bridge ID Format"
                     });
                 }
                 var checkBridge = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (checkBridge == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
+                    return new BadRequestObjectResult(new { Message = $"Bridge does not exists in the System", Title = "Invalid Bridge" });
                 }
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} does not exist in the system. Please use other Road ID.", Title = "Invalid Road Section ID" });
                 }
-                var checkBridgeId = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id);
-                if (checkBridgeId == null)
+                // Was "any other bridge exists" with the result inverted; it is a duplicate-ID check.
+                if (await _db.tFutureBridge.AsNoTracking().AnyAsync(x => x.Id != dto.Id && x.BridgeId == dto.BridgeId, cancellationToken))
                 {
-                    return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} does not exist in the system.", Title = "Invalid Bridge ID" });
+                    return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} already exists in the system.", Title = "Bridge ID Already Exists" });
                 }
-                var CheckIfUsedinProject = await _db.tProjectMajorWorkLocations.AsNoTracking().FirstOrDefaultAsync(x => x.InfraId == checkBridge.BridgeId);
-                if (CheckIfUsedinProject != null)
+                // Projects reference the bridge by BridgeId, so only an ID change needs the in-use check.
+                if (checkBridge.BridgeId != dto.BridgeId
+                    && await _db.tProjectMajorWorkLocations.AsNoTracking().AnyAsync(x => x.InfraId == checkBridge.BridgeId, cancellationToken))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "The selected bridge is currently in use and cannot be edited.",
+                        Message = "The selected bridge is currently in use, so its Bridge ID cannot be changed.",
                         Title = "Bridge In Use"
                     });
+                }
+                if ((checkBridge.BridgeId != dto.BridgeId || checkBridge.RoadSectionId != dto.RoadSectionId) && !SameIslandCode(dto.BridgeId, dto.RoadSectionId))
+                {
+                    return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} must end with the island code of road section {dto.RoadSectionId}.", Title = "Invalid Island Code" });
                 }
                 var checkName = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.Name == dto.Name);
                 if (checkName != null)
@@ -955,8 +1044,8 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                    Message = "Future Road added successfully.",
-                    Title = "Add Complete"
+                    Message = "Future Bridge updated successfully.",
+                    Title = "Update Complete"
                 });
             }
             catch (Exception ex)
@@ -966,12 +1055,16 @@ namespace WebAPI.Controllers.Programs
             }
         }
 
+        // The name is misspelled, but it is what tApiActions registers and groups are granted
+        // (permissions are keyed by action name). Renaming it needs SyncAPIPermissions plus a
+        // re-grant in every environment, so the UI calls this name instead.
         [HttpPost]
         public async Task<IActionResult> DeleteFutureBridg([FromBody] DeleteFutureBridgeDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                dto.BridgeId = NormalizeInfraId(dto.BridgeId);
                 if (!"FB".IsValidFutureInfraId(dto.BridgeId))
                 {
                     return new BadRequestObjectResult(new
@@ -985,7 +1078,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge does not exists in the System", Title = "Invalid Bridge" });
                 }
-                if (checkBridge.NetworkStatusId != 2)
+                if (!IsCreatedInMyps(checkBridge.NetworkStatusId))
                 {
                     return new BadRequestObjectResult(new
                     {
@@ -998,8 +1091,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "The selected road has road sections that are currently in use and cannot be deleted.",
-                        Title = "Road In Use"
+                        Message = "The selected bridge is currently in use by a project and cannot be deleted.",
+                        Title = "Bridge In Use"
                     });
                 }
                 _db.tFutureBridge.Remove(checkBridge);
