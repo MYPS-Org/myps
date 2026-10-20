@@ -285,7 +285,9 @@ const LumpSumDetailsSection: React.FC<LumpSumDetailsSectionProps> = ({
                       an Id saved here matched nothing anywhere else and the
                       Sub-Category showed blank outside this form. Same keys as
                       ProjectDetailsForm.tsx; the server now refuses a value that is
-                      not a PAPKey. */
+                      not a PAPKey.
+                      LABEL = ThrustDescription, same as ProjectDetailsForm.tsx (was
+                      SubProgramName, which is shorter and far less distinct). */
                   options={formatDropdownOptions(
                     filterKeepingSelected(
                       projectEnums?.Thrusts,
@@ -294,7 +296,8 @@ const LumpSumDetailsSection: React.FC<LumpSumDetailsSectionProps> = ({
                       lumpSum.SubCategoryId
                     ),
                     'PAPKey',
-                    'SubProgramName'
+                    'ThrustDescription',
+                    'Id'
                   )}
                   value={lumpSum.SubCategoryId || ''}
                   onChange={(value) => onChange('SubCategoryId', value === '' ? undefined : parseInt(value.toString()))}
