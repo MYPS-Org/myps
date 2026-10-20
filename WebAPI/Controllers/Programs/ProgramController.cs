@@ -848,6 +848,24 @@ namespace WebAPI.Controllers.Programs
                 .Where(x => x.ProgramFK == ProgramParent.ProgramPK)
                 .AsNoTracking()
                 .ToListAsync(cancellationToken);
+
+                // 2026-10-20: a project deleted at the stage being left is not advanced.
+                // vProjectLatest picks a project's newest LIVE revision whatever its stage, and a
+                // soft delete flags only the current-stage revision, so a project deleted at NEP
+                // fell back to its still-live BP revision and was carried into NEP-E under its BP
+                // ProjectId. Active = a live revision at the stage being left (advancement
+                // specification, section 10). A project with no stage row here at all (legacy
+                // import) is kept, as before.
+                var StageRevisionStates = await (
+                        from stage in _db.tProjectStages.AsNoTracking()
+                        join revision in _db.tProjectRevisions.AsNoTracking() on stage.RevisionId equals revision.Id
+                        where stage.ProgramFK == ProgramParent.ProgramPK && stage.StageId == ProgramStage.StageId
+                        group revision by revision.ProjectFK into g
+                        select new { ProjectFK = g.Key, HasLive = g.Any(x => !x.IsDeleted) })
+                    .ToListAsync(cancellationToken);
+                var DeletedAtThisStage = StageRevisionStates.Where(x => !x.HasLive).Select(x => x.ProjectFK).ToHashSet();
+                checkProjects = checkProjects.Where(x => !DeletedAtThisStage.Contains(x.ProjectPK)).ToList();
+
                 if (checkProjects.Count > 0)
                 {
                     HashSet<int> ProjectRevisionFK = checkProjects.Select(x => x.RevisionId).ToHashSet();
