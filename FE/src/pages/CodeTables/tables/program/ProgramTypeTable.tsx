@@ -63,13 +63,14 @@ const ProgramTypeTable: React.FC = () => {
       mode: 'add',
       tableName: 'Program Type',
       fields: [
-        { label: 'NameId',       value: addForm.NameId, mono: true },
+        { label: 'NameId',       value: addForm.NameId || 'Auto', mono: true },
         { label: 'Name',         value: addForm.Name },
         { label: 'Description',  value: addForm.Description, optional: true },
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          // Created active (the toggle shows it right away); NameId 0 = next number on the server.
+          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
           showToast({ type: 'success', message: 'Program type added.' });
           await refetch();
         } catch {
@@ -92,7 +93,9 @@ const ProgramTypeTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          // IsActive is not on the form: send the current value or the edit would deactivate the row.
+          const original = data.find(r => r.Id === editId);
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, IsActive: original?.IsActive !== false }));
           showToast({ type: 'success', message: 'Program type updated.' });
           await refetch();
         } catch {
@@ -174,7 +177,7 @@ const ProgramTypeTable: React.FC = () => {
                     <TableCell>
                       <input autoFocus type="number" value={addForm.NameId || ''}
                         onChange={e => setAddForm(f => f ? { ...f, NameId: parseInt(e.target.value) || 0 } : f)}
-                        placeholder="NameId *" className={inp('add')} />
+                        placeholder="Auto" className={inp('add')} />
                     </TableCell>
                     <TableCell>
                       <textarea value={addForm.Name}
@@ -190,7 +193,7 @@ const ProgramTypeTable: React.FC = () => {
                     <TableCell>
                       <div className="flex gap-1">
                         <Button color="indigo" className="p-1.5" onClick={requestAdd}
-                          disabled={!addForm.NameId || !addForm.Name.trim()}>
+                          disabled={!addForm.Name.trim()}>
                           <CheckIcon className="h-3.5 w-3.5" />
                         </Button>
                         <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}>
@@ -210,9 +213,7 @@ const ProgramTypeTable: React.FC = () => {
                       <>
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
                         <TableCell>
-                          <input type="number" value={editForm.NameId || ''}
-                            onChange={e => setEditForm(f => ({ ...f, NameId: parseInt(e.target.value) || 0 }))}
-                            className={inp('edit')} />
+                          <span className="font-mono text-sm text-gray-600">{editForm.NameId}</span>
                         </TableCell>
                         <TableCell>
                           <textarea value={editForm.Name}
@@ -237,7 +238,7 @@ const ProgramTypeTable: React.FC = () => {
                         <TableCell>
                           <div className="flex gap-1">
                             <Button color="amber" className="p-1.5" onClick={requestEdit}
-                              disabled={!editForm.NameId || !editForm.Name.trim()}>
+                              disabled={!editForm.Name.trim()}>
                               <CheckIcon className="h-3.5 w-3.5" />
                             </Button>
                             <Button color="zinc" className="p-1.5" onClick={cancelEdit}>
