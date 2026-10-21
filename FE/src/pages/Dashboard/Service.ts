@@ -300,9 +300,10 @@ function getBenchmarkSummary(year: number): DashboardSummary {
       { Name: 'NEP-Errata', Count: 1590 },
     ],
     Islands: [
+      // Same order as Live DB's island cards: Luzon, Visayas, Mindanao.
       { Name: 'Luzon', Budget: luzonBudget, ProjectCount: 5999 },
-      { Name: 'Mindanao', Budget: mindanaoBudget, ProjectCount: 3139 },
       { Name: 'Visayas', Budget: visayasBudget, ProjectCount: 2257 },
+      { Name: 'Mindanao', Budget: mindanaoBudget, ProjectCount: 3139 },
     ],
     Projects: projects,
     LsProjects: BENCHMARK_LS_PROJECTS,

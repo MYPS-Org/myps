@@ -393,7 +393,7 @@ namespace WebAPI.Controllers.Dashboard
                 var islandLookup = await GetIslandCodesByRegionAsync(
                     cells.Select(cell => cell.Region), cancellationToken);
 
-                var islands = cells
+                var islands = InIslandOrder(cells
                     .GroupBy(cell => IslandName(
                         islandLookup.TryGetValue(cell.Region ?? string.Empty, out var islandCode) ? islandCode : null))
                     .Select(group => new DashboardIslandDTO
@@ -401,9 +401,7 @@ namespace WebAPI.Controllers.Dashboard
                         Name = group.Key,
                         Budget = group.Sum(cell => cell.Budget),
                         ProjectCount = group.Sum(cell => cell.ProjectCount)
-                    })
-                    .OrderByDescending(item => item.Budget)
-                    .ToList();
+                    }));
 
                 // The breakdown box's categories, named like the header's Category filter.
                 var categoryIds = cells.Select(cell => cell.Category).Distinct().ToArray();
@@ -1073,6 +1071,28 @@ namespace WebAPI.Controllers.Dashboard
                 })
                 .OrderByDescending(lumpSum => lumpSum.TotalAllocation)
                 .ToList();
+        }
+
+        private static readonly string[] IslandGroups = { "Luzon", "Visayas", "Mindanao" };
+
+        /// <summary>
+        /// The island-group cards (UAT S01-TC002-P008): always Luzon, Visayas, Mindanao in that
+        /// order, at 0 when a group has no projects that year, then "Unassigned" (projects whose
+        /// province resolves to no island) only when it has any. Ordered by budget, an empty
+        /// group used to vanish and Unassigned could come first, so the cards did not read as
+        /// the three island groups.
+        /// </summary>
+        private static List<DashboardIslandDTO> InIslandOrder(IEnumerable<DashboardIslandDTO> groups)
+        {
+            var byName = groups.ToDictionary(group => group.Name);
+            var ordered = IslandGroups
+                .Select(name => byName.TryGetValue(name, out var group) ? group : new DashboardIslandDTO { Name = name })
+                .ToList();
+            if (byName.TryGetValue(IslandName(null), out var unassigned) && (unassigned.ProjectCount > 0 || unassigned.Budget != 0))
+            {
+                ordered.Add(unassigned);
+            }
+            return ordered;
         }
 
         private static string IslandName(string? islandCode) => islandCode switch
