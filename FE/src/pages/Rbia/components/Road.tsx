@@ -7,7 +7,8 @@ import {
   AdjustmentsVerticalIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/16/solid';
-import { selectedItemAtom, type Road } from "../state/rbiaAtoms";
+import { roadClassificationsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
+import { isCreatedInMyps, RBIA_READ_ONLY_TITLE } from "../networkStatus";
 import { useRoadData } from "../hooks/useRoadData";
 import FutureRoadDialog from "../Dialogs/FutureRoadDialog";
 import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
@@ -17,12 +18,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { PaginationBar } from "../../../components/tailwindui/PaginationBar";
 
 // Simple Badge component
-const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
-  children, 
-  className = "", 
-  color = "gray" 
+const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string; title?: string }> = ({
+  children,
+  className = "",
+  color = "gray",
+  title
 }) => (
-  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800 ${className}`}>
+  <span title={title} className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800 ${className}`}>
     {children}
   </span>
 );
@@ -56,6 +58,7 @@ const Button: React.FC<{
 
 const FutureRoadList: React.FC = () => {
   const [, setSelectedItem] = useAtom(selectedItemAtom);
+  const [roadClassifications] = useAtom(roadClassificationsAtom);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
@@ -247,28 +250,34 @@ const FutureRoadList: React.FC = () => {
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="green" className="text-xs">
-                      {road.Classification === 1 ? "Primary" :
-                       road.Classification === 2 ? "Secondary" :
-                       road.Classification === 3 ? "Tertiary" :
-                       road.Classification === 4 ? "Quaternary" : "Unknown"}
+                      {roadClassifications.find(c => c.ClassificationId === road.Classification)?.Classification ?? "Unknown"}
                     </Badge>
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex justify-center  space-x-2">
-                      <button
-                        onClick={() => handleEdit(road)}
-                        className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
-                        disabled={isLoading}
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(road)}
-                        className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
-                        disabled={isLoading}
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                    <div className="flex justify-center items-center space-x-2">
+                      {/* RBIA rows are view-only (S06-TC008 / TC013): Edit and Delete only for MYPS roads. */}
+                      {isCreatedInMyps(road) ? (
+                        <>
+                          <button
+                            onClick={() => handleEdit(road)}
+                            title="Edit"
+                            className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
+                            disabled={isLoading}
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(road)}
+                            title="Delete"
+                            className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
+                            disabled={isLoading}
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <Badge color="gray" className="text-xs" title={RBIA_READ_ONLY_TITLE}>RBIA</Badge>
+                      )}
                       <button
                         onClick={() => handleAddSection(road)}
                         className="flex items-center gap-2 p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors duration-200"

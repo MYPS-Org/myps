@@ -1,11 +1,6 @@
 "use-client";
 import React, { useEffect, useState } from 'react';
-import { 
-  RectangleStackIcon, 
-  BuildingOffice2Icon, 
-  ArrowsPointingOutIcon,
-  ArrowUpTrayIcon,
-} from '@heroicons/react/16/solid';
+import { ArrowUpTrayIcon } from '@heroicons/react/16/solid';
 import RoadList from "../components/Road";
 import RoadSectionList from "../components/RoadSection";
 import BridgeList from "../components/Bridge";
@@ -50,16 +45,15 @@ const Rbia: React.FC = () => {
         // The individual components will handle their own data through API calls
     };
 
-    // Render Tab Button component
+    // Render Tab Button component. No icons: the stack / office building / arrows glyphs
+    // did not stand for roads, sections or bridges (S06-TC001-P001 remark).
     const TabButton = ({ 
         label, 
         value, 
-        icon: Icon, 
         count,
     }: { 
         label: string; 
         value: 'roads' | 'roadSections' | 'bridges'; 
-        icon: React.ComponentType<{ className?: string }>; 
         count: number;
     }) => (
         <button
@@ -70,7 +64,6 @@ const Rbia: React.FC = () => {
                     : 'cursor-pointer text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
         >
-            <Icon className="w-5 h-5" />
             <span>{label}</span>
             <Badge className="ml-2">{count}</Badge>
         </button>
@@ -100,19 +93,16 @@ const Rbia: React.FC = () => {
                 <TabButton 
                     label="Roads" 
                     value="roads" 
-                    icon={RectangleStackIcon} 
                     count={roadCount} 
                 />
                 <TabButton 
                     label="Road Sections" 
                     value="roadSections" 
-                    icon={BuildingOffice2Icon} 
                     count={roadSectionCount} 
                 />
                 <TabButton 
                     label="Bridges" 
                     value="bridges" 
-                    icon={ArrowsPointingOutIcon} 
                     count={bridgeCount} 
                 />
             </div>

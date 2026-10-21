@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useAtom } from 'jotai';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { RoadFilter } from '../Model.d';
+import { roadClassificationsAtom } from '../state/rbiaAtoms';
 
 interface FilterRoadDialogProps {
   isOpen: boolean;
@@ -19,6 +21,7 @@ const FilterRoadDialog: React.FC<FilterRoadDialogProps> = ({
   onClear,
   initialData
 }) => {
+  const [roadClassifications] = useAtom(roadClassificationsAtom);
   const [formData, setFormData] = useState<RoadFilter>({
     RoadId: initialData?.RoadId || '',
     Name: initialData?.Name || '',
@@ -107,10 +110,10 @@ const FilterRoadDialog: React.FC<FilterRoadDialogProps> = ({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                 >
                   <option value="">All</option>
-                  <option value="1">Primary</option>
-                  <option value="2">Secondary</option>
-                  <option value="3">Tertiary</option>
-                  <option value="4">Quaternary</option>
+                  {/* From tFutureRoadsClassification, not hard-coded: it has no "Quaternary" (S06-TC002-P004). */}
+                  {roadClassifications.map((c) => (
+                    <option key={c.Id} value={String(c.ClassificationId)}>{c.Classification}</option>
+                  ))}
                 </select>
               </div>
             </div>

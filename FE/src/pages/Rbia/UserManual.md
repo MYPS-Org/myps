@@ -44,14 +44,16 @@ Every tab's table has the same core controls:
 
 ### What is a Road?
 
-A future national road is the top-level infrastructure entity. Roads have a classification (Primary, Secondary, Tertiary, or Quaternary) and a unique Road ID that follows a standard format.
+A future national road is the top-level infrastructure entity. Roads have a classification (Primary, Secondary, or Tertiary) and a unique Road ID that follows a standard format.
+
+Roads, sections and bridges migrated from **RBIA** are view-only: their rows show an **RBIA** badge instead of the Edit and Delete buttons. Only infrastructure created in MYPS can be edited or deleted. You can still add a section to an RBIA road, or a bridge to an RBIA section.
 
 ### The Road ID Format
 
 Road IDs follow this format: **`FR{5-digit-number}{IslandCode}`**
 
 - `FR` — prefix for Future Roads
-- 5 digits — a zero-padded sequential number (e.g., `00001`)
+- 5 digits — the next free number, zero-padded (e.g., `00001`). MYPS generates it; you do not type it.
 - Island Code — the alphabetic code for the island group (e.g., `LZ` for Luzon, `VS` for Visayas)
 
 Example: `FR00001LZ`
@@ -62,21 +64,21 @@ Example: `FR00001LZ`
 |---|---|
 | Road ID | Unique identifier (displayed as a blue badge) |
 | Road Name | Name of the road |
-| Classification | Road class (green badge): Primary, Secondary, Tertiary, Quaternary |
-| Actions | Edit, Delete, and Add Section buttons |
+| Classification | Road class (green badge): Primary, Secondary, Tertiary |
+| Actions | Edit, Delete (MYPS roads only; RBIA roads show an **RBIA** badge), and Add Section buttons |
 
 ### Adding a Road
 
 1. Click the **Add Road** button (blue, top-right of the Roads table).
-2. Enter a **Road ID** using the format `FR{5digits}{IslandCode}`.
+2. Select the **Island** (Luzon, Visayas or Mindanao). The Road ID is generated when you save, and the success message shows it.
 3. Enter the **Road Name**.
 4. Select the **Classification** from the dropdown.
-5. Click **Save**.
+5. Click **Create Road**.
 
 ### Editing a Road
 
 1. Click the yellow pencil icon on the road's row.
-2. Update the fields as needed.
+2. Update the name or classification. The Road ID is shown read-only.
 3. Click **Save**.
 
 ### Deleting a Road

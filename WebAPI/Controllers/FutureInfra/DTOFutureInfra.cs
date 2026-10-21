@@ -19,9 +19,10 @@ namespace WebAPI.Controllers.Programs
     }
     public class AddFutureRoadsDTO
     {
+        // No RoadId: the API generates the next FR#####{IslandCode} (S06-TC003-P001).
         [Required]
-        [MaxLength(100)]
-        public string RoadId { get; set; } = string.Empty;
+        [MaxLength(2)]
+        public string IslandCode { get; set; } = string.Empty;
         [Required]
         [MaxLength(200)]
         public string Name { get; set; } = string.Empty;

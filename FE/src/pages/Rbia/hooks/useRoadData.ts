@@ -3,6 +3,7 @@ import { useCallback, useEffect } from 'react';
 import {
   roadFiltersAtom,
   roadClassificationsAtom,
+  roadIslandCodesAtom,
   roadLoadingAtom,
   roadSearchInputAtom,
   updateRoadDataAtom,
@@ -36,6 +37,7 @@ const fetchRoadsForPagination = (params: PaginatedRequest<RoadFilter>) =>
 export const useRoadData = () => {
   const [roadFilters] = useAtom(roadFiltersAtom);
   const [roadClassifications, setRoadClassifications] = useAtom(roadClassificationsAtom);
+  const [, setRoadIslandCodes] = useAtom(roadIslandCodesAtom);
   const [initRoadSections, setInitRoadSections] = useAtom(deoListAtom);
   const [isInitLoading, setIsInitLoading] = useAtom(roadLoadingAtom);
   const [searchInput, setSearchInput] = useAtom(roadSearchInputAtom);
@@ -71,15 +73,15 @@ export const useRoadData = () => {
 
       // Extract Classifications array from the response
       setRoadClassifications(classificationsResponse.Data.Classifications);
+      setRoadIslandCodes(classificationsResponse.Data.IslandCodes ?? []);
       setInitRoadSections(sectionResponse.Data.DEOs);
-      console.log('Fetched road classifications:', classificationsResponse.Data.Classifications);
     } catch (error) {
       console.error('Error initializing road data:', error);
       throw error;
     } finally {
       setIsInitLoading(false);
     }
-  }, [setRoadClassifications, setInitRoadSections, setIsInitLoading]);
+  }, [setRoadClassifications, setRoadIslandCodes, setInitRoadSections, setIsInitLoading]);
 
   // Handle search functionality
   const handleSearch = useCallback(async (searchTerm: string) => {

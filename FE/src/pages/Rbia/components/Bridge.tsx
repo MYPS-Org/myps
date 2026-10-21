@@ -7,6 +7,7 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/16/solid';
 import { selectedItemAtom, type Bridge } from "../state/rbiaAtoms";
+import { isCreatedInMyps, RBIA_READ_ONLY_TITLE } from "../networkStatus";
 import { useBridgeData } from "../hooks/useBridgeData";
 import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
 import DeleteBridgeDialog from "../Dialogs/DeleteBridgeDialog";
@@ -14,12 +15,13 @@ import FilterBridgeDialog from "../Dialogs/FilterBridgeDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
 import { PaginationBar } from "../../../components/tailwindui/PaginationBar";
 // Simple Badge component
-const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
-  children, 
-  className = "", 
-  color = "gray" 
+const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string; title?: string }> = ({
+  children,
+  className = "",
+  color = "gray",
+  title
 }) => (
-  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800 ${className}`}>
+  <span title={title} className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800 ${className}`}>
     {children}
   </span>
 );
@@ -269,21 +271,30 @@ const FutureBridgeList: React.FC = () => {
                     </span>
                   </TableCell>
                   <TableCell className="text-row px-6 py-4 whitespace-nowrap">
-                    <div className="flex justify-center space-x-2">
-                      <button
-                        onClick={() => handleEdit(bridge)}
-                        className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
-                        disabled={isLoading}
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(bridge)}
-                        className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
-                        disabled={isLoading}
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                    <div className="flex justify-center items-center space-x-2">
+                      {/* RBIA rows are view-only (S06-TC013): Edit and Delete only for MYPS bridges. */}
+                      {isCreatedInMyps(bridge) ? (
+                        <>
+                          <button
+                            onClick={() => handleEdit(bridge)}
+                            title="Edit"
+                            className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
+                            disabled={isLoading}
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(bridge)}
+                            title="Delete"
+                            className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
+                            disabled={isLoading}
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <Badge color="gray" className="text-xs" title={RBIA_READ_ONLY_TITLE}>RBIA</Badge>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

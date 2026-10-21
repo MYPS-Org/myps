@@ -22,7 +22,7 @@ namespace WebAPI.Controllers.Programs
         private const int MypsNetworkStatusId = 2;
 
         /// <summary>
-        /// Rows created in MYPS may be deleted; RBIA-migrated ones may not. Rows added before the Add
+        /// Rows created in MYPS may be edited and deleted; RBIA-migrated ones may not. Rows added before the Add
         /// endpoints set NetworkStatusId were saved with 0, and they were created here too.
         /// </summary>
         private static bool IsCreatedInMyps(int networkStatusId) => networkStatusId == MypsNetworkStatusId || networkStatusId == 0;
@@ -35,6 +35,38 @@ namespace WebAPI.Controllers.Programs
 
         private static bool TryParseLength(string? value, out double meters) =>
             double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out meters) && meters > 0;
+
+        private static BadRequestObjectResult RbiaReadOnly(string what) => new BadRequestObjectResult(new
+        {
+            Message = $"This {what} comes from RBIA and cannot be edited in MYPS. Only future infra created in MYPS can be edited.",
+            Title = "Maintained in RBIA"
+        });
+
+        /// <summary>
+        /// Next free Future Road ID for an island (S06-TC003-P001: IDs are generated, not typed).
+        /// The number runs across all islands (FR00001LZ, FR00002VS, ...), as in the Add dialog's example.
+        /// </summary>
+        private async Task<string?> NextFutureRoadIdAsync(string islandCode, CancellationToken ct)
+        {
+            var ids = await _db.tFutureRoads.AsNoTracking()
+                .Where(x => x.RoadId.StartsWith("FR"))
+                .Select(x => x.RoadId)
+                .ToListAsync(ct);
+            int max = ids
+                .Where(id => "FR".IsValidFutureInfraId(id))
+                .Select(id => int.Parse(id.Substring(2, 5)))
+                .DefaultIfEmpty(0)
+                .Max();
+            return max >= 99999 ? null : $"FR{max + 1:D5}{islandCode}";
+        }
+
+        private Task<List<string>> IslandCodesAsync(CancellationToken ct) =>
+            _db.tOptionAdminAreaRegion.AsNoTracking()
+                .Where(x => x.IslandCode != "")
+                .Select(x => x.IslandCode)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync(ct);
 
         [HttpPost]
         public async Task<IActionResult> GetInfraInfo()
@@ -68,7 +100,9 @@ namespace WebAPI.Controllers.Programs
                 var Classification = await _db.tFutureRoadsClassification.AsNoTracking().ToListAsync(cancellationToken);
                 var response = new
                 {
-                    Classifications = Classification
+                    Classifications = Classification,
+                    // The Add Future Road dialog picks one of these; the Road ID is generated from it.
+                    IslandCodes = await IslandCodesAsync(cancellationToken)
                 };
 
                 return Ok(response); // Remove the extra wrapper
@@ -138,6 +172,16 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var checkRoad = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (checkRoad == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
+                }
+                // RBIA owns the roads it migrated (S06-TC003 / TC008 / TC013): MYPS only edits its own.
+                if (!IsCreatedInMyps(checkRoad.NetworkStatusId))
+                {
+                    return RbiaReadOnly("road");
+                }
                 dto.RoadId = NormalizeInfraId(dto.RoadId);
                 if (!"FR".IsValidFutureInfraId(dto.RoadId))
                 {
@@ -146,12 +190,6 @@ namespace WebAPI.Controllers.Programs
                         Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FR12345LZ).",
                         Title = "Invalid Road ID Format"
                     });
-                }
-
-                var checkRoad = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (checkRoad == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
                 }
                 var checkRoadId = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.RoadId == dto.RoadId);
                 if (checkRoadId != null)
@@ -287,24 +325,25 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                dto.RoadId = NormalizeInfraId(dto.RoadId);
-                if (!"FR".IsValidFutureInfraId(dto.RoadId))
+                string islandCode = NormalizeInfraId(dto.IslandCode);
+                if (!(await IslandCodesAsync(cancellationToken)).Contains(islandCode))
                 {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FR12345LZ).",
-                        Title = "Invalid Road ID Format"
-                    });
+                    return new BadRequestObjectResult(new { Message = $"Island code '{dto.IslandCode}' is not valid.", Title = "Invalid Island Code" });
                 }
                 var checkRoadName = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkRoadName != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Future Road name '{dto.Name}' already exists in the System.", Title = "Road Already Exists" });
                 }
-                var checkRoadID = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId);
-                if (checkRoadID != null)
+                // RoadId has no unique index: serialize Adds so two at once cannot take the same number.
+                // Transaction-owned, so it is released at commit or rollback.
+                await _db.Database.ExecuteSqlRawAsync(
+                    "DECLARE @r INT; EXEC @r = sp_getapplock @Resource = 'MYPS_FutureRoadId', @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000; IF @r < 0 THROW 50000, 'Another Future Road is being added. Try again in a moment.', 1;",
+                    cancellationToken);
+                string? roadId = await NextFutureRoadIdAsync(islandCode, cancellationToken);
+                if (roadId == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Future Road ID '{dto.RoadId}' already exists in the System.", Title = "Road ID Already Exists" });
+                    return new BadRequestObjectResult(new { Message = "All Future Road IDs (FR00001 to FR99999) are in use.", Title = "No Road ID Available" });
                 }
                 var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
                 if (checkClassification == null)
@@ -318,7 +357,7 @@ namespace WebAPI.Controllers.Programs
                     // Created in MYPS (tOptionInfraNetworkStatus 2). Left at 0, the row could never be
                     // deleted: DeleteFutureRoad only accepts MYPS-created roads.
                     NetworkStatusId = MypsNetworkStatusId,
-                    RoadId = dto.RoadId,
+                    RoadId = roadId,
                     Name = dto.Name,
                     Classification = dto.Classification,
                     CreatedBy = UserId,
@@ -329,7 +368,8 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Future Road added successfully.",
+                    RoadId = roadId,
+                    Message = $"Future Road {roadId} added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -543,6 +583,15 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var checkRoad = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (checkRoad == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road section does not exists in the System", Title = "Invalid Road Section" });
+                }
+                if (!IsCreatedInMyps(checkRoad.NetworkStatusId))
+                {
+                    return RbiaReadOnly("road section");
+                }
                 dto.RoadId = NormalizeInfraId(dto.RoadId);
                 dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
                 if (!"FS".IsValidFutureInfraId(dto.RoadSectionId))
@@ -552,11 +601,6 @@ namespace WebAPI.Controllers.Programs
                         Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FS12345LZ).",
                         Title = "Invalid Road Section ID Format"
                     });
-                }
-                var checkRoad = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (checkRoad == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Road section does not exists in the System", Title = "Invalid Road Section" });
                 }
                 // Was missing the ID comparison, so any edit failed as soon as a second section existed.
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.RoadSectionId == dto.RoadSectionId);
@@ -896,6 +940,15 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var checkBridge = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (checkBridge == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Bridge does not exists in the System", Title = "Invalid Bridge" });
+                }
+                if (!IsCreatedInMyps(checkBridge.NetworkStatusId))
+                {
+                    return RbiaReadOnly("bridge");
+                }
                 dto.BridgeId = NormalizeInfraId(dto.BridgeId);
                 dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
                 if (!"FB".IsValidFutureInfraId(dto.BridgeId))
@@ -905,11 +958,6 @@ namespace WebAPI.Controllers.Programs
                         Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FB12345LU).",
                         Title = "Invalid Bridge ID Format"
                     });
-                }
-                var checkBridge = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (checkBridge == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Bridge does not exists in the System", Title = "Invalid Bridge" });
                 }
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId == null)
