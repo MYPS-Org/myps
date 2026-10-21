@@ -86,7 +86,6 @@ const ProgramTypeTable: React.FC = () => {
       mode: 'edit',
       tableName: 'Program Type',
       fields: [
-        { label: 'NameId',       value: editForm.NameId, mono: true },
         { label: 'Name',         value: editForm.Name },
       ],
       onConfirm: async () => {
@@ -148,7 +147,6 @@ const ProgramTypeTable: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableHeader className="w-16">Id</TableHeader>
-              <TableHeader className="w-20">NameId</TableHeader>
               <TableHeader>Name</TableHeader>
               <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-32">Actions</TableHeader>
@@ -157,7 +155,7 @@ const ProgramTypeTable: React.FC = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10">
+                <TableCell colSpan={4} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-gray-400">
                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -172,9 +170,6 @@ const ProgramTypeTable: React.FC = () => {
                 {addForm !== null && (
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
-                    <TableCell>
-                      <span className="font-mono text-xs text-gray-400 px-2">auto</span>
-                    </TableCell>
                     <TableCell>
                       <textarea autoFocus value={addForm.Name}
                         onChange={e => setAddForm(f => f ? { ...f, Name: e.target.value } : f)}
@@ -196,16 +191,13 @@ const ProgramTypeTable: React.FC = () => {
                 )}
                 {filtered.length === 0 && !addForm ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10 text-gray-400">No records found.</TableCell>
+                    <TableCell colSpan={4} className="text-center py-10 text-gray-400">No records found.</TableCell>
                   </TableRow>
                 ) : filtered.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                     {editId === item.Id ? (
                       <>
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell>
-                          <span className="font-mono text-sm text-gray-600">{editForm.NameId}</span>
-                        </TableCell>
                         <TableCell>
                           <textarea value={editForm.Name}
                             onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))}
@@ -236,7 +228,6 @@ const ProgramTypeTable: React.FC = () => {
                     ) : (
                       <>
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell className="font-mono text-sm text-gray-600">{item.NameId}</TableCell>
                         <TableCell className="font-medium text-gray-900">{item.Name}</TableCell>
                         <TableCell className="text-center">
                           <button
