@@ -158,26 +158,24 @@ const ExportPdfWidget: React.FC<ExportPdfWidgetProps> = ({
         doc.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, drawWidth, drawHeight);
       };
 
-      // Captured once and reused for the overview page's header + the filename below, so they
-      // can't drift apart by the few ms between separate `new Date()` calls. Per-region pages
-      // below get their own fresh timestamp each, since real time passes while they're
-      // generated (each one waits on tiles to load).
-      //
-      // Waits for idle here too, same reasoning as the per-region jumps below -- the button can
-      // be clicked before the map's OWN initial load (or a basemap switch, or the tail of a
-      // user-driven pan) has actually finished settling, and capturing mid-transition produces
-      // a near-blank page.
-      await waitForIdle(map);
+      // Timestamp captured once up front and reused for the filename below, so it can't drift
+      // from whichever page ends up carrying it.
       const exportStartedAt = new Date();
-      capturePage(title, exportStartedAt);
 
-      // 'byRegion' only: one additional page per CHECKED region, zoomed into that region's own
-      // extent so its real lines and points are actually visible -- at the overview's
-      // zoomed-out scale, real line geometry is only a few pixels long by design (see
-      // LINE_REPRESENTATIVE_POINT_MAX_ZOOM), which is why the dots/clusters exist there
-      // instead. 'current' mode is just the one page above, exactly what was on screen when
-      // the button was clicked -- the original, simpler export this grew out of.
-      if (mode === 'byRegion') {
+      if (mode === 'current') {
+        // Exactly what's on screen when the button was clicked -- the original, simpler export
+        // this grew out of. Waits for idle first since the button can be clicked before the
+        // map's OWN initial load (or a basemap switch, or the tail of a user-driven pan) has
+        // actually finished settling, and capturing mid-transition produces a near-blank page.
+        await waitForIdle(map);
+        capturePage(title, exportStartedAt);
+      } else {
+        // 'byRegion': one page per CHECKED region ONLY -- no separate overview page -- each
+        // zoomed into that region's own extent so its real lines and points are actually
+        // visible. At a zoomed-out overview's scale, real line geometry is only a few pixels
+        // long by design (see LINE_REPRESENTATIVE_POINT_MAX_ZOOM), which is why the
+        // dots/clusters exist there instead -- not useful as this mode's whole point is
+        // showing the real per-region detail, not a repeat of that zoomed-out view.
         const checked = regions.filter((r) => selectedRegions.has(r.slug));
         for (let i = 0; i < checked.length; i++) {
           const region = checked[i];
@@ -203,7 +201,9 @@ const ExportPdfWidget: React.FC<ExportPdfWidgetProps> = ({
           }
           await waitForIdle(map);
 
-          doc.addPage();
+          // jsPDF documents start with one page already -- only add a new one from the
+          // second region onward, or the first region would leave a blank page ahead of it.
+          if (i > 0) doc.addPage();
           capturePage(title ? `${title} — ${region.label}` : region.label, new Date());
         }
       }
@@ -283,7 +283,7 @@ const ExportPdfWidget: React.FC<ExportPdfWidgetProps> = ({
           >
             <div style={{ fontWeight: 600 }}>By region</div>
             <div style={{ color: checkedCount === 0 ? '#9ca3af' : '#6b7280' }}>
-              Overview + one page per checked region
+              One page per checked region
               {checkedCount > 0 ? ` (${checkedCount})` : ' -- no regions checked'}
             </div>
           </button>
