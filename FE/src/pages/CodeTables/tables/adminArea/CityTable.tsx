@@ -1,299 +1,35 @@
-import React, { useState } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/tailwindui/table';
-import { Button } from '../../../../components/tailwindui/button';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import type { AdminAreaCity, AdminAreaProvince } from '../../Model.d';
+import React from 'react';
+import type { AdminAreaCity } from '../../Model.d';
 import { useAdminAreaContext } from '../../AdminAreaContext';
-import { updateCodeTable } from '../../Service';
-import { useToast } from '../../../../components/toaster/ToasterContext';
-import ConfirmDialog from '../../dialogs/ConfirmDialog';
-import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+import AdminAreaTable, { type AdminAreaColumn } from './AdminAreaTable';
 
-const CODE = 'AdminAreaCity';
+const columns: AdminAreaColumn<AdminAreaCity>[] = [
+  { header: 'Id', className: 'w-16', text: r => String(r.Id),
+    render: r => <span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{r.Id}</span> },
+  { header: 'Code', className: 'w-24', text: r => r.Code ?? '',
+    render: r => <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{r.Code}</span> },
+  { header: 'Name', text: r => r.Name, render: r => <span className="font-medium text-gray-900">{r.Name}</span> },
+];
 
-interface FormState { Name: string; Code: string; ProvinceCode: string; }
-const EMPTY_FORM: FormState = { Name: '', Code: '', ProvinceCode: '' };
-
-const ITEMS_PER_PAGE = 20;
-
-const isActive = (item: AdminAreaCity) => item.Deprecated !== true;
-
+// From AAMS: no add / rename / delete; only the province it belongs to can change (UAT S04-TC022).
 const CityTable: React.FC = () => {
-  const { data, loading, refetch } = useAdminAreaContext();
-  const { showToast } = useToast();
-  const [search, setSearch]           = useState('');
-  const [filterProvince, setFilterProvince] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [addForm, setAddForm]         = useState<FormState | null>(null);
-  const [editId, setEditId]           = useState<number | null>(null);
-  const [editForm, setEditForm]       = useState<FormState>(EMPTY_FORM);
-  const confirm                       = useConfirmDialog();
-
-
-  const rows: AdminAreaCity[]          = data?.Cities ?? [];
-  const provinces: AdminAreaProvince[] = data?.Provinces ?? [];
+  const { data } = useAdminAreaContext();
+  const provinces = data?.Provinces ?? [];
   const provinceName = (code: string) => provinces.find(p => p.Code === code)?.Name ?? '';
-
-  const filtered = rows.filter(r =>
-    (filterProvince === '' || r.ProvinceCode === filterProvince) &&
-    (r.Name.toLowerCase().includes(search.toLowerCase()) ||
-     r.Code.toLowerCase().includes(search.toLowerCase()))
-  );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const pageData   = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-  const onSearch = (v: string) => { setSearch(v); setCurrentPage(1); };
-  const onFilterProvince = (v: string) => { setFilterProvince(v); setCurrentPage(1); };
-
-  const startEdit = (r: AdminAreaCity) => {
-    setEditId(r.Id);
-    setEditForm({ Name: r.Name, Code: r.Code, ProvinceCode: r.ProvinceCode });
-  };
-  const cancelEdit = () => setEditId(null);
-
-  const requestToggleActive = (item: AdminAreaCity) => {
-    const currentActive = isActive(item);
-    const nextActive = !currentActive;
-    confirm.request({
-      mode: 'edit',
-      tableName: 'City/Municipality',
-      fields: [
-        { label: 'Action', value: nextActive ? 'Activate' : 'Deactivate' },
-        { label: 'Name', value: item.Name },
-      ],
-      onConfirm: async () => {
-        try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ ...item, Deprecated: !nextActive }));
-          showToast({ type: 'success', message: `City/Municipality ${nextActive ? 'activated' : 'deactivated'}.` });
-          await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
-        }
-        confirm.close();
-      },
-    });
-  };
-
-  const requestAdd = () => {
-    if (!addForm) return;
-    confirm.request({
-      mode: 'add',
-      tableName: 'City/Municipality',
-      fields: [
-        { label: 'Name',     value: addForm.Name },
-        { label: 'Code',     value: addForm.Code, mono: true },
-        { label: 'Province', value: provinceName(addForm.ProvinceCode) },
-      ],
-      onConfirm: async () => {
-        try {
-          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
-          showToast({ type: 'success', message: 'City/Municipality added.' });
-          await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to add city/municipality.' });
-        }
-        confirm.close();
-        setAddForm(null);
-      },
-    });
-  };
-
-  const requestEdit = () => {
-    confirm.request({
-      mode: 'edit',
-      tableName: 'City/Municipality',
-      fields: [
-        { label: 'Name',     value: editForm.Name },
-        { label: 'Code',     value: editForm.Code, mono: true },
-        { label: 'Province', value: provinceName(editForm.ProvinceCode) },
-      ],
-      onConfirm: async () => {
-        try {
-          // Start from the stored row so columns the form does not show (Hierarchy,
-          // Deprecated) are sent back unchanged instead of as blanks.
-          const original = rows.find(r => r.Id === editId);
-          await updateCodeTable(CODE, 1, JSON.stringify({ ...original, ...editForm, Id: editId }));
-          showToast({ type: 'success', message: 'City/Municipality updated.' });
-          await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update city/municipality.' });
-        }
-        confirm.close();
-        cancelEdit();
-      },
-    });
-  };
-
-  const confirmDelete = async (payload: AdminAreaCity) => {
-    try {
-      await updateCodeTable(CODE, 2, JSON.stringify(payload));
-      showToast({ type: 'success', message: 'City/Municipality deleted.' });
-      await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete city/municipality.' });
-    }
-  };
-
-  const inp = (mode: 'add' | 'edit') =>
-    `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 ${
-      mode === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'
-    }`;
-
-  const sel = (mode: 'add' | 'edit') =>
-    `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 bg-white ${
-      mode === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'
-    }`;
-
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h4 className="text-lg font-semibold text-gray-900">Cities / Municipalities</h4>
-          <p className="text-sm text-gray-500 mt-0.5">Manage city codes and province linking</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select value={filterProvince} onChange={e => onFilterProvince(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-48">
-            <option value="">All Provinces</option>
-            {provinces.map(p => <option key={p.Id} value={p.Code}>{p.Name}</option>)}
-          </select>
-          <div className="relative">
-            <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="Search..." value={search} onChange={e => onSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-48" />
-          </div>
-          <Button color="indigo" className="flex items-center gap-1 text-sm" onClick={() => setAddForm(EMPTY_FORM)} disabled={!!addForm}>
-            <PlusIcon className="h-4 w-4" /> Add
-          </Button>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableHeader className="w-16">Id</TableHeader>
-              <TableHeader className="w-24">Code</TableHeader>
-              <TableHeader>Name</TableHeader>
-              <TableHeader className="w-48">Province</TableHeader>
-              <TableHeader className="w-24 text-center">Active</TableHeader>
-              <TableHeader className="w-28">Actions</TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400">Loading...</TableCell></TableRow>
-            ) : (
-              <>
-                {addForm !== null && (
-                  <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
-                    <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
-                    <TableCell><input autoFocus value={addForm.Code} onChange={e => setAddForm(f => f && ({ ...f, Code: e.target.value }))} placeholder="Code *" className={inp('add')} /></TableCell>
-                    <TableCell><input value={addForm.Name} onChange={e => setAddForm(f => f && ({ ...f, Name: e.target.value }))} placeholder="City name *" className={inp('add')} /></TableCell>
-                    <TableCell>
-                      <select value={addForm.ProvinceCode}
-                        onChange={e => setAddForm(f => f && ({ ...f, ProvinceCode: e.target.value }))}
-                        className={sel('add')}>
-                        <option value="">— Select Province —</option>
-                        {provinces.map(p => <option key={p.Id} value={p.Code}>{p.Name}</option>)}
-                      </select>
-                    </TableCell>
-                    <TableCell />
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button color="indigo" className="p-1.5" onClick={requestAdd}
-                          disabled={!addForm.Code.trim() || !addForm.Name.trim() || !addForm.ProvinceCode}>
-                          <CheckIcon className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {pageData.length === 0 && !addForm ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
-                ) : pageData.map(item => (
-                  <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
-                    {editId === item.Id ? (
-                      <>
-                        <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell><input value={editForm.Code} onChange={e => setEditForm(f => ({ ...f, Code: e.target.value }))} className={inp('edit')} /></TableCell>
-                        <TableCell><input value={editForm.Name} onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))} className={inp('edit')} /></TableCell>
-                        <TableCell>
-                          <select value={editForm.ProvinceCode}
-                            onChange={e => setEditForm(f => ({ ...f, ProvinceCode: e.target.value }))}
-                            className={sel('edit')}>
-                            <option value="">— Select Province —</option>
-                            {provinces.map(p => <option key={p.Id} value={p.Code}>{p.Name}</option>)}
-                          </select>
-                        </TableCell>
-                        <TableCell className="text-center">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
-                              isActive(item)
-                                ? 'bg-green-50 text-green-700 border-green-200'
-                                : 'bg-gray-100 text-gray-500 border-gray-300'
-                            }`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${isActive(item) ? 'bg-green-500' : 'bg-gray-400'}`} />
-                              {isActive(item) ? 'Active' : 'Inactive'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button color="amber" className="p-1.5" onClick={requestEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
-                            <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
-                          </div>
-                        </TableCell>
-                      </>
-                    ) : (
-                      <>
-                        <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell><span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.Code}</span></TableCell>
-                        <TableCell className="font-medium text-gray-900">{item.Name}</TableCell>
-                        <TableCell>
-                          <span className="text-xs font-medium text-gray-700">{provinceName(item.ProvinceCode)}</span>
-                          <span className="ml-1 font-mono text-xs text-gray-400">({item.ProvinceCode})</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <button
-                            onClick={() => requestToggleActive(item)}
-                            title={isActive(item) ? 'Click to deactivate' : 'Click to activate'}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border cursor-pointer transition-colors shadow-sm ${
-                              isActive(item)
-                                ? 'bg-green-100 text-green-800 border-green-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
-                                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300'
-                            }`}
-                          >
-                            <span className={`h-1.5 w-1.5 rounded-full ${isActive(item) ? 'bg-green-500' : 'bg-gray-400'}`} />
-                            {isActive(item) ? 'Active' : 'Inactive'}
-                          </button>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}><PencilIcon className="h-3.5 w-3.5" /></Button>
-                            <Button color="red" className="p-1.5" onClick={() => confirmDelete(item)}><TrashIcon className="h-3.5 w-3.5" /></Button>
-                          </div>
-                        </TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                ))}
-              </>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
-        <span>{filtered.length === 0 ? '0' : `${(currentPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)}`} of {filtered.length} entries</span>
-        <div className="flex items-center gap-2">
-          <Button color="zinc" className="text-xs px-3 py-1" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>Previous</Button>
-          <span>Page {currentPage} of {totalPages}</span>
-          <Button color="zinc" className="text-xs px-3 py-1" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}>Next</Button>
-        </div>
-      </div>
-
-      <ConfirmDialog {...confirm.dialogProps} />
-    </div>
+    <AdminAreaTable title="Cities / Municipalities" description="City codes and province linking" code="AdminAreaCity" label="City/Municipality"
+      rows={data?.Cities ?? []} columns={columns}
+      link={{
+        header: 'Province', field: 'ProvinceCode',
+        options: provinces.map(p => ({ value: p.Code, label: p.Name })),
+        text: r => provinceName(r.ProvinceCode),
+        render: r => (
+      <>
+        <span className="text-xs font-medium text-gray-700">{provinceName(r.ProvinceCode)}</span>
+        <span className="ml-1 font-mono text-xs text-gray-400">({r.ProvinceCode})</span>
+      </>
+    ),
+      }} />
   );
 };
 
