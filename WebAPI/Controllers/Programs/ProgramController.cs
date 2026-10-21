@@ -315,6 +315,9 @@ namespace WebAPI.Controllers.Programs
                     UserGroup = dto.UserGroup,
                     Type = dto.Type,
                     StartYear = dto.YearStart,
+                    // Restored: a9ed4a66 dropped these while keeping the "reason required" check above.
+                    IsSkipped = dto.IsSkipped,
+                    SkipReason = dto.IsSkipped ? dto.SkipReason : null,
                     CreatedBy = UserId,
                     CreatedDate = CurrentDate,
                 };
