@@ -1905,6 +1905,15 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.SecondSegmentName!;
                             CheckUpdate.SecondSegmentName = data.SecondSegmentName;
                         }
+                        // Blank and NULL are the same "no description"; NULL in the NOT NULL log would fail.
+                        var description = string.IsNullOrWhiteSpace(data.Description) ? null : data.Description.Trim();
+                        if (CheckUpdate.Description != description)
+                        {
+                            transactionLog.AffectedColumn = "Description";
+                            transactionLog.NewValue = description ?? string.Empty;
+                            transactionLog.OldValue = CheckUpdate.Description ?? string.Empty;
+                            CheckUpdate.Description = description;
+                        }
                         if (CheckUpdate.RevisionGroupId != data.RevisionGroupId)
                         {
                             var CheckRevisionGroupId = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);

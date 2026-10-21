@@ -12,9 +12,9 @@ import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 // was refused as "Invalid Code".
 const CODE = 'RevisionDocuments';
 
-// Only SecondSegmentName is saved as typed. RevisionGroupId / CategoryId are keys shown with their
+// Only SecondSegmentName and Description are saved as typed. RevisionGroupId / CategoryId are keys shown with their
 // names below, and IsActive has its own toggle, so they are not free-text fields.
-const EDITABLE_COLUMNS = ['SecondSegmentName'];
+const EDITABLE_COLUMNS = ['SecondSegmentName', 'Description'];
 
 const inp = () =>
   'w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none border-amber-300 focus:ring-amber-500';

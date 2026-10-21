@@ -19,5 +19,8 @@ namespace DBHelper.Models.Table.Revision
         [Required]
         [MaxLength(10)]
         public string SecondSegmentName { get; set; } = string.Empty;
+        // Added by Migration.RevisionDocumentsDescription.2026-10-21.sql: run it before deploying.
+        [MaxLength(500)]
+        public string? Description { get; set; }
     }
 }
