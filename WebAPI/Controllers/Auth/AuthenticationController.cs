@@ -69,7 +69,7 @@ namespace WebAPI.Controllers.Auth
                     _db.tLoginHistory.Add(LoginLog);
                     await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
-                    return UnauthorizedUser($"{LoginLog.ValidationMessage}. Please check your user ID and password and try again. ");
+                    return UnauthorizedUser("Unable to sign in. Please verify your User ID and password and try again.");
                 }
                 if(!verifyAccount.IsActive)
                 {
@@ -142,7 +142,7 @@ namespace WebAPI.Controllers.Auth
                     Data = new { Authenticated = true, User = verifyAccount } }) :
                     UnauthorizedUser(pisUnreachable
                         ? $"{LoginLog.ValidationMessage}. Please check your user ID and password and try again. "
-                        : "Invalid username or password. Please check your user ID and password and try again. ");
+                        : "Unable to sign in. Please verify your User ID and password and try again.");
             }
             catch (Exception ex)
             {
