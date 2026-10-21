@@ -1,5 +1,5 @@
 // import type { PaginationParams, PaginationResponse } from '../../model/Pagination';
-import { httpClient } from '../../services/httpClient';
+import { httpClient, gisClient } from '../../services/httpClient';
 import type { ImportProjectDTO } from '../Project/Model';
 
 import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, BatchActionResponse, BatchDeletePreview, ImportJobStatus } from './Model';
@@ -354,5 +354,27 @@ export const startExportProjectsJob = async (data: { ProgramId: string; StageNam
     } catch (ErrorResponse) {
         console.error('Error starting export job:', ErrorResponse);
         throw ErrorResponse;
+    }
+};
+
+// #region GeoJSON Data
+// Program-level counterpart of Project/Service.ts's fetchProjectGeoJSON — aggregates every
+// project's work-location geometry under this program into one FeatureCollection, via the
+// GIS service's /get_program_geom route (no project_id filter).
+export const fetchProgramGeoJSON = async (programPK: string, username: string, stageName: string) => {
+    try {
+        const response = await gisClient.get(
+            `/projects_and_programs/get_program_geom`,
+            {
+                program_pk: programPK,
+                username,
+                program_stage_name: stageName,
+            },
+            { preloaderMessage: 'Loading map data...' }
+        );
+        return response;
+    } catch (error) {
+        console.error('Error fetching program GeoJSON data:', error);
+        throw error;
     }
 };

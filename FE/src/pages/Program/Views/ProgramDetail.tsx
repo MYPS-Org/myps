@@ -4,11 +4,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, ProgramProjectFilter, ProgramProjects } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects, ShowProjectsInProgram } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects, ShowProjectsInProgram, fetchProgramGeoJSON } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
 import { getStageProgression } from '../utils/stageProgression';
+import { useAuth } from '../../../contexts/AuthContext';
+import MapRenderer, { type RegionConfig } from '../../../components/map/MapRenderer';
 // import MetroManilaMap from '../../../components/map/MetroManilaMap';
 import PublishProgramDialog from '../dialogs/PublishProgramDialog';
 import ActionsDropdown from '../components/programDetail/ActionsDropdown';
@@ -26,11 +28,23 @@ import { PaginationBar } from '@/components/tailwindui/PaginationBar';
 // it's allow-listed explicitly instead of relying on isTerminalStage.
 const RBP_STAGE_ID = 8;
 
+// Cycled by index when building programRegionConfig -- a program can span more regions than
+// any fixed palette realistically needs to distinguish at a glance, so repeats are acceptable
+// past the first ~17 (the Philippines' actual region count).
+const REGION_COLOR_PALETTE = [
+  '#FF8C00', '#4169E1', '#2DB876', '#E63946', '#9B5DE5',
+  '#F4A261', '#118AB2', '#06D6A0', '#EF476F', '#8338EC',
+  '#FFD166', '#3A86FF', '#FB5607', '#43AA8B', '#D62828',
+  '#7209B7', '#00B4D8',
+];
+
 // Mock projects data for the table
 const ProgramDetail: React.FC = () => {
   const { program } = useParams<{ program: string }>();
   const id = useMemo(() => program?.split(':'), [program]);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
   const [nextStageName, setNextStageName] = useState<string | null>(null);
   const [skipStageName, setSkipStageName] = useState<string | null>(null);
   const [isTerminalStage, setIsTerminalStage] = useState(false);
@@ -208,6 +222,56 @@ const ProgramDetail: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // Fetch GeoJSON data for the program-wide map — aggregates every project's work-location
+  // geometry under this program, mirroring ProjectForm.tsx's loadMapData for a single project.
+  // Skipped when there are no projects yet (pagination.data.total, already loaded by the same
+  // hook driving the project table below) — the GIS backend 400s on that ("No Work Locations
+  // found"), which httpClient's response interceptor auto-toasts as "Resource not found" before
+  // this function's own try/catch ever runs, so calling it anyway surfaces a misleading error
+  // for what's just a normal empty state on a freshly created program.
+  const loadMapData = useCallback(async () => {
+    const programPK = programEnums?.Details.ProgramPK;
+    const stageName = programEnums?.Details.StageName;
+    if (!programPK || !stageName || !(pagination.data.total > 0)) return;
+
+    try {
+      const response = await fetchProgramGeoJSON(programPK, user?.UserId || '', stageName);
+      if (response.Data) {
+        setGeoJsonData(response.Data as GeoJSON.FeatureCollection);
+      }
+    } catch (error) {
+      console.error('Error loading program map data:', error);
+      // Gracefully handle error - map will show "No data available"
+    }
+  }, [programEnums?.Details.ProgramPK, programEnums?.Details.StageName, pagination.data.total, user?.UserId]);
+
+  useEffect(() => {
+    loadMapData();
+  }, [loadMapData]);
+
+  // Built from whatever Region values actually show up in this program's data -- not a fixed
+  // list, since different programs can span anywhere from one region to nearly all of them.
+  // A blank/missing Region (common -- see the GIS backend RCA on data completeness) is simply
+  // not clusterable by region and doesn't get a config entry; its points still render, just
+  // outside the region system (see MapRenderer.tsx's clusteredPointData filter, which only
+  // routes Point/MultiPoint features to the region system at all when regionConfig is non-empty
+  // -- a program with zero Region data falls back to the plain per-work-type point rendering).
+  const programRegionConfig = useMemo<RegionConfig[]>(() => {
+    if (!geoJsonData) return [];
+    const labels = new Set<string>();
+    geoJsonData.features.forEach((feature) => {
+      const region = feature.properties?.Region;
+      if (typeof region === 'string' && region.trim()) labels.add(region);
+    });
+    return Array.from(labels)
+      .sort()
+      .map((label, index) => ({
+        slug: label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+        label,
+        color: REGION_COLOR_PALETTE[index % REGION_COLOR_PALETTE.length],
+      }));
+  }, [geoJsonData]);
 
   const handleViewDetails = async (programId: string, stageName: string) => {
       try {
@@ -647,12 +711,24 @@ const ProgramDetail: React.FC = () => {
                   Program Location
                 </h3>
               </div>
-              <div className="p-4 h-[400px] text-lg flex items-center justify-center border border-gray-200 rounded-b-lg bg-gray-100">
-                This section is for Future Map Integration 
-                {/* <MetroManilaMap 
-                  projectLocation={getProgramLocation()}
+              <div className="h-[400px] rounded-b-lg overflow-hidden">
+                <MapRenderer
+                  geoJsonData={geoJsonData}
                   height="400px"
-                /> */}
+                  representativePointAtLowZoom
+                  regionConfig={programRegionConfig}
+                  regionFilterMode="checkbox"
+                  exportTitle={programEnums?.Details.Name}
+                  popupFields={[
+                    { label: 'Project ID', key: 'ProjectId' },
+                    { label: 'Component ID', key: 'ComponentId' },
+                    { label: 'Description', key: 'ProjectDescription' },
+                    { label: 'Scope of Work', key: 'ScopeOfWork' },
+                    { label: 'Infra Type', key: 'InfraType' },
+                    { label: 'Start Station Limit', key: 'StartStationLimit' },
+                    { label: 'End Station Limit', key: 'EndStationLimit' },
+                  ]}
+                />
               </div>
             </div>
           </div>
