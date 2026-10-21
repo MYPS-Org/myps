@@ -591,6 +591,32 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     expect(JSON.stringify(callsFor(apiCalls, 'Projects').at(-1)?.requestBody)).toContain('Luzon');
   });
 
+  test('the region tables list every region, at 0.00% when it has no budget, like Demo Data', async ({ page }) => {
+    const apiCalls = captureApiCalls(page, ['/api/Dashboard/']);
+    await openDashboardOnLiveDb(page);
+    await scrollThroughPage(page);
+    await expect.poll(() => callsFor(apiCalls, 'RegionalBreakdown').length, { timeout: 30_000 }).toBeGreaterThan(0);
+
+    type Region = { Region: string; Island: string; Hierarchy?: string | null; Budget: number };
+    const regions = (callsFor(apiCalls, 'RegionalBreakdown').at(-1)?.responseBody?.Regions ?? []) as Region[];
+    // Every current DPWH region comes back, budget or not (17 in 2026, 18 with NIR).
+    const listed = regions.filter((region) => region.Hierarchy);
+    expect(listed.length).toBeGreaterThanOrEqual(17);
+    for (const island of ['Luzon', 'Visayas', 'Mindanao']) {
+      expect(listed.some((region) => region.Island === island), `${island} has regions`).toBe(true);
+    }
+
+    // So no region table reads "No records", and a region without budget shows 0.00%.
+    const tables = page.locator('table').filter({ has: page.locator('thead', { hasText: 'Region / Group' }) });
+    await expect(tables.first()).toBeVisible();
+    await expect(tables.getByText('No records', { exact: true })).toHaveCount(0);
+    // NCR is a card of its own, not a table row.
+    const empty = listed.find((region) => region.Budget === 0 && !/National Capital Region/i.test(region.Region));
+    test.skip(!empty, 'Every region has budget this fiscal year');
+    const row = tables.locator('tbody tr', { hasText: empty!.Region.split(' (')[0] }).first();
+    await expect(row).toContainText('0.00%');
+  });
+
   test('repository entry points navigate to the project list', async ({ page }) => {
     await openDashboardOnLiveDb(page);
 

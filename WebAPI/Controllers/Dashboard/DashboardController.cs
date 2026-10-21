@@ -202,17 +202,28 @@ namespace WebAPI.Controllers.Dashboard
                 // to seek on, SQL Server picks a nested-loop plan that took 34-89 s on
                 // myps_db_dev, against 1.7 s for this. A project has one program, so a pair
                 // never mixes two projects' years and its distinct count is exact.
+                //
+                // Each half (base cost, approved-revision cost) is grouped in its own query and
+                // the two are added here. Grouped as one UNION ALL, every fiscal year at once,
+                // SQL Server planned the pair 23 s on myps_db_dev (the base half alone: 2 s,
+                // the revised half: 0.3 s), past the page's patience: both trend charts stayed
+                // empty on Live DB. A project is in one half only, so adding the halves'
+                // distinct counts is exact.
                 var filter = DashboardFilter.From(dto);
-                var yearPairs = await (
-                    from row in await GetCostRowsAsync(null, filter, cancellationToken)
-                    group new { row.Amount, row.ProjectPK } by new { row.ProgramYear, row.Year } into grouped
-                    select new
-                    {
-                        grouped.Key.ProgramYear,
-                        grouped.Key.Year,
-                        Budget = grouped.Sum(item => item.Amount),
-                        ProjectCount = grouped.Select(item => item.ProjectPK).Distinct().Count()
-                    }).ToListAsync(cancellationToken);
+                var sources = await GetCostRowSourcesAsync(null, filter, cancellationToken);
+                var halfPairs = await GroupByYearPairAsync(sources.Base, cancellationToken);
+                if (sources.Revised is not null)
+                {
+                    halfPairs.AddRange(await GroupByYearPairAsync(sources.Revised, cancellationToken));
+                }
+                var yearPairs = halfPairs
+                    .GroupBy(pair => new { pair.ProgramYear, pair.Year })
+                    .Select(group => new YearPairTotal(
+                        group.Key.ProgramYear,
+                        group.Key.Year,
+                        group.Sum(pair => pair.Budget),
+                        group.Sum(pair => pair.ProjectCount)))
+                    .ToList();
 
                 var annualTrend = yearPairs
                     .Where(pair => pair.ProgramYear == pair.Year
@@ -242,6 +253,22 @@ namespace WebAPI.Controllers.Dashboard
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId);
             }
         }
+
+        /// <summary>One {program year, cost year} pair of the trend: its budget and distinct projects.</summary>
+        private sealed record YearPairTotal(int ProgramYear, int Year, decimal Budget, int ProjectCount);
+
+        /// <summary>One half of the cost rows, grouped in SQL by {program year, cost year} (see <see cref="Trend"/>).</summary>
+        private static Task<List<YearPairTotal>> GroupByYearPairAsync(
+            IQueryable<DashboardCostRow> rows,
+            CancellationToken cancellationToken) =>
+            (from row in rows
+             group new { row.Amount, row.ProjectPK } by new { row.ProgramYear, row.Year } into grouped
+             select new YearPairTotal(
+                 grouped.Key.ProgramYear,
+                 grouped.Key.Year,
+                 grouped.Sum(item => item.Amount),
+                 grouped.Select(item => item.ProjectPK).Distinct().Count()))
+            .ToListAsync(cancellationToken);
 
         // ------------------------------------------------------------------
         // BudgetBreakdown
@@ -479,6 +506,27 @@ namespace WebAPI.Controllers.Dashboard
                     })
                     .OrderByDescending(item => item.Budget)
                     .ToList();
+
+                // Every current region is listed, at 0 when it has no budget this year, as Demo
+                // Data lists them: the region tables beside the map read "No records" for a
+                // whole group (Visayas on myps_db_dev FY2027) and left out regions, so the tables
+                // did not read as the country's regions.
+                var listedCodes = regionCells
+                    .Select(cell => cell.RegionCode)
+                    .Where(code => !string.IsNullOrWhiteSpace(code))
+                    .ToHashSet();
+                var emptyRegions = await _db.tOptionAdminAreaRegion.AsNoTracking()
+                    .Where(region => !region.Deprecated && !listedCodes.Contains(region.ParticipantId))
+                    .Select(region => new { region.ParticipantId, region.Name, region.IslandCode, region.Hierarchy })
+                    .ToListAsync(cancellationToken);
+                regions.AddRange(emptyRegions.Select(region => new DashboardRegionalBreakdownDTO
+                {
+                    Region = RegionDisplayName(region.ParticipantId, region.Name),
+                    Island = IslandName(region.IslandCode),
+                    Hierarchy = region.Hierarchy,
+                    Budget = 0,
+                    ProjectCount = 0
+                }));
 
                 return Ok(new DashboardRegionalBreakdownResponseDTO { Regions = regions });
             }
