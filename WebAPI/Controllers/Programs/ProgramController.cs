@@ -338,7 +338,9 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = NewProgramUniqueId,
                     RevisionId = newRevisions.Id,
                     StageId = dto.Stage,
-                    StageName = dto.Stage.ToString(),
+                    // The lookup's Name ("GAA-R"), not the enum name ("GAAR"): FK_tProgramStages_Stage is
+                    // composite on (StageId, StageName), and the enum cannot spell NEP-E/HGAB-I/GAA-R/TF-R.
+                    StageName = checkStageType.Name,
                     CreatedBy = UserId,
                     CreatedDate = CurrentDate,
                 });
