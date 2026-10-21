@@ -11,9 +11,9 @@ import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
 const CODE = 'RevisionReasons';
 
-interface EditForm { Reason: string; RevisionGroupId: number; ReasonId: number; IsDeleted: boolean; }
-interface AddForm { Reason: string; RevisionGroupId: number; IsDeleted: boolean; }
-const EMPTY_ADD_FORM: AddForm = { Reason: '', RevisionGroupId: 0, IsDeleted: false };
+interface EditForm { Reason: string; RevisionGroupId: number; ReasonId: number; }
+interface AddForm { Reason: string; RevisionGroupId: number; }
+const EMPTY_ADD_FORM: AddForm = { Reason: '', RevisionGroupId: 0 };
 
 const ModificationReasonTable: React.FC = () => {
   const { data: codeTableData, loading: isLoading, refetch } = useCodeTableContext();
@@ -25,7 +25,7 @@ const ModificationReasonTable: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [editId, setEditId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ Reason: '', RevisionGroupId: 0, ReasonId: 0, IsDeleted: false });
+  const [editForm, setEditForm] = useState<EditForm>({ Reason: '', RevisionGroupId: 0, ReasonId: 0 });
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [addForm, setAddForm] = useState<AddForm | null>(null);
   const confirm = useConfirmDialog();
@@ -107,7 +107,7 @@ const ModificationReasonTable: React.FC = () => {
 
   const startEdit = (item: ModificationCategoryReason) => {
     setEditId(item.Id);
-    setEditForm({ Reason: item.Reason, RevisionGroupId: item.RevisionGroupId, ReasonId: item.ReasonId, IsDeleted: item.IsDeleted });
+    setEditForm({ Reason: item.Reason, RevisionGroupId: item.RevisionGroupId, ReasonId: item.ReasonId });
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
@@ -124,7 +124,7 @@ const ModificationReasonTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, Reason: item.Reason, RevisionGroupId: item.RevisionGroupId, ReasonId: item.ReasonId, IsDeleted: item.IsDeleted, IsActive: nextActive }));
+          await updateCodeTable(CODE, 1, JSON.stringify({ ...item, IsActive: nextActive }));
           showToast({ type: 'success', message: `Modification reason ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
         } catch {
@@ -166,7 +166,6 @@ const ModificationReasonTable: React.FC = () => {
         { label: 'Group ID',   value: editForm.RevisionGroupId, mono: true },
         { label: 'Reason ID',  value: editForm.ReasonId,        mono: true },
         { label: 'Reason',     value: editForm.Reason },
-        { label: 'Status',     value: editForm.IsDeleted ? 'Deleted' : 'Active' },
       ],
       onConfirm: async () => { await saveEdit(); confirm.close(); },
     });
@@ -227,7 +226,6 @@ const ModificationReasonTable: React.FC = () => {
               <TableHeader className="w-28 cursor-pointer hover:bg-gray-100" onClick={() => handleSort(1)}>Group ID</TableHeader>
               <TableHeader className="w-24 cursor-pointer hover:bg-gray-100" onClick={() => handleSort(2)}>Reason ID</TableHeader>
               <TableHeader className="cursor-pointer hover:bg-gray-100" onClick={() => handleSort(3)}>Reason</TableHeader>
-              <TableHeader className="w-24 text-center">Status</TableHeader>
               <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-24">Actions</TableHeader>
             </TableRow>
@@ -260,7 +258,6 @@ const ModificationReasonTable: React.FC = () => {
                   />
                 </TableCell>
                 <TableCell />
-                <TableCell />
                 <TableCell>
                   <div className="flex gap-1">
                     <Button color="indigo" className="p-1.5" onClick={requestAdd}
@@ -274,7 +271,7 @@ const ModificationReasonTable: React.FC = () => {
             )}
             {pageData.length === 0 && !addForm ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-gray-500">No records found.</TableCell>
+                <TableCell colSpan={6} className="text-center py-10 text-gray-500">No records found.</TableCell>
               </TableRow>
             ) : (
               pageData.map(item => (
@@ -297,12 +294,6 @@ const ModificationReasonTable: React.FC = () => {
                       </TableCell>
                       <TableCell><span className="font-mono text-xs text-gray-500 px-2">{editForm.ReasonId}</span></TableCell>
                       <TableCell><textarea value={editForm.Reason} onChange={e => setEditForm(f => ({ ...f, Reason: e.target.value }))} rows={3} className={inp()} /></TableCell>
-                      <TableCell>
-                        <select value={editForm.IsDeleted ? '1' : '0'} onChange={e => setEditForm(f => ({ ...f, IsDeleted: e.target.value === '1' }))} className={inp()}>
-                          <option value="0">Active</option>
-                          <option value="1">Deleted</option>
-                        </select>
-                      </TableCell>
                       <TableCell className="text-center">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
                           item.IsActive !== false
@@ -327,15 +318,6 @@ const ModificationReasonTable: React.FC = () => {
                       </TableCell>
                       <TableCell className="font-mono text-xs text-gray-500">{item.ReasonId}</TableCell>
                       <TableCell className="text-sm text-gray-900" title={item.Reason}>{item.Reason}</TableCell>
-                      <TableCell className="text-center">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${
-                          !item.IsDeleted
-                            ? 'bg-green-50 text-green-700 border-green-200'
-                            : 'bg-red-50 text-red-600 border-red-200'
-                        }`}>
-                          {item.IsDeleted ? 'Deleted' : 'Active'}
-                        </span>
-                      </TableCell>
                       <TableCell className="text-center">
                         <button
                           onClick={() => requestToggleActive(item)}

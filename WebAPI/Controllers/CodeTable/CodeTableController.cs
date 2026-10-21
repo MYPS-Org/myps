@@ -1859,13 +1859,15 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Document has been selected, please select a revision document."
                         });
                     }
+                    // The second segment only shapes the file name of NEW uploads, so a group that revisions
+                    // already use can still have its document edited; only deleting it is refused.
                     var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
+                    if (CheckIfAlreadyUse != null && dto.TransactionType == CodeTransactionType.Delete)
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Revision Document In Use",
-                            Message = "The selected revision document is currently in use and cannot be updated or deleted."
+                            Message = "The selected revision document is currently in use and cannot be deleted."
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.SecondSegmentName == data.SecondSegmentName);
