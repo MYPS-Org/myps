@@ -63,14 +63,13 @@ const ProgramStatusTable: React.FC = () => {
       mode: 'add',
       tableName: 'Program Status',
       fields: [
-        { label: 'NameId',       value: addForm.NameId || 'Auto', mono: true },
         { label: 'Name',         value: addForm.Name },
         { label: 'Description',  value: addForm.Description, optional: true },
       ],
       onConfirm: async () => {
         try {
-          // Created active (the toggle shows it right away); NameId 0 = next number on the server.
-          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
+          // Created active (the toggle shows it right away). No NameId: the server assigns the next one.
+          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, NameId: 0, IsActive: true }));
           showToast({ type: 'success', message: 'Program status added.' });
           await refetch();
         } catch {
@@ -175,12 +174,10 @@ const ProgramStatusTable: React.FC = () => {
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
                     <TableCell>
-                      <input autoFocus type="number" value={addForm.NameId || ''}
-                        onChange={e => setAddForm(f => f ? { ...f, NameId: parseInt(e.target.value) || 0 } : f)}
-                        placeholder="Auto" className={inp('add')} />
+                      <span className="font-mono text-xs text-gray-400 px-2">auto</span>
                     </TableCell>
                     <TableCell>
-                      <textarea value={addForm.Name}
+                      <textarea autoFocus value={addForm.Name}
                         onChange={e => setAddForm(f => f ? { ...f, Name: e.target.value } : f)}
                         placeholder="Status name *" rows={2} className={inp('add')} />
                     </TableCell>

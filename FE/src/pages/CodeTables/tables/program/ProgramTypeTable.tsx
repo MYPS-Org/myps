@@ -11,8 +11,9 @@ import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
 const CODE = 'ProgramType';
 
-interface FormState { NameId: number; Name: string; Description: string; }
-const EMPTY_FORM: FormState = { NameId: 0, Name: '', Description: '' };
+// No Description (UAT S04-TC018): program types are identified by their name alone.
+interface FormState { NameId: number; Name: string; }
+const EMPTY_FORM: FormState = { NameId: 0, Name: '' };
 
 const ProgramTypeTable: React.FC = () => {
   const { data: codeTableData, loading, refetch } = useCodeTableContext();
@@ -29,7 +30,7 @@ const ProgramTypeTable: React.FC = () => {
 
   const startEdit = (r: ProgramEnums) => {
     setEditId(r.Id);
-    setEditForm({ NameId: r.NameId, Name: r.Name, Description: r.Description ?? '' });
+    setEditForm({ NameId: r.NameId, Name: r.Name });
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
@@ -63,14 +64,12 @@ const ProgramTypeTable: React.FC = () => {
       mode: 'add',
       tableName: 'Program Type',
       fields: [
-        { label: 'NameId',       value: addForm.NameId || 'Auto', mono: true },
         { label: 'Name',         value: addForm.Name },
-        { label: 'Description',  value: addForm.Description, optional: true },
       ],
       onConfirm: async () => {
         try {
-          // Created active (the toggle shows it right away); NameId 0 = next number on the server.
-          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
+          // Created active (the toggle shows it right away). No NameId: the server assigns the next one.
+          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, NameId: 0, IsActive: true }));
           showToast({ type: 'success', message: 'Program type added.' });
           await refetch();
         } catch {
@@ -89,13 +88,13 @@ const ProgramTypeTable: React.FC = () => {
       fields: [
         { label: 'NameId',       value: editForm.NameId, mono: true },
         { label: 'Name',         value: editForm.Name },
-        { label: 'Description',  value: editForm.Description, optional: true },
       ],
       onConfirm: async () => {
         try {
           // IsActive is not on the form: send the current value or the edit would deactivate the row.
           const original = data.find(r => r.Id === editId);
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, IsActive: original?.IsActive !== false }));
+          // Description is no longer on the form: send the stored value so the edit leaves it as is.
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, Description: original?.Description ?? null, IsActive: original?.IsActive !== false }));
           showToast({ type: 'success', message: 'Program type updated.' });
           await refetch();
         } catch {
@@ -151,7 +150,6 @@ const ProgramTypeTable: React.FC = () => {
               <TableHeader className="w-16">Id</TableHeader>
               <TableHeader className="w-20">NameId</TableHeader>
               <TableHeader>Name</TableHeader>
-              <TableHeader>Description</TableHeader>
               <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-32">Actions</TableHeader>
             </TableRow>
@@ -159,7 +157,7 @@ const ProgramTypeTable: React.FC = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={5} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-gray-400">
                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -175,19 +173,12 @@ const ProgramTypeTable: React.FC = () => {
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
                     <TableCell>
-                      <input autoFocus type="number" value={addForm.NameId || ''}
-                        onChange={e => setAddForm(f => f ? { ...f, NameId: parseInt(e.target.value) || 0 } : f)}
-                        placeholder="Auto" className={inp('add')} />
+                      <span className="font-mono text-xs text-gray-400 px-2">auto</span>
                     </TableCell>
                     <TableCell>
-                      <textarea value={addForm.Name}
+                      <textarea autoFocus value={addForm.Name}
                         onChange={e => setAddForm(f => f ? { ...f, Name: e.target.value } : f)}
                         placeholder="Type name *" rows={2} className={inp('add')} />
-                    </TableCell>
-                    <TableCell>
-                      <textarea value={addForm.Description}
-                        onChange={e => setAddForm(f => f ? { ...f, Description: e.target.value } : f)}
-                        placeholder="Description (optional)" rows={2} className={inp('add')} />
                     </TableCell>
                     <TableCell />
                     <TableCell>
@@ -205,7 +196,7 @@ const ProgramTypeTable: React.FC = () => {
                 )}
                 {filtered.length === 0 && !addForm ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-gray-400">No records found.</TableCell>
+                    <TableCell colSpan={5} className="text-center py-10 text-gray-400">No records found.</TableCell>
                   </TableRow>
                 ) : filtered.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
@@ -219,11 +210,6 @@ const ProgramTypeTable: React.FC = () => {
                           <textarea value={editForm.Name}
                             onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))}
                             rows={2} className={inp('edit')} />
-                        </TableCell>
-                        <TableCell>
-                          <textarea value={editForm.Description}
-                            onChange={e => setEditForm(f => ({ ...f, Description: e.target.value }))}
-                            placeholder="Description (optional)" rows={2} className={inp('edit')} />
                         </TableCell>
                         <TableCell className="text-center">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
@@ -252,7 +238,6 @@ const ProgramTypeTable: React.FC = () => {
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
                         <TableCell className="font-mono text-sm text-gray-600">{item.NameId}</TableCell>
                         <TableCell className="font-medium text-gray-900">{item.Name}</TableCell>
-                        <TableCell className="text-gray-600">{item.Description || <span className="text-gray-300 italic">—</span>}</TableCell>
                         <TableCell className="text-center">
                           <button
                             onClick={() => requestToggleActive(item)}
