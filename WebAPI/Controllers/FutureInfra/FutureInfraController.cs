@@ -29,10 +29,6 @@ namespace WebAPI.Controllers.Programs
 
         private static string NormalizeInfraId(string id) => (id ?? string.Empty).Trim().ToUpperInvariant();
 
-        /// <summary>FS00001LZ under FR00001LZ: the last two letters (island code) must match.</summary>
-        private static bool SameIslandCode(string childId, string parentId) =>
-            childId.Length >= 2 && parentId.Length >= 2 && childId[^2..] == parentId[^2..];
-
         private static bool TryParseLength(string? value, out double meters) =>
             double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out meters) && meters > 0;
 
@@ -43,22 +39,57 @@ namespace WebAPI.Controllers.Programs
         });
 
         /// <summary>
-        /// Next free Future Road ID for an island (S06-TC003-P001: IDs are generated, not typed).
-        /// The number runs across all islands (FR00001LZ, FR00002VS, ...), as in the Add dialog's example.
+        /// Next free future infra ID: prefix (FR / FS / FB) + the next 5-digit number + island code.
+        /// IDs are generated, never typed (S06-TC003-P001, TC005, TC010). The number runs across all
+        /// islands (FR00001LZ, FR00002VS, ...), as in the Add dialog's example. Null when 99999 is used.
+        /// Call inside the Add transaction after <see cref="LockInfraIdAsync"/>.
         /// </summary>
-        private async Task<string?> NextFutureRoadIdAsync(string islandCode, CancellationToken ct)
+        private static readonly System.Text.RegularExpressions.Regex InfraIdNumber =
+            new(@"^F[RSB](\d{5})[A-Z]{2}$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        private static async Task<string?> NextInfraIdAsync(IQueryable<string> ids, string prefix, string islandCode, CancellationToken ct)
         {
-            var ids = await _db.tFutureRoads.AsNoTracking()
-                .Where(x => x.RoadId.StartsWith("FR"))
-                .Select(x => x.RoadId)
-                .ToListAsync(ct);
-            int max = ids
-                .Where(id => "FR".IsValidFutureInfraId(id))
-                .Select(id => int.Parse(id.Substring(2, 5)))
+            var existing = await ids.Where(id => id.StartsWith(prefix)).ToListAsync(ct);
+            // One shared regex: IsValidFutureInfraId builds a compiled Regex per call, and this runs over
+            // ~17k project references (93 s per Add, which also timed out the other Adds' lock waits).
+            int max = existing
+                .Select(id => InfraIdNumber.Match(id.Trim()))
+                .Where(m => m.Success)
+                .Select(m => int.Parse(m.Groups[1].Value))
                 .DefaultIfEmpty(0)
                 .Max();
-            return max >= 99999 ? null : $"FR{max + 1:D5}{islandCode}";
+            return max >= 99999 ? null : $"{prefix}{max + 1:D5}{islandCode}";
         }
+
+        /// <summary>
+        /// Section / bridge IDs that projects and their revisions point at (InfraId, no FK). Many are not
+        /// in the infra tables (on myps_db_dev: 16,716 FS and 4,951 FB references in
+        /// tProjectMajorWorkLocations, up to FS97844 / FB97614), so a generated number must clear these
+        /// too: reusing one would hand that project's work location to the new section or bridge.
+        /// </summary>
+        private IQueryable<string> ProjectInfraIds() =>
+            _db.tProjectMajorWorkLocations.AsNoTracking().Select(x => x.InfraId)
+                .Concat(_db.tRevisionProjectMajorWorkLocations.AsNoTracking().Select(x => x.InfraId));
+
+        /// <summary>
+        /// The ID columns have no unique index: serialize Adds per prefix so two at once cannot take the
+        /// same number. Transaction-owned, so it is released at commit or rollback.
+        /// </summary>
+        private Task LockInfraIdAsync(string prefix, CancellationToken ct) =>
+            _db.Database.ExecuteSqlRawAsync(
+                "DECLARE @r INT; EXEC @r = sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000; IF @r < 0 THROW 50000, 'Another item is being added. Try again in a moment.', 1;",
+                new object[] { $"MYPS_FutureInfraId_{prefix}" }, ct);
+
+        /// <summary>
+        /// The ID a section / bridge keeps on edit: its own number, with the island code of its (possibly
+        /// new) parent. IDs are not typed on edit either, so moving a row to a parent on another island
+        /// re-suffixes it (FS00012LZ -> FS00012VS) instead of failing the island check. Null when the
+        /// stored ID is not in the FS/FB format.
+        /// </summary>
+        private static string? IdUnderParent(string prefix, string storedId, string parentId) =>
+            prefix.IsValidFutureInfraId(storedId) && parentId.Length >= 2
+                ? $"{prefix}{storedId.Substring(2, 5)}{parentId[^2..]}"
+                : null;
 
         private Task<List<string>> IslandCodesAsync(CancellationToken ct) =>
             _db.tOptionAdminAreaRegion.AsNoTracking()
@@ -67,6 +98,65 @@ namespace WebAPI.Controllers.Programs
                 .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync(ct);
+
+        // Sortable list columns (S06-TC001-P001): the list's field name -> a fixed SQL expression.
+        // Only these strings ever reach the ORDER BY; an unknown SortField falls back to the Id order.
+        private static readonly IReadOnlyDictionary<string, string> RoadSortColumns = new Dictionary<string, string>
+        {
+            ["RoadId"] = "v.[RoadId]",
+            ["Name"] = "v.[Name]",
+            ["Classification"] = "v.[Classification]",
+        };
+        private static readonly IReadOnlyDictionary<string, string> RoadSectionSortColumns = new Dictionary<string, string>
+        {
+            ["RoadSectionId"] = "v.[RoadSectionId]",
+            ["RoadId"] = "v.[RoadId]",
+            ["RoadLength"] = "v.[LengthM]",
+            // The column shows the DEO name, so sort by the name rather than the OI code.
+            ["DEO"] = "(SELECT TOP 1 d.[Name] FROM [dbo].[vAdminDEO] d WHERE d.[ParticipantId] = v.[DEOParticipantId])",
+        };
+        private static readonly IReadOnlyDictionary<string, string> BridgeSortColumns = new Dictionary<string, string>
+        {
+            ["RoadSectionId"] = "v.[RoadSectionId]",
+            ["Name"] = "v.[Name]",
+            ["BridgeId"] = "v.[BridgeId]",
+            ["From"] = "v.[From]",
+            ["Length"] = "v.[Length]",
+            ["CarriageWay"] = "v.[CarriageWay]",
+        };
+
+        /// <summary>
+        /// One page of an Infra Management list. With a known SortField it is ordered by that column
+        /// (FilterDataSorted); otherwise newest first by Id, keyset-paged as before (FilterDataCursor).
+        /// </summary>
+        private async Task<IActionResult> ShowPageAsync<T, TFilter>(
+            string tableName,
+            SortableFutureInfraPagination<TFilter> dto,
+            List<(string Clause, string ParamName, object? Value)> filters,
+            IReadOnlyDictionary<string, string> sortColumns,
+            CancellationToken ct) where T : class
+        {
+            FilterDataResult<T> result =
+                !string.IsNullOrEmpty(dto.SortField) && sortColumns.TryGetValue(dto.SortField, out string? orderBy)
+                    ? await _db.FilterDataSorted<T, TFilter>(tableName, dto, filters, orderBy, descending: dto.sortDirection != 0, ct: ct)
+                    : await _db.FilterDataCursor<T, TFilter>(
+                        tableName: tableName,
+                        dto: dto,
+                        filter: filters,
+                        keyColumn: "Id",
+                        descending: true,
+                        includeTotal: true,
+                        ct: ct);
+            if (result.HasError)
+            {
+                return new BadRequestObjectResult(new ErrorResult
+                {
+                    Title = "Pagination error",
+                    Message = result.ErrorMessage ?? "Unable to retrieve the records."
+                });
+            }
+            return Ok(result.Data);
+        }
 
         [HttpPost]
         public async Task<IActionResult> GetInfraInfo()
@@ -134,31 +224,7 @@ namespace WebAPI.Controllers.Programs
                 if (int.TryParse(dto.Filters.Classification, out int classificationId))
                     filters.Add(("v.Classification = @Classification", "@Classification", classificationId));
 
-                FilterDataResult<FutureRoads> result =
-                    await _db.FilterDataCursor<
-                        FutureRoads,
-                        ShowFutureRoadsFilterDTO>(
-                            tableName: "tFutureRoads",
-                            dto: dto,
-                            filter: filters,
-                            keyColumn: "Id",
-                            descending: true,
-                            includeTotal: true,
-                            ct: cancellationToken);
-
-                if (result.HasError)
-                {
-                    return new BadRequestObjectResult(
-                        new ErrorResult
-                        {
-                            Title = "Pagination error",
-                            Message =
-                                result.ErrorMessage ??
-                                "Unable to retrieve the records."
-                        });
-                }
-
-                return Ok(result.Data);
+                return await ShowPageAsync<FutureRoads, ShowFutureRoadsFilterDTO>("tFutureRoads", dto, filters, RoadSortColumns, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -335,12 +401,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Future Road name '{dto.Name}' already exists in the System.", Title = "Road Already Exists" });
                 }
-                // RoadId has no unique index: serialize Adds so two at once cannot take the same number.
-                // Transaction-owned, so it is released at commit or rollback.
-                await _db.Database.ExecuteSqlRawAsync(
-                    "DECLARE @r INT; EXEC @r = sp_getapplock @Resource = 'MYPS_FutureRoadId', @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000; IF @r < 0 THROW 50000, 'Another Future Road is being added. Try again in a moment.', 1;",
-                    cancellationToken);
-                string? roadId = await NextFutureRoadIdAsync(islandCode, cancellationToken);
+                await LockInfraIdAsync("FR", cancellationToken);
+                string? roadId = await NextInfraIdAsync(_db.tFutureRoads.AsNoTracking().Select(x => x.RoadId), "FR", islandCode, cancellationToken);
                 if (roadId == null)
                 {
                     return new BadRequestObjectResult(new { Message = "All Future Road IDs (FR00001 to FR99999) are in use.", Title = "No Road ID Available" });
@@ -478,31 +540,7 @@ namespace WebAPI.Controllers.Programs
                     filters.Add(("v.DEOParticipantId LIKE @DEOParticipantId", "@DEOParticipantId", $"%{dto.Filters.DEO.Trim()}%"));
                 }
 
-                FilterDataResult<FutureRoadSections> result =
-                    await _db.FilterDataCursor<
-                        FutureRoadSections,
-                        ShowFutureRoadSectionsFilterDTO>(
-                            tableName: "tFutureRoadSections",
-                            dto: dto,
-                            filter: filters,
-                            keyColumn: "Id",
-                            descending: true,
-                            includeTotal: true,
-                            ct: cancellationToken);
-
-                if (result.HasError)
-                {
-                    return new BadRequestObjectResult(
-                        new ErrorResult
-                        {
-                            Title = "Pagination error",
-                            Message =
-                                result.ErrorMessage ??
-                                "Unable to retrieve the records."
-                        });
-                }
-
-                return Ok(result.Data);
+                return await ShowPageAsync<FutureRoadSections, ShowFutureRoadSectionsFilterDTO>("tFutureRoadSections", dto, filters, RoadSectionSortColumns, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -517,27 +555,10 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 dto.RoadId = NormalizeInfraId(dto.RoadId);
-                dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
-                if (!"FS".IsValidFutureInfraId(dto.RoadSectionId))
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FS12345LZ).",
-                        Title = "Invalid Road Section ID Format"
-                    });
-                }
                 var checkRoad = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId, cancellationToken);
                 if (checkRoad == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} does not exist in the system.", Title = "Invalid Road ID" });
-                }
-                if (!SameIslandCode(dto.RoadSectionId, dto.RoadId))
-                {
-                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} must end with the island code of road {dto.RoadId}.", Title = "Invalid Island Code" });
-                }
-                if (await _db.tFutureRoadSections.AsNoTracking().AnyAsync(x => x.RoadSectionId == dto.RoadSectionId, cancellationToken))
-                {
-                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} already exists in the system. Please use another number.", Title = "Road Section ID Already Exists" });
                 }
                 if (!TryParseLength(dto.RoadLength, out double lengthM))
                 {
@@ -548,13 +569,20 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"DEO '{dto.DEO}' is not valid.", Title = "Invalid DEO" });
                 }
+                // Generated: FS + next number + the road's island code (S06-TC005-P001).
+                await LockInfraIdAsync("FS", cancellationToken);
+                string? roadSectionId = await NextInfraIdAsync(_db.tFutureRoadSections.AsNoTracking().Select(x => x.RoadSectionId).Concat(ProjectInfraIds()), "FS", dto.RoadId[^2..], cancellationToken);
+                if (roadSectionId == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "All Road Section IDs (FS00001 to FS99999) are in use.", Title = "No Road Section ID Available" });
+                }
                 DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
                 var newFutureRoadSection = new FutureRoadSections()
                 {
                     NetworkStatusId = MypsNetworkStatusId,
                     RoadId = dto.RoadId,
-                    RoadSectionId = dto.RoadSectionId,
+                    RoadSectionId = roadSectionId,
                     LengthM = lengthM,
                     DEOParticipantId = dto.DEO,
                     RegionParticipantId = checkDEO.RegionParticipantId,
@@ -566,7 +594,8 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Future Road Section added successfully.",
+                    RoadSectionId = roadSectionId,
+                    Message = $"Future Road Section {roadSectionId} added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -593,15 +622,17 @@ namespace WebAPI.Controllers.Programs
                     return RbiaReadOnly("road section");
                 }
                 dto.RoadId = NormalizeInfraId(dto.RoadId);
-                dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
-                if (!"FS".IsValidFutureInfraId(dto.RoadSectionId))
+                // The ID is not typed: the section keeps its number under its (possibly new) road's island.
+                string? derivedSectionId = IdUnderParent("FS", checkRoad.RoadSectionId, dto.RoadId);
+                if (derivedSectionId == null)
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FS12345LZ).",
+                        Message = $"Road Section ID '{checkRoad.RoadSectionId}' is not in the FS12345LZ format, so it cannot be edited here.",
                         Title = "Invalid Road Section ID Format"
                     });
                 }
+                dto.RoadSectionId = derivedSectionId;
                 // Was missing the ID comparison, so any edit failed as soon as a second section existed.
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId != null)
@@ -623,10 +654,6 @@ namespace WebAPI.Controllers.Programs
                 if (checkRoadId == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} does not exist in the system.", Title = "Invalid Road ID" });
-                }
-                if (keyChange && !SameIslandCode(dto.RoadSectionId, dto.RoadId))
-                {
-                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} must end with the island code of road {dto.RoadId}.", Title = "Invalid Island Code" });
                 }
                 if (!TryParseLength(dto.RoadLength, out double lengthM))
                 {
@@ -668,10 +695,40 @@ namespace WebAPI.Controllers.Programs
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
-                    // Bridges point at the section by RoadSectionId (no FK): move them along.
+                    // Bridges point at the section by RoadSectionId (no FK): move them along. The section only
+                    // changes ID when its new road is on another island, so their IDs take that island too.
                     var bridges = await _db.tFutureBridge.Where(x => x.RoadSectionId == checkRoad.RoadSectionId).ToListAsync(cancellationToken);
+                    var bridgeIds = bridges.Select(b => b.BridgeId).ToList();
+                    if (await _db.tProjectMajorWorkLocations.AsNoTracking().AnyAsync(x => bridgeIds.Contains(x.InfraId), cancellationToken))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = "A bridge on this road section is used by a project, so the section cannot move to a road on another island.",
+                            Title = "Bridge In Use"
+                        });
+                    }
                     foreach (var bridge in bridges)
                     {
+                        string? newBridgeId = IdUnderParent("FB", bridge.BridgeId, dto.RoadSectionId);
+                        if (newBridgeId != null && newBridgeId != bridge.BridgeId)
+                        {
+                            if (await _db.tFutureBridge.AsNoTracking().AnyAsync(x => x.BridgeId == newBridgeId, cancellationToken))
+                            {
+                                return new BadRequestObjectResult(new { Message = $"Bridge {bridge.BridgeId} would become {newBridgeId}, which already exists.", Title = "Bridge ID Already Exists" });
+                            }
+                            Transactions.Add(new TransactionLog
+                            {
+                                ReferenceId = bridge.BridgeId,
+                                TransactionType = EnumTransactionType.Update.ToString(),
+                                AffectedTable = "tFutureBridge",
+                                AffectedColumn = "BridgeId",
+                                OldValue = bridge.BridgeId,
+                                NewValue = newBridgeId,
+                                CreatedBy = UserId,
+                                CreatedDate = currentDate
+                            });
+                            bridge.BridgeId = newBridgeId;
+                        }
                         bridge.RoadSectionId = dto.RoadSectionId;
                         bridge.UpdatedBy = UserId;
                         bridge.UpdatedDate = currentDate;
@@ -837,31 +894,7 @@ namespace WebAPI.Controllers.Programs
                     filters.Add(("v.Name LIKE @Name", "@Name", $"%{dto.Filters.Name.Trim()}%"));
                 }
 
-                FilterDataResult<FutureBridge> result =
-                    await _db.FilterDataCursor<
-                        FutureBridge,
-                        ShowFutureBridgeFilterDTO>(
-                            tableName: "tFutureBridge",
-                            dto: dto,
-                            filter: filters,
-                            keyColumn: "Id",
-                            descending: true,
-                            includeTotal: true,
-                            ct: cancellationToken);
-
-                if (result.HasError)
-                {
-                    return new BadRequestObjectResult(
-                        new ErrorResult
-                        {
-                            Title = "Pagination error",
-                            Message =
-                                result.ErrorMessage ??
-                                "Unable to retrieve the records."
-                        });
-                }
-
-                return Ok(result.Data);
+                return await ShowPageAsync<FutureBridge, ShowFutureBridgeFilterDTO>("tFutureBridge", dto, filters, BridgeSortColumns, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -875,33 +908,23 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                dto.BridgeId = NormalizeInfraId(dto.BridgeId);
                 dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
-                if (!"FB".IsValidFutureInfraId(dto.BridgeId))
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FB12345LU).",
-                        Title = "Invalid Bridge ID Format"
-                    });
-                }
                 var checkBridgeName = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkBridgeName != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge name '{dto.Name}' already exists in the System.", Title = "Bridge Already Exists" });
-                }
-                if (await _db.tFutureBridge.AsNoTracking().AnyAsync(x => x.BridgeId == dto.BridgeId, cancellationToken))
-                {
-                    return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} already exists in the system. Please use another number.", Title = "Bridge ID Already Exists" });
                 }
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section '{dto.RoadSectionId}' is not valid.", Title = "Invalid Road Section" });
                 }
-                if (!SameIslandCode(dto.BridgeId, dto.RoadSectionId))
+                // Generated: FB + next number + the section's island code (S06-TC010-P001).
+                await LockInfraIdAsync("FB", cancellationToken);
+                string? bridgeId = await NextInfraIdAsync(_db.tFutureBridge.AsNoTracking().Select(x => x.BridgeId).Concat(ProjectInfraIds()), "FB", dto.RoadSectionId[^2..], cancellationToken);
+                if (bridgeId == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} must end with the island code of road section {dto.RoadSectionId}.", Title = "Invalid Island Code" });
+                    return new BadRequestObjectResult(new { Message = "All Bridge IDs (FB00001 to FB99999) are in use.", Title = "No Bridge ID Available" });
                 }
                 DateTime currentDate = Functions.CurrentDate(); ;
                 string UserId = _Session.UserId;
@@ -909,7 +932,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     NetworkStatusId = MypsNetworkStatusId,
                     RoadSectionId = dto.RoadSectionId,
-                    BridgeId = dto.BridgeId,
+                    BridgeId = bridgeId,
                     Name = dto.Name,
                     From = dto.From,
                     Length = dto.Length,
@@ -923,7 +946,8 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Future Bridge added successfully.",
+                    BridgeId = bridgeId,
+                    Message = $"Future Bridge {bridgeId} added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -949,21 +973,23 @@ namespace WebAPI.Controllers.Programs
                 {
                     return RbiaReadOnly("bridge");
                 }
-                dto.BridgeId = NormalizeInfraId(dto.BridgeId);
                 dto.RoadSectionId = NormalizeInfraId(dto.RoadSectionId);
-                if (!"FB".IsValidFutureInfraId(dto.BridgeId))
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FB12345LU).",
-                        Title = "Invalid Bridge ID Format"
-                    });
-                }
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} does not exist in the system. Please use other Road ID.", Title = "Invalid Road Section ID" });
                 }
+                // The ID is not typed: the bridge keeps its number under its (possibly new) section's island.
+                string? derivedBridgeId = IdUnderParent("FB", checkBridge.BridgeId, dto.RoadSectionId);
+                if (derivedBridgeId == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Bridge ID '{checkBridge.BridgeId}' is not in the FB12345LZ format, so it cannot be edited here.",
+                        Title = "Invalid Bridge ID Format"
+                    });
+                }
+                dto.BridgeId = derivedBridgeId;
                 // Was "any other bridge exists" with the result inverted; it is a duplicate-ID check.
                 if (await _db.tFutureBridge.AsNoTracking().AnyAsync(x => x.Id != dto.Id && x.BridgeId == dto.BridgeId, cancellationToken))
                 {
@@ -978,10 +1004,6 @@ namespace WebAPI.Controllers.Programs
                         Message = "The selected bridge is currently in use, so its Bridge ID cannot be changed.",
                         Title = "Bridge In Use"
                     });
-                }
-                if ((checkBridge.BridgeId != dto.BridgeId || checkBridge.RoadSectionId != dto.RoadSectionId) && !SameIslandCode(dto.BridgeId, dto.RoadSectionId))
-                {
-                    return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} must end with the island code of road section {dto.RoadSectionId}.", Title = "Invalid Island Code" });
                 }
                 var checkName = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.Name == dto.Name);
                 if (checkName != null)

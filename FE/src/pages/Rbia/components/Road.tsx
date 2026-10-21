@@ -65,8 +65,6 @@ const FutureRoadList: React.FC = () => {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [roadToAddSection, setRoadToAddSection] = useState<Road | null>(null);
   const [roadToDelete, setRoadToDelete] = useState<Road | null>(null);
-  const [sortField, setSortField] = useState<string>('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Use the custom hook for road data management
   const {
@@ -89,6 +87,7 @@ const FutureRoadList: React.FC = () => {
     goFirst,
     goLast,
     refresh,
+    handleSort,
   } = useRoadData();
 
   // Initialize data on component mount
@@ -122,21 +121,18 @@ const FutureRoadList: React.FC = () => {
     setRoadToDelete(null);
   };
 
-  // Updated handler for onSort that accepts direction parameter
+  // Header click: the server re-orders the whole list, not just the page shown (S06-TC001-P001).
   const handleSortWithDirection = (field: string) => (direction: 0 | 1) => {
-    setSortField(field);
-    setSortDirection(direction === 0 ? 'asc' : 'desc');
+    handleSort(field, direction);
   };
 
   const Paginate = async (page: number) => {
     await handlePagination(page);
   };
 
-  // Helper function to convert sort direction to numeric value
-  const getSortDirection = (field: string): 0 | 1 | undefined => {
-    if (sortField !== field) return undefined;
-    return sortDirection === 'asc' ? 0 : 1;
-  };
+  // The header arrow follows the sort the list was fetched with.
+  const getSortDirection = (field: string): 0 | 1 | undefined =>
+    roadFilters.sortField === field ? roadFilters.sortDirection : undefined;
 
   return (
     <div className="overflow-hidden">

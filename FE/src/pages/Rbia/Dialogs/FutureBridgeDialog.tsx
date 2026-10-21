@@ -51,14 +51,9 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
     }
   }, [isEdit, selectedItem]);
 
-  useEffect(() => {
-    const islandCode = getIslandCode(formData.RoadSectionId);
-    const padded = bridgeDigits.padStart(5, "0");
-    setFormData(prev => ({
-      ...prev,
-      BridgeId: bridgeDigits ? `FB${padded}${islandCode}` : ""
-    }));
-  }, [bridgeDigits, formData.RoadSectionId]);
+  // The Bridge ID is never typed (S06-TC010-P001): Add gets the next free number from the API;
+  // Edit keeps the bridge's number, under the island code of the section selected here.
+  const editedBridgeId = isEdit && bridgeDigits && currentIslandCode ? `FB${bridgeDigits}${currentIslandCode}` : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +67,6 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
     try {
       const payload = {
         RoadSectionId: formData.RoadSectionId,
-        BridgeId: formData.BridgeId,
         Name: formData.Name,
         From: formData.From,
         OverallWidth: formData.OverallWidth,
@@ -87,8 +81,8 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
         showToast({ type: 'success', message: 'Future bridge updated.' });
       }
       else {
-        await addFutureBridge(payload);
-        showToast({ type: 'success', message: 'Future bridge added.' });
+        const response = await addFutureBridge(payload);
+        showToast({ type: 'success', message: `Future bridge ${response.Data.BridgeId} added.` });
       }
       onSaved?.();
       handleClose();
@@ -195,37 +189,20 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
               )}
             </div>
 
-            {/* Bridge ID */}
+            {/* Bridge ID: generated, read-only (S06-TC010-P001). */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Bridge ID <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white overflow-hidden">
-                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-r border-gray-300 select-none">
-                  FB
-                </span>
-                <input
-                  type="text"
-                  value={bridgeDigits}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "").slice(0, 5);
-                    setBridgeDigits(val);
-                  }}
-                  className="flex-1 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none font-mono"
-                  placeholder="00001"
-                  maxLength={5}
-                />
-                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-l border-gray-300 select-none min-w-[40px] text-center">
-                  {currentIslandCode || "???"}
-                </span>
-              </div>
-              {formData.BridgeId && (
-                <p className="text-xs text-blue-600 mt-1 font-mono">
-                  Full ID: {formData.BridgeId}
-                </p>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Bridge ID</label>
+              <input
+                type="text"
+                aria-label="Bridge ID"
+                value={isEdit ? editedBridgeId || formData.BridgeId : `FB·····${currentIslandCode}`}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-700 font-mono cursor-not-allowed"
+              />
               <p className="text-xs text-gray-500 mt-1">
-                Enter the 5-digit number. The island code is derived from the selected road section.
+                {isEdit
+                  ? "The number stays the same; the island code follows the selected road section."
+                  : "Generated when you save: FB, the next free 5-digit number, then the section's island code."}
               </p>
             </div>
             <div>

@@ -75,7 +75,7 @@ export const fetchRoadSectionData = async (data: RoadSectionPagination) => {
 
 export const addFutureRoadSection = async (section: RoadSectionFilter) => {
     try {
-        const response = await httpClient.post('/futureinfra/addFutureRoadSections', section, );
+        const response = await httpClient.post<{ RoadSectionId: string; Message: string }>('/futureinfra/addFutureRoadSections', section, );
         return response;
     } catch (error) {
         console.error('Error adding future road section:', error);
@@ -124,7 +124,7 @@ export const fetchBridgeData = async (data: BridgePagination) => {
 
 export const addFutureBridge = async (bridge: BridgeFilter) => {
     try {
-        const response = await httpClient.post('/futureinfra/addFutureBridge', bridge);
+        const response = await httpClient.post<{ BridgeId: string; Message: string }>('/futureinfra/addFutureBridge', bridge);
         return response;
     } catch (error) {
         console.error('Error adding future bridge:', error);

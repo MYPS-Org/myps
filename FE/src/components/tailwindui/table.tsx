@@ -392,7 +392,8 @@ export function TableHeader({
     >
       <div className={clsx("flex items-center", getJustifyClass())}>
         <span>{children}</span>
-        {sortable && justify !== "center" && getSortIcon()}
+        {/* Centred headers skip the idle up/down glyph, but show the arrow of the active sort. */}
+        {sortable && (justify !== "center" || sortDirection === 0 || sortDirection === 1) && getSortIcon()}
       </div>
     </th>
   )

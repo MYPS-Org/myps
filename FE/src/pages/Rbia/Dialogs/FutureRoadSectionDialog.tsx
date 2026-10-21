@@ -54,25 +54,15 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
     }
   }, [isEdit, selectedItem]);
 
-  useEffect(() => {
-    const islandCode = getIslandCode(formData.RoadId);
-    const padded = sectionDigits.padStart(5, "0");
-    setFormData(prev => ({
-      ...prev,
-      RoadSectionId: sectionDigits ? `FS${padded}${islandCode}` : ""
-    }));
-  }, [sectionDigits, formData.RoadId]);
+  // The Section Road ID is never typed (S06-TC005-P001): Add gets the next free number from the API;
+  // Edit keeps the section's number, under the island code of the road selected here.
+  const editedSectionId = isEdit && sectionDigits && currentIslandCode ? `FS${sectionDigits}${currentIslandCode}` : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.RoadId) {
       showToast({ type: 'error', message: 'Please select a parent road.' });
-      return;
-    }
-
-    if (!sectionDigits) {
-      showToast({ type: 'error', message: 'Please enter the section road ID.' });
       return;
     }
 
@@ -89,7 +79,6 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
     try {
       const payload = {
         RoadId: formData.RoadId,
-        RoadSectionId: formData.RoadSectionId,
         RoadLength: formData.RoadLength.toString(),
         DEO: formData.DEO
       };
@@ -98,8 +87,8 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
         await editFutureRoadSection({ ...formData, ...payload } as unknown as FutureRoadSections);
         showToast({ type: 'success', message: 'Future road section updated.' });
       } else {
-        await addFutureRoadSection(payload);
-        showToast({ type: 'success', message: 'Future road section added.' });
+        const response = await addFutureRoadSection(payload);
+        showToast({ type: 'success', message: `Future road section ${response.Data.RoadSectionId} added.` });
       }
       onSaved?.();
       handleClose();
@@ -202,37 +191,20 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
               )}
             </div>
 
-            {/* Section Road ID */}
+            {/* Section Road ID: generated, read-only (S06-TC005-P001). */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Section Road ID <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white overflow-hidden">
-                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-r border-gray-300 select-none">
-                  FS
-                </span>
-                <input
-                  type="text"
-                  value={sectionDigits}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "").slice(0, 5);
-                    setSectionDigits(val);
-                  }}
-                  className="flex-1 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none font-mono"
-                  placeholder="00001"
-                  maxLength={5}
-                />
-                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-l border-gray-300 select-none min-w-[40px] text-center">
-                  {currentIslandCode || "???"}
-                </span>
-              </div>
-              {formData.RoadSectionId && (
-                <p className="text-xs text-blue-600 mt-1 font-mono">
-                  Full ID: {formData.RoadSectionId}
-                </p>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Section Road ID</label>
+              <input
+                type="text"
+                aria-label="Section Road ID"
+                value={isEdit ? editedSectionId || formData.RoadSectionId : `FS·····${currentIslandCode}`}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-700 font-mono cursor-not-allowed"
+              />
               <p className="text-xs text-gray-500 mt-1">
-                Enter the 5-digit number. The island code is derived from the selected road.
+                {isEdit
+                  ? "The number stays the same; the island code follows the selected road."
+                  : "Generated when you save: FS, the next free 5-digit number, then the road's island code."}
               </p>
             </div>
 
