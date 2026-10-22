@@ -332,28 +332,28 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       if (!cost.Year || cost.Year <= 0) {
         showToast({
           type: 'error',
-          message: `Please enter a valid year for cost entry ${i + 1}.`
+          message: 'Please enter a valid year.'
         });
         return;
       }
       if (!cost.Amount || cost.Amount <= 0) {
         showToast({
           type: 'error',
-          message: `Please enter a valid amount for cost entry ${i + 1}.`
+          message: 'Please enter a valid amount.'
         });
         return;
       }
       if (!cost.StartDate) {
         showToast({
           type: 'error',
-          message: `Please select a Start Date for cost entry ${i + 1}.`
+          message: 'Please select a Start Date.'
         });
         return;
       }
       if (!cost.EndDate) {
         showToast({
           type: 'error',
-          message: `Please select an End Date for cost entry ${i + 1}.`
+          message: 'Please select an End Date.'
         });
         return;
       }
