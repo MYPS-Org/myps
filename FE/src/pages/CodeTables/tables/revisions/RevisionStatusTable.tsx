@@ -7,6 +7,7 @@ import { updateCodeTable } from '../../Service';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+import { columnLabel } from './revisionColumns';
 
 const CODE = 'RevisionStatus';
 
@@ -29,7 +30,8 @@ const RevisionStatusTable: React.FC = () => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any[] = (codeTableData?.RevisionStatuses ?? []) as any[];
-  const columns: string[] = data.length > 0 ? Object.keys(data[0]).filter(c => c !== 'IsActive') : [];
+  // NameId is the internal status number (0 For Approval, 1 Approved...): hidden like Programs' NameId.
+  const columns: string[] = data.length > 0 ? Object.keys(data[0]).filter(c => c !== 'IsActive' && c !== 'NameId') : [];
   const editableColumns = columns.filter(c => EDITABLE_COLUMNS.includes(c));
 
   const filtered = search
@@ -110,7 +112,7 @@ const RevisionStatusTable: React.FC = () => {
           {columns.length > 0 && (
             <TableHead>
               <TableRow>
-                {columns.map(col => <TableHeader key={col}>{col}</TableHeader>)}
+                {columns.map(col => <TableHeader key={col}>{columnLabel(col)}</TableHeader>)}
                 <TableHeader className="w-24 text-center">Active</TableHeader>
                 <TableHeader className="w-28">Actions</TableHeader>
               </TableRow>
@@ -168,7 +170,7 @@ const RevisionStatusTable: React.FC = () => {
                         <TableCell key={col} className="text-sm text-gray-700">
                           {item[col] === null || item[col] === undefined || item[col] === ''
                             ? <span className="text-gray-300 italic">&mdash;</span>
-                            : String(item[col])}
+                            : String(item[col] ?? '')}
                         </TableCell>
                       ))}
                       <TableCell className="text-center">

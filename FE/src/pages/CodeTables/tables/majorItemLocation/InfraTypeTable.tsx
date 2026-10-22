@@ -69,14 +69,14 @@ const InfraTypeTable: React.FC = () => {
       mode: 'add',
       tableName: 'Infrastructure Type',
       fields: [
-        { label: 'Infra ID',  value: addForm.InfraId || 'Auto', mono: true },
         { label: 'Code',      value: addForm.InfraCode, mono: true },
         { label: 'Name',      value: addForm.InfraName },
       ],
       onConfirm: async () => {
         try {
           // New types go straight into the Major Item dropdowns, which list active rows only.
-          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
+          // No Infra ID on the form: 0 lets the server assign the next one.
+          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, InfraId: 0, IsActive: true }));
           showToast({ type: 'success', message: 'Infrastructure type added successfully.' });
           await refetch();
         } catch {
@@ -93,7 +93,6 @@ const InfraTypeTable: React.FC = () => {
       mode: 'edit',
       tableName: 'Infrastructure Type',
       fields: [
-        { label: 'Infra ID',  value: editForm.InfraId, mono: true },
         { label: 'Code',      value: editForm.InfraCode, mono: true },
         { label: 'Name',      value: editForm.InfraName },
       ],
@@ -153,7 +152,6 @@ const InfraTypeTable: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableHeader className="w-12">ID</TableHeader>
-              <TableHeader className="w-20">Infra ID</TableHeader>
               <TableHeader className="w-24">Code</TableHeader>
               <TableHeader>Name</TableHeader>
               <TableHeader className="w-24 text-center">Active</TableHeader>
@@ -163,7 +161,7 @@ const InfraTypeTable: React.FC = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={5} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-gray-400">
                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -177,8 +175,7 @@ const InfraTypeTable: React.FC = () => {
                 {addForm !== null && (
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell className="text-xs text-gray-400 italic">New</TableCell>
-                    <TableCell><input autoFocus type="number" value={addForm.InfraId || ''} onChange={e => setAddForm(f => f ? { ...f, InfraId: +e.target.value } : f)} placeholder="Auto" className={inp('add')} /></TableCell>
-                    <TableCell><textarea value={addForm.InfraCode} onChange={e => setAddForm(f => f ? { ...f, InfraCode: e.target.value } : f)} placeholder="Code..." rows={1} className={inp('add')} /></TableCell>
+                    <TableCell><textarea autoFocus value={addForm.InfraCode} onChange={e => setAddForm(f => f ? { ...f, InfraCode: e.target.value } : f)} placeholder="Code..." rows={1} className={inp('add')} /></TableCell>
                     <TableCell><textarea value={addForm.InfraName} onChange={e => setAddForm(f => f ? { ...f, InfraName: e.target.value } : f)} placeholder="Name..." rows={2} className={inp('add')} /></TableCell>
                     <TableCell />
                     <TableCell>
@@ -190,13 +187,12 @@ const InfraTypeTable: React.FC = () => {
                   </TableRow>
                 )}
                 {filtered.length === 0 && !addForm ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-500">No records found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-10 text-gray-500">No records found.</TableCell></TableRow>
                 ) : filtered.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                     <TableCell className="font-mono text-xs text-gray-500">{item.Id}</TableCell>
                     {editId === item.Id ? (
                       <>
-                        <TableCell className="font-mono text-xs text-gray-500">{editForm.InfraId}</TableCell>
                         <TableCell><textarea autoFocus value={editForm.InfraCode} onChange={e => setEditForm(f => ({ ...f, InfraCode: e.target.value }))} rows={1} className={inp('edit')} /></TableCell>
                         <TableCell><textarea value={editForm.InfraName} onChange={e => setEditForm(f => ({ ...f, InfraName: e.target.value }))} rows={2} className={inp('edit')} /></TableCell>
                         <TableCell className="text-center">
@@ -218,7 +214,6 @@ const InfraTypeTable: React.FC = () => {
                       </>
                     ) : (
                       <>
-                        <TableCell className="font-mono text-xs text-gray-500">{item.InfraId}</TableCell>
                         <TableCell>
                           <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-bold">{item.InfraCode}</span>
                         </TableCell>

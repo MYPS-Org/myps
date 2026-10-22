@@ -7,6 +7,7 @@ import { updateCodeTable } from '../../Service';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+import { columnLabel, revisionGroupName } from './revisionColumns';
 
 const CODE = 'RevisionCategory';
 
@@ -29,7 +30,12 @@ const RevisionCategoryTable: React.FC = () => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any[] = (codeTableData?.RevisionCategories ?? []) as any[];
-  const columns: string[] = data.length > 0 ? Object.keys(data[0]).filter(c => c !== 'IsActive') : [];
+  // CategoryId is the same number as Id on every row: shown once.
+  const columns: string[] = data.length > 0 ? Object.keys(data[0]).filter(c => c !== 'IsActive' && c !== 'CategoryId') : [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const headers = (codeTableData?.RevisionHeaders ?? []) as any[];
+  const display = (col: string, value: unknown): string =>
+    col === 'RevisionGroupId' ? revisionGroupName(headers, value) : String(value ?? '');
   const editableColumns = columns.filter(c => EDITABLE_COLUMNS.includes(c));
 
   const filtered = search
@@ -110,7 +116,7 @@ const RevisionCategoryTable: React.FC = () => {
           {columns.length > 0 && (
             <TableHead>
               <TableRow>
-                {columns.map(col => <TableHeader key={col}>{col}</TableHeader>)}
+                {columns.map(col => <TableHeader key={col}>{columnLabel(col)}</TableHeader>)}
                 <TableHeader className="w-24 text-center">Active</TableHeader>
                 <TableHeader className="w-28">Actions</TableHeader>
               </TableRow>
@@ -142,7 +148,7 @@ const RevisionCategoryTable: React.FC = () => {
                         <TableCell key={col}>
                           {editableColumns.includes(col)
                             ? <input value={editRow[col] ?? ''} onChange={e => setEditRow(r => ({ ...r, [col]: e.target.value }))} className={inp()} />
-                            : <span className="font-mono text-xs text-gray-400">{String(item[col] ?? '')}</span>}
+                            : <span className="font-mono text-xs text-gray-400">{display(col, item[col])}</span>}
                         </TableCell>
                       ))}
                       <TableCell className="text-center">
@@ -168,7 +174,7 @@ const RevisionCategoryTable: React.FC = () => {
                         <TableCell key={col} className="text-sm text-gray-700">
                           {item[col] === null || item[col] === undefined || item[col] === ''
                             ? <span className="text-gray-300 italic">—</span>
-                            : String(item[col])}
+                            : display(col, item[col])}
                         </TableCell>
                       ))}
                       <TableCell className="text-center">
