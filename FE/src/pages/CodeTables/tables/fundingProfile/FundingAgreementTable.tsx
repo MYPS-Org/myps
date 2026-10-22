@@ -84,7 +84,8 @@ const FundingAgreementTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          // New rows go straight into the Funding Profile dropdowns, which list active rows only.
+          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
           showToast({ type: 'success', message: 'Funding agreement added successfully.' });
           await refetch();
         } catch {
@@ -108,7 +109,13 @@ const FundingAgreementTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          // IsActive is not on the form: send the current value or the edit would deactivate the row.
+          const original = data.find(r => r.Id === editId);
+          await updateCodeTable(CODE, 1, JSON.stringify({
+            Id: editId, ...editForm,
+            FinancingSourceSegmentCode: editForm.FinancingSourceSegmentCode || null,
+            IsActive: original?.IsActive !== false,
+          }));
           showToast({ type: 'success', message: 'Funding agreement updated successfully.' });
           await refetch();
         } catch {

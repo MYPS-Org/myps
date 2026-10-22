@@ -970,15 +970,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Funding Agreement has been selected, please select a funding agreement."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.AsNoTracking().FirstOrDefaultAsync(x => x.AgreementCode == data.Code);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Funding Agreement In Use",
-                            Message = "The selected funding agreement is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionFundingAgreement.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -1004,6 +995,28 @@ namespace WebAPI.Controllers.CodeTable
                         {
                             Title = "Funding Agreement Not Found",
                             Message = $"The funding agreement with id {data.Id} is not found, please select another funding agreement."
+                        });
+                    }
+                    // Funding profiles reference the Code (FK_tProjectFundingProfile_Agreement and
+                    // FK_tRevFunding_Agreement), so only a delete or a code change can break them. This
+                    // used to test the incoming Code and block every edit, even a name fix or a toggle.
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.Code != data.Code)
+                        && (await _db.tProjectFundingProfile.AsNoTracking().AnyAsync(x => x.AgreementCode == CheckUpdate.Code, cancellationToken)
+                            || await _db.tRevisionProjectFundingProfile.AsNoTracking().AnyAsync(x => x.AgreementCode == CheckUpdate.Code, cancellationToken)))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Funding Agreement In Use",
+                            Message = "The selected funding agreement is currently in use, so it cannot be deleted or have its code changed."
+                        });
+                    }
+                    if (dto.TransactionType == CodeTransactionType.Create
+                        && !await _db.tOptionFundingSource.AsNoTracking().AnyAsync(x => x.Organization == data.SourceOrg, cancellationToken))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Funding Source Not Found",
+                            Message = $"The funding source {data.SourceOrg} is not found, please enter the Organization of an existing funding source."
                         });
                     }
                     #endregion
@@ -1051,8 +1064,9 @@ namespace WebAPI.Controllers.CodeTable
                         if (CheckUpdate.FinancingSourceSegmentCode != data.FinancingSourceSegmentCode)
                         {
                             transactionLog.AffectedColumn = "FinancingSourceSegmentCode";
-                            transactionLog.NewValue = data.FinancingSourceSegmentCode!;
-                            transactionLog.OldValue = CheckUpdate.FinancingSourceSegmentCode!;
+                            // Nullable column (27 rows are NULL): the log columns are NOT NULL.
+                            transactionLog.NewValue = data.FinancingSourceSegmentCode ?? string.Empty;
+                            transactionLog.OldValue = CheckUpdate.FinancingSourceSegmentCode ?? string.Empty;
                             CheckUpdate.FinancingSourceSegmentCode = data.FinancingSourceSegmentCode;
                         }
                         if (CheckUpdate.IsActive != data.IsActive)
@@ -1085,15 +1099,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Funding Source has been selected, please select a funding source."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.AsNoTracking().FirstOrDefaultAsync(x => x.SourceOrg == data.Organization);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Funding Source In Use",
-                            Message = "The selected funding source is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionFundingSource.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -1121,6 +1126,19 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The funding source with id {data.Id} is not found, please select another funding source."
                         });
                     }
+                    // Funding profiles and agreements reference the Organization, so only a delete or an
+                    // Organization change can break them (this used to block every edit of a used source).
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.Organization != data.Organization)
+                        && (await _db.tProjectFundingProfile.AsNoTracking().AnyAsync(x => x.SourceOrg == CheckUpdate.Organization, cancellationToken)
+                            || await _db.tRevisionProjectFundingProfile.AsNoTracking().AnyAsync(x => x.SourceOrg == CheckUpdate.Organization, cancellationToken)
+                            || await _db.tOptionFundingAgreement.AsNoTracking().AnyAsync(x => x.SourceOrg == CheckUpdate.Organization, cancellationToken)))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Funding Source In Use",
+                            Message = "The selected funding source is currently in use, so it cannot be deleted or have its organization changed."
+                        });
+                    }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
@@ -1146,6 +1164,14 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = $"{data.Name}";
                             transactionLog.OldValue = $"{CheckUpdate.Name}";
                             CheckUpdate.Name = data.Name;
+                        }
+                        // Nature is editable in the UI but was never saved.
+                        if (CheckUpdate.Nature != data.Nature)
+                        {
+                            transactionLog.AffectedColumn = "Nature";
+                            transactionLog.NewValue = data.Nature ?? string.Empty;
+                            transactionLog.OldValue = CheckUpdate.Nature ?? string.Empty;
+                            CheckUpdate.Nature = data.Nature;
                         }
                         if (CheckUpdate.IsActive != data.IsActive)
                         {
