@@ -228,6 +228,12 @@ namespace WebAPI.Controllers.CodeTable
             }
         }
 
+        private static IActionResult AamsOnlyLinkEditable(string what, string link) => new BadRequestObjectResult(new
+        {
+            Title = "Maintained in AAMS",
+            Message = $"{what} are maintained in AAMS: they cannot be added, renamed or deleted in MYPS. Only the {link} link can be changed."
+        });
+
         [HttpPost]
         public async Task<IActionResult> UpdateCodeTable([FromBody] UpdateCodeTableDTO dto, CancellationToken cancellationToken)
         {
@@ -2026,514 +2032,133 @@ namespace WebAPI.Controllers.CodeTable
                         _db.tOptionRevisionStatus.Remove(CheckUpdate);
                     }
                 }
+                // Admin Areas are maintained in AAMS (UAT S04-TC020..TC024): MYPS may not add, rename or
+                // delete them. Regions are read-only; provinces, cities, legislative districts and DEOs may
+                // only be re-linked to their parent. The Code Tables UI offers exactly that and no more.
                 else if (dto.Code == "AdminAreaRegion")
                 {
-                    tablename = "Admin Area Region";
-                    transactionLog.AffectedTable = "tOptionAdminAreaRegion";
-                    var data = JsonConvert.DeserializeObject<OptionAdminAreaRegion>(dto.Json);
-                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-
-                    var existing = await _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id, cancellationToken);
-                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
-                        return new BadRequestObjectResult(new { Title = "Not Found", Message = $"Region with Id {data.Id} was not found." });
-
-                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    return new BadRequestObjectResult(new
                     {
-                        var duplicateRegion = await _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && (x.ParticipantId == data.ParticipantId || x.Code == data.Code || x.Name == data.Name), cancellationToken);
-                        if (duplicateRegion != null)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Region Already Exists",
-                                Message = "A Region with the same ParticipantId, Code, or Name already exists. Please provide a unique Region."
-                            });
-                        }
-                    }
-
-                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.ParticipantId != data.ParticipantId))
-                    {
-                        var isReferenced = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.Region == existing.ParticipantId, cancellationToken);
-                        if (isReferenced)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Region Already in Use",
-                                Message = "This Region is already referenced by one or more Projects and cannot be deleted or have its ParticipantId changed."
-                            });
-                        }
-                    }
-
-                    if (dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminAreaRegion.AddAsync(data, cancellationToken);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
-                    {
-                        if (existing.ParticipantId != data.ParticipantId)
-                        {
-                            transactionLog.AffectedColumn = "ParticipantId";
-                            transactionLog.NewValue = data.ParticipantId!;
-                            transactionLog.OldValue = existing.ParticipantId!;
-                            existing.ParticipantId = data.ParticipantId;
-                        }
-                        if (existing.Name != data.Name)
-                        {
-                            transactionLog.AffectedColumn = "Name";
-                            transactionLog.NewValue = data.Name!;
-                            transactionLog.OldValue = existing.Name!;
-                            existing.Name = data.Name;
-                        }
-                        if (existing.Code != data.Code)
-                        {
-                            transactionLog.AffectedColumn = "Code";
-                            transactionLog.NewValue = data.Code!;
-                            transactionLog.OldValue = existing.Code!;
-                            existing.Code = data.Code;
-                        }
-                        if (existing.Hierarchy != data.Hierarchy)
-                        {
-                            transactionLog.AffectedColumn = "Hierarchy";
-                            transactionLog.NewValue = data.Hierarchy!;
-                            transactionLog.OldValue = existing.Hierarchy!;
-                            existing.Hierarchy = data.Hierarchy;
-                        }
-                        if (existing.IslandCode != data.IslandCode)
-                        {
-                            transactionLog.AffectedColumn = "IslandCode";
-                            transactionLog.NewValue = data.IslandCode!;
-                            transactionLog.OldValue = existing.IslandCode!;
-                            existing.IslandCode = data.IslandCode;
-                        }
-                        if (existing.Deprecated != data.Deprecated)
-                        {
-                            transactionLog.AffectedColumn = "Deprecated";
-                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
-                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
-                            existing.Deprecated = data.Deprecated;
-                        }
-                        _db.tOptionAdminAreaRegion.Update(existing);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
-                    {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
-                        _db.tOptionAdminAreaRegion.Remove(existing);
-                    }
+                        Title = "Maintained in AAMS",
+                        Message = "Regions are maintained in AAMS and cannot be added, edited or deleted in MYPS."
+                    });
                 }
                 else if (dto.Code == "AdminAreaProvince")
                 {
                     tablename = "Admin Area Province";
                     transactionLog.AffectedTable = "tOptionAdminAreaProvince";
-                    var data = JsonConvert.DeserializeObject<OptionAdminAreaProvince>(dto.Json);
-                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-
+                    var data = dto.TransactionType == CodeTransactionType.Update ? JsonConvert.DeserializeObject<OptionAdminAreaProvince>(dto.Json) : null;
+                    if (data == null) return AamsOnlyLinkEditable("Provinces", "region");
                     var existing = await _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id, cancellationToken);
-                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
+                    if (existing == null)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"Province with Id {data.Id} was not found." });
-
-                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    if (data.Name != existing.Name || data.Code != existing.Code || data.Deprecated != existing.Deprecated)
+                        return AamsOnlyLinkEditable("Provinces", "region");
+                    if (!await _db.tOptionAdminAreaRegion.AsNoTracking().AnyAsync(x => x.ParticipantId == data.RegionParticipantId, cancellationToken))
                     {
-                        var parentRegionExists = await _db.tOptionAdminAreaRegion.AsNoTracking().AnyAsync(x => x.ParticipantId == data.RegionParticipantId, cancellationToken);
-                        if (!parentRegionExists)
+                        return new BadRequestObjectResult(new
                         {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Invalid Region",
-                                Message = $"The RegionParticipantId '{data.RegionParticipantId}' does not exist. Please select a valid Region."
-                            });
-                        }
-
-                        var duplicateProvince = await _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && (x.Code == data.Code || x.Name == data.Name), cancellationToken);
-                        if (duplicateProvince != null)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Province Already Exists",
-                                Message = "A Province with the same Code or Name already exists. Please provide a unique Province."
-                            });
-                        }
+                            Title = "Invalid Region",
+                            Message = $"The RegionParticipantId '{data.RegionParticipantId}' does not exist. Please select a valid Region."
+                        });
                     }
-
-                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.Code != data.Code || existing.RegionParticipantId != data.RegionParticipantId))
+                    if (existing.RegionParticipantId != data.RegionParticipantId)
                     {
-                        var isReferencedByProject = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.Province == existing.Code, cancellationToken);
-                        var isReferencedByCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().AnyAsync(x => x.ProvinceCode == existing.Code, cancellationToken);
-                        var isReferencedByDistrict = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().AnyAsync(x => x.ProvinceCode == existing.Code, cancellationToken);
-                        if (isReferencedByProject || isReferencedByCity || isReferencedByDistrict)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Province Already in Use",
-                                Message = "This Province is already referenced by Projects, Cities, or Districts and cannot be deleted or have its Code or Region changed."
-                            });
-                        }
+                        transactionLog.AffectedColumn = "RegionParticipantId";
+                        transactionLog.NewValue = data.RegionParticipantId;
+                        transactionLog.OldValue = existing.RegionParticipantId;
+                        existing.RegionParticipantId = data.RegionParticipantId;
                     }
-
-                    if (dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminAreaProvince.AddAsync(data, cancellationToken);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
-                    {
-                        if (existing.Name != data.Name)
-                        {
-                            transactionLog.AffectedColumn = "Name";
-                            transactionLog.NewValue = data.Name!;
-                            transactionLog.OldValue = existing.Name!;
-                            existing.Name = data.Name;
-                        }
-                        if (existing.Code != data.Code)
-                        {
-                            transactionLog.AffectedColumn = "Code";
-                            transactionLog.NewValue = data.Code!;
-                            transactionLog.OldValue = existing.Code!;
-                            existing.Code = data.Code;
-                        }
-                        if (existing.Hierarchy != data.Hierarchy)
-                        {
-                            transactionLog.AffectedColumn = "Hierarchy";
-                            transactionLog.NewValue = data.Hierarchy!;
-                            transactionLog.OldValue = existing.Hierarchy!;
-                            existing.Hierarchy = data.Hierarchy;
-                        }
-                        if (existing.RegionParticipantId != data.RegionParticipantId)
-                        {
-                            transactionLog.AffectedColumn = "RegionParticipantId";
-                            transactionLog.NewValue = data.RegionParticipantId!;
-                            transactionLog.OldValue = existing.RegionParticipantId!;
-                            existing.RegionParticipantId = data.RegionParticipantId;
-                        }
-                        if (existing.Deprecated != data.Deprecated)
-                        {
-                            transactionLog.AffectedColumn = "Deprecated";
-                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
-                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
-                            existing.Deprecated = data.Deprecated;
-                        }
-                        _db.tOptionAdminAreaProvince.Update(existing);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
-                    {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
-                        _db.tOptionAdminAreaProvince.Remove(existing);
-                    }
+                    existing.UpdatedDate = CurrentDate;
+                    _db.tOptionAdminAreaProvince.Update(existing);
                 }
                 else if (dto.Code == "AdminAreaCity")
                 {
                     tablename = "Admin Area City/Municipality";
                     transactionLog.AffectedTable = "tOptionAdminAreaCityMunicipality";
-                    var data = JsonConvert.DeserializeObject<OptionAdminAreaCityMunicipality>(dto.Json);
-                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-
+                    var data = dto.TransactionType == CodeTransactionType.Update ? JsonConvert.DeserializeObject<OptionAdminAreaCityMunicipality>(dto.Json) : null;
+                    if (data == null) return AamsOnlyLinkEditable("Cities/Municipalities", "province");
                     var existing = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id, cancellationToken);
-                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
+                    if (existing == null)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"City/Municipality with Id {data.Id} was not found." });
-
-                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    if (data.Name != existing.Name || data.Code != existing.Code || data.Deprecated != existing.Deprecated)
+                        return AamsOnlyLinkEditable("Cities/Municipalities", "province");
+                    if (!await _db.tOptionAdminAreaProvince.AsNoTracking().AnyAsync(x => x.Code == data.ProvinceCode, cancellationToken))
                     {
-                        var parentProvinceExists = await _db.tOptionAdminAreaProvince.AsNoTracking().AnyAsync(x => x.Code == data.ProvinceCode, cancellationToken);
-                        if (!parentProvinceExists)
+                        return new BadRequestObjectResult(new
                         {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Invalid Province",
-                                Message = $"The ProvinceCode '{data.ProvinceCode}' does not exist. Please select a valid Province."
-                            });
-                        }
-
-                        var duplicateCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && (x.Code == data.Code || (x.Name == data.Name && x.ProvinceCode == data.ProvinceCode)), cancellationToken);
-                        if (duplicateCity != null)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "City/Municipality Already Exists",
-                                Message = "A City/Municipality with the same Code, or the same Name within the selected Province, already exists."
-                            });
-                        }
+                            Title = "Invalid Province",
+                            Message = $"The ProvinceCode '{data.ProvinceCode}' does not exist. Please select a valid Province."
+                        });
                     }
-
-                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.Code != data.Code || existing.ProvinceCode != data.ProvinceCode))
+                    if (existing.ProvinceCode != data.ProvinceCode)
                     {
-                        var isReferenced = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.City == existing.Code, cancellationToken);
-                        if (isReferenced)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "City/Municipality Already in Use",
-                                Message = "This City/Municipality is already referenced by one or more Projects and cannot be deleted or have its Code or Province changed."
-                            });
-                        }
+                        transactionLog.AffectedColumn = "ProvinceCode";
+                        transactionLog.NewValue = data.ProvinceCode;
+                        transactionLog.OldValue = existing.ProvinceCode;
+                        existing.ProvinceCode = data.ProvinceCode;
                     }
-
-                    if (dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminAreaCityMunicipality.AddAsync(data, cancellationToken);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
-                    {
-                        if (existing.Name != data.Name)
-                        {
-                            transactionLog.AffectedColumn = "Name";
-                            transactionLog.NewValue = data.Name!;
-                            transactionLog.OldValue = existing.Name!;
-                            existing.Name = data.Name;
-                        }
-                        if (existing.Code != data.Code)
-                        {
-                            transactionLog.AffectedColumn = "Code";
-                            transactionLog.NewValue = data.Code!;
-                            transactionLog.OldValue = existing.Code!;
-                            existing.Code = data.Code;
-                        }
-                        if (existing.Hierarchy != data.Hierarchy)
-                        {
-                            transactionLog.AffectedColumn = "Hierarchy";
-                            transactionLog.NewValue = data.Hierarchy!;
-                            transactionLog.OldValue = existing.Hierarchy!;
-                            existing.Hierarchy = data.Hierarchy;
-                        }
-                        if (existing.ProvinceCode != data.ProvinceCode)
-                        {
-                            transactionLog.AffectedColumn = "ProvinceCode";
-                            transactionLog.NewValue = data.ProvinceCode.ToString();
-                            transactionLog.OldValue = existing.ProvinceCode.ToString();
-                            existing.ProvinceCode = data.ProvinceCode;
-                        }
-                        if (existing.Deprecated != data.Deprecated)
-                        {
-                            transactionLog.AffectedColumn = "Deprecated";
-                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
-                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
-                            existing.Deprecated = data.Deprecated;
-                        }
-                        _db.tOptionAdminAreaCityMunicipality.Update(existing);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
-                    {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
-                        _db.tOptionAdminAreaCityMunicipality.Remove(existing);
-                    }
+                    existing.UpdatedDate = CurrentDate;
+                    _db.tOptionAdminAreaCityMunicipality.Update(existing);
                 }
                 else if (dto.Code == "AdminAreaDistrict")
                 {
                     tablename = "Admin Area Congressional District";
                     transactionLog.AffectedTable = "tOptionAdminAreaCongressionalDistrict";
-                    var data = JsonConvert.DeserializeObject<OptionAdminAreaCongressionalDistrict>(dto.Json);
-                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-
+                    var data = dto.TransactionType == CodeTransactionType.Update ? JsonConvert.DeserializeObject<OptionAdminAreaCongressionalDistrict>(dto.Json) : null;
+                    if (data == null) return AamsOnlyLinkEditable("Legislative Districts", "province");
                     var existing = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id, cancellationToken);
-                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
+                    if (existing == null)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"District with Id {data.Id} was not found." });
-
-                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    if (data.Name != existing.Name || data.Code != existing.Code || data.Deprecated != existing.Deprecated)
+                        return AamsOnlyLinkEditable("Legislative Districts", "province");
+                    if (!await _db.tOptionAdminAreaProvince.AsNoTracking().AnyAsync(x => x.Code == data.ProvinceCode, cancellationToken))
                     {
-                        var parentProvinceExists = await _db.tOptionAdminAreaProvince.AsNoTracking().AnyAsync(x => x.Code == data.ProvinceCode, cancellationToken);
-                        if (!parentProvinceExists)
+                        return new BadRequestObjectResult(new
                         {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Invalid Province",
-                                Message = $"The ProvinceCode '{data.ProvinceCode}' does not exist. Please select a valid Province."
-                            });
-                        }
-
-                        var duplicateDistrict = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && (x.Code == data.Code || (x.Name == data.Name && x.ProvinceCode == data.ProvinceCode)), cancellationToken);
-                        if (duplicateDistrict != null)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Congressional District Already Exists",
-                                Message = "A Congressional District with the same Code, or the same Name within the selected Province, already exists."
-                            });
-                        }
+                            Title = "Invalid Province",
+                            Message = $"The ProvinceCode '{data.ProvinceCode}' does not exist. Please select a valid Province."
+                        });
                     }
-
-                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.Code != data.Code || existing.ProvinceCode != data.ProvinceCode))
+                    if (existing.ProvinceCode != data.ProvinceCode)
                     {
-                        var isReferenced = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.LegislativeDistrict == existing.Code, cancellationToken);
-                        if (isReferenced)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Congressional District Already in Use",
-                                Message = "This Congressional District is already referenced by one or more Projects and cannot be deleted or have its Code or Province changed."
-                            });
-                        }
+                        transactionLog.AffectedColumn = "ProvinceCode";
+                        transactionLog.NewValue = data.ProvinceCode;
+                        transactionLog.OldValue = existing.ProvinceCode;
+                        existing.ProvinceCode = data.ProvinceCode;
                     }
-
-                    if (dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminAreaCongressionalDistrict.AddAsync(data, cancellationToken);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
-                    {
-                        if (existing.Name != data.Name)
-                        {
-                            transactionLog.AffectedColumn = "Name";
-                            transactionLog.NewValue = data.Name!;
-                            transactionLog.OldValue = existing.Name!;
-                            existing.Name = data.Name;
-                        }
-                        if (existing.Code != data.Code)
-                        {
-                            transactionLog.AffectedColumn = "Code";
-                            transactionLog.NewValue = data.Code!;
-                            transactionLog.OldValue = existing.Code!;
-                            existing.Code = data.Code;
-                        }
-                        if (existing.Hierarchy != data.Hierarchy)
-                        {
-                            transactionLog.AffectedColumn = "Hierarchy";
-                            transactionLog.NewValue = data.Hierarchy!;
-                            transactionLog.OldValue = existing.Hierarchy!;
-                            existing.Hierarchy = data.Hierarchy;
-                        }
-                        if (existing.ProvinceCode != data.ProvinceCode)
-                        {
-                            transactionLog.AffectedColumn = "ProvinceCode";
-                            transactionLog.NewValue = data.ProvinceCode.ToString();
-                            transactionLog.OldValue = existing.ProvinceCode.ToString();
-                            existing.ProvinceCode = data.ProvinceCode;
-                        }
-                        if (existing.Deprecated != data.Deprecated)
-                        {
-                            transactionLog.AffectedColumn = "Deprecated";
-                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
-                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
-                            existing.Deprecated = data.Deprecated;
-                        }
-                        _db.tOptionAdminAreaCongressionalDistrict.Update(existing);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
-                    {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
-                        _db.tOptionAdminAreaCongressionalDistrict.Remove(existing);
-                    }
+                    existing.UpdatedDate = CurrentDate;
+                    _db.tOptionAdminAreaCongressionalDistrict.Update(existing);
                 }
                 else if (dto.Code == "AdminAreaDEO")
                 {
                     tablename = "Admin Area District Engineering Office";
                     transactionLog.AffectedTable = "tOptionAdminOffice";
-                    var data = JsonConvert.DeserializeObject<OptionAdminOffice>(dto.Json);
-                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
-
+                    var data = dto.TransactionType == CodeTransactionType.Update ? JsonConvert.DeserializeObject<OptionAdminOffice>(dto.Json) : null;
+                    if (data == null) return AamsOnlyLinkEditable("DEOs", "region");
                     var existing = await _db.tOptionAdminOffice.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id && x.OfficeType == "DEO", cancellationToken);
-                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
+                    if (existing == null)
                         return new BadRequestObjectResult(new { Title = "Not Found", Message = $"DEO with Id {data.Id} was not found." });
-
-                    if (dto.TransactionType == CodeTransactionType.Create || dto.TransactionType == CodeTransactionType.Update)
+                    if (data.Name != existing.Name || data.ParticipantId != existing.ParticipantId)
+                        return AamsOnlyLinkEditable("DEOs", "region");
+                    if (string.IsNullOrWhiteSpace(data.RegionParticipantId)
+                        || !await _db.tOptionAdminAreaRegion.AsNoTracking().AnyAsync(x => x.ParticipantId == data.RegionParticipantId, cancellationToken))
                     {
-                        if (!string.Equals(data.OfficeType, "DEO", StringComparison.OrdinalIgnoreCase))
+                        return new BadRequestObjectResult(new
                         {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Invalid Office Type",
-                                Message = "AdminAreaDEO only accepts OfficeType 'DEO'."
-                            });
-                        }
-
-                        var duplicateOffice = await _db.tOptionAdminOffice.AsNoTracking().FirstOrDefaultAsync(x => x.Id != data.Id && x.OfficeType == "DEO" && (x.ParticipantId == data.ParticipantId || x.Name == data.Name), cancellationToken);
-                        if (duplicateOffice != null)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "DEO Already Exists",
-                                Message = "A DEO with the same ParticipantId or Name already exists. Please provide a unique DEO."
-                            });
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(data.RegionParticipantId))
-                        {
-                            var regionExists = await _db.tOptionAdminAreaRegion.AsNoTracking().AnyAsync(x => x.ParticipantId == data.RegionParticipantId, cancellationToken);
-                            if (!regionExists)
-                            {
-                                return new BadRequestObjectResult(new
-                                {
-                                    Title = "Invalid Region",
-                                    Message = $"The RegionParticipantId '{data.RegionParticipantId}' does not exist. Please select a valid Region."
-                                });
-                            }
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(data.ParentParticipantId))
-                        {
-                            var parentOfficeExists = await _db.tOptionAdminOffice.AsNoTracking().AnyAsync(x => x.ParticipantId == data.ParentParticipantId, cancellationToken);
-                            if (!parentOfficeExists)
-                            {
-                                return new BadRequestObjectResult(new
-                                {
-                                    Title = "Invalid Parent Office",
-                                    Message = $"The ParentParticipantId '{data.ParentParticipantId}' does not exist. Please select a valid parent office."
-                                });
-                            }
-                        }
+                            Title = "Invalid Region",
+                            Message = $"The RegionParticipantId '{data.RegionParticipantId}' does not exist. Please select a valid Region."
+                        });
                     }
-
-                    if (existing != null && (dto.TransactionType == CodeTransactionType.Delete || existing.ParticipantId != data.ParticipantId))
+                    if (existing.RegionParticipantId != data.RegionParticipantId)
                     {
-                        var isReferenced = await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.DEO == existing.ParticipantId || x.OperatingUnit == existing.ParticipantId || x.ImplementingOffice == existing.ParticipantId, cancellationToken);
-                        if (isReferenced)
-                        {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "DEO Already in Use",
-                                Message = "This DEO is already referenced by one or more Projects and cannot be deleted or have its ParticipantId changed."
-                            });
-                        }
+                        transactionLog.AffectedColumn = "RegionParticipantId";
+                        transactionLog.NewValue = data.RegionParticipantId;
+                        transactionLog.OldValue = existing.RegionParticipantId ?? string.Empty;
+                        existing.RegionParticipantId = data.RegionParticipantId;
                     }
-
-                    if (dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
-                        await _db.tOptionAdminOffice.AddAsync(data, cancellationToken);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
-                    {
-                        if (existing.Name != data.Name)
-                        {
-                            transactionLog.AffectedColumn = "Name";
-                            transactionLog.NewValue = data.Name!;
-                            transactionLog.OldValue = existing.Name!;
-                            existing.Name = data.Name;
-                        }
-                        if (existing.ParticipantId != data.ParticipantId)
-                        {
-                            transactionLog.AffectedColumn = "ParticipantId";
-                            transactionLog.NewValue = data.ParticipantId!;
-                            transactionLog.OldValue = existing.ParticipantId!;
-                            existing.ParticipantId = data.ParticipantId;
-                        }
-                        if (existing.RegionParticipantId != data.RegionParticipantId)
-                        {
-                            transactionLog.AffectedColumn = "RegionParticipantId";
-                            transactionLog.NewValue = data.RegionParticipantId ?? string.Empty;
-                            transactionLog.OldValue = existing.RegionParticipantId ?? string.Empty;
-                            existing.RegionParticipantId = data.RegionParticipantId;
-                        }
-                        if (existing.ParentParticipantId != data.ParentParticipantId)
-                        {
-                            transactionLog.AffectedColumn = "ParentParticipantId";
-                            transactionLog.NewValue = data.ParentParticipantId ?? string.Empty;
-                            transactionLog.OldValue = existing.ParentParticipantId ?? string.Empty;
-                            existing.ParentParticipantId = data.ParentParticipantId;
-                        }
-                        if (existing.Deprecated != data.Deprecated)
-                        {
-                            transactionLog.AffectedColumn = "Deprecated";
-                            transactionLog.NewValue = data.Deprecated ? "True" : "False";
-                            transactionLog.OldValue = existing.Deprecated ? "True" : "False";
-                            existing.Deprecated = data.Deprecated;
-                        }
-                        _db.tOptionAdminOffice.Update(existing);
-                    }
-                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
-                    {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
-                        _db.tOptionAdminOffice.Remove(existing);
-                    }
+                    existing.UpdatedDate = CurrentDate;
+                    _db.tOptionAdminOffice.Update(existing);
                 }
                 else
                 {
