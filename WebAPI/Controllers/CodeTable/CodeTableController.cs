@@ -1177,24 +1177,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Scope Of Work has been selected, please select a scope of work."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.AsNoTracking().FirstOrDefaultAsync(x => x.WorkTypeFK == data.Enum);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Scope Of Work In Use",
-                            Message = "The selected scope of work is currently in use and cannot be updated or deleted."
-                        });
-                    }
-                    var CheckNameIfExists = await _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefaultAsync(x => x.WorkCategory == data.WorkCategory);
-                    if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Work Category Already Exists",
-                            Message = $"The work category {data.WorkCategory} already exists, please choose another work category."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
                     {
@@ -1203,6 +1185,42 @@ namespace WebAPI.Controllers.CodeTable
                             Title = "Scope Of Work Not Found",
                             Message = $"The scope of work with id {data.Id} is not found, please select another scope of work."
                         });
+                    }
+                    // Checked against the stored Enum: the UI never sends Enum, so data.Enum was always 0
+                    // and an in-use delete fell through to the FK_tProjectMajorWorkItem_WorkType / FK_tRevWork_WorkType error.
+                    if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete
+                        && (await _db.tProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.WorkTypeFK == CheckUpdate.Enum, cancellationToken)
+                            || await _db.tRevisionProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.WorkTypeFK == CheckUpdate.Enum, cancellationToken)))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Scope Of Work In Use",
+                            Message = "The selected scope of work is currently in use and cannot be deleted."
+                        });
+                    }
+                    if (dto.TransactionType != CodeTransactionType.Delete)
+                    {
+                        if (data.MinAmount > data.MaxAmount)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Invalid Quantity Range",
+                                Message = $"Min ({data.MinAmount}) cannot be greater than Max ({data.MaxAmount})."
+                            });
+                        }
+                        // A work category holds many scopes (165 rows share 18 categories), so only an
+                        // exact copy is a duplicate: same category, description and infra types.
+                        var SameDescription = await _db.tOptionScopeOfWork.AsNoTracking()
+                            .Where(x => x.Id != data.Id && x.WorkCategory == data.WorkCategory && x.Description == data.Description)
+                            .ToListAsync(cancellationToken);
+                        if (SameDescription.Any(x => x.InfraType.OrderBy(i => i).SequenceEqual(data.InfraType.OrderBy(i => i))))
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Scope Of Work Already Exists",
+                                Message = $"The scope of work {data.WorkCategory} - {data.Description} already exists for the selected infra types."
+                            });
+                        }
                     }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
@@ -1303,15 +1321,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Infra Type has been selected, please select an infra type."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.AsNoTracking().FirstOrDefaultAsync(x => x.InfraTypeFK == data.InfraName);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Infra Type In Use",
-                            Message = "The selected infra type is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionInfraType.AsNoTracking().FirstOrDefaultAsync(x => x.InfraName == data.InfraName);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -1339,14 +1348,42 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The infra type with id {data.Id} is not found, please select another infra type."
                         });
                     }
+                    // Major items reference the InfraCode (FK_tProjectMajorWorkItem_InfraType, FK_tRevWork_InfraType), not the
+                    // name, so only a delete or a code change can break them.
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.InfraCode != data.InfraCode)
+                        && (await _db.tProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.InfraTypeFK == CheckUpdate.InfraCode, cancellationToken)
+                            || await _db.tRevisionProjectMajorWorkItem.AsNoTracking().AnyAsync(x => x.InfraTypeFK == CheckUpdate.InfraCode, cancellationToken)))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Infra Type In Use",
+                            Message = "The selected infra type is currently in use, so it cannot be deleted or have its code changed."
+                        });
+                    }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionInfraType.AsNoTracking().OrderByDescending(x => x.InfraCode).FirstOrDefault();
-                        data.InfraId = (CheckMaxId != null) ? CheckMaxId.InfraId + 1 : 1;
+                        if (data.InfraId > 0)
+                        {
+                            if (await _db.tOptionInfraType.AsNoTracking().AnyAsync(x => x.InfraId == data.InfraId, cancellationToken))
+                            {
+                                return new BadRequestObjectResult(new
+                                {
+                                    Title = "Infra ID Already Exists",
+                                    Message = $"The infra ID {data.InfraId} already exists, please enter another infra ID or leave it blank."
+                                });
+                            }
+                        }
+                        else
+                        {
+                            // Was ordered by InfraCode, so the "next" id came from the alphabetically last
+                            // code (WW = 14) and collided with an existing InfraId.
+                            var MaxInfraId = await _db.tOptionInfraType.AsNoTracking().MaxAsync(x => (int?)x.InfraId, cancellationToken);
+                            data.InfraId = (MaxInfraId ?? 0) + 1;
+                        }
                         await _db.tOptionInfraType.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
