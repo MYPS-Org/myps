@@ -8,7 +8,13 @@ import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
-const CODE = 'RevisionDocument';
+// Must match the server's switch ("RevisionDocuments"): with the singular, every edit and delete
+// was refused as "Invalid Code".
+const CODE = 'RevisionDocuments';
+
+// Only SecondSegmentName and Description are saved as typed. RevisionGroupId / CategoryId are keys shown with their
+// names below, and IsActive has its own toggle, so they are not free-text fields.
+const EDITABLE_COLUMNS = ['SecondSegmentName', 'Description'];
 
 const inp = () =>
   'w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none border-amber-300 focus:ring-amber-500';
@@ -24,8 +30,26 @@ const RevisionDocumentTable: React.FC = () => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any[] = (codeTableData?.RevisionDocuments ?? []) as any[];
-  const columns: string[] = data.length > 0 ? Object.keys(data[0]) : [];
-  const editableColumns = columns.filter(c => c !== 'Id');
+  const columns: string[] = data.length > 0 ? Object.keys(data[0]).filter(c => c !== 'IsActive') : [];
+  const editableColumns = columns.filter(c => EDITABLE_COLUMNS.includes(c));
+
+  // Bare numbers meant nothing to a reader: show the header / category name next to the id.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const headers = (codeTableData?.RevisionHeaders ?? []) as any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const categories = (codeTableData?.RevisionCategories ?? []) as any[];
+  const display = (col: string, value: unknown): string => {
+    if (value === null || value === undefined || value === '') return '';
+    if (col === 'RevisionGroupId') {
+      const name = headers.find(h => h.RevisionGroupId === value)?.RevisionName;
+      return name ? `${name} (${value})` : String(value);
+    }
+    if (col === 'CategoryId') {
+      const name = categories.find(c => c.CategoryId === value)?.CategoryName;
+      return name ? `${name} (${value})` : String(value);
+    }
+    return String(value);
+  };
 
   const filtered = search
     ? data.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(search.toLowerCase())))
@@ -64,7 +88,8 @@ const RevisionDocumentTable: React.FC = () => {
 
   const saveEdit = async () => {
     try {
-      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editRow }));
+      const original = data.find(r => r['Id'] === editId);
+      await updateCodeTable(CODE, 1, JSON.stringify({ ...original, ...editRow, Id: editId }));
       showToast({ type: 'success', message: 'Revision Document updated.' });
       await refetch();
     } catch {
@@ -132,10 +157,11 @@ const RevisionDocumentTable: React.FC = () => {
                 <TableRow key={item['Id'] ?? idx} className={isEditing ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                   {isEditing ? (
                     <>
-                      <TableCell><span className="font-mono text-xs text-gray-400">{item['Id']}</span></TableCell>
-                      {editableColumns.map(col => (
+                      {columns.map(col => (
                         <TableCell key={col}>
-                          <input value={editRow[col] ?? ''} onChange={e => setEditRow(r => ({ ...r, [col]: e.target.value }))} className={inp()} />
+                          {editableColumns.includes(col)
+                            ? <input value={editRow[col] ?? ''} onChange={e => setEditRow(r => ({ ...r, [col]: e.target.value }))} className={inp()} />
+                            : <span className="text-xs text-gray-500">{display(col, item[col])}</span>}
                         </TableCell>
                       ))}
                       <TableCell className="text-center">
@@ -161,7 +187,7 @@ const RevisionDocumentTable: React.FC = () => {
                         <TableCell key={col} className="text-sm text-gray-700">
                           {item[col] === null || item[col] === undefined || item[col] === ''
                             ? <span className="text-gray-300 italic">&mdash;</span>
-                            : String(item[col])}
+                            : display(col, item[col])}
                         </TableCell>
                       ))}
                       <TableCell className="text-center">

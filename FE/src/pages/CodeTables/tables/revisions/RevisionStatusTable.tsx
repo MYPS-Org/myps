@@ -10,6 +10,11 @@ import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
 const CODE = 'RevisionStatus';
 
+// Only these columns are saved by the server. The key (NameId, the enum value) is
+// referenced by revision approvals and IsActive has its own toggle, so both stay read-only here;
+// typing into them used to report success while nothing changed.
+const EDITABLE_COLUMNS = ['Name', 'Description'];
+
 const inp = () =>
   'w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none border-amber-300 focus:ring-amber-500';
 
@@ -24,8 +29,8 @@ const RevisionStatusTable: React.FC = () => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any[] = (codeTableData?.RevisionStatuses ?? []) as any[];
-  const columns: string[] = data.length > 0 ? Object.keys(data[0]) : [];
-  const editableColumns = columns.filter(c => c !== 'Id');
+  const columns: string[] = data.length > 0 ? Object.keys(data[0]).filter(c => c !== 'IsActive') : [];
+  const editableColumns = columns.filter(c => EDITABLE_COLUMNS.includes(c));
 
   const filtered = search
     ? data.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(search.toLowerCase())))
@@ -64,7 +69,8 @@ const RevisionStatusTable: React.FC = () => {
 
   const saveEdit = async () => {
     try {
-      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editRow }));
+      const original = data.find(r => r['Id'] === editId);
+      await updateCodeTable(CODE, 1, JSON.stringify({ ...original, ...editRow, Id: editId }));
       showToast({ type: 'success', message: 'Revision Status updated.' });
       await refetch();
     } catch {
@@ -88,7 +94,7 @@ const RevisionStatusTable: React.FC = () => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h4 className="text-lg font-semibold text-gray-900">Revision Statuss</h4>
+          <h4 className="text-lg font-semibold text-gray-900">Revision Statuses</h4>
           <p className="text-sm text-gray-500 mt-0.5">Status values that track the lifecycle state of a revision</p>
         </div>
         <div className="relative">
@@ -132,10 +138,11 @@ const RevisionStatusTable: React.FC = () => {
                 <TableRow key={item['Id'] ?? idx} className={isEditing ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                   {isEditing ? (
                     <>
-                      <TableCell><span className="font-mono text-xs text-gray-400">{item['Id']}</span></TableCell>
-                      {editableColumns.map(col => (
+                      {columns.map(col => (
                         <TableCell key={col}>
-                          <input value={editRow[col] ?? ''} onChange={e => setEditRow(r => ({ ...r, [col]: e.target.value }))} className={inp()} />
+                          {editableColumns.includes(col)
+                            ? <input value={editRow[col] ?? ''} onChange={e => setEditRow(r => ({ ...r, [col]: e.target.value }))} className={inp()} />
+                            : <span className="font-mono text-xs text-gray-400">{String(item[col] ?? '')}</span>}
                         </TableCell>
                       ))}
                       <TableCell className="text-center">
