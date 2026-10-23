@@ -459,7 +459,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Program ID '{dto.ProgramId}' does not match the Program associated with the selected stage. Expected Program ID: '{ProgramParent.ProgramPK}'.",
+                        Data = $"Program ID '{dto.ProgramId}' does not match the Program associated with the selected stage. Expected Program ID: '{ProgramParent.ProgramPK}'.",
+                        Message = "Program ID does not match the Expected Program ID, Please select a different stage.",
                         Title = "Program ID Mismatch"
                     });
 
@@ -468,7 +469,12 @@ namespace WebAPI.Controllers.Programs
                 var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramRevision.ProgramPK, cancellationToken);
                 if (CurrentProgramVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the System.", Title = "Program not found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Data = $"Program ID '{dto.ProgramId}' does not exist in the System.",
+                        Message = "The specified program could not be found in the system.",
+                        Title = "Program not found"
+                    });
                 }
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 //var AllowedStages = new[] { EnumProgramStage.BP, EnumProgramStage.NEP, EnumProgramStage.NEPE, EnumProgramStage.HGAB, EnumProgramStage.HGABI, EnumProgramStage.GAA, EnumProgramStage.GAAR, EnumProgramStage.TF, EnumProgramStage.TFR }.Select(stage => (int)stage).Select(x => x).ToList();
@@ -602,7 +608,12 @@ namespace WebAPI.Controllers.Programs
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
                 if (ProgramDetails.StageName != dto.StageName)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} is not in the '{dto.StageName}' stage. Please ensure you are updating the correct stage of the program.", Title = "Update Failed" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Data = $"Program '{dto.ProgramId}' is not in the '{dto.StageName}' stage.",
+                        Message = "Program stage mismatch. Please ensure you are updating the correct stage.",
+                        Title = "Update Failed"
+                    });
                 }
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty.", Title = "Update Failed" }); }
@@ -619,7 +630,12 @@ namespace WebAPI.Controllers.Programs
                 var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
                 if (ProgramRevisions == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Data = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.",
+                        Message = "Program revision not found.",
+                        Title = "Program Revision Not Found"
+                    });
                 }
                 if (dto.Name != ProgramRevisions.Name && !string.IsNullOrEmpty(ProgramRevisions.Name))
                 {
