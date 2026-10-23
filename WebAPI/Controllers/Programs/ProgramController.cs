@@ -534,6 +534,8 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
+                var ProgramRevision = ValidateProgramId.Data.ProgramRevision;
+                string programDisplayName = !string.IsNullOrEmpty(ProgramRevision.Name) ? ProgramRevision.Name : ProgramParent.ProgramPK;
 
                 // The whole decision lives in ProgramHelper.ExecuteProgramDeletionAsync, inside the
                 // delete transaction on locked rows: Blocked when the program is Approved, has
@@ -546,7 +548,7 @@ namespace WebAPI.Controllers.Programs
 
                 return Ok(new
                 {
-                    Message = $"Program {dto.ProgramId} has been deleted.",
+                    Message = $"Program '{programDisplayName}' has been deleted.",
                     Title = "Program Deleted",
                     DeletedProjects = removedLeftovers
                 });
