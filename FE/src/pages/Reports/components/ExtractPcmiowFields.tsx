@@ -55,9 +55,7 @@ const ExtractPcmiowFields: React.FC<ExtractPcmiowFieldsProps> = ({
   return (
     <>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Category <span className="text-red-500">*</span>
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
         <select
           value={categoryId}
           onChange={(e) => onCategoryChange(e.target.value)}
@@ -74,9 +72,7 @@ const ExtractPcmiowFields: React.FC<ExtractPcmiowFieldsProps> = ({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          District Engineering Office <span className="text-red-500">*</span>
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">District Engineering Office</label>
         <select
           value={deoCode}
           onChange={(e) => onDeoChange(e.target.value)}
@@ -93,9 +89,7 @@ const ExtractPcmiowFields: React.FC<ExtractPcmiowFieldsProps> = ({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Implementing Office <span className="text-red-500">*</span>
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Implementing Office</label>
         <select
           value={ioCode}
           onChange={(e) => onIoChange(e.target.value)}

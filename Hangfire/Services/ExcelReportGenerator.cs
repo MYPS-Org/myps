@@ -52,20 +52,20 @@ namespace Hangfire.Services
                     new List<ExcelReportParam>
                     {
                         new() { Name = "programid", DbType = SqlDbType.VarChar, IsRequired = true },
-                        new() { Name = "categoryid", DbType = SqlDbType.Int, IsRequired = true },
-                        new() { Name = "rocode", DbType = SqlDbType.VarChar, IsRequired = true },
-                        new() { Name = "deocode", DbType = SqlDbType.VarChar, IsRequired = true },
-                        new() { Name = "io_code", DbType = SqlDbType.VarChar, IsRequired = true }
+                        new() { Name = "categoryid", DbType = SqlDbType.Int, IsRequired = false },
+                        new() { Name = "rocode", DbType = SqlDbType.VarChar, IsRequired = false },
+                        new() { Name = "deocode", DbType = SqlDbType.VarChar, IsRequired = false },
+                        new() { Name = "io_code", DbType = SqlDbType.VarChar, IsRequired = false }
                     }),
                 ["extract-pc"] = (
                     "usp_extract_PC_list",
                     new List<ExcelReportParam>
                     {
                         new() { Name = "programid", DbType = SqlDbType.VarChar, IsRequired = true },
-                        new() { Name = "categoryid", DbType = SqlDbType.Int, IsRequired = true },
-                        new() { Name = "rocode", DbType = SqlDbType.VarChar, IsRequired = true },
-                        new() { Name = "deocode", DbType = SqlDbType.VarChar, IsRequired = true },
-                        new() { Name = "io_code", DbType = SqlDbType.VarChar, IsRequired = true }
+                        new() { Name = "categoryid", DbType = SqlDbType.Int, IsRequired = false },
+                        new() { Name = "rocode", DbType = SqlDbType.VarChar, IsRequired = false },
+                        new() { Name = "deocode", DbType = SqlDbType.VarChar, IsRequired = false },
+                        new() { Name = "io_code", DbType = SqlDbType.VarChar, IsRequired = false }
                     })
             };
 
@@ -110,8 +110,16 @@ namespace Hangfire.Services
                 if (!hasValue)
                 {
                     if (paramDef.IsRequired)
+                    {
                         missing.Add(paramDef.Name);
-                    continue; // optional + not supplied: let the proc's own default apply
+                        continue;
+                    }
+
+                    // The backing procs declare these params with no T-SQL default, so
+                    // omitting them entirely would fail the call -- pass NULL explicitly
+                    // instead, which the proc's own ISNULL(@x, ...) checks treat as "no filter".
+                    command.Parameters.Add("@" + paramDef.Name, paramDef.DbType).Value = DBNull.Value;
+                    continue;
                 }
 
                 object sqlValue;

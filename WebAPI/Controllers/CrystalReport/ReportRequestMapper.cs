@@ -171,23 +171,15 @@ public static class ReportRequestMapper
         if (programIds == null)
             return Fail(out legacyParams, out error, "programIds is required.");
 
-        if (!request.CategoryId.HasValue)
-            return Fail(out legacyParams, out error, "categoryId is required.");
-
-        if (string.IsNullOrWhiteSpace(request.RegionCode))
-            return Fail(out legacyParams, out error, "regionCode is required.");
-
-        if (string.IsNullOrWhiteSpace(request.DeoCode))
-            return Fail(out legacyParams, out error, "deoCode is required.");
-
-        if (string.IsNullOrWhiteSpace(request.IoCode))
-            return Fail(out legacyParams, out error, "ioCode is required.");
-
+        // CategoryId/RegionCode/DeoCode/IoCode are optional filters -- the backing
+        // stored procs (usp_extract_PC_MIOW_list / usp_extract_PC_list) already
+        // treat a blank/zero value as "no filter" via ISNULL(@x, '') = '' /
+        // ISNULL(@categoryid, 0) <= 0, so nothing downstream needs them required.
         legacyParams["programid"] = programIds;
-        legacyParams["categoryid"] = request.CategoryId.Value.ToString();
-        legacyParams["rocode"] = request.RegionCode;
-        legacyParams["deocode"] = request.DeoCode;
-        legacyParams["io_code"] = request.IoCode;
+        legacyParams["categoryid"] = request.CategoryId.HasValue ? request.CategoryId.Value.ToString() : string.Empty;
+        legacyParams["rocode"] = request.RegionCode ?? string.Empty;
+        legacyParams["deocode"] = request.DeoCode ?? string.Empty;
+        legacyParams["io_code"] = request.IoCode ?? string.Empty;
         legacyParams["programX"] = request.ProgramLabel ?? string.Empty;
         legacyParams["categoryX"] = request.CategoryLabel ?? "0";
         legacyParams["regionX"] = request.RegionLabel ?? string.Empty;
