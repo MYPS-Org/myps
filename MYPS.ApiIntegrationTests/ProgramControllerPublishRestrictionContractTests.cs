@@ -259,6 +259,38 @@ public sealed class ProgramControllerPublishRestrictionContractTests
             "The revision lookup must be materialized before the update that changes IsDeleted.");
     }
 
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void AddProgram_WritesTheLookupStageName_NotTheEnumName()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "AddProgram");
+
+        // 2026-10-21: FK_tProgramStages_Stage is composite on (StageId, StageName) against
+        // tOptionProgramStage (Id, Name). EnumProgramStage cannot spell the hyphenated stages
+        // (NEPE/HGABI/GAAR/TFR vs NEP-E/HGAB-I/GAA-R/TF-R), so writing dto.Stage.ToString()
+        // made every create at those four stages fail with SQL error 547. The row AddProgram
+        // already loads for validation carries the correct Name.
+        Assert.Contains("StageName = checkStageType.Name", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("StageName = dto.Stage.ToString()", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void AddProgram_PersistsIsSkippedAndSkipReason()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "AddProgram");
+
+        // a9ed4a66 (2026-07-15) dropped these two assignments from the Programs initializer while
+        // keeping the "reason required" validation and the DTO fields, so the reason a user must type
+        // when creating a program at a skipped stage was validated and then discarded.
+        Assert.Contains("IsSkipped = dto.IsSkipped", method, StringComparison.Ordinal);
+        Assert.Contains("SkipReason = dto.IsSkipped ? dto.SkipReason : null", method, StringComparison.Ordinal);
+    }
+
     private static MethodInfo GetPublicAction(string actionName)
     {
         return typeof(ProgramController)

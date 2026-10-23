@@ -315,6 +315,9 @@ namespace WebAPI.Controllers.Programs
                     UserGroup = dto.UserGroup,
                     Type = dto.Type,
                     StartYear = dto.YearStart,
+                    // Restored: a9ed4a66 dropped these while keeping the "reason required" check above.
+                    IsSkipped = dto.IsSkipped,
+                    SkipReason = dto.IsSkipped ? dto.SkipReason : null,
                     CreatedBy = UserId,
                     CreatedDate = CurrentDate,
                 };
@@ -338,7 +341,9 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = NewProgramUniqueId,
                     RevisionId = newRevisions.Id,
                     StageId = dto.Stage,
-                    StageName = dto.Stage.ToString(),
+                    // The lookup's Name ("GAA-R"), not the enum name ("GAAR"): FK_tProgramStages_Stage is
+                    // composite on (StageId, StageName), and the enum cannot spell NEP-E/HGAB-I/GAA-R/TF-R.
+                    StageName = checkStageType.Name,
                     CreatedBy = UserId,
                     CreatedDate = CurrentDate,
                 });
