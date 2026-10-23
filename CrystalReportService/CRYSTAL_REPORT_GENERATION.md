@@ -98,19 +98,20 @@ PDF-output report needs these; `extract-pcmiow` (Excel, bypasses Crystal) does n
 were confirmed by directly calling `CrystalReportService` and reading its error response — not
 inferred from code:
 
-| Report                             | Report-Level Parameters (verified live, 2026-09-05)                           |
+| Report                             | Report-Level Parameters (verified live, 2026-09-05; optional-field behavior updated 2026-10-23 per #422) |
 |-------------------------------------|---------------------------------------------------------------------------------|
-| `rbp`                               | `@PlanningEngineer`, `@ReviewdBy` *(sic — matches the existing typo in `ReportRequestMapper.MapRbp`, not a new one)*, `@ApprovedBy`, `@ReviewedBy`, plus `@yearstart`/`@programid`/`@region` (also report-level, in addition to being SQL params) |
-| `rbp-summary-report`                | `@yearstart`, `@region`, `@planningEngr`, `@reviewedBy`, `@approvedBy`, `@programid` — **none of these feed the SQL query** (the view takes no parameters at all); they exist purely for the printed report's own letterhead/signature block |
-| `rbp-summary-report-with-tier`      | identical set to `rbp-summary-report` (same 6 names, same purpose)              |
-| `aip-official`                      | `@ReportType`, `@ReportTypeTitle`, `@region` — notably does **not** list `@yearstart`/`@programid` as report-level params, unlike the other 3 AIP variants |
-| `aip-executive`, `aip-official-without-ld`, `aip-executive-2` | `@ReportType`, `@ReportTypeTitle`, `@region`, `@yearstart`, `@programid` |
+| `rbp`                               | `@PlanningEngineer`, `@ReviewdBy` *(sic — matches the existing typo in `ReportRequestMapper.MapRbp`, not a new one)*, `@ApprovedBy`, `@ReviewedBy` — all 4 **optional** (default to a blank signature block if omitted, per `ReportDefinition.OptionalReportLevelParameters`), plus `@yearstart`/`@programid`/`@region` (also report-level, **required**, in addition to being SQL params) |
+| `rbp-summary-report`                | `@yearstart`, `@region`, `@programid` **required**; `@planningEngr`, `@reviewedBy`, `@approvedBy` **optional** (same blank-default behavior as `rbp`, as of #422) — none of these 6 feed the SQL query (the view takes no parameters at all); they exist purely for the printed report's own letterhead/signature block |
+| `rbp-summary-report-with-tier`      | identical set to `rbp-summary-report` (same 6 names, same required/optional split) |
+| `aip-official`                      | `@ReportType`, `@ReportTypeTitle`, `@region` — all required; notably does **not** list `@yearstart`/`@programid` as report-level params, unlike the other 3 AIP variants |
+| `aip-executive`, `aip-official-without-ld`, `aip-executive-2` | `@ReportType`, `@ReportTypeTitle`, `@region`, `@yearstart`, `@programid` — all required |
 
-**Two gotchas worth knowing before integrating a new caller:**
+**Three gotchas worth knowing before integrating a new caller:**
 1. **An empty-string value counts as "not supplied."** `ApplyReportLevelParameters` treats
    `IsNullOrEmpty` as missing — so for reports where a field does double duty (e.g. `@region` is
    both an optional SQL filter *and* a required report-level display value), passing `region=""`
-   satisfies the SQL layer but still fails Crystal's export with "Missing parameter values."
+   satisfies the SQL layer but still fails Crystal's export with "Missing parameter values,"
+   unless that field is also in the report's `OptionalReportLevelParameters` set (see #3 below).
 2. **Parameter names are not consistent across templates for the same concept.** `rbp.rpt` uses
    `PlanningEngineer`/`ApprovedBy`/`ReviewedBy` (PascalCase, full words); the two summary-view
    reports use `planningEngr`/`approvedBy`/`reviewedBy` (camelCase, `planningEngr` abbreviated).
@@ -118,6 +119,13 @@ inferred from code:
    sending `PlanningEngineer` to `rbp-summary-report` will not satisfy its `@planningEngr`
    requirement. Check the table above per-report; don't assume one report's field names transfer
    to another.
+3. **Per-report optional report-level parameters (#422).** `ReportDefinition.OptionalReportLevelParameters`
+   (`CrystalReportRenderer.cs`) lets specific `StringField` report-level parameters default to an
+   empty string instead of failing when omitted — used for the Planning Engineer/Approver/Reviewer
+   fields on all 3 PDF-output `rbp`-family reports today. Scoped per-report and `StringField`-only
+   by design: a report not listed here keeps the original unconditional-required behavior, and a
+   number/date/currency report-level parameter has no sensible empty default so always stays
+   required even if a report were misconfigured to list one.
 
 ---
 
@@ -200,8 +208,9 @@ never silently cut.
 - **`rbp-summary-report` and `rbp-summary-report-with-tier` are reachable via direct API call only
   — not yet wired into the Reports page UI.** Fixed 2026-09-05: `ReportCatalog.cs` now recognizes
   both keys under a new `ReportFamily.RbpSummary`, and `ReportRequestMapper.MapRbpSummary` maps a
-  `GenerateRbpSummaryRequestDTO` (`YearStart`, `ProgramId`, `RegionCode`, `PlanningEngr`,
-  `ReviewedBy`, `ApprovedBy` — all 6 required, matching what both `.rpt` templates actually need)
+  `GenerateRbpSummaryRequestDTO` (`YearStart`, `ProgramId`, `RegionCode` required;
+  `PlanningEngr`/`ReviewedBy`/`ApprovedBy` optional as of #422 — see the Report-Level Parameters
+  table below)
   to the exact `yearstart`/`region`/`programid`/`planningEngr`/`reviewedBy`/`approvedBy` keys
   Crystal expects. Confirmed live via `POST /api/reports/{reportName}` against the real WebAPI
   (see the report catalog table below) — but the frontend (`FE/src/pages/Reports/Reports.tsx`)

@@ -63,6 +63,17 @@ namespace CrystalReportService.Services
         /// other report keeps today's behavior unchanged.
         /// </summary>
         public bool SkipLocationCorrection { get; set; } = false;
+
+        /// <summary>
+        /// Report-level Crystal parameter names (see <see cref="ApplyReportLevelParameters"/>)
+        /// that are allowed to default to an empty string instead of failing the request when
+        /// not supplied. Case-insensitive, matched against whatever the .rpt itself defines --
+        /// scoped per-report so it can never affect a report that hasn't opted in. Only applied
+        /// to StringField parameters; a number/date/currency report-level parameter has no
+        /// sensible empty default, so those stay required even if accidentally listed here.
+        /// </summary>
+        public HashSet<string> OptionalReportLevelParameters { get; set; } =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -93,6 +104,14 @@ namespace CrystalReportService.Services
                         new SqlParamDefinition { Name = "yearstart", DbType = SqlDbType.Int, IsRequired = true },
                         new SqlParamDefinition { Name = "programid", DbType = SqlDbType.VarChar, IsRequired = false },
                         new SqlParamDefinition { Name = "region", DbType = SqlDbType.VarChar, IsRequired = false }
+                    },
+                    // #422: Planning Engineer / Approver / Reviewer should not block report
+                    // generation. FE and WebAPI already treat these as optional; RBP.rpt's own
+                    // report-level parameters (PascalCase, including the existing ReviewdBy typo)
+                    // were the only remaining blocker.
+                    OptionalReportLevelParameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "PlanningEngineer", "ReviewdBy", "ApprovedBy", "ReviewedBy"
                     }
                 },
                 ["extract-pcmiow"] = new ReportDefinition
@@ -175,13 +194,25 @@ namespace CrystalReportService.Services
                         new SqlParamDefinition { Name = "yearstart", DbType = SqlDbType.Int, IsRequired = true },
                         new SqlParamDefinition { Name = "programid", DbType = SqlDbType.NVarChar, IsRequired = false },
                         new SqlParamDefinition { Name = "region", DbType = SqlDbType.NVarChar, IsRequired = false }
+                    },
+                    // #422: same relaxation as "rbp" above, extended here per follow-up request --
+                    // this report's .rpt uses camelCase report-level parameter names, unlike rbp's
+                    // PascalCase ones (documented naming difference between the two .rpt families).
+                    OptionalReportLevelParameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "planningEngr", "reviewedBy", "approvedBy"
                     }
                 },
                 ["rbp-summary-report-with-tier"] = new ReportDefinition
                 {
                     RptFileName = "RBP_Summary_Report_with_Tier.rpt",
                     SourceType = DataSourceType.View,
-                    DbObjectName = "MYPS_vw_rptRBPSummaryTier"
+                    DbObjectName = "MYPS_vw_rptRBPSummaryTier",
+                    // #422: same relaxation, same camelCase names as rbp-summary-report above.
+                    OptionalReportLevelParameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "planningEngr", "reviewedBy", "approvedBy"
+                    }
                 },
                 ["aip-official"] = new ReportDefinition
                 {
@@ -393,7 +424,7 @@ namespace CrystalReportService.Services
                 // values" during export regardless of the data being present.
                 try
                 {
-                    ApplyReportLevelParameters(report, parameters);
+                    ApplyReportLevelParameters(report, parameters, definition.OptionalReportLevelParameters);
                 }
                 catch (ArgumentException)
                 {
@@ -817,9 +848,15 @@ namespace CrystalReportService.Services
         /// this list doesn't know about yet; check report.DataDefinition.ParameterFields
         /// in the Designer to find its exact name.
         /// </summary>
-        private static void ApplyReportLevelParameters(ReportDocument report, IDictionary<string, object> parameters)
+        /// <param name="optionalParameters">
+        /// Report-level parameter names (see <see cref="ReportDefinition.OptionalReportLevelParameters"/>)
+        /// that default to an empty string instead of failing the request when missing -- only
+        /// for StringField parameters; every other missing parameter still fails exactly as before.
+        /// </param>
+        private static void ApplyReportLevelParameters(ReportDocument report, IDictionary<string, object> parameters, HashSet<string> optionalParameters)
         {
             parameters = parameters ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            optionalParameters = optionalParameters ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var missing = new List<string>();
 
             foreach (ParameterFieldDefinition pf in report.DataDefinition.ParameterFields)
@@ -837,6 +874,17 @@ namespace CrystalReportService.Services
 
                 if (!hasValue)
                 {
+                    // #422: a report can opt specific StringField parameters out of the
+                    // "every parameter is required" rule below (e.g. signatory fields that
+                    // should render blank rather than block generation). Every other missing
+                    // parameter - not opted in, or not a string type with no sensible empty
+                    // default - keeps the original, unconditional-required behavior.
+                    if (optionalParameters.Contains(pf.Name.TrimStart('@')) && pf.ValueType == FieldValueType.StringField)
+                    {
+                        report.SetParameterValue(pf.Name, string.Empty);
+                        continue;
+                    }
+
                     // Deliberately NOT checking pf.HasCurrentValue here - it's
                     // not reliable immediately after SetParameterValue in the
                     // same pass. Every parameter this .rpt defines is treated

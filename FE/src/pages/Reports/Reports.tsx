@@ -370,20 +370,13 @@ const Reports: React.FC = () => {
           showToast({ type: 'error', message: 'This report requires exactly one selected program.' });
           return;
         }
-        if (!planningEngineer.trim() || !approvedBy.trim() || !reviewedBy.trim()) {
-          showToast({
-            type: 'error',
-            message: 'Planning Engineer, Approved By, and Reviewed By are all required for this report.',
-          });
-          return;
-        }
         request = {
           YearStart: yearStart,
           ProgramId: selectedProgramIds[0],
           RegionCode: regionCode,
-          PlanningEngr: planningEngineer.trim(),
-          ReviewedBy: reviewedBy.trim(),
-          ApprovedBy: approvedBy.trim(),
+          PlanningEngr: planningEngineer.trim() || undefined,
+          ReviewedBy: reviewedBy.trim() || undefined,
+          ApprovedBy: approvedBy.trim() || undefined,
         };
         break;
       }
@@ -558,39 +551,36 @@ const Reports: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Planning Engineer
-                    {reportFamily === 'rbp-summary' && <span className="text-red-500"> *</span>}
                   </label>
                   <Input
                     type="text"
                     value={planningEngineer}
                     onChange={(e) => setPlanningEngineer(e.target.value)}
-                    placeholder={reportFamily === 'rbp-summary' ? undefined : 'Optional'}
+                    placeholder="Optional"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Approved By
-                    {reportFamily === 'rbp-summary' && <span className="text-red-500"> *</span>}
                   </label>
                   <Input
                     type="text"
                     value={approvedBy}
                     onChange={(e) => setApprovedBy(e.target.value)}
-                    placeholder={reportFamily === 'rbp-summary' ? undefined : 'Optional'}
+                    placeholder="Optional"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Reviewed By
-                    {reportFamily === 'rbp-summary' && <span className="text-red-500"> *</span>}
                   </label>
                   <Input
                     type="text"
                     value={reviewedBy}
                     onChange={(e) => setReviewedBy(e.target.value)}
-                    placeholder={reportFamily === 'rbp-summary' ? undefined : 'Optional'}
+                    placeholder="Optional"
                   />
                 </div>
               </>
