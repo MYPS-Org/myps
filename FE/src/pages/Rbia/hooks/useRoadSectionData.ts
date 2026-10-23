@@ -19,8 +19,8 @@ import { usePagination } from '../../../hooks/usePagination';
 // forces page 1 (its DTO default is Navigation.First). This adapter translates usePagination's
 // PaginatedRequest<RoadSectionFilter> shape into the lowercase-`filters` request shape
 // fetchRoadSectionData already expects, forwarding the keyset fields through untouched.
-const fetchRoadSectionsForPagination = (params: PaginatedRequest<RoadSectionFilter>) =>
-  fetchRoadSectionData({
+const fetchRoadSectionsForPagination = async (params: PaginatedRequest<RoadSectionFilter>) => {
+  const response = await fetchRoadSectionData({
     filters: params.Filters,
     sortField: params.SortField ?? '',
     sortDirection: params.sortDirection ?? 1,
@@ -31,6 +31,22 @@ const fetchRoadSectionsForPagination = (params: PaginatedRequest<RoadSectionFilt
     NextFilteredId: params.NextFilteredId,
     PageCursorId: params.PageCursorId,
   } as RoadSectionPagination);
+  // The BE returns the table columns LengthM / DEOParticipantId, but the list and the edit dialog
+  // read RoadLength / DEO: without this the Length and Engineering District columns were blank and
+  // Edit stopped at "Please enter the length".
+  type ApiRoadSection = FutureRoadSections & { LengthM?: number; DEOParticipantId?: string };
+  return {
+    ...response,
+    Data: {
+      ...response.Data,
+      lists: (response.Data.lists as ApiRoadSection[]).map(s => ({
+        ...s,
+        RoadLength: s.RoadLength ?? s.LengthM ?? 0,
+        DEO: s.DEO ?? s.DEOParticipantId ?? '',
+      })),
+    },
+  };
+};
 
 export const useRoadSectionData = () => {
   const [roadSectionFilters] = useAtom(roadSectionFiltersAtom);
@@ -108,16 +124,11 @@ export const useRoadSectionData = () => {
     pagination.goToPage(page);
   }, [pagination]);
 
-  // Handle sorting. NOTE: usePagination's sortField/sortDirection are frozen at hook-init time
-  // (by design — no column-sort UI wires this yet), so applyFilters here re-fetches with the
-  // *previous* sort order, not the new one. Not fixed here — RoadSection.tsx never calls this
-  // (its sort headers only update local arrow-indicator state), pre-existing and out of scope for
-  // the pagination fix. Would need usePagination itself extended to support dynamic sort.
-  const handleSort = useCallback(async (field: string, direction: 'asc' | 'desc') => {
-    const sortDirection = direction === 'asc' ? 0 : 1;
-    updateRoadSectionFilters({ sortField: field, sortDirection, page: 1 });
-    pagination.applyFilters(roadSectionFilters.filters ?? {});
-  }, [roadSectionFilters, updateRoadSectionFilters, pagination]);
+  // Column sort (S06-TC001-P001): store the order; usePagination sees the new sortField /
+  // sortDirection, drops its cursors and re-fetches page 1 in that order. 0 = asc, 1 = desc.
+  const handleSort = useCallback((field: string, direction: 0 | 1) => {
+    updateRoadSectionFilters({ sortField: field, sortDirection: direction, page: 1 });
+  }, [updateRoadSectionFilters]);
 
   // Handle filter changes
   const handleFilterChange = useCallback(async (newFilters: Partial<RoadSectionPagination>) => {
@@ -184,6 +195,8 @@ export const useRoadSectionData = () => {
 
     // Optimistic updates
     removeRoadSectionFromState,
+    // Re-fetch the current page with the current filters, e.g. after a dialog saved a row.
+    refresh: () => removeRoadSectionFromState(''),
     addRoadSectionToState,
     updateRoadSectionInState,
 

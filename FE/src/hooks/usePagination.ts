@@ -12,7 +12,10 @@ const Nav = {
 interface UsePaginationOptions<TFilters> {
     initialFilters?: TFilters;
     limit?: number;
-    /** Static sort passed on every request. No column-sort UI wires this yet — set once at hook init. */
+    /**
+     * Sort passed on every request. When it changes after mount, the hook drops its cached cursors
+     * (they belong to the old order) and re-fetches page 1 with the current filters.
+     */
     sortField?: string;
     sortDirection?: 0 | 1;
     /**
@@ -135,6 +138,21 @@ export function usePagination<TFilters, TItem>(
         if (!enabled) return;
         fetchData({ Filters: initialFilters, limit, page: 1, Navigation: Nav.First, ...sortParams });
     }, [enabled]);
+
+    // A new sort order: cached cursors point into the old order, so start again from page 1.
+    // Skips the first run (the mount fetch above already used the initial sort).
+    const sortKey = `${sortField ?? ''}|${sortDirection ?? ''}`;
+    const sortKeyRef = useRef(sortKey);
+    useEffect(() => {
+        if (sortKeyRef.current === sortKey) return;
+        sortKeyRef.current = sortKey;
+        if (!enabled) return;
+        cursorRef.current = { previous: null, next: null };
+        pageCursorsRef.current = new Map();
+        setVisitedPages(new Set([1]));
+        fetchData({ Filters: currentFilters, limit, page: 1, Navigation: Nav.First, ...sortParams });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sortKey]);
 
     /**
      * Walks from the current page to `targetPage` one keyset hop at a time (Next if forward,

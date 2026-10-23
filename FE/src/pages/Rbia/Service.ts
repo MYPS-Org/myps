@@ -1,12 +1,12 @@
 import { httpClient, gisClient } from '../../services/httpClient';
 import type { RODEOEnum } from '../Project/Model';
 
-import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, BridgePagination, RoadSectionPagination, RoadPagination, RoadFilter, RoadSectionFilter, BridgeFilter, InfraRoadSectionOption, InfraBridgeOption, InfraRoadSectionPagination, InfraBridgePagination } from './Model.d';
+import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, AddFutureRoadRequest, BridgePagination, RoadSectionPagination, RoadPagination, RoadSectionFilter, BridgeFilter, InfraRoadSectionOption, InfraBridgeOption, InfraRoadSectionPagination, InfraBridgePagination } from './Model.d';
 
 
 export const fetchRoadInitData = async () => {
     try {
-        const response = await httpClient.post<{ Classifications: FutureRoadsClassification[] }>('/futureInfra/initfilterFutureRoads');
+        const response = await httpClient.post<{ Classifications: FutureRoadsClassification[]; IslandCodes: string[] }>('/futureInfra/initfilterFutureRoads');
         return response;
     } catch (error) {
         console.error('Error fetching RBIA data:', error);
@@ -24,9 +24,9 @@ export const fetchRoads = async ( data: RoadPagination) => {
     }
 };
 
-export const addFutureRoad = async (road: RoadFilter) => {
+export const addFutureRoad = async (road: AddFutureRoadRequest) => {
     try {
-        const response = await httpClient.post<RoadFilter>('/futureInfra/addFutureRoads', road, );
+        const response = await httpClient.post<{ RoadId: string; Message: string }>('/futureInfra/addFutureRoads', road, );
         return response;
     } catch (error) {
         console.error('Error adding future road:', error);
@@ -75,7 +75,7 @@ export const fetchRoadSectionData = async (data: RoadSectionPagination) => {
 
 export const addFutureRoadSection = async (section: RoadSectionFilter) => {
     try {
-        const response = await httpClient.post('/futureinfra/addFutureRoadSections', section, );
+        const response = await httpClient.post<{ RoadSectionId: string; Message: string }>('/futureinfra/addFutureRoadSections', section, );
         return response;
     } catch (error) {
         console.error('Error adding future road section:', error);
@@ -124,7 +124,7 @@ export const fetchBridgeData = async (data: BridgePagination) => {
 
 export const addFutureBridge = async (bridge: BridgeFilter) => {
     try {
-        const response = await httpClient.post('/futureinfra/addFutureBridge', bridge);
+        const response = await httpClient.post<{ BridgeId: string; Message: string }>('/futureinfra/addFutureBridge', bridge);
         return response;
     } catch (error) {
         console.error('Error adding future bridge:', error);
@@ -142,9 +142,11 @@ export const editFutureBridge = async (bridge: FutureBridge) => {
     }
 }
 
+// The BE action really is named DeleteFutureBridg: that is the name tApiActions registers and groups are
+// granted, so calling "DeleteFutureBridge" 405-ed (and renaming the action would 403 until re-granted).
 export const deleteFutureBridge = async (bridgeId: string) => {
     try {
-        const response = await httpClient.post<{ success: boolean }>('/futureinfra/DeleteFutureBridge', { BridgeId: bridgeId });
+        const response = await httpClient.post<{ success: boolean }>('/futureinfra/DeleteFutureBridg', { BridgeId: bridgeId });
         return response;
     } catch (error) {
         console.error('Error deleting future bridge:', error);

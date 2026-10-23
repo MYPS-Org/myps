@@ -36,7 +36,7 @@ Every tab's table has the same core controls:
 - **Filter button** — open the filter dialog for more specific criteria. The button turns orange when a filter is active.
 - **Clear Filter / X button** — remove the current filter and reload all records.
 - **Pagination** — navigate pages using Previous / Next at the bottom of the table.
-- **Sort** — click any column header to sort ascending or descending.
+- **Sort** — click a column header to sort the whole list by it (not just the page shown); click again to reverse. An arrow marks the sorted column, and paging keeps that order. Clear Filter also clears the sort.
 
 ---
 
@@ -44,14 +44,16 @@ Every tab's table has the same core controls:
 
 ### What is a Road?
 
-A future national road is the top-level infrastructure entity. Roads have a classification (Primary, Secondary, Tertiary, or Quaternary) and a unique Road ID that follows a standard format.
+A future national road is the top-level infrastructure entity. Roads have a classification (Primary, Secondary, or Tertiary) and a unique Road ID that follows a standard format.
+
+Roads, sections and bridges migrated from **RBIA** are view-only: their rows show an **RBIA** badge instead of the Edit and Delete buttons. Only infrastructure created in MYPS can be edited or deleted. You can still add a section to an RBIA road, or a bridge to an RBIA section.
 
 ### The Road ID Format
 
 Road IDs follow this format: **`FR{5-digit-number}{IslandCode}`**
 
 - `FR` — prefix for Future Roads
-- 5 digits — a zero-padded sequential number (e.g., `00001`)
+- 5 digits — the next free number, zero-padded (e.g., `00001`). MYPS generates it; you do not type it.
 - Island Code — the alphabetic code for the island group (e.g., `LZ` for Luzon, `VS` for Visayas)
 
 Example: `FR00001LZ`
@@ -62,21 +64,21 @@ Example: `FR00001LZ`
 |---|---|
 | Road ID | Unique identifier (displayed as a blue badge) |
 | Road Name | Name of the road |
-| Classification | Road class (green badge): Primary, Secondary, Tertiary, Quaternary |
-| Actions | Edit, Delete, and Add Section buttons |
+| Classification | Road class (green badge): Primary, Secondary, Tertiary |
+| Actions | Edit, Delete (MYPS roads only; RBIA roads show an **RBIA** badge), and Add Section buttons |
 
 ### Adding a Road
 
 1. Click the **Add Road** button (blue, top-right of the Roads table).
-2. Enter a **Road ID** using the format `FR{5digits}{IslandCode}`.
+2. Select the **Island** (Luzon, Visayas or Mindanao). The Road ID is generated when you save, and the success message shows it.
 3. Enter the **Road Name**.
 4. Select the **Classification** from the dropdown.
-5. Click **Save**.
+5. Click **Create Road**.
 
 ### Editing a Road
 
 1. Click the yellow pencil icon on the road's row.
-2. Update the fields as needed.
+2. Update the name or classification. The Road ID is shown read-only.
 3. Click **Save**.
 
 ### Deleting a Road
@@ -110,10 +112,8 @@ A road section is a defined segment of a road, with a measured length and an ass
 Road Section IDs follow this format: **`FS{5-digit-number}{IslandCode}`**
 
 - `FS` — prefix for Future Sections
-- 5 digits — sequential number
-- Island Code — inherited automatically from the parent Road ID
-
-The island code is filled in automatically when you enter the section number and select the parent road.
+- 5 digits — the next free number. MYPS generates it; you do not type it. It skips every number a project already refers to.
+- Island Code — the last two letters of the parent Road ID
 
 ### Road Sections Table Columns
 
@@ -130,18 +130,17 @@ The island code is filled in automatically when you enter the section number and
 Road sections can only be added from the **Roads tab**. Find the road you want to add a section to and click its blue **+ Add Section** button.
 
 The dialog opens with the parent road pre-filled:
-1. Enter the **Section Number** (5 digits only).
+1. Enter the **Length** in metres.
 2. Select the **Engineering District** (DEO) from the dropdown.
-3. Enter the **Road Length** in metres.
-4. Click **Save**.
+3. Click **Create Road Section**.
 
-The Section Road ID is generated automatically: `FS{number}{IslandCode}`.
+The Section Road ID is generated when you save, and the success message shows it.
 
 ### Editing a Road Section
 
 1. On the Road Sections tab, click the yellow pencil icon on the section's row.
-2. Update the fields as needed.
-3. Click **Save**.
+2. Update the parent road, length or engineering district. The Section Road ID is read-only: it keeps its number, and if you pick a road on another island its island code changes with it (its bridges' IDs follow).
+3. Click **Update Road Section**.
 
 ### Deleting a Road Section
 
@@ -171,8 +170,8 @@ A bridge is a structure on a road section. It records the starting position (cha
 Bridge IDs follow this format: **`FB{5-digit-number}{IslandCode}`**
 
 - `FB` — prefix for Future Bridges
-- 5 digits — sequential number
-- Island Code — inherited automatically from the parent Road Section ID
+- 5 digits — the next free number. MYPS generates it; you do not type it. It skips every number a project already refers to.
+- Island Code — the last two letters of the parent Road Section ID
 
 ### Bridges Table Columns
 
@@ -191,21 +190,19 @@ Bridge IDs follow this format: **`FB{5-digit-number}{IslandCode}`**
 Bridges can only be added from the **Road Sections tab**. Find the road section and click its blue **+ Add Bridge** button.
 
 The dialog opens with the parent road section pre-filled:
-1. Enter the **Bridge Number** (5 digits only).
-2. Enter the **Bridge Name** (required).
-3. Enter the **From** value — the chainage (in metres) from the start of the road section.
-4. Enter the **Length** in metres.
-5. Enter the number of **Carriage Ways**.
-6. Optionally enter the **Overall Width**.
-7. Click **Save**.
+1. Enter the **Bridge Name** (required).
+2. Enter the **From** value — the chainage (in metres) from the start of the road section.
+3. Enter the **Length** in metres.
+4. Enter the **Carriageway Width** in metres.
+5. Click **Create Bridge**.
 
-The Bridge ID is generated automatically: `FB{number}{IslandCode}`.
+The Bridge ID is generated when you save, and the success message shows it.
 
 ### Editing a Bridge
 
 1. On the Bridges tab, click the yellow pencil icon on the bridge's row.
-2. Update the fields as needed.
-3. Click **Save**.
+2. Update the fields as needed. The Bridge ID is read-only (its island code follows the road section you pick).
+3. Click **Update Bridge**.
 
 ### Deleting a Bridge
 

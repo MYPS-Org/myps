@@ -8,6 +8,7 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/16/solid';
 import { selectedItemAtom, type RoadSection } from "../state/rbiaAtoms";
+import { isCreatedInMyps, RBIA_READ_ONLY_TITLE } from "../networkStatus";
 import { useRoadSectionData } from "../hooks/useRoadSectionData";
 import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
 import DeleteRoadSectionDialog from "../Dialogs/DeleteRoadSectionDialog";
@@ -17,12 +18,13 @@ import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
 import FilterRoadSectionDialog from "../Dialogs/FilterRoadSectionDialog";
 
 // Simple Badge component
-const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
-  children, 
-  className = "", 
-  color = "gray" 
+const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string; title?: string }> = ({
+  children,
+  className = "",
+  color = "gray",
+  title
 }) => (
-  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800 ${className}`}>
+  <span title={title} className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800 ${className}`}>
     {children}
   </span>
 );
@@ -63,8 +65,6 @@ const RoadSectionList: React.FC = () => {
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [sectionToAddBridge, setSectionToAddBridge] = useState<RoadSection | null>(null);
   const [roadSectionToDelete, setRoadSectionToDelete] = useState<RoadSection | null>(null);
-  const [sortField, setSortField] = useState<string>('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Use the custom hook for road section data management
   const {
@@ -86,7 +86,9 @@ const RoadSectionList: React.FC = () => {
     goNext,
     goPrevious,
     goFirst,
-    goLast
+    goLast,
+    refresh,
+    handleSort,
   } = useRoadSectionData();
 
   // Initialize data on component mount
@@ -120,21 +122,18 @@ const RoadSectionList: React.FC = () => {
     setRoadSectionToDelete(null);
   };
 
-  // Updated handler for onSort that accepts direction parameter
+  // Header click: the server re-orders the whole list, not just the page shown (S06-TC001-P001).
   const handleSortWithDirection = (field: string) => (direction: 0 | 1) => {
-    setSortField(field);
-    setSortDirection(direction === 0 ? 'asc' : 'desc');
+    handleSort(field, direction);
   };
 
   const Paginate = async (page: number) => {
     await handlePagination(page);
   };
 
-  // Helper function to convert sort direction to numeric value
-  const getSortDirection = (field: string): 0 | 1 | undefined => {
-    if (sortField !== field) return undefined;
-    return sortDirection === 'asc' ? 0 : 1;
-  };
+  // The header arrow follows the sort the list was fetched with.
+  const getSortDirection = (field: string): 0 | 1 | undefined =>
+    roadSectionFilters.sortField === field ? roadSectionFilters.sortDirection : undefined;
 
   return (
     <div className="overflow-hidden">
@@ -259,25 +258,34 @@ const RoadSectionList: React.FC = () => {
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="orange" className="text-xs">
-                      {initRoadSections.find(d => d.DEOParticipantId === section.DEO)?.Name ?? section.DEO}
+                      {initRoadSections.find(d => d.ParticipantId === section.DEO)?.Name ?? section.DEO}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
-                    <div className="flex justify-center space-x-2">
-                      <button
-                        onClick={() => handleEdit(section)}
-                        className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
-                        disabled={isLoading}
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(section)}
-                        className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
-                        disabled={isLoading}
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                    <div className="flex justify-center items-center space-x-2">
+                      {/* RBIA rows are view-only (S06-TC008): Edit and Delete only for MYPS sections. */}
+                      {isCreatedInMyps(section) ? (
+                        <>
+                          <button
+                            onClick={() => handleEdit(section)}
+                            title="Edit"
+                            className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
+                            disabled={isLoading}
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(section)}
+                            title="Delete"
+                            className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
+                            disabled={isLoading}
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <Badge color="gray" className="text-xs" title={RBIA_READ_ONLY_TITLE}>RBIA</Badge>
+                      )}
                       <button
                         onClick={() => { handleAddBridge(section) }}
                         className="p-2 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors duration-200"
@@ -335,7 +343,15 @@ const RoadSectionList: React.FC = () => {
         />
       )}
 
-      {isRoadSectionDialogOpen && <FutureRoadSectionDialog onClose={() => setIsRoadSectionDialogOpen(false)} />}
+      {isRoadSectionDialogOpen && (
+        <FutureRoadSectionDialog
+          onClose={() => {
+            setIsRoadSectionDialogOpen(false);
+            setSelectedItem(null);
+          }}
+          onSaved={refresh}
+        />
+      )}
       {isDeleteDialogOpen && roadSectionToDelete && (
         <DeleteRoadSectionDialog 
           isOpen={isDeleteDialogOpen}

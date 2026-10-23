@@ -3,22 +3,29 @@ import { useAtom } from "jotai";
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
-import { roadsAtom, roadClassificationsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
+import { roadClassificationsAtom, roadIslandCodesAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
 import { addFutureRoad, editFutureRoad } from "../Service";
 import { useToast } from '../../../components/toaster/ToasterContext';
 
+const ISLAND_NAMES: Record<string, string> = { LZ: 'Luzon', VS: 'Visayas', MN: 'Mindanao' };
+
 interface FutureRoadDialogProps {
   onClose: () => void;
+  /** Called after a successful save so the list can re-fetch. */
+  onSaved?: () => void;
 }
 
-const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
+const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose, onSaved }) => {
   const { showToast } = useToast();
-  const [roads, setRoads] = useAtom(roadsAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
+  // Only a selected *road* means Edit (the selection is shared with sections and bridges).
+  const isEdit = !!selectedItem && 'Classification' in selectedItem;
   // Classifications are populated by the Road list's useRoadData() on mount; read the atom
   // directly here instead of useRoadData() so opening this dialog doesn't also mount a
   // second, unwanted paginated roads fetch (useRoadData() now owns a usePagination instance).
   const [roadClassifications] = useAtom(roadClassificationsAtom);
+  const [islandCodes] = useAtom(roadIslandCodesAtom);
+  const [islandCode, setIslandCode] = useState("");
   const [formData, setFormData] = useState<Road>({
     Id: 0,
     RoadId: "",
@@ -32,14 +39,11 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
     UpdatedDate: ''
   });
 
-  // Debug log to see what we're getting
-  console.log('roadClassifications in dialog:', roadClassifications);
-
   useEffect(() => {
-    if (selectedItem && 'RoadId' in selectedItem && 'Classification' in selectedItem) {
+    if (isEdit) {
       setFormData(selectedItem as Road); // Populate form with selected item for editing
     }
-  }, [selectedItem]);
+  }, [isEdit, selectedItem]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,34 +53,27 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
     //   return;
     // }
 
-    if (!formData.RoadId || !formData.Name || !formData.Classification) {
+    if ((isEdit ? !formData.RoadId : !islandCode) || !formData.Name || !formData.Classification) {
       showToast({ type: 'error', message: 'Please fill in all required fields.' });
       return;
     }
 
     try {
-      // Create payload with only the required fields for the API
-      const roadPayload = {
-        RoadId: formData.RoadId,
-        Name: formData.Name,
-        Classification: formData.Classification.toString(), // Convert to string if API expects string
-      };
-
-      const updatePayload = {...formData, Id: formData.Id};
-
-      if (selectedItem) {
-        const response = await editFutureRoad(updatePayload); // Call the service to add the future road
-        if (response) {
-          setRoads([...roads, formData]);
-        }
-        handleClose();
-      }else {
-        const response = await addFutureRoad(roadPayload); // Call the service to add the future road
-        if (response) {
-          setRoads([...roads, formData]);
-        }
-        handleClose();
+      // The table is paginated from the server: re-fetch it (onSaved) instead of appending to the
+      // legacy roadsAtom, which the table never read, so new/edited roads did not show up.
+      if (isEdit) {
+        await editFutureRoad({ ...formData, Id: formData.Id, Classification: Number(formData.Classification) });
+        showToast({ type: 'success', message: 'Future road updated.' });
+      } else {
+        const response = await addFutureRoad({
+          IslandCode: islandCode,
+          Name: formData.Name,
+          Classification: Number(formData.Classification),
+        });
+        showToast({ type: 'success', message: `Future road ${response.Data.RoadId} added.` });
       }
+      onSaved?.();
+      handleClose();
     } catch (error) {
       console.error("Error saving road:", error);
     }
@@ -116,10 +113,11 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
       
       {/* Full-screen container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl p-6">
+        {/* max-h + scroll: on a 720px-high screen the form ran past the viewport and the submit button could not be reached. */}
+        <DialogPanel className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg shadow-xl p-6">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              {selectedItem ? "Edit Future Road" : "Add New Future Road"}
+              {isEdit ? "Edit Future Road" : "Add New Future Road"}
             </DialogTitle>
             <button
               onClick={onClose}
@@ -130,22 +128,40 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Road ID */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Road ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.RoadId}
-                onChange={(e) => handleChange('RoadId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                placeholder="Enter Road ID (must start with 'FR' and end with Island Code)"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Road ID must start with 'FR' followed by 5 digit Number and ends with Island Code (e.g., FR00001LZ, FR00002VS)
-              </p>
-            </div>
+            {/* Road ID: generated by the API from the island code, never typed (S06-TC003-P001). */}
+            {isEdit ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Road ID</label>
+                <input
+                  type="text"
+                  value={formData.RoadId}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-700 cursor-not-allowed"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Island <span className="text-red-500">*</span>
+                </label>
+                <select
+                  aria-label="Island"
+                  value={islandCode}
+                  onChange={(e) => setIslandCode(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                >
+                  <option value="">Select island...</option>
+                  {islandCodes.map((code) => (
+                    <option key={code} value={code}>
+                      {ISLAND_NAMES[code] ? `${ISLAND_NAMES[code]} (${code})` : code}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  The Road ID is generated when you save: FR, the next free 5-digit number, then the island code (e.g., FR00001LZ).
+                </p>
+              </div>
+            )}
 
             {/* Road Name */}
             <div>
@@ -174,7 +190,7 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
                 <option value="">Select classification...</option>
                 {Array.isArray(roadClassifications) && roadClassifications.length > 0 ? (
                   roadClassifications.map((classification) => (
-                    <option key={classification.Id} value={classification.Id}>
+                    <option key={classification.Id} value={classification.ClassificationId}>
                       {classification.Classification}
                     </option>
                   ))
@@ -190,7 +206,7 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
                 Cancel
               </Button>
               <Button type="submit" color='orange'>
-                {selectedItem ? "Update Road" : "Create Road"}
+                {isEdit ? "Update Road" : "Create Road"}
               </Button>
             </div>
           </form>

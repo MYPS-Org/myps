@@ -874,6 +874,142 @@ namespace Helpers
             }
         }
 
+        /// <summary>
+        /// Same request / response contract as <see cref="FilterDataCursor{T, TFilter}"/>, but ordered by a
+        /// column the user picked (a sortable list header) instead of the key column.
+        ///
+        /// A keyset cursor cannot follow an arbitrary sort, so the "cursors" here are row POSITIONS in
+        /// that order (1-based): PageCursorId / PreviousFilteredId = the page's first position,
+        /// NextFilteredId = its last. usePagination treats cursors as opaque, so it pages, caches and
+        /// re-visits pages unchanged. It must drop its cached cursors when the sort changes (it does).
+        /// Rows are fetched with OFFSET / FETCH; use it for small tables (the Infra Management lists),
+        /// not for the large project views the keyset helper exists for.
+        ///
+        /// <paramref name="orderByExpression"/> is put into the SQL as is: pass only a server-side
+        /// constant (map the request's sort field through a fixed dictionary), never request text.
+        /// Ties are broken by <paramref name="tieBreakColumn"/> in the same direction, so pages are stable.
+        /// </summary>
+        public static async Task<FilterDataResult<T>>
+            FilterDataSorted<T, TFilter>(
+                this MYPSDbContext db,
+                string tableName,
+                EnumPagination<TFilter> dto,
+                List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)> filter,
+                string orderByExpression,
+                bool descending,
+                string tieBreakColumn = "Id",
+                CancellationToken ct = default)
+            where T : class
+        {
+            try
+            {
+                if (db is null || dto is null || filter is null)
+                {
+                    return Error<T>("Pagination request is required.");
+                }
+                if (string.IsNullOrWhiteSpace(orderByExpression))
+                {
+                    return Error<T>("A sort column is required.");
+                }
+                if (!Enum.IsDefined(typeof(PaginationNavigation), dto.Navigation))
+                {
+                    return Error<T>($"Invalid pagination navigation: {dto.Navigation}.");
+                }
+
+                string safeSource = SafeIdentifier(tableName);
+                string tieBreak = $"v.{SafeSingleIdentifier(tieBreakColumn)}";
+                string direction = descending ? "DESC" : "ASC";
+                int limit = dto.limit < 1 ? DefaultLimit : Math.Min(dto.limit, MaxLimit);
+
+                List<(string Clause, string ParamName, object? Value)> normalizedFilters =
+                    filter.Where(x => !string.IsNullOrWhiteSpace(x.Clause)).ToList();
+                FilterDataResult<T>? parameterValidation = ValidateParameters<T>(normalizedFilters, null);
+                if (parameterValidation is not null)
+                {
+                    return parameterValidation;
+                }
+                List<string> predicates = normalizedFilters.Select(x => $"({x.Clause})").ToList();
+
+                (long total, int totalPages) =
+                    await GetTotalAsync(db, safeSource, predicates, normalizedFilters, null, limit, ct);
+                if (total == 0)
+                {
+                    return new FilterDataResult<T>
+                    {
+                        Data = new FilteredResult<T> { lists = new List<T>(), page = 1, limit = limit, total = 0, totalPages = 0 }
+                    };
+                }
+
+                long lastPageStart = (long)(totalPages - 1) * limit;
+                long skip = dto.Navigation switch
+                {
+                    PaginationNavigation.Next when dto.NextFilteredId > 0 => dto.NextFilteredId.Value,
+                    PaginationNavigation.Previous when dto.PreviousFilteredId > 0 => Math.Max(0, dto.PreviousFilteredId.Value - 1 - limit),
+                    PaginationNavigation.Page when dto.PageCursorId > 0 => dto.PageCursorId.Value - 1,
+                    // OFFSET can open any page directly, visited or not.
+                    PaginationNavigation.Page => (long)(Math.Max(dto.page, 1) - 1) * limit,
+                    PaginationNavigation.Last => lastPageStart,
+                    _ => 0
+                };
+                // Rows deleted since the cursor was issued: show the last page that still exists.
+                if (skip >= total)
+                {
+                    skip = lastPageStart;
+                }
+
+                string fetchSql =
+                    $"""
+                    SELECT v.*
+                    FROM {safeSource} AS v
+                    {BuildWhereClause(predicates)}
+                    ORDER BY {orderByExpression} {direction}, {tieBreak} {direction}
+                    OFFSET @__skip ROWS FETCH NEXT @__take ROWS ONLY
+                    """;
+                List<SqlParameter> parameters = CreateFilterParameters(normalizedFilters);
+                parameters.Add(new SqlParameter("@__skip", skip));
+                parameters.Add(new SqlParameter("@__take", limit));
+
+                List<T> rows = await db.Set<T>()
+                    .FromSqlRaw(fetchSql, parameters.ToArray())
+                    .AsNoTracking()
+                    .ToListAsync(ct);
+
+                bool hasPrevious = skip > 0;
+                bool hasNext = skip + rows.Count < total;
+                return new FilterDataResult<T>
+                {
+                    Data = new FilteredResult<T>
+                    {
+                        lists = rows,
+                        page = (int)(skip / limit) + 1,
+                        limit = limit,
+                        total = total,
+                        totalPages = totalPages,
+                        HasPrevious = hasPrevious,
+                        HasNext = hasNext,
+                        PreviousFilteredId = hasPrevious ? skip + 1 : null,
+                        NextFilteredId = hasNext ? skip + rows.Count : null,
+                        PageCursorId = rows.Count > 0 ? skip + 1 : null
+                    }
+                };
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (SqlException ex) when (ex.Number == -2)
+            {
+                throw; // a timeout is a server fault: let the controller's exception handler log it
+            }
+            catch (Exception ex)
+            {
+                return Error<T>(ex.Message);
+            }
+        }
+
         // =============================================================
         // TOTAL COUNT
         // =============================================================

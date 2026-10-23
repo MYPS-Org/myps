@@ -1,6 +1,9 @@
 export interface FutureRoadsClassification {
 	Id: number;
-	Classification: number;
+	/** The value tFutureRoads.Classification stores (1 = Primary, ...). */
+	ClassificationId: number;
+	/** The label, e.g. "Primary". */
+	Classification: string;
 	Description: string;
 	CreatedBy: string;
 	CreatedDate: string;
@@ -29,6 +32,12 @@ export interface RoadPagination extends PaginationParams {
   PreviousFilteredId?: number | null;
   NextFilteredId?: number | null;
   PageCursorId?: number | null;
+}
+/** AddFutureRoads body: the API generates the Road ID from the island code (S06-TC003-P001). */
+export interface AddFutureRoadRequest {
+  IslandCode: string;
+  Name: string;
+  Classification: number;
 }
 export interface RoadFilter {
   RoadId?: string;

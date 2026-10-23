@@ -7,6 +7,7 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/16/solid';
 import { selectedItemAtom, type Bridge } from "../state/rbiaAtoms";
+import { isCreatedInMyps, RBIA_READ_ONLY_TITLE } from "../networkStatus";
 import { useBridgeData } from "../hooks/useBridgeData";
 import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
 import DeleteBridgeDialog from "../Dialogs/DeleteBridgeDialog";
@@ -14,12 +15,13 @@ import FilterBridgeDialog from "../Dialogs/FilterBridgeDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
 import { PaginationBar } from "../../../components/tailwindui/PaginationBar";
 // Simple Badge component
-const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
-  children, 
-  className = "", 
-  color = "gray" 
+const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string; title?: string }> = ({
+  children,
+  className = "",
+  color = "gray",
+  title
 }) => (
-  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800 ${className}`}>
+  <span title={title} className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800 ${className}`}>
     {children}
   </span>
 );
@@ -57,8 +59,6 @@ const FutureBridgeList: React.FC = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [bridgeToDelete, setBridgeToDelete] = useState<Bridge | null>(null);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
-  const [sortField, setSortField] = useState<string>('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Use the custom hook for bridge data management
   const {
@@ -79,7 +79,9 @@ const FutureBridgeList: React.FC = () => {
     goNext,
     goPrevious,
     goFirst,
-    goLast
+    goLast,
+    refresh,
+    handleSort,
   } = useBridgeData();
 
   // Initialize data on component mount
@@ -103,21 +105,18 @@ const FutureBridgeList: React.FC = () => {
     setBridgeToDelete(null);
   };
 
-  // Updated handler for onSort that accepts direction parameter
+  // Header click: the server re-orders the whole list, not just the page shown (S06-TC001-P001).
   const handleSortWithDirection = (field: string) => (direction: 0 | 1) => {
-    setSortField(field);
-    setSortDirection(direction === 0 ? 'asc' : 'desc');
+    handleSort(field, direction);
   };
 
   const Paginate = async (page: number) => {
     await handlePagination(page);
   };
 
-  // Helper function to convert sort direction to numeric value
-  const getSortDirection = (field: string): 0 | 1 | undefined => {
-    if (sortField !== field) return undefined;
-    return sortDirection === 'asc' ? 0 : 1;
-  };
+  // The header arrow follows the sort the list was fetched with.
+  const getSortDirection = (field: string): 0 | 1 | undefined =>
+    bridgeFilters.sortField === field ? bridgeFilters.sortDirection : undefined;
 
   return (
     <div className="overflow-hidden">
@@ -264,25 +263,34 @@ const FutureBridgeList: React.FC = () => {
                   </TableCell>
                   <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap">
                     <span className="text-gray-900">
-                      {bridge.CarriageWay} m
+                      {bridge.CarriageWay != null ? `${bridge.CarriageWay} m` : '—'}
                     </span>
                   </TableCell>
                   <TableCell className="text-row px-6 py-4 whitespace-nowrap">
-                    <div className="flex justify-center space-x-2">
-                      <button
-                        onClick={() => handleEdit(bridge)}
-                        className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
-                        disabled={isLoading}
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(bridge)}
-                        className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
-                        disabled={isLoading}
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                    <div className="flex justify-center items-center space-x-2">
+                      {/* RBIA rows are view-only (S06-TC013): Edit and Delete only for MYPS bridges. */}
+                      {isCreatedInMyps(bridge) ? (
+                        <>
+                          <button
+                            onClick={() => handleEdit(bridge)}
+                            title="Edit"
+                            className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
+                            disabled={isLoading}
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(bridge)}
+                            title="Delete"
+                            className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
+                            disabled={isLoading}
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <Badge color="gray" className="text-xs" title={RBIA_READ_ONLY_TITLE}>RBIA</Badge>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -321,7 +329,15 @@ const FutureBridgeList: React.FC = () => {
         )}
       </div>
 
-      {isDialogOpen && <FutureBridgeDialog onClose={() => setIsDialogOpen(false)} />}
+      {isDialogOpen && (
+        <FutureBridgeDialog
+          onClose={() => {
+            setIsDialogOpen(false);
+            setSelectedItem(null);
+          }}
+          onSaved={refresh}
+        />
+      )}
       {isDeleteDialogOpen && bridgeToDelete && (
         <DeleteBridgeDialog 
           isOpen={isDeleteDialogOpen}

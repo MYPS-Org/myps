@@ -10,12 +10,16 @@ import { useToast } from '../../../components/toaster/ToasterContext';
 interface FutureBridgeDialogProps {
   onClose: () => void;
   roadSection?: RoadSection; // Pass the road section to pre-fill RoadSectionId
+  /** Called after a successful save so the list can re-fetch. */
+  onSaved?: () => void;
 }
 
-const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSection }) => {
+const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSection, onSaved }) => {
   const { showToast } = useToast();
   // const [bridges, setBridges] = useAtom(bridgesAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
+  // Edit only for a selected *bridge* and never from a section row's "Add Bridge" (shared selection).
+  const isEdit = !roadSection && !!selectedItem && 'BridgeId' in selectedItem;
   const [roadSections] = useAtom(roadSectionsAtom);
   const getIslandCode = (sectionId: string) => sectionId.match(/[A-Za-z]+$/)?.[0] ?? "";
   const [bridgeDigits, setBridgeDigits] = useState("");
@@ -39,27 +43,23 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
   const currentIslandCode = getIslandCode(formData.RoadSectionId);
 
   useEffect(() => {
-    if (selectedItem && 'CarriageWay' in selectedItem) {
+    if (isEdit) {
       const item = selectedItem as Bridge;
       setFormData(item);
       const match = item.BridgeId.match(/^FB(\d{5})/);
       setBridgeDigits(match ? match[1] : "");
     }
-  }, [selectedItem]);
+  }, [isEdit, selectedItem]);
 
-  useEffect(() => {
-    const islandCode = getIslandCode(formData.RoadSectionId);
-    const padded = bridgeDigits.padStart(5, "0");
-    setFormData(prev => ({
-      ...prev,
-      BridgeId: bridgeDigits ? `FB${padded}${islandCode}` : ""
-    }));
-  }, [bridgeDigits, formData.RoadSectionId]);
+  // The Bridge ID is never typed (S06-TC010-P001): Add gets the next free number from the API;
+  // Edit keeps the bridge's number, under the island code of the section selected here.
+  const editedBridgeId = isEdit && bridgeDigits && currentIslandCode ? `FB${bridgeDigits}${currentIslandCode}` : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.RoadSectionId || !formData.Name ||
-        !formData.From || !formData.Length || !formData.CarriageWay ) {
+    // From Chainage may legitimately be 0 (start of the section); it only has to be a number.
+    if (!formData.RoadSectionId || !formData.Name || !Number.isFinite(Number(formData.From)) ||
+        !formData.Length || !formData.CarriageWay ) {
       showToast({ type: 'error', message: 'Please fill in all required fields with valid values.' });
       return;
     }
@@ -67,7 +67,6 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
     try {
       const payload = {
         RoadSectionId: formData.RoadSectionId,
-        BridgeId: formData.BridgeId,
         Name: formData.Name,
         From: formData.From,
         OverallWidth: formData.OverallWidth,
@@ -77,19 +76,15 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
         CarriageWay: formData.CarriageWay
       }
 
-      const updatePayload = {...formData, Id: formData.Id};
-      if (selectedItem) {
-        const response = await editFutureBridge(updatePayload); // Call the service to add the future bridge
-        if (response) {
-          console.log("Bridge updated successfully:", response);
-        }
+      if (isEdit) {
+        await editFutureBridge({ ...formData, Id: formData.Id, OverallWidth: formData.OverallWidth ?? 0 });
+        showToast({ type: 'success', message: 'Future bridge updated.' });
       }
       else {
-        const response = await addFutureBridge(payload); // Call the service to add the future bridge
-        if (response) {
-          console.log("Bridge added successfully:", response);
-        }
+        const response = await addFutureBridge(payload);
+        showToast({ type: 'success', message: `Future bridge ${response.Data.BridgeId} added.` });
       }
+      onSaved?.();
       handleClose();
     } catch (error) {
       console.error("Error saving bridge:", error)
@@ -136,10 +131,11 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
       
       {/* Full-screen container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl p-6">
+        {/* max-h + scroll: on a 720px-high screen the form ran past the viewport and the submit button could not be reached. */}
+        <DialogPanel className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg shadow-xl p-6">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              {selectedItem ? "Edit Future Bridge" : "Add New Future Bridge"}
+              {isEdit ? "Edit Future Bridge" : "Add New Future Bridge"}
             </DialogTitle>
             <button
               onClick={onClose}
@@ -176,6 +172,10 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 >
                   <option value="">Select Road Section</option>
+                  {/* roadSectionsAtom only holds the page last shown: keep the current section selectable. */}
+                  {formData.RoadSectionId && !roadSections.some(s => s.RoadSectionId === formData.RoadSectionId) && (
+                    <option value={formData.RoadSectionId}>{formData.RoadSectionId}</option>
+                  )}
                   {roadSections.map((section) => (
                     <option key={section.RoadSectionId} value={section.RoadSectionId}>
                       {section.RoadSectionId} - {section.RoadLength}km (District {section.DEO})
@@ -189,37 +189,20 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
               )}
             </div>
 
-            {/* Bridge ID */}
+            {/* Bridge ID: generated, read-only (S06-TC010-P001). */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Bridge ID <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white overflow-hidden">
-                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-r border-gray-300 select-none">
-                  FB
-                </span>
-                <input
-                  type="text"
-                  value={bridgeDigits}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "").slice(0, 5);
-                    setBridgeDigits(val);
-                  }}
-                  className="flex-1 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none font-mono"
-                  placeholder="00001"
-                  maxLength={5}
-                />
-                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-l border-gray-300 select-none min-w-[40px] text-center">
-                  {currentIslandCode || "???"}
-                </span>
-              </div>
-              {formData.BridgeId && (
-                <p className="text-xs text-blue-600 mt-1 font-mono">
-                  Full ID: {formData.BridgeId}
-                </p>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Bridge ID</label>
+              <input
+                type="text"
+                aria-label="Bridge ID"
+                value={isEdit ? editedBridgeId || formData.BridgeId : `FB·····${currentIslandCode}`}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-700 font-mono cursor-not-allowed"
+              />
               <p className="text-xs text-gray-500 mt-1">
-                Enter the 5-digit number. The island code is derived from the selected road section.
+                {isEdit
+                  ? "The number stays the same; the island code follows the selected road section."
+                  : "Generated when you save: FB, the next free 5-digit number, then the section's island code."}
               </p>
             </div>
             <div>
@@ -298,7 +281,7 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                 Cancel
               </Button>
               <Button type="submit" color='orange'>
-                {selectedItem ? "Update Bridge" : "Create Bridge"}
+                {isEdit ? "Update Bridge" : "Create Bridge"}
               </Button>
             </div>
           </form>

@@ -51,6 +51,9 @@ export const roadFiltersAtom = atom<RoadPagination>({
 // Road Classifications Atom
 export const roadClassificationsAtom = atom<FutureRoadsClassification[]>([]);
 
+// Island codes (LZ, VS, MN) the Add Future Road dialog offers; the API generates the Road ID from one.
+export const roadIslandCodesAtom = atom<string[]>([]);
+
 // DEO List Atom (for Road Sections and Bridges)
 export const deoListAtom = atom<RODEOEnum[]>([]);
 
