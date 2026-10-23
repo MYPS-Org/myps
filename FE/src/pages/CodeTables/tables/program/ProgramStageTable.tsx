@@ -63,13 +63,13 @@ const ProgramStageTable: React.FC = () => {
       mode: 'add',
       tableName: 'Program Stage',
       fields: [
-        { label: 'NameId',       value: addForm.NameId, mono: true },
         { label: 'Name',         value: addForm.Name },
         { label: 'Description',  value: addForm.Description, optional: true },
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          // Created active (the toggle shows it right away). No NameId: the server assigns the next one.
+          await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, NameId: 0, IsActive: true }));
           showToast({ type: 'success', message: 'Program stage added.' });
           await refetch();
         } catch {
@@ -86,13 +86,14 @@ const ProgramStageTable: React.FC = () => {
       mode: 'edit',
       tableName: 'Program Stage',
       fields: [
-        { label: 'NameId',       value: editForm.NameId, mono: true },
         { label: 'Name',         value: editForm.Name },
         { label: 'Description',  value: editForm.Description, optional: true },
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          // IsActive is not on the form: send the current value or the edit would deactivate the row.
+          const original = data.find(r => r.Id === editId);
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, IsActive: original?.IsActive !== false }));
           showToast({ type: 'success', message: 'Program stage updated.' });
           await refetch();
         } catch {
@@ -146,7 +147,6 @@ const ProgramStageTable: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableHeader className="w-16">Id</TableHeader>
-              <TableHeader className="w-20">NameId</TableHeader>
               <TableHeader>Name</TableHeader>
               <TableHeader>Description</TableHeader>
               <TableHeader className="w-24 text-center">Active</TableHeader>
@@ -156,7 +156,7 @@ const ProgramStageTable: React.FC = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={5} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-gray-400">
                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -172,12 +172,7 @@ const ProgramStageTable: React.FC = () => {
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
                     <TableCell>
-                      <input autoFocus type="number" value={addForm.NameId || ''}
-                        onChange={e => setAddForm(f => f ? { ...f, NameId: parseInt(e.target.value) || 0 } : f)}
-                        placeholder="NameId *" className={inp('add')} />
-                    </TableCell>
-                    <TableCell>
-                      <textarea value={addForm.Name}
+                      <textarea autoFocus value={addForm.Name}
                         onChange={e => setAddForm(f => f ? { ...f, Name: e.target.value } : f)}
                         placeholder="Stage name *" rows={2} className={inp('add')} />
                     </TableCell>
@@ -190,7 +185,7 @@ const ProgramStageTable: React.FC = () => {
                     <TableCell>
                       <div className="flex gap-1">
                         <Button color="indigo" className="p-1.5" onClick={requestAdd}
-                          disabled={!addForm.NameId || !addForm.Name.trim()}>
+                          disabled={!addForm.Name.trim()}>
                           <CheckIcon className="h-3.5 w-3.5" />
                         </Button>
                         <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}>
@@ -202,18 +197,13 @@ const ProgramStageTable: React.FC = () => {
                 )}
                 {filtered.length === 0 && !addForm ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-gray-400">No records found.</TableCell>
+                    <TableCell colSpan={5} className="text-center py-10 text-gray-400">No records found.</TableCell>
                   </TableRow>
                 ) : filtered.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                     {editId === item.Id ? (
                       <>
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell>
-                          <input type="number" value={editForm.NameId || ''}
-                            onChange={e => setEditForm(f => ({ ...f, NameId: parseInt(e.target.value) || 0 }))}
-                            className={inp('edit')} />
-                        </TableCell>
                         <TableCell>
                           <textarea value={editForm.Name}
                             onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))}
@@ -237,7 +227,7 @@ const ProgramStageTable: React.FC = () => {
                         <TableCell>
                           <div className="flex gap-1">
                             <Button color="amber" className="p-1.5" onClick={requestEdit}
-                              disabled={!editForm.NameId || !editForm.Name.trim()}>
+                              disabled={!editForm.Name.trim()}>
                               <CheckIcon className="h-3.5 w-3.5" />
                             </Button>
                             <Button color="zinc" className="p-1.5" onClick={cancelEdit}>
@@ -249,7 +239,6 @@ const ProgramStageTable: React.FC = () => {
                     ) : (
                       <>
                         <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span></TableCell>
-                        <TableCell className="font-mono text-sm text-gray-600">{item.NameId}</TableCell>
                         <TableCell className="font-medium text-gray-900">{item.Name}</TableCell>
                         <TableCell className="text-gray-600">{item.Description || <span className="text-gray-300 italic">—</span>}</TableCell>
                         <TableCell className="text-center">

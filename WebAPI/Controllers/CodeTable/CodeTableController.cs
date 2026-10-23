@@ -268,15 +268,7 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfAlreadyUse = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.StageName == data.Name);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Program Stage Already in Use",
-                            Message = $"The program stage {data.Name} is already in use and cannot be modified, please select another program stage."
-                        });
-                    }
-                    else if (CheckIfAlreadyUse != null && dto.TransactionType == CodeTransactionType.Create)
+                    if (CheckIfAlreadyUse != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
                         {
@@ -303,14 +295,34 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The program stage with id {data.Id} is not found, please select another program stage."
                         });
                     }
+                    // Programs store the stage by NAME (tProgramStages.StageName), so a used stage must keep
+                    // its name and cannot be deleted. This used to test the incoming name: renaming a used
+                    // stage slipped through, while a description fix on it was refused.
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.Name != data.Name)
+                        && await _db.tProgramStages.AsNoTracking().AnyAsync(x => x.StageName == CheckUpdate.Name, cancellationToken))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Program Stage Already in Use",
+                            Message = $"The program stage {CheckUpdate.Name} is already in use, so it cannot be renamed or deleted."
+                        });
+                    }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProgramStage.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
-                        data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
+                        // A typed NameId is kept if free (the test steps enter one); blank = next number.
+                        if (data.NameId > 0 && await _db.tOptionProgramStage.AsNoTracking().AnyAsync(x => x.NameId == data.NameId, cancellationToken))
+                        {
+                            return new BadRequestObjectResult(new { Title = "NameId Already Exists", Message = $"The NameId {data.NameId} already exists, please enter another NameId or leave it blank." });
+                        }
+                        if (data.NameId <= 0)
+                        {
+                            var CheckMaxId = _db.tOptionProgramStage.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
+                            data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
+                        }
                         await _db.tOptionProgramStage.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -325,8 +337,8 @@ namespace WebAPI.Controllers.CodeTable
                         if (CheckUpdate.Description != data.Description)
                         {
                             transactionLog.AffectedColumn = "Description";
-                            transactionLog.NewValue = data.Description!;
-                            transactionLog.OldValue = CheckUpdate.Description!;
+                            transactionLog.NewValue = data.Description ?? string.Empty;
+                            transactionLog.OldValue = CheckUpdate.Description ?? string.Empty;
                             CheckUpdate.Description = data.Description;
                         }
                         if (CheckUpdate.IsActive != data.IsActive)
@@ -359,15 +371,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Program Status has been selected, please select a program status."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Status == (EnumProgramStatus)data.NameId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Program Status In Use",
-                            Message = "The selected program status is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionProgramStatus.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -386,14 +389,34 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The program status with id {data.Id} is not found, please select another program status."
                         });
                     }
+                    // Programs store the NameId, but the name is read back as text (vProgramLatest.Status is
+                    // "Approved" / "Working"), so a used status keeps its name and cannot be deleted. Both
+                    // statuses are in use, and every edit used to be refused, even a description change.
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.Name != data.Name)
+                        && await _db.tProgramRevisions.AsNoTracking().AnyAsync(x => x.Status == (EnumProgramStatus)CheckUpdate.NameId, cancellationToken))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Program Status In Use",
+                            Message = "The selected program status is currently in use, so it cannot be renamed or deleted."
+                        });
+                    }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProgramStatus.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
-                        data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
+                        // A typed NameId is kept if free (the test steps enter one); blank = next number.
+                        if (data.NameId > 0 && await _db.tOptionProgramStatus.AsNoTracking().AnyAsync(x => x.NameId == data.NameId, cancellationToken))
+                        {
+                            return new BadRequestObjectResult(new { Title = "NameId Already Exists", Message = $"The NameId {data.NameId} already exists, please enter another NameId or leave it blank." });
+                        }
+                        if (data.NameId <= 0)
+                        {
+                            var CheckMaxId = _db.tOptionProgramStatus.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
+                            data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
+                        }
                         await _db.tOptionProgramStatus.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -408,8 +431,8 @@ namespace WebAPI.Controllers.CodeTable
                         if (CheckUpdate.Description != data.Description)
                         {
                             transactionLog.AffectedColumn = "Description";
-                            transactionLog.NewValue = data.Description!;
-                            transactionLog.OldValue = CheckUpdate.Description!;
+                            transactionLog.NewValue = data.Description ?? string.Empty;
+                            transactionLog.OldValue = CheckUpdate.Description ?? string.Empty;
                             CheckUpdate.Description = data.Description;
                         }
                         if (CheckUpdate.IsActive != data.IsActive)
@@ -460,17 +483,16 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The program type with id {data.Id} is not found, please select another program type."
                         });
                     }
-                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
+                    // tPrograms.Type is the NameId (was compared with Id, which only matches by accident).
+                    // A used type keeps its name and cannot be deleted; description/active edits are fine.
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.Name != data.Name)
+                        && await _db.tPrograms.AsNoTracking().AnyAsync(x => x.Type == (EnumProgramType)CheckUpdate.NameId, cancellationToken))
                     {
-                        var CheckIfAlreadyUse = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.Type == (EnumProgramType)CheckUpdate.Id);
-                        if (CheckIfAlreadyUse != null)
+                        return new BadRequestObjectResult(new
                         {
-                            return new BadRequestObjectResult(new
-                            {
-                                Title = "Program Type In Use",
-                                Message = "The selected program type is currently in use and cannot be updated or deleted."
-                            });
-                        }
+                            Title = "Program Type In Use",
+                            Message = "The selected program type is currently in use, so it cannot be renamed or deleted."
+                        });
                     }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
@@ -478,8 +500,16 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProgramType.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
-                        data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
+                        // A typed NameId is kept if free (the test steps enter one); blank = next number.
+                        if (data.NameId > 0 && await _db.tOptionProgramType.AsNoTracking().AnyAsync(x => x.NameId == data.NameId, cancellationToken))
+                        {
+                            return new BadRequestObjectResult(new { Title = "NameId Already Exists", Message = $"The NameId {data.NameId} already exists, please enter another NameId or leave it blank." });
+                        }
+                        if (data.NameId <= 0)
+                        {
+                            var CheckMaxId = _db.tOptionProgramType.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
+                            data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
+                        }
                         await _db.tOptionProgramType.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -494,8 +524,8 @@ namespace WebAPI.Controllers.CodeTable
                         if (CheckUpdate.Description != data.Description)
                         {
                             transactionLog.AffectedColumn = "Description";
-                            transactionLog.NewValue = data.Description!;
-                            transactionLog.OldValue = CheckUpdate.Description!;
+                            transactionLog.NewValue = data.Description ?? string.Empty;
+                            transactionLog.OldValue = CheckUpdate.Description ?? string.Empty;
                             CheckUpdate.Description = data.Description;
                         }
                         if (CheckUpdate.IsActive != data.IsActive)
