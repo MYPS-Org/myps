@@ -3,6 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
+import { isRoadInfraType, isBridgeInfraType } from '../../../../utils/infraIdGenerator';
 import { useAtom, useAtomValue } from 'jotai';
 import {
   deleteWorkLocationDialogOpenAtom,
@@ -140,7 +141,7 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
                     </div>
                   )}
                   {/* Infrastructure-specific details */}
-                  {(infraType?.toLowerCase() === 'road' || infraType?.toLowerCase() === 'roads') && (
+                  {isRoadInfraType(infraType ?? '') && (
                     <>
                       {selectedWorkLocation.StartStationLimit && (
                         <div className="flex justify-between">
@@ -163,7 +164,7 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
                     </>
                   )}
                   {/* Coordinates for other infrastructure types */}
-                  {!(infraType?.toLowerCase() === 'road' || infraType?.toLowerCase() === 'roads' || infraType?.toLowerCase() === 'bridge' || infraType?.toLowerCase() === 'bridges') && (
+                  {!(isRoadInfraType(infraType ?? '') || isBridgeInfraType(infraType ?? '')) && (
                     <>
                       {(selectedWorkLocation.StartX || selectedWorkLocation.StartY) && (
                         <div className="flex justify-between">

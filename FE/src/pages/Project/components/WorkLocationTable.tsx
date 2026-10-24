@@ -5,7 +5,7 @@ import { chainageToLrpConverter, lrpToChainageConverter } from '../Service';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../dialogs/deleteDialogs/DeleteWorkLocationDialog';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType } from '../../../utils/infraIdGenerator';
-import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork, InfraTypeEnum } from '../Model.d';
+import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../Model.d';
 import type { ProgramLatest } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
 import { unitTypeMap } from '../utils/unitTypes';
@@ -22,13 +22,13 @@ interface WorkLocationTableProps {
   workTypeId: number;
   dropDowns?: ScopeOfWorkEnum[];
   targetUnit: string;
-  infraType: string;
   maxAmount?: number;
   minAmount?: number;
   parentId: string; // Add parentId prop
   disabled?: boolean;
   deo?: string;
-  infraTypeEnums?: InfraTypeEnum[];
+  /** Display name for the major item's InfraTypeFK (e.g. "Roads"), resolved by the parent. */
+  infraTypeLabel?: string;
 }
 
 const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
@@ -47,11 +47,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   dropDowns,
   disabled = false,
   deo,
-  infraTypeEnums,
+  infraTypeLabel: infraTypeLabelProp,
 }) => {
   const infraType = majorItemOfWorks.InfraTypeFK || '';
-  // Show the InfraName (e.g. "Roads") instead of the raw InfraCode (e.g. "R")
-  const infraTypeLabel = infraTypeEnums?.find(x => x.InfraCode === infraType)?.InfraName || infraType;
+  // Codes drive logic; show the InfraName (e.g. "Roads") instead of the raw InfraCode (e.g. "R")
+  const infraTypeLabel = infraTypeLabelProp || infraType;
 
   // InfraType guard helpers — based on InfraCode
   // National Road: InfraCode 'R' (not local LR)
@@ -1045,7 +1045,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 ) : isLocalType() ? (
                   <div className="mt-4 p-3 bg-teal-50 rounded-md">
                     <div className="text-sm text-teal-700">
-                      <strong>Local Infrastructure ({infraType}):</strong> Use coordinate fields to define location. An ID can be entered manually or auto-generated.
+                      <strong>Local Infrastructure ({infraTypeLabel}):</strong> Use coordinate fields to define location. An ID can be entered manually or auto-generated.
                     </div>
                   </div>
                 ) : (infraType?.toLowerCase() === 'cs' || infraType?.toLowerCase() === 'ni') ? (

@@ -17,6 +17,7 @@ import type {
 import type { ProgramLatest } from '../../../Program/Model.d';
 import type { FieldRules } from '../../Model';
 import { getDisabledClass, generateTempId } from '../../../../utils/GlobalFunctions';
+import { getInfraTypeLabel } from '../../../../utils/infraIdGenerator';
 import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
 import { useMajorItemLocations } from '../../hooks/useMajorItemLocations';
 
@@ -307,10 +308,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     };
   };
 
-  const getInfraName = (infraTypeCode: string): string => {
-    const infraType = infraTypeEnums?.find(infra => infra.InfraCode === infraTypeCode);
-    return infraType?.InfraName || infraTypeCode;
-  }
+  const getInfraName = (infraTypeCode: string): string => getInfraTypeLabel(infraTypeCode, infraTypeEnums);
 
   // Calculate total physical target for a major item
   const getTotalPhysicalTarget = (majorItem: MajorItemOfWorksWithDropdown): number => {
@@ -463,13 +461,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         onDelete={(workLocationIndex) => handleDeleteWorkLocation(index, workLocationIndex)}
                         programDetails={programDetails}
                         infraData={infraData}
-                        infraType={item.InfraTypeFK}
                         workTypeId={item.WorkTypeFK}
                         targetUnit={item.TargetUnit}
                         maxAmount={getMinMaxAmounts(item.WorkTypeFK).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeFK).min}
                         parentId={item.Id}
-                        infraTypeEnums={infraTypeEnums}
+                        infraTypeLabel={getInfraName(item.InfraTypeFK)}
                         dropDowns={dropDowns}
                         disabled={false}
                         fieldRules={fieldRules}
@@ -537,7 +534,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         }}
         onConfirm={handleConfirmCopyMajorItem}
         majorItemToCopy={majorItemToCopy}
-        infraTypeEnums={infraTypeEnums}
+        infraTypeLabel={majorItemToCopy ? getInfraName(majorItemToCopy.InfraTypeFK) : undefined}
         componentCosts={componentCosts}
         existingMajorItems={items.map(item => ({ ComponentId: item.ComponentId }))}
       />

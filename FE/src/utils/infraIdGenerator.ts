@@ -168,6 +168,17 @@ export const isBridgeInfraType = (infraType: string): boolean => {
 };
 
 /**
+ * Resolves an InfraCode to its display name (e.g. "FCS" → "Flood Control Structures").
+ * Use the code for logic and this label for display. Falls back to the code if no match.
+ */
+export const getInfraTypeLabel = (
+  infraCode: string,
+  infraTypeEnums?: { InfraCode: string; InfraName: string }[]
+): string => {
+  return infraTypeEnums?.find(x => x.InfraCode === infraCode)?.InfraName || infraCode;
+};
+
+/**
  * Checks if an infrastructure type should use automatic ID generation
  * (i.e., not use the infrastructure selection dialog)
  * @param infraType - The infrastructure type InfraCode (e.g. "R", "LR", "B")
