@@ -40,7 +40,7 @@ above the rest of the popup content:
 
 `key` is read off the feature's raw `properties`; the row is skipped when the value is
 blank/missing. Omit the prop entirely to keep the old single-line header behavior
-(`properties.name`, when present — otherwise no header is rendered at all).
+(`properties.name || 'Project Location'`).
 
 ## How it's put together
 
