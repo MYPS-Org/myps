@@ -92,7 +92,10 @@ const DashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const { setTheme, isLight } = useDashboardTheme();
 
-  const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>('benchmark');
+  // Opens on the live database (UAT S01-TC002-P006 / P008: on Demo Data the map and island cards
+  // showed sample figures, which read as "does not update with the live database"). Demo Data
+  // stays one click away in the header.
+  const [dataSourceMode, setDataSourceMode] = useState<'real' | 'benchmark'>(LIVE_DB_ENABLED ? 'real' : 'benchmark');
   const [selectedYear, setSelectedYear] = useState<number>(2027);
   const [selectedCategory, setSelectedCategory] = useState<DashboardCategory | null>(null);
   const [selectedProgramType, setSelectedProgramType] = useState<number | null>(null);

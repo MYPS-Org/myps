@@ -446,7 +446,8 @@ export const DashboardCharts: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 mt-5 transition-opacity ${isStatusesUpdating ? 'opacity-60' : ''}`}>
+        {/* Luzon, Visayas, Mindanao, plus an Unassigned card when projects resolve to no island. */}
+        <div className={`grid grid-cols-1 ${islandData.length > 3 ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3'} gap-4 mt-5 transition-opacity ${isStatusesUpdating ? 'opacity-60' : ''}`}>
           {isStatusesLoading && islandData.length === 0 ? (
             Array.from({ length: 3 }).map((_, index) => (
               <div key={index} className={`h-28 rounded-xl animate-pulse ${isLight ? 'bg-slate-100' : 'bg-slate-800/60'}`} />
@@ -478,7 +479,8 @@ export const DashboardCharts: React.FC<Props> = ({
                   <div className={`flex items-center justify-between text-xs font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
                     <span className="flex items-center gap-1.5">
                       <MapPinIcon className="w-3.5 h-3.5 text-indigo-500" />
-                      {item.name} Group
+                      {/* Unassigned is not an island group: projects whose province resolves to no island. */}
+                      {item.name === 'Unassigned' ? 'Unassigned (no island)' : `${item.name} Group`}
                     </span>
                     <span
                       className={`px-2 py-0.5 rounded-full border font-extrabold text-[11px] ${

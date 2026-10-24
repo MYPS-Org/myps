@@ -34,9 +34,7 @@ function callsFor(apiCalls: ApiCallDetails[], endpoint: (typeof DASHBOARD_ENDPOI
 async function openDashboardOnLiveDb(page: import('@playwright/test').Page) {
   await login(page);
   await expect(page.getByText('DPWH Executive Command Center')).toBeVisible({ timeout: 30_000 });
-  // Demo Data is the default source (see Dashboard.tsx) -- switch to Live DB so this suite
-  // actually exercises persisted MYPS data, matching the spec's purpose.
-  await page.getByRole('button', { name: 'Live DB' }).click();
+  // Live DB is the default source (UAT S01-TC002-P006 / P008): no click needed.
   await expect(page.getByText('Database data', { exact: true })).toBeVisible();
 }
 
@@ -56,7 +54,7 @@ async function scrollThroughPage(page: import('@playwright/test').Page) {
 }
 
 test.describe('Dashboard — demo data', () => {
-  test('opens on demo data and queries nothing', async ({ page }) => {
+  test('opens on Live DB; Demo Data, once chosen, queries nothing', async ({ page }) => {
     /*  Counted by URL only, never read: this needs no response body, so there is nothing for a
         body-parsing helper to stall on. */
     const dashboardCalls: string[] = [];
@@ -66,6 +64,15 @@ test.describe('Dashboard — demo data', () => {
 
     await login(page);
     await expect(page.getByText('DPWH Executive Command Center')).toBeVisible({ timeout: 30_000 });
+    if (LIVE_DB_ENABLED) {
+      // The page opens on the live database (UAT S01-TC002-P006 / P008) and queries it at once.
+      await expect(page.getByText('Database data', { exact: true })).toBeVisible();
+      await expect.poll(() => dashboardCalls.some((url) => url.endsWith('/Dashboard/Kpis')), { timeout: 30_000 }).toBe(true);
+      await page.getByRole('button', { name: 'Demo Data' }).click();
+      // Anything already in flight for Live DB is not Demo Data's doing.
+      await page.waitForTimeout(1_000);
+      dashboardCalls.length = 0;
+    }
     await expect(page.getByText('Demo data', { exact: true })).toBeVisible();
     await expect(page.getByText(/Demo data is for demonstration only/i)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Program Stage' })).toBeVisible();
@@ -448,10 +455,10 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     await expect(typeSelect.locator('option')).toHaveCount(5);
 
     // Choosing a stage refetches the KPIs for it and names it under the title...
-    const beforeStage = callsFor(apiCalls, 'Kpis').length;
     await stageSelect.selectOption('GAA');
-    await expect.poll(() => callsFor(apiCalls, 'Kpis').length, { timeout: 30_000 }).toBeGreaterThan(beforeStage);
-    expect(callsFor(apiCalls, 'Kpis').at(-1)?.requestBody?.StageName).toBe('GAA');
+    // Polls the latest request, not a count: the page opens on Live DB, so its own first loads can
+    // still be landing when the stage is picked, and the request after them is the one to check.
+    await expect.poll(() => callsFor(apiCalls, 'Kpis').at(-1)?.requestBody?.StageName, { timeout: 30_000 }).toBe('GAA');
     await expect(stageLine).toHaveText('GAA · General Appropriations Act');
 
     // ...every lazily loaded section asks for the same stage, and the region map's badge names it.
@@ -549,6 +556,65 @@ test.describe('Dashboard — persisted MYPS data (split endpoints, lazy loading)
     test.skip((await categoryRows.count()) === 0, 'No categories in this fiscal year');
     const categoryDrift = await maxDrift(categories, () => categoryRows.first().click());
     expect(categoryDrift).toBeLessThanOrEqual(10);
+  });
+
+  test('island-group cards: Luzon, Visayas, Mindanao in that order, Unassigned last; a card filters the project list', async ({ page }) => {
+    const apiCalls = captureApiCalls(page, ['/api/Dashboard/']);
+    await openDashboardOnLiveDb(page);
+    await scrollThroughPage(page);
+    await expect.poll(() => callsFor(apiCalls, 'Statuses').length, { timeout: 30_000 }).toBeGreaterThan(0);
+
+    // The API always sends the three island groups, in order, at 0 when empty (UAT S01-TC002-P008:
+    // ordered by budget, an empty group vanished and Unassigned could come first).
+    type Island = { Name: string; Budget: number; ProjectCount: number };
+    const islands = (callsFor(apiCalls, 'Statuses').at(-1)?.responseBody?.Islands ?? []) as Island[];
+    expect(islands.slice(0, 3).map((island) => island.Name)).toEqual(['Luzon', 'Visayas', 'Mindanao']);
+    if (islands.length > 3) {
+      expect(islands.map((island) => island.Name)).toEqual(['Luzon', 'Visayas', 'Mindanao', 'Unassigned']);
+      expect(islands[3].ProjectCount).toBeGreaterThan(0);
+    }
+
+    const section = page.locator('section').filter({ hasText: /Island-Group Allocation/ });
+    const cards = section.getByRole('button');
+    const expectedLabels = ['Luzon Group', 'Visayas Group', 'Mindanao Group', ...(islands.length > 3 ? ['Unassigned (no island)'] : [])];
+    await expect(cards).toHaveCount(expectedLabels.length);
+    for (const [index, label] of expectedLabels.entries()) {
+      await expect(cards.nth(index)).toContainText(label);
+    }
+
+    // "Click to filter": the island travels with the project list request.
+    const luzon = islands[0];
+    test.skip(luzon.ProjectCount === 0, 'No Luzon projects in the default fiscal year');
+    const before = callsFor(apiCalls, 'Projects').length;
+    await cards.nth(0).click();
+    await expect.poll(() => callsFor(apiCalls, 'Projects').length, { timeout: 30_000 }).toBeGreaterThan(before);
+    expect(JSON.stringify(callsFor(apiCalls, 'Projects').at(-1)?.requestBody)).toContain('Luzon');
+  });
+
+  test('the region tables list every region, at 0.00% when it has no budget, like Demo Data', async ({ page }) => {
+    const apiCalls = captureApiCalls(page, ['/api/Dashboard/']);
+    await openDashboardOnLiveDb(page);
+    await scrollThroughPage(page);
+    await expect.poll(() => callsFor(apiCalls, 'RegionalBreakdown').length, { timeout: 30_000 }).toBeGreaterThan(0);
+
+    type Region = { Region: string; Island: string; Hierarchy?: string | null; Budget: number };
+    const regions = (callsFor(apiCalls, 'RegionalBreakdown').at(-1)?.responseBody?.Regions ?? []) as Region[];
+    // Every current DPWH region comes back, budget or not (17 in 2026, 18 with NIR).
+    const listed = regions.filter((region) => region.Hierarchy);
+    expect(listed.length).toBeGreaterThanOrEqual(17);
+    for (const island of ['Luzon', 'Visayas', 'Mindanao']) {
+      expect(listed.some((region) => region.Island === island), `${island} has regions`).toBe(true);
+    }
+
+    // So no region table reads "No records", and a region without budget shows 0.00%.
+    const tables = page.locator('table').filter({ has: page.locator('thead', { hasText: 'Region / Group' }) });
+    await expect(tables.first()).toBeVisible();
+    await expect(tables.getByText('No records', { exact: true })).toHaveCount(0);
+    // NCR is a card of its own, not a table row.
+    const empty = listed.find((region) => region.Budget === 0 && !/National Capital Region/i.test(region.Region));
+    test.skip(!empty, 'Every region has budget this fiscal year');
+    const row = tables.locator('tbody tr', { hasText: empty!.Region.split(' (')[0] }).first();
+    await expect(row).toContainText('0.00%');
   });
 
   test('repository entry points navigate to the project list', async ({ page }) => {
