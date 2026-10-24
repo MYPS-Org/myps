@@ -16,14 +16,6 @@ maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 export interface UseMapLibreMapResult {
   containerRef: RefObject<HTMLDivElement | null>;
-  // Attach this to the OUTER wrapper div (the one that also holds our own floating widgets --
-  // basemap switcher, Export PDF, Regions panel), not the inner div MapLibre itself owns.
-  // FullscreenControl defaults to fullscreening the map's own container (containerRef), which
-  // is a child of that wrapper -- our widgets, as SIBLINGS of containerRef rather than
-  // descendants of whatever actually goes fullscreen, would otherwise vanish the moment
-  // fullscreen activates (the Fullscreen API only displays the fullscreened element and its
-  // descendants). Passed into FullscreenControl's own `container` option below instead.
-  fullscreenContainerRef: RefObject<HTMLDivElement | null>;
   mapRef: RefObject<maplibregl.Map | null>;
   isMapReady: boolean;
   basemap: BasemapId;
@@ -35,7 +27,6 @@ export interface UseMapLibreMapResult {
 
 export function useMapLibreMap(): UseMapLibreMapResult {
   const containerRef = useRef<HTMLDivElement>(null);
-  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [basemap, setBasemapState] = useState<BasemapId>(DEFAULT_BASEMAP);
@@ -53,37 +44,10 @@ export function useMapLibreMap(): UseMapLibreMapResult {
       // reacts to the container's actual box (sidebar reflows, fullscreen, etc.), not
       // just window resize, and avoids double-triggering against MapLibre's own tracker.
       trackResize: false,
-      // Needed so canvas.toDataURL() (the PDF export button) can actually read back the
-      // rendered frame -- WebGL clears its drawing buffer after each render by default (a
-      // perf optimization), so without this a capture taken any time after that frame has
-      // already been presented comes back blank. Small, constant cost; not opt-in per export
-      // since there's no reliable way to flip it on only for the one frame being captured.
-      canvasContextAttributes: { preserveDrawingBuffer: true },
-      // Attribution is added explicitly below instead (compact: true) -- the default control
-      // MapLibre would otherwise auto-add decides compact-vs-full by container width, and our
-      // map sits in a card narrower than MapLibre's own breakpoint for that, so it was starting
-      // fully expanded ("MapLibre | © OpenStreetMap contributors") rather than collapsed to
-      // just the (i) icon.
-      attributionControl: false,
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
-    map.addControl(
-      new maplibregl.FullscreenControl({ container: fullscreenContainerRef.current ?? undefined }),
-      'top-right'
-    );
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-    // compact: true alone isn't enough -- MapLibre's own AttributionControl source
-    // (_updateCompact, in maplibre-gl's attribution_control.ts) unconditionally force-opens
-    // the very first time compact mode activates (adds the 'open' attribute and
-    // maplibregl-compact-show), and only ever auto-collapses later, in response to the user
-    // dragging the map. There's no public option to start collapsed, so this corrects the DOM
-    // state addControl() just produced synchronously above. It only needs doing once: that
-    // forcing logic is itself gated on the container NOT already having the
-    // maplibregl-compact class, which it does from here on, so later style reloads (basemap
-    // switches) won't force it back open.
-    containerRef.current.querySelector('.maplibregl-ctrl-attrib')?.removeAttribute('open');
-    containerRef.current.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+    map.addControl(new maplibregl.FullscreenControl(), 'top-right');
 
     // Coalesce bursts of ResizeObserver/fullscreenchange callbacks (fired mid-drag,
     // before the surrounding layout has necessarily settled) into one resize() per
@@ -135,5 +99,5 @@ export function useMapLibreMap(): UseMapLibreMapResult {
     map.setStyle(BASEMAPS[id].style, { diff: false });
   }, []);
 
-  return { containerRef, fullscreenContainerRef, mapRef, isMapReady, basemap, setBasemap, styleGeneration };
+  return { containerRef, mapRef, isMapReady, basemap, setBasemap, styleGeneration };
 }

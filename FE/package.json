@@ -26,7 +26,6 @@
     "deck.gl": "^9.2.2",
     "framer-motion": "^12.18.1",
     "jotai": "^2.14.0",
-    "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "maplibre-gl": "^5.13.0",
     "react": "^19.1.0",
