@@ -2315,7 +2315,7 @@ To toggle a record's status:
 **Step-by-Step:**
 1. Select **Code Tables** → **Component Cost**.
 2. Click **Add Cost Type**.
-3. Enter **Component ID**, **Name**, and check **Export to PCMA** if applicable.
+3. Enter **Component ID**, **Name**, and check **Publishable to PCMA** if applicable.
 4. Click **Check**.
 
 **On Success:** The new component cost code appears in the list.

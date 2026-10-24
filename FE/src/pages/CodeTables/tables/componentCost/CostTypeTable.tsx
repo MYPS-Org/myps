@@ -72,7 +72,7 @@ const CostTypeTable: React.FC = () => {
       fields: [
         { label: 'Component ID', value: addForm.ComponentId, mono: true },
         { label: 'Name',         value: addForm.ComponentName },
-        { label: 'Export PCMA', value: addForm.ExportToPCMA ? 'Yes' : 'No' },
+        { label: 'Publishable to PCMA', value: addForm.ExportToPCMA ? 'Yes' : 'No' },
       ],
       onConfirm: async () => {
         try {
@@ -95,7 +95,7 @@ const CostTypeTable: React.FC = () => {
       fields: [
         { label: 'Component ID', value: editForm.ComponentId, mono: true },
         { label: 'Name',         value: editForm.ComponentName },
-        { label: 'Export PCMA', value: editForm.ExportToPCMA ? 'Yes' : 'No' },
+        { label: 'Publishable to PCMA', value: editForm.ExportToPCMA ? 'Yes' : 'No' },
       ],
       onConfirm: async () => {
         try {
@@ -153,7 +153,7 @@ const CostTypeTable: React.FC = () => {
               <TableHeader className="w-12">ID</TableHeader>
               <TableHeader className="w-28">Component ID</TableHeader>
               <TableHeader>Name</TableHeader>
-              <TableHeader className="w-32 text-center">Export to PCMA</TableHeader>
+              <TableHeader className="w-32 text-center">Publishable to PCMA</TableHeader>
               <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-32">Actions</TableHeader>
             </TableRow>
