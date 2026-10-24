@@ -65,8 +65,10 @@ BEGIN
             PAP.ThrustDescription        AS Thrust,
             pcc.ComponentId              AS Activity_Component_Id,
             pccpy.UACS                   AS UACS_PAP_Code,
-            sow.Description              AS Type_Of_Work,
-            sow.Measure                  AS Target_Unit,
+            -- ISNULL keeps these NOT NULL now that sow is LEFT JOINed (see the join note below);
+            -- RBP.rpt's cached schema breaks on a nullability change (see header).
+            ISNULL(sow.Description, '')  AS Type_Of_Work,
+            ISNULL(sow.Measure, '')      AS Target_Unit,
             ISNULL(CAST(pmwl.PhysicalTarget AS DECIMAL(18,5)), 0) AS Target_Amount,
             ops.Description              AS stage_desc,
             rw.Name                      AS rw_flag,
@@ -95,16 +97,21 @@ BEGIN
         JOIN dbo.[tProjectComponentCost] pcc
             ON  pcc.ProjectRevisionFK = p.Id
             AND pcc.IsDeleted         = 0
-        JOIN dbo.[tProjectComponentCostPerYear] pccpy
+        -- 2026-10-24 fix: LEFT JOINs from here to sow (were INNER). Components with no work
+        -- item -- legacy/migrated data, e.g. 546 projects / 37,174,373.60 P'000 on
+        -- myps_db_migrated_UAT -- were dropped from RBP entirely while RBP Summary still counted
+        -- them, so RBP and Summary didn't tally. They now print with their cost and blank work
+        -- details. Backup: sp_RBP_backup_pre_left_join_fix_20261024 (in-database).
+        LEFT JOIN dbo.[tProjectComponentCostPerYear] pccpy
             ON  pccpy.ComponentCostFK = pcc.Id
             AND pccpy.IsDeleted       = 0
-        JOIN dbo.[tProjectMajorWorkItem] pmwi
+        LEFT JOIN dbo.[tProjectMajorWorkItem] pmwi
             ON  pmwi.ComponentCostFK = pcc.Id
             AND pmwi.IsDeleted       = 0
-        JOIN dbo.[tProjectMajorWorkLocations] pmwl
+        LEFT JOIN dbo.[tProjectMajorWorkLocations] pmwl
             ON  pmwl.WorkItemFK = pmwi.Id
             AND pmwl.IsDeleted  = 0
-        JOIN dbo.[tOptionScopeOfWork] sow
+        LEFT JOIN dbo.[tOptionScopeOfWork] sow
             ON  sow.Enum = pmwi.WorkTypeFK
         LEFT JOIN dbo.[vAdminDEO] deo
             ON  deo.ParticipantId = p.DEO
@@ -150,7 +157,6 @@ BEGIN
     (
         SELECT
             xd.*,
-            COUNT(xd.Target_Amount) OVER (PARTITION BY xd.Project_Id, xd.Component_Id) AS CountField,
             ROW_NUMBER() OVER (PARTITION BY xd.Project_Id, xd.Component_Id ORDER BY (SELECT NULL)) AS rn
         FROM xd
     )
@@ -160,7 +166,15 @@ BEGIN
         Component_Cost, Thrust, Activity_Component_Id, UACS_PAP_Code, Type_Of_Work,
         Target_Unit, Target_Amount, stage_desc, rw_flag, projectid, programid,
         yearstart, date_of_approval, componentname, dsow, start_station_limit,
-        end_station_limit, activity_length, tier, Seq_no, rank, CountField
+        end_station_limit, activity_length, tier, Seq_no, rank,
+        -- 2026-10-24 fix: RBP.rpt shows each row's cost as Component_Cost / CountField, so
+        -- CountField must count the rows actually returned. It was computed in "ranked" over
+        -- every work item/location row, before WHERE rn = 1 kept only one -- components with
+        -- 2-5 such rows showed 1/2..1/5 of their cost (myps_db_dev "RBP FY 2024 NCR": 33
+        -- components, 1,372,016.67 P'000 short of RBP Summary). Window functions run after
+        -- WHERE, so this counts the surviving rows; resultset type/nullability unchanged (int),
+        -- matching RBP.rpt's cached schema. Backup: sp_RBP_backup_pre_countfield_fix_20261024.sql.
+        COUNT(*) OVER (PARTITION BY Project_Id, Component_Id) AS CountField
     FROM ranked
     WHERE rn = 1
     ORDER BY Project_Id, Component_Id;

@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Hangfire.Hubs;
+using Hangfire.Importing;
 
 namespace Hangfire.Services
 {
@@ -115,7 +116,7 @@ namespace Hangfire.Services
                 var tempFolder = Path.Combine(_env.ContentRootPath, "Resources", "Reports");
                 Directory.CreateDirectory(tempFolder);
 
-                var fileName = $"{payload.ReportName}_{payload.JobId}.{fileExtension}";
+                var fileName = BuildReportFileName(payload, parameters, fileExtension, Functions.CurrentDate());
                 var filePath = Path.Combine(tempFolder, fileName);
 
                 await File.WriteAllBytesAsync(filePath, fileBytes, ct.ShutdownToken);
@@ -161,6 +162,20 @@ namespace Hangfire.Services
                 await NotifyClient(payload.JobId, "Failed", ex.Message, null);
                 throw;
             }
+        }
+
+        // Same scheme as the import pipeline's files (ImportFileNaming): readable context segments,
+        // then a sortable "when it ran" + short-JobId suffix -- e.g. "rbp_2024_20261024-201530-7104dcd2.pdf".
+        // No program segment: several reports accept multiple programs. Reports without a
+        // yearstart parameter (e.g. the extracts) simply omit the year segment.
+        public static string BuildReportFileName(ReportJobPayload payload, IReadOnlyDictionary<string, string> parameters, string fileExtension, DateTime completedAt)
+        {
+            var safeReportName = ImportFileNaming.SanitizeForFileName(payload.ReportName);
+            var yearSegment = parameters.TryGetValue("yearstart", out var year) && !string.IsNullOrWhiteSpace(year)
+                ? $"_{ImportFileNaming.SanitizeForFileName(year.Trim())}"
+                : string.Empty;
+
+            return $"{safeReportName}{yearSegment}_{ImportFileNaming.BuildFileSuffix(payload.JobId, completedAt)}.{fileExtension}";
         }
 
         private static string TruncateMessage(string message)

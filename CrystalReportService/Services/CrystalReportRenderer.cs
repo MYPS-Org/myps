@@ -74,6 +74,16 @@ namespace CrystalReportService.Services
         /// </summary>
         public HashSet<string> OptionalReportLevelParameters { get; set; } =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Opt-in for <see cref="CrystalReportRenderer.ApplyYearHeader"/>: the literal text of a
+        /// header TextObject (e.g. "FY") that should have the "yearstart" request value appended
+        /// at render time. Needed for reports whose header year is a {?@yearstart} field bound to
+        /// a StoreProcedureParameter -- Crystal renders those blank once rows come from
+        /// SetDataSource instead of Crystal running the proc itself. Null (default) leaves every
+        /// other report untouched.
+        /// </summary>
+        public string YearHeaderText { get; set; }
     }
 
     /// <summary>
@@ -127,7 +137,10 @@ namespace CrystalReportService.Services
                     OptionalReportLevelParameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                     {
                         "PlanningEngineer", "ReviewdBy", "ApprovedBy", "ReviewedBy"
-                    }
+                    },
+                    // Page header is "FY" + {?@yearstart} + "BUDGET PROPOSAL"; the field rendered
+                    // blank ("FY      BUDGET PROPOSAL"), so the year is written into the "FY" text.
+                    YearHeaderText = "FY"
                 },
                 ["extract-pcmiow"] = new ReportDefinition
                 {
@@ -386,6 +399,18 @@ namespace CrystalReportService.Services
                     {
                         locationDiagnostics.AppendLine("  [MainReport] SkipLocationCorrection=true -- leaving Crystal's own Location value untouched.");
                     }
+                }
+
+                // Must run BEFORE SetDataSource: editing a TextObject after it makes
+                // ExportToStream fail with "Invalid field name" (confirmed on RBP.rpt).
+                try
+                {
+                    ApplyYearHeader(report, parameters, definition.YearHeaderText);
+                }
+                catch (Exception ex)
+                {
+                    _diagnosticLogger.Log(ex, BuildDiagnosticContext(reportName, "ApplyYearHeader", definition, parameters, locationDiagnostics.ToString()));
+                    throw new Exception($"Failed at ApplyYearHeader: {ex.Message}", ex);
                 }
 
                 try
@@ -835,6 +860,39 @@ namespace CrystalReportService.Services
                 throw new ArgumentException(
                     $"Report-level parameter(s) not supplied: {string.Join(", ", missing)}. " +
                     $"All report-level parameters this .rpt defines: [{allDefined}]. Supplied: [{supplied}].");
+            }
+        }
+
+        /// <summary>
+        /// Writes the "yearstart" request value into every header TextObject whose text is
+        /// <paramref name="yearHeaderText"/> (e.g. "FY" -> "FY 2025"), and suppresses the
+        /// {?@yearstart} field objects that were meant to show it. Crystal leaves a
+        /// StoreProcedureParameter field blank when the rows come from SetDataSource, even with
+        /// the parameter's value set (confirmed by rendering RBP.rpt directly, 2026-10-24).
+        /// The text object is widened over the suppressed field's slot so the year isn't clipped.
+        /// </summary>
+        private static void ApplyYearHeader(ReportDocument report, IDictionary<string, object> parameters, string yearHeaderText)
+        {
+            if (string.IsNullOrEmpty(yearHeaderText) || parameters == null
+                || !parameters.TryGetValue("yearstart", out var year) || year == null)
+                return;
+
+            foreach (Section section in report.ReportDefinition.Sections)
+            {
+                var yearFields = section.ReportObjects.OfType<FieldObject>()
+                    .Where(f => string.Equals(f.DataSource.FormulaName, "{?@yearstart}", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var text in section.ReportObjects.OfType<TextObject>()
+                    .Where(t => string.Equals(t.Text.Trim(), yearHeaderText, StringComparison.OrdinalIgnoreCase)))
+                {
+                    text.Text = $"{yearHeaderText} {year}";
+                    foreach (var field in yearFields)
+                    {
+                        field.ObjectFormat.EnableSuppress = true;
+                        text.Width = Math.Max(text.Width, field.Left + field.Width - text.Left);
+                    }
+                }
             }
         }
 
