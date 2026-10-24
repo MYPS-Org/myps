@@ -96,6 +96,36 @@ public class ReportRequestMapperTests
     }
 
     [Fact]
+    public void Map_Extract_AllowsCategoryRegionDeoIoOmitted()
+    {
+        var ok = ReportRequestMapper.TryMap(
+            "extract-pcmiow",
+            Body("""{"programIds":["p1"]}"""),
+            out var legacy,
+            out var error);
+
+        Assert.True(ok, error);
+        Assert.Equal("p1", legacy["programid"]);
+        Assert.Equal("", legacy["categoryid"]);
+        Assert.Equal("", legacy["rocode"]);
+        Assert.Equal("", legacy["deocode"]);
+        Assert.Equal("", legacy["io_code"]);
+    }
+
+    [Fact]
+    public void Map_Extract_MissingProgramIds_Fails()
+    {
+        var ok = ReportRequestMapper.TryMap(
+            "extract-pcmiow",
+            Body("""{"categoryId":1,"regionCode":"OI237"}"""),
+            out _,
+            out var error);
+
+        Assert.False(ok);
+        Assert.Contains("programIds", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Map_RbpSummary_MapsAllRequiredFields()
     {
         var ok = ReportRequestMapper.TryMap(

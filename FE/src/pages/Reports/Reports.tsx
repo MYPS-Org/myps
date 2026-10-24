@@ -318,7 +318,10 @@ const Reports: React.FC = () => {
       return;
     }
 
-    if (!regionCode) {
+    // Regional Office is optional for the Extract PCMIOW / Extract PC reports --
+    // their backing stored procs (usp_extract_PC_MIOW_list / usp_extract_PC_list)
+    // already treat rocode/deocode/io_code/categoryid as no-op filters when blank.
+    if (reportFamily !== 'extract-pcmiow' && !regionCode) {
       showToast({ type: 'error', message: 'Please select a Regional Office before generating.' });
       return;
     }
@@ -386,18 +389,8 @@ const Reports: React.FC = () => {
           showToast({ type: 'error', message: 'Please select at least one program before generating.' });
           return;
         }
-        if (!categoryId) {
-          showToast({ type: 'error', message: 'Please select a Category before generating.' });
-          return;
-        }
-        if (!deoCode) {
-          showToast({ type: 'error', message: 'Please select a District Engineering Office before generating.' });
-          return;
-        }
-        if (!ioCode) {
-          showToast({ type: 'error', message: 'Please select an Implementing Office before generating.' });
-          return;
-        }
+        // Category, District Engineering Office, and Implementing Office are
+        // optional filters here -- see the Regional Office comment above.
 
         const selectedCategory = dropdowns?.Categories.find((c) => c.CategoryId === Number(categoryId));
         const selectedDeoOption = dropdowns?.DEOs.find((d) => d.ParticipantId === deoCode);
@@ -406,10 +399,10 @@ const Reports: React.FC = () => {
 
         request = {
           ProgramIds: selectedProgramIds,
-          CategoryId: Number(categoryId),
-          RegionCode: regionCode,
-          DeoCode: deoCode,
-          IoCode: ioCode,
+          CategoryId: categoryId ? Number(categoryId) : undefined,
+          RegionCode: regionCode || undefined,
+          DeoCode: deoCode || undefined,
+          IoCode: ioCode || undefined,
           CategoryLabel: selectedCategory?.CategoryName ?? undefined,
           RegionLabel: selectedRegionOption?.Name ?? undefined,
           DeoLabel: selectedDeoOption?.Name ?? undefined,
@@ -529,7 +522,7 @@ const Reports: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Regional Office <span className="text-red-500">*</span>
+                Regional Office {reportFamily !== 'extract-pcmiow' && <span className="text-red-500">*</span>}
               </label>
               <select
                 value={regionCode}

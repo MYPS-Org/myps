@@ -137,10 +137,15 @@ namespace CrystalReportService.Services
                     Parameters = new List<SqlParamDefinition>
                     {
                         new SqlParamDefinition { Name = "programid", DbType = SqlDbType.VarChar, IsRequired = true },
-                        new SqlParamDefinition { Name = "categoryid", DbType = SqlDbType.Int, IsRequired = true },
-                        new SqlParamDefinition { Name = "rocode", DbType = SqlDbType.VarChar, IsRequired = true },
-                        new SqlParamDefinition { Name = "deocode", DbType = SqlDbType.VarChar, IsRequired = true },
-                        new SqlParamDefinition { Name = "io_code", DbType = SqlDbType.VarChar, IsRequired = true }
+                        // categoryid/rocode/deocode/io_code are optional filters -- mirrors
+                        // Hangfire/Services/ExcelReportGenerator.cs's "extract-pcmiow" entry,
+                        // which is the live path for this report (see CanHandle in
+                        // ReportJobService.cs). Kept in sync here in case this renderer is
+                        // ever reached directly for the same report key.
+                        new SqlParamDefinition { Name = "categoryid", DbType = SqlDbType.Int, IsRequired = false },
+                        new SqlParamDefinition { Name = "rocode", DbType = SqlDbType.VarChar, IsRequired = false },
+                        new SqlParamDefinition { Name = "deocode", DbType = SqlDbType.VarChar, IsRequired = false },
+                        new SqlParamDefinition { Name = "io_code", DbType = SqlDbType.VarChar, IsRequired = false }
                     }
                 },
                 ["rbp-summary-report"] = new ReportDefinition
@@ -673,10 +678,18 @@ namespace CrystalReportService.Services
                         if (!hasValue)
                         {
                             if (paramDef.IsRequired)
+                            {
                                 missing.Add(paramDef.Name);
+                                continue;
+                            }
 
-                            // Optional + not supplied: don't add the SqlParameter
-                            // at all, so the proc's own SQL default (= NULL) applies.
+                            // Optional + not supplied: pass NULL explicitly rather than
+                            // omitting the SqlParameter. Most of this table's procs declare
+                            // a "= NULL" default so omission already worked, but
+                            // usp_extract_PC_MIOW_list/usp_extract_PC_list don't -- an
+                            // omitted required-by-signature parameter fails the call outright.
+                            // Explicit NULL is equivalent for the ones that do have a default.
+                            command.Parameters.Add("@" + paramDef.Name, paramDef.DbType).Value = DBNull.Value;
                             continue;
                         }
 
