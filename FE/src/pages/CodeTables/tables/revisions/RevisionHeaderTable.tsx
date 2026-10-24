@@ -7,6 +7,7 @@ import { updateCodeTable } from '../../Service';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+import { columnLabel } from './revisionColumns';
 
 const CODE = 'RevisionHeader';
 
@@ -29,6 +30,7 @@ const RevisionHeaderTable: React.FC = () => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any[] = (codeTableData?.RevisionHeaders ?? []) as any[];
+  // A header IS a revision group: its RevisionGroupId is the group number other tables refer to.
   const columns: string[] = data.length > 0 ? Object.keys(data[0]).filter(c => c !== 'IsActive') : [];
   const editableColumns = columns.filter(c => EDITABLE_COLUMNS.includes(c));
 
@@ -110,7 +112,7 @@ const RevisionHeaderTable: React.FC = () => {
           {columns.length > 0 && (
             <TableHead>
               <TableRow>
-                {columns.map(col => <TableHeader key={col}>{col}</TableHeader>)}
+                {columns.map(col => <TableHeader key={col}>{columnLabel(col, { RevisionGroupId: 'Group No.' })}</TableHeader>)}
                 <TableHeader className="w-24 text-center">Active</TableHeader>
                 <TableHeader className="w-28">Actions</TableHeader>
               </TableRow>
@@ -168,7 +170,7 @@ const RevisionHeaderTable: React.FC = () => {
                         <TableCell key={col} className="text-sm text-gray-700">
                           {item[col] === null || item[col] === undefined || item[col] === ''
                             ? <span className="text-gray-300 italic">&mdash;</span>
-                            : String(item[col])}
+                            : String(item[col] ?? '')}
                         </TableCell>
                       ))}
                       <TableCell className="text-center">

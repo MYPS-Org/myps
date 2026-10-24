@@ -7,6 +7,7 @@ import { updateCodeTable } from '../../Service';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+import { columnLabel, revisionCategoryName, revisionGroupName } from './revisionColumns';
 
 // Must match the server's switch ("RevisionDocuments"): with the singular, every edit and delete
 // was refused as "Invalid Code".
@@ -40,14 +41,8 @@ const RevisionDocumentTable: React.FC = () => {
   const categories = (codeTableData?.RevisionCategories ?? []) as any[];
   const display = (col: string, value: unknown): string => {
     if (value === null || value === undefined || value === '') return '';
-    if (col === 'RevisionGroupId') {
-      const name = headers.find(h => h.RevisionGroupId === value)?.RevisionName;
-      return name ? `${name} (${value})` : String(value);
-    }
-    if (col === 'CategoryId') {
-      const name = categories.find(c => c.CategoryId === value)?.CategoryName;
-      return name ? `${name} (${value})` : String(value);
-    }
+    if (col === 'RevisionGroupId') return revisionGroupName(headers, value);
+    if (col === 'CategoryId') return revisionCategoryName(categories, value);
     return String(value);
   };
 
@@ -129,7 +124,7 @@ const RevisionDocumentTable: React.FC = () => {
           {columns.length > 0 && (
             <TableHead>
               <TableRow>
-                {columns.map(col => <TableHeader key={col}>{col}</TableHeader>)}
+                {columns.map(col => <TableHeader key={col}>{columnLabel(col)}</TableHeader>)}
                 <TableHeader className="w-24 text-center">Active</TableHeader>
                 <TableHeader className="w-28">Actions</TableHeader>
               </TableRow>

@@ -8,6 +8,7 @@ import { updateCodeTable } from '../../Service';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+import { revisionGroupName } from './revisionColumns';
 
 const CODE = 'RevisionReasons';
 
@@ -48,8 +49,7 @@ const ModificationReasonTable: React.FC = () => {
       const lower = searchTerm.toLowerCase();
       filtered = filtered.filter(d =>
         d.Reason.toLowerCase().includes(lower) ||
-        String(d.RevisionGroupId).includes(lower) ||
-        String(d.ReasonId).includes(lower)
+        revisionGroupName(revisionHeaders, d.RevisionGroupId).toLowerCase().includes(lower)
       );
     }
     if (sortColumn !== null && sortDirection !== null) {
@@ -70,7 +70,7 @@ const ModificationReasonTable: React.FC = () => {
     }
     setFilteredData(filtered);
     setCurrentPage(1);
-  }, [data, searchTerm, sortColumn, sortDirection]);
+  }, [data, searchTerm, sortColumn, sortDirection, revisionHeaders]);
 
   const handleSort = useCallback((col: number) => {
     if (sortColumn === col) {
@@ -163,8 +163,7 @@ const ModificationReasonTable: React.FC = () => {
       mode: 'edit',
       tableName: 'Revision Reason',
       fields: [
-        { label: 'Group ID',   value: editForm.RevisionGroupId, mono: true },
-        { label: 'Reason ID',  value: editForm.ReasonId,        mono: true },
+        { label: 'Revision Group', value: revisionGroupName(revisionHeaders, editForm.RevisionGroupId) },
         { label: 'Reason',     value: editForm.Reason },
       ],
       onConfirm: async () => { await saveEdit(); confirm.close(); },
@@ -223,8 +222,7 @@ const ModificationReasonTable: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableHeader className="w-12 cursor-pointer hover:bg-gray-100" onClick={() => handleSort(0)}>ID</TableHeader>
-              <TableHeader className="w-28 cursor-pointer hover:bg-gray-100" onClick={() => handleSort(1)}>Group ID</TableHeader>
-              <TableHeader className="w-24 cursor-pointer hover:bg-gray-100" onClick={() => handleSort(2)}>Reason ID</TableHeader>
+              <TableHeader className="w-56 cursor-pointer hover:bg-gray-100" onClick={() => handleSort(1)}>Revision Group</TableHeader>
               <TableHeader className="cursor-pointer hover:bg-gray-100" onClick={() => handleSort(3)}>Reason</TableHeader>
               <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-24">Actions</TableHeader>
@@ -247,7 +245,6 @@ const ModificationReasonTable: React.FC = () => {
                     ))}
                   </select>
                 </TableCell>
-                <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
                 <TableCell>
                   <textarea
                     value={addForm.Reason}
@@ -271,7 +268,7 @@ const ModificationReasonTable: React.FC = () => {
             )}
             {pageData.length === 0 && !addForm ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-gray-500">No records found.</TableCell>
+                <TableCell colSpan={5} className="text-center py-10 text-gray-500">No records found.</TableCell>
               </TableRow>
             ) : (
               pageData.map(item => (
@@ -292,7 +289,6 @@ const ModificationReasonTable: React.FC = () => {
                           ))}
                         </select>
                       </TableCell>
-                      <TableCell><span className="font-mono text-xs text-gray-500 px-2">{editForm.ReasonId}</span></TableCell>
                       <TableCell><textarea value={editForm.Reason} onChange={e => setEditForm(f => ({ ...f, Reason: e.target.value }))} rows={3} className={inp()} /></TableCell>
                       <TableCell className="text-center">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
@@ -314,9 +310,9 @@ const ModificationReasonTable: React.FC = () => {
                   ) : (
                     <>
                       <TableCell>
-                        <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.RevisionGroupId}</span>
+                        {/* The group's name, not its bare number; Reason ID is an internal number and is not shown. */}
+                        <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{revisionGroupName(revisionHeaders, item.RevisionGroupId)}</span>
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-gray-500">{item.ReasonId}</TableCell>
                       <TableCell className="text-sm text-gray-900" title={item.Reason}>{item.Reason}</TableCell>
                       <TableCell className="text-center">
                         <button

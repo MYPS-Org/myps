@@ -26,7 +26,6 @@ const ProvinceTable: React.FC = () => {
         render: r => (
       <>
         <span className="text-xs font-medium text-gray-700">{regionName(r.RegionParticipantId)}</span>
-        <span className="ml-1 font-mono text-xs text-gray-400">({r.RegionParticipantId})</span>
       </>
     ),
       }} />
