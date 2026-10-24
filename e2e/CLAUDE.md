@@ -119,7 +119,8 @@ Update this table whenever a spec is added, removed, or renamed — it's the fas
 | RevisionList / RevisionView / RevisionDetails | — | No |
 | ProjectGroupList / ProjectGroupDetails | — | No |
 | Reports | — | No |
-| Settings / CodeTables | — | No |
+| Settings | — | No |
+| CodeTables — Component Cost › Cost Type | `tests/code-tables-cost-type-pcma-label.spec.ts` | **Partly** — this table only (S04-TC005, 2026-10-24). The column header and the Add / Save confirm dialogs say "Publishable to PCMA" and never "Export to PCMA" / "Export PCMA"; the flag still saves (added ticked → row shows Yes, edited unticked → No), since only the label changed and the wire field is still `ExportToPCMA`. Adds one `E2E<n>` cost type and deletes it in the UI, and again via `UpdateCodeTable` (TransactionType 2) in `afterEach`. It leaves `tCodeTableTransactionLog` / `tLoginHistory` rows behind. Confirmed to fail on the pre-fix component at the header step. Every other Code Tables tab is uncovered |
 | LumpSumList / AddWallet / LumpSumDetails | `tests/ls-module-ui-walkthrough.narrated.spec.ts` | **Yes, all 11** — creates by typing, spends through the dialogs, pages the list (screen, wire and server compared), deletes through the UI, and asserts the absent controls stay absent. Six of these were dark for weeks behind a stale fixture; see *Resolve the program, do not name it* |
 | Lump Sum API contract (13 actions) | `tests/ls-contract.spec.ts` | Yes — API level only, see below |
 | Lump Sum row-level data security (13 actions) | `tests/ls-data-security.spec.ts` | Yes — API level; needs the fixture script, see below |
