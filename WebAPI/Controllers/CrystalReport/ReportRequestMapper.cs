@@ -37,12 +37,14 @@ public static class ReportRequestMapper
         };
     }
 
-    // rbp-summary-report / rbp-summary-report-with-tier: yearStart/regionCode/programId feed
-    // the backing stored procedures' SQL filtering and stay required. planningEngr/reviewedBy/
-    // approvedBy are report-level-only (letterhead/signature block) -- #422 made them optional
-    // here too (matching MapRbp's existing behavior for the same 3 fields on "rbp"); omitted
-    // values render blank in the signature block instead of blocking generation, handled on the
-    // CrystalReportService side via ReportDefinition.OptionalReportLevelParameters.
+    // rbp-summary-report / rbp-summary-report-with-tier are backed by sp_RBPSummary /
+    // sp_RBPSummaryTier directly (as of 2026-10-23, issue #423 fix) -- yearStart/regionCode/
+    // programId DO filter the SQL query and stay required, same as MapRbp's equivalents.
+    // planningEngr/reviewedBy/approvedBy reach SQL too (passed through as output columns for the
+    // signature block) but are optional (as of 2026-10-23, issue #422 fix) -- matching MapRbp's
+    // existing behavior for the same 3 fields on "rbp". Omitted values render blank in the
+    // signature block instead of blocking generation, handled on the CrystalReportService side via
+    // ReportDefinition.OptionalReportLevelParameters.
     private static bool MapRbpSummary(JsonElement body, out Dictionary<string, string> legacyParams, out string? error)
     {
         legacyParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

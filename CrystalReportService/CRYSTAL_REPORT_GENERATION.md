@@ -81,8 +81,8 @@ dictionary (case-insensitive keys):
 |------------------------------------|-----------------------------------------|------------------------------|------|----------------------------------------------------------------------|--------|
 | `rbp`                              | `RBP.rpt`                                | `sp_RBP`                     | Proc | `yearstart` (req), `programid` (opt), `region` (opt)                 | pdf    |
 | `extract-pcmiow`                   | `ExtractPCMIOW.rpt`                      | `usp_extract_PC_MIOW_list`   | Proc | `programid`, `categoryid`, `rocode`, `deocode`, `io_code` (all req)   | xlsx (via `ExcelReportGenerator`, bypasses Crystal) |
-| `rbp-summary-report`               | `RBP Summary Report.rpt`                 | `sp_RBPSummary`              | Proc | `programid` (opt) — see Known Caveats: the View path was retired 2026-09-07 | pdf |
-| `rbp-summary-report-with-tier`     | `RBP_Summary_Report_with_Tier.rpt`       | `MYPS_vw_rptRBPSummaryTier`  | View | none — the view itself is unparameterized, **but see Report-Level Parameters below: this is not a zero-input report** | pdf    |
+| `rbp-summary-report`               | `RBPSummaryReport.rpt`                   | `sp_RBPSummary`              | Proc | `yearstart` (req), `programid` (opt), `region` (opt)                 | pdf |
+| `rbp-summary-report-with-tier`     | `RBPSummaryReportTier.rpt`               | `sp_RBPSummaryTier`          | Proc | `yearstart` (req), `programid` (opt), `region` (opt)                 | pdf    |
 | `aip-official`                     | `AIP_Official.rpt`                       | `a1_usp_AIP2`                | Proc | `yearstart` (req), `programid` (req), `region` (opt)                  | pdf    |
 | `aip-executive`                     | `AIP_Executive.rpt`                      | `a1_usp_AIP2`                | Proc | same as above                                                          | pdf    |
 | `aip-official-without-ld`          | `AIP_Official_without_LD.rpt`            | `a1_usp_AIP2`                | Proc | same as above                                                          | pdf    |
@@ -100,9 +100,9 @@ inferred from code:
 
 | Report                             | Report-Level Parameters (verified live, 2026-09-05; optional-field behavior updated 2026-10-23 per #422) |
 |-------------------------------------|---------------------------------------------------------------------------------|
-| `rbp`                               | `@PlanningEngineer`, `@ReviewdBy` *(sic — matches the existing typo in `ReportRequestMapper.MapRbp`, not a new one)*, `@ApprovedBy`, `@ReviewedBy` — all 4 **optional** (default to a blank signature block if omitted, per `ReportDefinition.OptionalReportLevelParameters`), plus `@yearstart`/`@programid`/`@region` (also report-level, **required**, in addition to being SQL params) |
-| `rbp-summary-report`                | `@yearstart`, `@region`, `@programid` **required**; `@planningEngr`, `@reviewedBy`, `@approvedBy` **optional** (same blank-default behavior as `rbp`, as of #422) — none of these 6 feed the SQL query (the view takes no parameters at all); they exist purely for the printed report's own letterhead/signature block |
-| `rbp-summary-report-with-tier`      | identical set to `rbp-summary-report` (same 6 names, same required/optional split) |
+| `rbp`                               | `@PlanningEngineer`, `@ReviewdBy` *(sic — matches the existing typo in `ReportRequestMapper.MapRbp`, not a new one)*, `@ApprovedBy`, `@ReviewedBy` — all 4 **optional** (default to a blank signature block if omitted, per `ReportDefinition.OptionalReportLevelParameters`, #422), plus `@yearstart`/`@programid`/`@region` (also report-level, **required**, in addition to being SQL params) |
+| `rbp-summary-report`                | `@yearstart`, `@region`, `@programid` **required**; `@planningEngr`, `@reviewedBy`, `@approvedBy` **optional** (same blank-default behavior as `rbp`, #422) — **all 6 also feed the SQL query** via `sp_RBPSummary` (#423: `planningEngr`/`reviewedBy`/`approvedBy` are passed through as `PlanningEngr`/`ReviewedBy`/`ApprovedBy` output columns the `.rpt`'s signature block binds to directly, not a separate Crystal report-level parameter of the same name — confirmed live that `RBPSummaryReport.rpt` doesn't define them as report-level parameters at all, so the `#422` opt-out is a harmless no-op here rather than the active mechanism) |
+| `rbp-summary-report-with-tier`      | identical set to `rbp-summary-report` (same 6 names, same required/optional split, same all-6-feed-SQL behavior, now backed by `sp_RBPSummaryTier`) |
 | `aip-official`                      | `@ReportType`, `@ReportTypeTitle`, `@region` — all required; notably does **not** list `@yearstart`/`@programid` as report-level params, unlike the other 3 AIP variants |
 | `aip-executive`, `aip-official-without-ld`, `aip-executive-2` | `@ReportType`, `@ReportTypeTitle`, `@region`, `@yearstart`, `@programid` — all required |
 
@@ -245,34 +245,23 @@ never silently cut.
   confirmed 2026-09-05. Not a bug in the proc; it reflects PCMA data genuinely not flowing into
   that table yet. Don't "fix" this without confirming PCMA data has actually started populating it.
 
-- **`rbp-summary-report` switched from the `MYPS_vw_rptRBPSummary` view to `sp_RBPSummary`
-  (2026-09-07), operator decision.** The View path kept failing at `ExportToStream`:
-  `RBP Summary Report.rpt`'s own saved `Table.Location` is the bare name `sp_RBPSummaryTier` — a
-  stale reference from before this report was pointed at the view (see the removed commented-out
-  history in `CrystalReportRenderer.cs`'s `Reports` dictionary) — and rewriting `Location` at
-  runtime to the correct object hit a separate Crystal SDK connection-validation failure inside
-  `Table.set_Location` (`COMException: "Failed to open the connection."`, root cause not fully
-  chased down — switching data source made it moot). Reverting to `StoredProcedure` sidesteps
-  `ApplyDatabaseLogon`/`Location` entirely, since that path is only invoked for View-backed
-  reports — matching the 6 other proc-backed reports that already work without it.
-  **`sp_RBPSummaryTier` does not exist on `myps_db_dev` at all** (confirmed 2026-09-07) — so this
-  same move isn't available for `rbp-summary-report-with-tier`, which stays View-backed
-  (`MYPS_vw_rptRBPSummaryTier`) for now.
-  - `sp_RBPSummary`'s live signature was already known to have diverged from its own legacy
-    original (confirmed by the operator's own archived legacy copy, table names like `project`/
-    `activity`/`ro_deo`/`projecttier` vs. the live version's `tProjectRevisions`/
-    `tProjectComponentCost`/`tProgramStages`) — it takes only `@programid`, not the legacy
-    `@yearstart`/`@programid`/`@region`. `yearstart`/`region` stay report-level Crystal parameters
-    only (letterhead), same as before — they were never real SQL inputs to this report either way.
-    The proc still carries earlier in-progress markers (commented-out `@StageName` parameter, a
-    validation block referencing `dbo.tPrograms`) — used as-is per operator instruction, not
-    completed as part of this fix.
-  - **Known correctness issue in the live proc, not fixed (out of scope, flagged only):**
-    `Legislative_District` comes back as a raw numeric code (e.g. `503`) instead of a resolved
-    name for at least some rows — the proc's `LEFT JOIN dbo.tOptionAdminAreaCongressionalDistrict
-    ld ON ld.Id = pr.LegislativeDistrict` joins on `ld.Id`, while every other confirmed-correct
-    resolution in this codebase (`pGenerateAIP01`, `a1_usp_AIP2`) joins on `ld.Code` instead —
-    the mismatch silently falls through to the `ISNULL(ld.Name, pr.LegislativeDistrict)` fallback.
+- **`rbp-summary-report` and `rbp-summary-report-with-tier` both call a proc directly, each its
+  own (2026-10-23, issue #423 fix).** Both reports were stuck for over a month (three separate
+  debugging commits, 2026-09-07 through 2026-09-08) on a Crystal export failure that turned out to
+  be purely in the `.rpt` Designer binding, not the SQL: each `.rpt`'s saved `Table.Location`
+  pointed at a stale/defunct object from an earlier iteration, and Crystal re-resolves `Location`
+  independently at `ExportToStream` regardless of the live `SetDataSource` call — so a stale saved
+  value fails export outright no matter what the SQL layer returns. Fixed by rebinding each `.rpt`
+  fresh in Crystal Designer (`RBPSummaryReport.rpt` → `sp_RBPSummary`, `RBPSummaryReportTier.rpt` →
+  `sp_RBPSummaryTier`) and switching `rbp-summary-report-with-tier` off its old View path
+  (`MYPS_vw_rptRBPSummaryTier`, queried via an unfiltered `SELECT * FROM view` with no
+  program/year/region `WHERE` clause at all) onto `sp_RBPSummaryTier` directly, matching
+  `rbp-summary-report`'s already-proc-backed pattern. Both procs were confirmed live on
+  `myps_db_dev3` on 2026-10-23 to already return correct, program/year/region-filtered rows — the
+  join logic itself was never broken, only unreachable behind the export failure. Current
+  definitions are checked in at `Main/Resources/Internal/SQLScripts/sp_RBPSummary.sql` and
+  `sp_RBPSummaryTier.sql` (first non-`_backup_` checkpoint for either proc — apply by hand to each
+  target environment, there is no migration runner).
 
 - **Event Log source not registered = silent fallback to a file, not a crash.** If diagnostics
   seem to be "missing" for a report failure on a host, check the fallback log first
@@ -294,11 +283,13 @@ never silently cut.
 
 | Object | Type | Purpose | Notes |
 |--------|------|---------|-------|
-| `sp_RBP` | Proc | Detail-level rows backing the RBP Summary/Tier PDF reports | `[myps_db]` bug fixed 2026-09-05 |
+| `sp_RBP` | Proc | Detail-level rows backing the `rbp` report | `[myps_db]` bug fixed 2026-09-05 |
+| `sp_RBPSummary` | Proc | Backs `rbp-summary-report` (OO1/OO2/CSSP/LP rollup by DEO/Legislative District/RO) | Confirmed live/filtering correctly on `myps_db_dev3` 2026-10-23; current script `Main/Resources/Internal/SQLScripts/sp_RBPSummary.sql` |
+| `sp_RBPSummaryTier` | Proc | Backs `rbp-summary-report-with-tier` (same rollup, split by Tier) | Confirmed live/filtering correctly on `myps_db_dev3` 2026-10-23; current script `Main/Resources/Internal/SQLScripts/sp_RBPSummaryTier.sql` |
 | `a1_usp_AIP2` | Proc | Backs all 4 AIP report variants | `[myps_db]` bug fixed 2026-09-05 |
 | `usp_extract_PC_MIOW_list` | Proc | Extract PCMIOW raw data export | `[myps_db]` bug fixed 2026-09-05; renders via Excel, not Crystal |
-| `MYPS_vw_rptRBPSummary` | View | RBP Summary rollup (OO1/OO2/CSSP/LP by DEO/Legislative District/RO) | `[myps_db]` bug + hardcoded placeholder totals + inconsistent stage filter, all fixed 2026-09-05 |
-| `MYPS_vw_rptRBPSummaryTier` | View | Same rollup, split by Tier | `[myps_db]` bug fixed 2026-09-05; `BaseDistinct` CTE was leaking phantom all-zero rows for out-of-scope categories, fixed 2026-09-05 |
+| `MYPS_vw_rptRBPSummary` | View | Rollup equivalent to `sp_RBPSummary` | No longer used by any Crystal report as of 2026-10-23 (`rbp-summary-report` is proc-backed) — left in place, not dropped |
+| `MYPS_vw_rptRBPSummaryTier` | View | Rollup equivalent to `sp_RBPSummaryTier`, split by Tier | No longer used by any Crystal report as of 2026-10-23 (`rbp-summary-report-with-tier` switched to the proc) — left in place, not dropped |
 
 Full fix history and rationale: `Main/Resources/Internal/SQLScripts/Reports.CrystalReportSQLFixes.sql`.
 
