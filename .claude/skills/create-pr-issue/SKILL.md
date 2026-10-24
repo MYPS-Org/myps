@@ -1,6 +1,6 @@
 ---
 name: create-pr-issue
-description: 'Open a Gitea pull request for the current branch from one or more UAT issues, using the issue''s test cases as the Acceptance Criteria. Runs pre-flight checks (branch sanity, diff-scoped typecheck/build, SQL migration detection, /code-review offer), maps each test case to evidence in the diff, asks whether the PR is Draft (WIP) or Ready for review and whether to write an e2e test, then pushes and opens the PR after the user approves the title and body. Use when: a fix branch is ready (or nearly ready) and needs a PR, or the user says "create a PR", "open a PR for issue #N", "raise the PR".'
+description: 'Open a Gitea pull request for the current branch from one or more UAT issues, using the issue''s test cases as the Acceptance Criteria. Runs pre-flight checks (branch sanity, diff-scoped typecheck/build, SQL migration detection, change-size rating No-op/Low/Medium/High, /code-review offer), maps each test case to evidence in the diff, asks whether the PR is Draft (WIP) or Ready for review and whether to write an e2e test, then pushes and opens the PR after the user approves the title and body. Use when: a fix branch is ready (or nearly ready) and needs a PR, or the user says "create a PR", "open a PR for issue #N", "raise the PR".'
 argument-hint: 'Optional: issue number(s), e.g. "423" or "#423 #425". If omitted, the issue is inferred from the branch name and commits.'
 ---
 
@@ -94,8 +94,25 @@ Run all of these and collect the results. Don't stop at the first problem; repor
 **c. SQL migrations and deploy steps**
 - If the diff adds or changes anything under `Main/Resources/Internal/SQLScripts/` or another `*.sql` file, list each file. They go in a **Deployment** section of the PR body: "Run `<file>` in each environment BEFORE deploying this build". Note when a step is required for the app to work, e.g. a new column the code selects. This applies to permission seeds too: renaming a controller action needs its RBAC grant re-seeded or every user gets a 403.
 
-**d. Code review**
-- If `/code-review` hasn't been run on this branch's diff in this session, offer it via `AskUserQuestion`: "Run /code-review first (Recommended)" or "Skip". If the user accepts, invoke the `code-review` skill, then come back here. Record the outcome (clean, findings fixed, or findings left open) for Steps 5 and 7.
+**d. Change size**
+
+Measure app code only. Leave out tests, docs and Markdown:
+
+`git diff --shortstat origin/main...HEAD -- . ':!e2e' ':!documents' ':!*.md' ':!.claude'`
+
+Then pick the **highest** level that any single factor reaches:
+
+| Size | When |
+|---|---|
+| **No-op** | Runtime behaviour doesn't change: only docs, comments, tests/e2e specs, or tooling (`.claude/`, scripts) |
+| **Low** | ≤ 50 changed lines in ≤ 3 files, one module. Copy, labels, display, or a small isolated fix |
+| **Medium** | 51–300 lines or 4–10 files, **or** any of: a behaviour change to an existing flow, an added or changed API endpoint or DTO field, a shared component/hook/helper (e.g. `httpClient`, `usePagination`, `Helpers/*.cs`) |
+| **High** | > 300 lines or > 10 files, **or** any of: SQL (migration, stored procedure, view, function), RBAC/auth/permissions, delete or write rules on real data, cross-module changes, a deploy step that must run in order |
+
+Record the level plus the reason that set it. It goes at the bottom of the PR body (Step 7) and in the Step 8 summary line.
+
+**e. Code review**
+- If `/code-review` hasn't been run on this branch's diff in this session, offer it via `AskUserQuestion`: "Run /code-review first (Recommended)" or "Skip". If the user accepts, invoke the `code-review` skill, then come back here. Record the outcome (clean, findings fixed, or findings left open) for Steps 5 and 7. For a **High** change, recommend `/code-review` more strongly. Say why: "High: adds a SQL migration".
 
 ### Step 4 — Map each test case to evidence
 
@@ -202,6 +219,9 @@ Run `<migration.sql>` in each environment **before** deploying this build: <cons
 ## Not changed
 - <deliberate scope limits, judgement calls QA should know about>
 
+## Change size
+**<No-op | Low | Medium | High>** · <N> files, +<a>/−<d> app code (excl. tests/docs) · <the factor that set the level, e.g. "adds a SQL migration">
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
@@ -213,7 +233,7 @@ Run `<migration.sql>` in each environment **before** deploying this build: <cons
 
 Show the final title and body in full, plus a summary line:
 
-> Draft/Ready · base `main` · head `<branch>` · reviewers · "will push N commits".
+> Draft/Ready · change size · base `main` · head `<branch>` · reviewers · "will push N commits".
 
 Wait for an explicit OK. Apply any requested edits and show the result again.
 
@@ -229,7 +249,7 @@ Wait for an explicit OK. Apply any requested edits and show the result again.
 ### Step 10 — Report
 
 Tell the user:
-- The PR link and number, and whether it is Draft (WIP) or Ready.
+- The PR link and number, whether it is Draft (WIP) or Ready, and its change size.
 - The AC tally, e.g. "3/4 TCs verified, 1 needs a visual check (S06-TC001: icons vs SS13)".
 - The e2e result, or why there isn't one.
 - Any deployment steps the merger must run.
