@@ -127,16 +127,21 @@ public class ReportRequestMapperTests
     }
 
     [Fact]
-    public void Map_RbpSummary_MissingPlanningEngr_Fails()
+    public void Map_RbpSummary_MissingSignatories_Succeeds()
     {
+        // #422: planningEngr/reviewedBy/approvedBy are report-level-only (letterhead/signature
+        // block) and optional, same as MapRbp already treats the equivalent rbp fields --
+        // omitting them must not block generation.
         var ok = ReportRequestMapper.TryMap(
             "rbp-summary-report",
-            Body("""{"yearStart":2026,"programId":"p1","regionCode":"OI237","reviewedBy":"R","approvedBy":"A"}"""),
-            out _,
+            Body("""{"yearStart":2026,"programId":"p1","regionCode":"OI237"}"""),
+            out var legacy,
             out var error);
 
-        Assert.False(ok);
-        Assert.Contains("planningEngr", error, StringComparison.OrdinalIgnoreCase);
+        Assert.True(ok, error);
+        Assert.False(legacy.ContainsKey("planningEngr"));
+        Assert.False(legacy.ContainsKey("reviewedBy"));
+        Assert.False(legacy.ContainsKey("approvedBy"));
     }
 
     [Fact]

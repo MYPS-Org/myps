@@ -37,14 +37,14 @@ public static class ReportRequestMapper
         };
     }
 
-    // rbp-summary-report / rbp-summary-report-with-tier are backed by unparameterized views
-    // (MYPS_vw_rptRBPSummary / MYPS_vw_rptRBPSummaryTier) -- none of these 6 fields filter the
-    // SQL query. They exist purely because the .rpt templates define them as Crystal report-level
-    // display parameters (letterhead/signature block) and Crystal fails export if any is missing.
-    // Confirmed live against CrystalReportService 2026-09-05: all 6 are required by both .rpt
-    // files, none have a usable default -- so unlike MapRbp (which treats the signatory fields as
-    // optional even though the .rpt also wants them), all 6 are required here to avoid shipping
-    // the same mapper-says-optional/Crystal-says-required mismatch documented as a known caveat.
+    // rbp-summary-report / rbp-summary-report-with-tier are backed by sp_RBPSummary /
+    // sp_RBPSummaryTier directly (as of 2026-10-23, issue #423 fix) -- yearStart/regionCode/
+    // programId DO filter the SQL query and stay required, same as MapRbp's equivalents.
+    // planningEngr/reviewedBy/approvedBy reach SQL too (passed through as output columns for the
+    // signature block) but are optional (as of 2026-10-23, issue #422 fix) -- matching MapRbp's
+    // existing behavior for the same 3 fields on "rbp". Omitted values render blank in the
+    // signature block instead of blocking generation, handled on the CrystalReportService side via
+    // ReportDefinition.OptionalReportLevelParameters.
     private static bool MapRbpSummary(JsonElement body, out Dictionary<string, string> legacyParams, out string? error)
     {
         legacyParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -65,21 +65,12 @@ public static class ReportRequestMapper
         if (string.IsNullOrWhiteSpace(request.ProgramId))
             return Fail(out legacyParams, out error, "programId is required.");
 
-        if (string.IsNullOrWhiteSpace(request.PlanningEngr))
-            return Fail(out legacyParams, out error, "planningEngr is required.");
-
-        if (string.IsNullOrWhiteSpace(request.ReviewedBy))
-            return Fail(out legacyParams, out error, "reviewedBy is required.");
-
-        if (string.IsNullOrWhiteSpace(request.ApprovedBy))
-            return Fail(out legacyParams, out error, "approvedBy is required.");
-
         legacyParams["yearstart"] = request.YearStart.Value.ToString();
         legacyParams["region"] = request.RegionCode;
         legacyParams["programid"] = request.ProgramId;
-        legacyParams["planningEngr"] = request.PlanningEngr;
-        legacyParams["reviewedBy"] = request.ReviewedBy;
-        legacyParams["approvedBy"] = request.ApprovedBy;
+        AddOptional(legacyParams, "planningEngr", request.PlanningEngr);
+        AddOptional(legacyParams, "reviewedBy", request.ReviewedBy);
+        AddOptional(legacyParams, "approvedBy", request.ApprovedBy);
 
         return true;
     }
