@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Functions.Program;
@@ -464,7 +464,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Program ID '{dto.ProgramId}' does not match the Program associated with the selected stage. Expected Program ID: '{ProgramParent.ProgramPK}'.",
+                        Data = $"Program ID '{dto.ProgramId}' does not match the Program associated with the selected stage. Expected Program ID: '{ProgramParent.ProgramPK}'.",
+                        Message = "Program ID does not match the Expected Program ID, Please select a different stage.",
                         Title = "Program ID Mismatch"
                     });
 
@@ -473,7 +474,12 @@ namespace WebAPI.Controllers.Programs
                 var CurrentProgramVersion = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == ProgramRevision.ProgramPK, cancellationToken);
                 if (CurrentProgramVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the System.", Title = "Program not found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Data = $"Program ID '{dto.ProgramId}' does not exist in the System.",
+                        Message = "The specified program could not be found in the system.",
+                        Title = "Program not found"
+                    });
                 }
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 //var AllowedStages = new[] { EnumProgramStage.BP, EnumProgramStage.NEP, EnumProgramStage.NEPE, EnumProgramStage.HGAB, EnumProgramStage.HGABI, EnumProgramStage.GAA, EnumProgramStage.GAAR, EnumProgramStage.TF, EnumProgramStage.TFR }.Select(stage => (int)stage).Select(x => x).ToList();
@@ -526,13 +532,11 @@ namespace WebAPI.Controllers.Programs
                 }, cancellationToken);
                 if (!ValidateProgramId.IsValid)
                 {
-                    return new BadRequestObjectResult(new
-                    {
-                        Title = ValidateProgramId.Title,
-                        Message = ValidateProgramId.Message
-                    });
+                    return new BadRequestObjectResult(new { Data = ValidateProgramId.Message, Title = ValidateProgramId.Title, Message = ValidateProgramId.Message });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
+                var ProgramRevision = ValidateProgramId.Data.ProgramRevision;
+                string programDisplayName = !string.IsNullOrEmpty(ProgramRevision.Name) ? ProgramRevision.Name : ProgramParent.ProgramPK;
 
                 // The whole decision lives in ProgramHelper.ExecuteProgramDeletionAsync, inside the
                 // delete transaction on locked rows: Blocked when the program is Approved, has
@@ -545,7 +549,7 @@ namespace WebAPI.Controllers.Programs
 
                 return Ok(new
                 {
-                    Message = $"Program {dto.ProgramId} has been deleted.",
+                    Message = $"Program '{programDisplayName}' has been deleted.",
                     Title = "Program Deleted",
                     DeletedProjects = removedLeftovers
                 });
@@ -596,18 +600,19 @@ namespace WebAPI.Controllers.Programs
                 }, cancellationToken);
                 if (!ValidateProgramId.IsValid)
                 {
-                    return new BadRequestObjectResult(new
-                    {
-                        Title = ValidateProgramId.Title,
-                        Message = ValidateProgramId.Message
-                    });
+                    return new BadRequestObjectResult(new { Data = ValidateProgramId.Message, Title = ValidateProgramId.Title, Message = ValidateProgramId.Message });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
                 if (ProgramDetails.StageName != dto.StageName)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} is not in the '{dto.StageName}' stage. Please ensure you are updating the correct stage of the program.", Title = "Update Failed" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Data = $"Program '{dto.ProgramId}' is not in the '{dto.StageName}' stage.",
+                        Message = "Program stage mismatch. Please ensure you are updating the correct stage.",
+                        Title = "Update Failed"
+                    });
                 }
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty.", Title = "Update Failed" }); }
@@ -624,7 +629,12 @@ namespace WebAPI.Controllers.Programs
                 var ProgramRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
                 if (ProgramRevisions == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Data = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.",
+                        Message = "Program revision not found.",
+                        Title = "Program Revision Not Found"
+                    });
                 }
                 if (dto.Name != ProgramRevisions.Name && !string.IsNullOrEmpty(ProgramRevisions.Name))
                 {
@@ -792,7 +802,8 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                    Message = $"Program {dto.ProgramId} updated successfully.",
+                    Data = $"Program {dto.ProgramId} updated successfully.",
+                    Message = "Program updated successfully.",
                     Title = "Update Complete"
                 });
             }
@@ -834,19 +845,29 @@ namespace WebAPI.Controllers.Programs
                 }, cancellationToken);
                 if (!ValidateProgramId.IsValid)
                 {
-                    return new BadRequestObjectResult(new { Message = ValidateProgramId.Message, Title = ValidateProgramId.Title });
+                    return new BadRequestObjectResult(new { Data = ValidateProgramId.Message, Title = ValidateProgramId.Title, Message = ValidateProgramId.Message });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramDetails = ValidateProgramId.Data.ProgramRevision;
                 var ProgramStage = ValidateProgramId.Data.ProgramStage;
                 if (ProgramStage.StageId == dto.Stage)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} is already in the '{dto.Stage}' stage. Please ensure you are updating to a different stage.", Title = "Update Failed" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Data = $"Program {dto.ProgramId} is already in the '{dto.Stage}' stage.",
+                        Message = "Program is already in the requested stage. Please select a different stage.",
+                        Title = "Update Failed"
+                    });
                 }
                 var ProgramRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == ProgramStage.RevisionId, cancellationToken);
                 if (ProgramRevision == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.", Title = "Program Revision Not Found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Data = $"The program revision for Program ID '{dto.ProgramId}' does not exist in the system.",
+                        Message = "Program revision not found.",
+                        Title = "Program Revision Not Found"
+                    });
                 }
 
                 // 2026-10-20: BatchDelete and the restore take this lock before they read or write a
@@ -1521,7 +1542,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "Program ID is required.",
+                        Data = "Program ID is required.",
+                        Message = "Program ID cannot be empty or missing.",
                         Title = "Invalid Program"
                     });
                 }
@@ -1543,13 +1565,7 @@ namespace WebAPI.Controllers.Programs
 
                 if (programDetails == null)
                 {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message =
-                            $"Program ID '{dto.ProgramId}' does not exist in the Programs table. " +
-                            "Please contact the administrator.",
-                        Title = "Program Not Found"
-                    });
+                    return new BadRequestObjectResult(new { Data = $"Program ID \'{dto.ProgramId}\' does not exist in the Programs table.", Message = "Program not found in the system.", Title = "Program Not Found" });
                 }
 
                 var validationResult = await _db.ValidateProgramId(
@@ -1562,11 +1578,7 @@ namespace WebAPI.Controllers.Programs
 
                 if (!validationResult.IsValid)
                 {
-                    return new BadRequestObjectResult(new
-                    {
-                        validationResult.Title,
-                        validationResult.Message
-                    });
+                    return new BadRequestObjectResult(new { Data = validationResult.Message, Title = validationResult.Title, Message = validationResult.Message });
                 }
 
                 char[] delimiters =
@@ -1746,7 +1758,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "Program ID is required.",
+                        Data = "Program ID is required.",
+                        Message = "Program ID cannot be empty or missing.",
                         Title = "Invalid Program"
                     });
                 }
@@ -1777,10 +1790,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message =
-                            $"Program ID '{dto.ProgramId}' does not exist in the Programs table. " +
-                            "Please contact the administrator.",
-
+                        Data = $"Program ID '{dto.ProgramId}' does not exist in the Programs table.",
+                        Message = "Program not found in the system.",
                         Title = "Program Not Found"
                     });
                 }
@@ -1802,11 +1813,7 @@ namespace WebAPI.Controllers.Programs
 
                 if (!validationResult.IsValid)
                 {
-                    return new BadRequestObjectResult(new
-                    {
-                        validationResult.Title,
-                        validationResult.Message
-                    });
+                    return new BadRequestObjectResult(new { Data = validationResult.Message, Title = validationResult.Title, Message = validationResult.Message });
                 }
 
 
@@ -2358,9 +2365,8 @@ namespace WebAPI.Controllers.Programs
             {
                 return (new BadRequestObjectResult(new
                 {
-                    Message =
-                        $"Program ID '{dto.ProgramId}' does not exist in the Programs table. " +
-                        "Please contact the administrator.",
+                    Data = $"Program ID '{dto.ProgramId}' does not exist in the Programs table.",
+                    Message = "Program not found in the system.",
                     Title = "Program Not Found"
                 }), null);
             }
@@ -2375,7 +2381,7 @@ namespace WebAPI.Controllers.Programs
 
             if (!validationResult.IsValid)
             {
-                return (new BadRequestObjectResult(new { validationResult.Title, validationResult.Message }), null);
+                return (new BadRequestObjectResult(new { Data = validationResult.Message, Title = validationResult.Title, Message = validationResult.Message }), null);
             }
 
             char[] delimiters = { ';', ',', ' ', '\n', '\r', '\t' };
@@ -2688,7 +2694,11 @@ namespace WebAPI.Controllers.Programs
                 }
                 if (string.IsNullOrWhiteSpace(dto.ProgramId))
                 {
-                    return new BadRequestObjectResult(new { Message = "Program ID is required.", Title = "Invalid Program" });
+                    return new BadRequestObjectResult(new {
+                        Data = "Program ID is required.",
+                        Message = "Program ID cannot be empty or missing.",
+                        Title = "Invalid Program"
+                    });
                 }
                 if (string.IsNullOrWhiteSpace(dto.ProjectIds))
                 {
@@ -2698,7 +2708,11 @@ namespace WebAPI.Controllers.Programs
                 var checkProgram = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator.", Title = "Program not found" });
+                    return new BadRequestObjectResult(new {
+                        Data = $"Program ID '{dto.ProgramId}' does not exist in the Programs table.",
+                        Message = "Program not found in the system.",
+                        Title = "Program not found"
+                    });
                 }
                 var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
                 {
@@ -2708,11 +2722,7 @@ namespace WebAPI.Controllers.Programs
                 }, cancellationToken);
                 if (!ValidateProgramId.IsValid)
                 {
-                    return new BadRequestObjectResult(new
-                    {
-                        Title = ValidateProgramId.Title,
-                        Message = ValidateProgramId.Message
-                    });
+                    return new BadRequestObjectResult(new { Data = ValidateProgramId.Message, Title = ValidateProgramId.Title, Message = ValidateProgramId.Message });
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramRevisions = ValidateProgramId.Data.ProgramRevision;
@@ -2852,7 +2862,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "Program ID is required.",
+                        Data = "Program ID is required.",
+                        Message = "Program ID cannot be empty or missing.",
                         Title = "Invalid Request"
                     });
                 }
@@ -2882,7 +2893,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "Program ID is required.",
+                        Data = "Program ID is required.",
+                        Message = "Program ID cannot be empty or missing.",
                         Title = "Invalid Request"
                     });
                 }
