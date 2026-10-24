@@ -130,6 +130,7 @@ navigate(`/programs/programdetails/${program.ProgramId}:${program.StageName}`);
 | `batchDeleteProjects({ ProgramId, ProjectIds })` | `POST /Program/BatchDelete` | comma/newline-separated IDs string |
 | `batchAllowPublishing({ ProgramId, ProjectIds })` | `POST /Program/BatchAllowPublish` | comma/newline-separated IDs string |
 | `batchRestrictPublishing({ ProgramId, ProjectIds })` | `POST /Program/BatchRestrictPublish` | comma/newline-separated IDs string |
+| `batchRestoreProjects({ ProgramId, ProjectIds })` | `POST /Program/BatchAddExistingProject` | Batch Restore; `ProgramId` is the CURRENT `Details.ProgramId`, not `ProgramPK`. Returns `RestoredProjectIds`, `MissingProjectIds`, `RefusedProjects` (Lump Sum, ambiguous ids) |
 
 ### Report Type → Endpoint Mapping
 
@@ -325,6 +326,12 @@ IsActive && !isTerminalStage
 - Intermediate confirm dialog (`ConfirmDialogBatch`) before executing
 - Calls `batchDeleteProjects` / `batchRestrictPublishing` / `batchAllowPublishing`
 - `unpublish`/`publish` are offered only on an **Approved** program at a terminal stage (`showPublishActions` in `BatchActionsDropdown.tsx`); `delete` is always offered
+
+### `BatchRestoreDialog`
+
+- Opened from **Batch Actions → Batch Restore** (`onBatchRestore` on `BatchActionsDropdown`), always offered, like Batch Delete; `ProgramDetail.tsx` owns the dialog, the `batchRestoreProjects` call and the refresh (`refreshProjects(true)`)
+- The API brings back each project's latest deleted revision in this program and recomputes the program Cost. It refuses published projects and any project of an Approved program (`RestoreRefusal`, read from the tier row's `IsPublished` / `ProgramApproved`). Lump Sum projects are restored like any other (an itemized child is always hard-deleted, so it is simply not found). It decides once without a lock and again on locked rows (`DecideProjectDeletionsUnderLockAsync`) before writing
+- Toasts the API's own `Message`, which names every id that did not come back and why; a failed reload after a committed restore shows a warning, never "Failed to restore"
 
 > **The projects table is a separate fetch — refresh it explicitly.** Since `b11ed1b4` the table is no longer part of the `/Program/ProgramDetails` response; it comes from `ShowProjectsInProgram` via `usePagination`. `fetchProgramDetail` reloads only the header, so **any handler that mutates project rows must also call `refreshProjects()`** (`ProgramDetail.tsx`) or the screen keeps showing the pre-action rows and flags until a manual page reload. Batch Actions, Batch Restore and Publish Program all do. `refreshProjects()` keeps the user on their current page (`pagination.refresh()`); Batch Delete and Batch Restore call `refreshProjects(true)`, which goes through `applyFilters` (page 1, cursors cleared), because once rows are removed or added the cached keyset cursors no longer describe the pages. See `documents/docs/engineering/MYPS_PROGRAM_DETAIL_BATCH_ACTIONS_RCA.md`.
 

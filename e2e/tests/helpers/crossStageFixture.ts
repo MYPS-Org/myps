@@ -174,6 +174,23 @@ export const advanceProgram = async (page: Page, program: CrossStageProgram, sta
 export const batchRestore = (page: Page, program: CrossStageProgram, projectIds: string) =>
   post(page, '/api/Program/BatchAddExistingProject', { ProgramId: program.ProgramId, ProjectIds: projectIds });
 
+/**
+ * The program's STORED Cost (tProgramRevisions.Cost via fProgramDetails), i.e. the figure the
+ * Program Details header shows. Batch Delete and Batch Restore must both recompute it.
+ */
+export const programCost = async (page: Page, program: CrossStageProgram): Promise<number> => {
+  const res = await post(page, '/api/Program/ProgramDetails', { ProgramId: program.ProgramPK, StageName: program.StageName });
+  if (res.status !== 200) {
+    throw new Error(`ProgramDetails(${program.ProgramPK}) failed: ${JSON.stringify(res.body).slice(0, 300)}`);
+  }
+  // The raw response carries Details at the top level (the FE's httpClient is what wraps it in Data).
+  const cost = Number(res.body?.Details?.Cost);
+  if (!Number.isFinite(cost)) {
+    throw new Error(`ProgramDetails(${program.ProgramPK}) has no numeric Details.Cost: ${JSON.stringify(res.body).slice(0, 300)}`);
+  }
+  return cost;
+};
+
 /** Delete through the action under test's own endpoint; returns the raw response. */
 export const batchDelete = (page: Page, program: CrossStageProgram, projectIds: string) =>
   post(page, '/api/Program/BatchDelete', { ProgramId: program.ProgramId, ProjectIds: projectIds });

@@ -9,8 +9,10 @@ export interface BatchActionResponse {
 	HardDeletedProjectIds?: string[];
 	/** Batch Delete only: deleted at the current stage; restorable. */
 	SoftDeletedProjectIds?: string[];
-	/** Batch Delete only: ids it would not touch, and why. */
+	/** Batch Delete and Batch Restore: ids it would not touch, and why. */
 	RefusedProjects?: BatchDeleteRefusal[];
+	/** Batch Restore only: un-deleted at the stage they were deleted from. */
+	RestoredProjectIds?: string[];
 }
 export interface BatchDeleteRefusal {
 	ProjectId: string;

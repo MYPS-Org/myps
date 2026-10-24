@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.14
-**Date:** October 15, 2026
+**Version:** 3.15
+**Date:** October 24, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -38,6 +38,7 @@
 | 3.12 | October 14, 2026 | RP | RP | Section 5.1 Dashboard rewritten for the current executive dashboard (it still described an old user-info screen): header controls including the new **Category** filter (lists every category on click, narrows as you type, marks inactive categories, Live DB only) and the header staying pinned as one row while scrolling; the rule for what counts toward a fiscal year (that year's programs and cost year, budget stages BP–GAA-R and TF/TF-R only — RBP/RDIP/PIP planning proposals excluded — approved formal revisions at their revised amount, region and island group from the project's Province); every section described, including "Relative Project Count" (formerly "Relative Volume Density"), the now-clickable Annual Budget bars, project-count wording in the project list, and removal of the Live Audit Feed; Common Outcomes added |
 | 3.13 | October 14, 2026 | RP | RP | Section 5.1 Dashboard: the header title is now **Program Stage**, with a line under it naming the stage the figures cover (a stage's code and full name, or "All budget stages"); new **Program Type** and **Program Stage Name** filters beside Category (Live DB only), which narrow every section together with Category and the fiscal year; the regional map's badge names the chosen stage; choosing a header stage clears a stage selected in the Project Stages chart; the details of the FY Infrastructure Budget, Active Portfolio Projects and Publication Compliance cards list their projects per program (program rows adding up to the card, each expanding to its projects in Program Details' columns, no per-project amount); selecting a project opens that project's details page (a Lump Sum Project opens in Lump Sum Projects) instead of the Projects list, and its Project ID can be opened in a new tab; a Common Outcome explains why a project's total cost can exceed what the Dashboard counts; the region tables follow DPWH's region order (tOptionAdminAreaRegion.Hierarchy) and Northern/Southern Luzon show their amount; the Annual Budget chart prints each year's two amounts and no longer disappears when a year is selected; the Project Stages box became **Project Categories**, which applies the Category filter; changing the year or a filter keeps the page where it is, with sections showing their previous figures marked **Updating…** while they reload; Step-by-Step, pinned-header step, On Success and Common Outcomes updated |
 | 3.14 | October 15, 2026 | RP | RP | Section 5.1 Dashboard: every program is read at one program stage, as Program Details shows it — the stage chosen in **Program Stage Name**, or else the program's current stage (the line under the title and the region map badge read **Current program stages**; the dropdown's first choice is now **Current stages**). A program is shown under its name at that stage (e.g. *NEP 2025 OO-1*), and its projects, project count ("*5,121 of 5,121 projects*") and amounts are the ones Program Details lists for that stage; the **at \<stage\>** marker on project rows was removed, since all of a program's projects are now at its stage. Projects that stopped at an earlier stage than their program's current stage count only when that stage is chosen. "What counts toward a fiscal year", the Summary cards row and Common Outcomes updated, including why the Programs list can show a slightly different count or amount for a stage. In a card's details, a program's name opens its Program Details in a new tab and the footer's Project Repository button was removed; the FY Regional Infrastructure Portfolio no longer shows a per-project amount or page total, and its project summary's Project Repository opens that project's details page in a new tab; Project Categories shows each share to two decimal places |
+| 3.15 | October 24, 2026 | RP | RP | Section 5.2.5 Batch Restore Projects updated: opened from **Batch Actions → Batch Restore** (the Add Existing Project button is gone); same users as Batch Delete; projects come back at the stage they were deleted from and the program Total Cost is updated; nothing is restored in an Approved program or for a published project; permanently deleted (incl. itemized) projects cannot be restored; messages now name each ID not restored and why |
 
 ### Consultant
 
@@ -734,11 +735,11 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 #### 5.2.5 Batch Restore Projects
 
-**Purpose:** Restore one or more previously deleted projects back into the current program. Use this when projects were deleted and need to be recovered without re-encoding them from scratch.
+**Purpose:** Undo a Batch Delete. Restore one or more projects that were deleted at a later stage of this program, so they don't have to be re-encoded from scratch. Each project comes back at the stage it was deleted from, and the program's Total Cost is updated to include it again.
 
-**Who uses this:** DPC, RPC, PS Admin
+**Who uses this:** The same users who can use Batch Delete (DPC, RPC, PS Admin).
 
-**Prerequisites:** The program must be active and below stage GAA-R (Stage ID < 10).
+**Prerequisites:** The projects were deleted from this program with **Batch Delete** at a stage after the one where they were first added. A project removed permanently (deleted at the stage where it was first added) no longer exists and cannot be restored. Nothing is restored in an **Approved** program, or for a project already published to PCMA. A Lump Sum project is restored like any other project; an itemized project is always removed permanently when deleted, so it cannot be restored.
 
 **Field Reference:**
 
@@ -751,20 +752,25 @@ When a program row is expanded, a nested table lists all budget stages under tha
 **Step-by-Step:**
 
 1. Open a program in Program Details.
-2. Click **Add Existing Project**. The Batch Restore Projects dialog opens.
+2. Click **Batch Actions**, then **Batch Restore**. The Batch Restore Projects dialog opens.
 3. In the **Project IDs** text area, enter the IDs of the projects to restore. You may paste a list — the system accepts IDs separated by commas, spaces, semicolons, or line breaks.
 4. Click **Restore Projects**. A confirmation dialog shows the program name and the count of project IDs detected.
 5. Confirm to proceed.
 
 [Insert Screenshot: Batch Restore Projects Dialog]
 
-**On Success:** A success toast ("Projects restored successfully.") appears and the project list refreshes to show the restored projects.
+**On Success:** A success toast says how many projects were restored (for example, *"2 project(s) restored to their original stage."*). The project list returns to page 1 and the program's Total Cost is updated.
 
 **Common Outcomes & What to Do:**
 
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
 | *"Please enter project IDs before submitting."* | The text area was empty when Restore Projects was clicked. | Enter at least one project ID before submitting. |
+| *"… Not found or not deleted: …"* | The listed IDs are not deleted in this program: typed wrong, already active, permanently deleted, or in another program. | Re-check those IDs. |
+| *"… Not restored (&lt;reason&gt;): …"* | The listed IDs were left as they are, for the reason shown: *program is approved*, *published*, or *matches more than one project in this program*. | Nothing can be restored for these here. For the last one, enter the project's full ID. |
+| *"No deleted projects were found matching the provided IDs. …"* or *"None of the project IDs can be restored. …"* | Nothing was restored or changed. The second form lists each ID and why. | Check the IDs and that you are in the right program. |
+| *"Project … can no longer be restored here: …"* | The project changed (for example, was published or the program was approved) while the restore was running. Nothing was changed. | Refresh the page and check the project. |
+| *"This program was being changed at the same time. Try again."* | Another delete or restore on this program was running. | Wait a moment and try again. |
 | *"Failed to restore projects. Please try again."* | A server error prevented the restore. | Verify the project IDs are correct; retry or contact the administrator. |
 
 ---
