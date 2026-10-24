@@ -29,9 +29,13 @@ AS
 BEGIN
     SET NOCOUNT ON;
     -- Shared base -- avoids repeating the same 7-table join 4 times
+    -- 2026-10-24 fix: DISTINCT drops duplicate tProjectComponentCost rows (same project, component
+    -- and cost -- present in migrated data, e.g. myps_db_dev "RBP FY 2024 NCR"), matching sp_RBP's
+    -- own component-level DISTINCT so RBP and RBP Summary totals tally. Without it every duplicate
+    -- was summed, doubling the amounts. Backup: sp_RBPSummary_backup_pre_component_dedup_20261024.sql.
     WITH RBPBase AS (
-        SELECT
-            pr.ProgramId                                       AS ProgramId,
+        SELECT DISTINCT
+            pr.ProgramId                                      AS ProgramId,
             pr.ProjectId                                       AS Project_Id,
             cc.ComponentId                                     AS Activity_Component_Id,
             ISNULL(deo.Name,  pr.DEO)                          AS DEO,
@@ -98,25 +102,27 @@ BEGIN
         GROUP BY ProgramId, DEO, Legislative_District, RO
     ),
 
-    -- 18 -- Convergence and Special Support Program
+    -- 18/29 -- Convergence and Special Support Program
+    -- 2026-10-24: 18 (inactive, still used by migrated data) + 29 (current "CSSP"); the same
+    -- pairing applies to LP below (19 + 30). 29/30 were previously dropped from the summary.
     CSSP AS (
         SELECT
             ProgramId, DEO, Legislative_District, RO,
             COUNT(DISTINCT Project_Id) AS noProjCSSP,
             SUM(Component_Cost)        AS AmountCSSP
         FROM ProjectCostPerCategory
-        WHERE CategoryId = 18
+        WHERE CategoryId IN (18, 29)
         GROUP BY ProgramId, DEO, Legislative_District, RO
     ),
 
-    -- 19 -- Local Program
+    -- 19/30 -- Local Program
     LP AS (
         SELECT
             ProgramId, DEO, Legislative_District, RO,
             COUNT(DISTINCT Project_Id) AS noProjLP,
             SUM(Component_Cost)        AS AmountLP
         FROM ProjectCostPerCategory
-        WHERE CategoryId = 19
+        WHERE CategoryId IN (19, 30)
         GROUP BY ProgramId, DEO, Legislative_District, RO
     ),
 
