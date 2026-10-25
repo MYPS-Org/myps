@@ -1,5 +1,5 @@
 "use-client";
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowUpTrayIcon } from '@heroicons/react/16/solid';
 import RoadList from "../components/Road";
 import RoadSectionList from "../components/RoadSection";
@@ -20,21 +20,28 @@ const Rbia: React.FC = () => {
     const [roadCount, setRoadCount] = useState(0);
     const [roadSectionCount, setRoadSectionCount ] = useState(0);
     const [bridgeCount, setBridgeCount] = useState(0);
+    // Bumped after an import so the active list remounts and re-fetches the imported rows.
+    const [listRefreshKey, setListRefreshKey] = useState(0);
+
+    const fetchInfraCounts = useCallback(async () => {
+        try {
+            const counts = await getInfraCounts();
+            setRoadCount(counts.Data.Roads);
+            setRoadSectionCount(counts.Data.RoadSections);
+            setBridgeCount(counts.Data.Bridge);
+        } catch (error) {
+            console.error('Error fetching infrastructure counts:', error);
+        }
+    }, []);
 
     useEffect(() => {
-        const fetchInfraCounts = async () => {
-            try {
-                const counts = await getInfraCounts();
-                setRoadCount(counts.Data.Roads);
-                setRoadSectionCount(counts.Data.RoadSections);
-                setBridgeCount(counts.Data.Bridge);
-            } catch (error) {
-                console.error('Error fetching infrastructure counts:', error);
-            }
-        };
-
         fetchInfraCounts();
-    }, []);
+    }, [fetchInfraCounts]);
+
+    const handleImported = () => {
+        fetchInfraCounts();
+        setListRefreshKey((k) => k + 1);
+    };
 
     // Function to handle tab switching
     const getTableData = async (tabName: 'roads' | 'roadSections' | 'bridges') => {
@@ -109,15 +116,16 @@ const Rbia: React.FC = () => {
 
             {/* Content Area */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                {selectedTab === 'roads' && <RoadList />}
-                {selectedTab === 'roadSections' && <RoadSectionList />}
-                {selectedTab === 'bridges' && <BridgeList />}
+                {selectedTab === 'roads' && <RoadList key={listRefreshKey} />}
+                {selectedTab === 'roadSections' && <RoadSectionList key={listRefreshKey} />}
+                {selectedTab === 'bridges' && <BridgeList key={listRefreshKey} />}
             </div>
 
             {/* Import Dialog */}
             <ImportDialog
                 isOpen={importDialogOpen}
                 onClose={() => setImportDialogOpen(false)}
+                onImported={handleImported}
             />
         </div>
     );
