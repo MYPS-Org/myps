@@ -5,7 +5,7 @@ import { chainageToLrpConverter, lrpToChainageConverter } from '../../../Project
 import AddInfraDialog from '../../../Project/dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../../dialogs/deleteDialog/DeleteWorkLocationDialog';
 import { useDeleteWorkLocationDialog } from '../../hooks/useDeleteWorkLocationDialog';
-import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType } from '../../../../utils/infraIdGenerator';
+import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType, isNoGeoInfraType } from '../../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../../../Project/Model.d';
 import type { ProgramLatest } from '../../../Program/Model';
 import type { FieldRules } from '../../Model';
@@ -24,13 +24,14 @@ interface WorkLocationTableProps {
   workTypeId: number;
   dropDowns?: ScopeOfWorkEnum[];
   targetUnit: string;
-  infraType: string;
   maxAmount?: number;
   minAmount?: number;
   parentId: number; // The parent MajorItemOfWork's Id — links new locations via WorkItemFK
   disabled?: boolean;
   fieldRules?: FieldRules | null;
   deo?: string;
+  /** Display name for the major item's InfraTypeFK (e.g. "Roads"), resolved by the parent. */
+  infraTypeLabel?: string;
 }
 
 const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
@@ -50,8 +51,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   disabled = false,
   fieldRules,
   deo,
+  infraTypeLabel: infraTypeLabelProp,
 }) => {
   const infraType = majorItemOfWorks.InfraTypeFK || '';
+  // Codes drive logic; show the InfraName (e.g. "Roads") instead of the raw InfraCode (e.g. "R")
+  const infraTypeLabel = infraTypeLabelProp || infraType;
 
   // InfraType guard helpers — based on InfraCode
   // National Road: InfraCode 'R' (not local LR)
@@ -60,6 +64,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const isBridgeType = (): boolean => isBridgeInfraType(infraType);
   // Local Infra: LR, LB, LFCS, LWW, etc. (L-prefix, ≥2 chars)
   const isLocalType = (): boolean => isLocalInfraType(infraType);
+  // Consultancy (CS) / Non-Infra (NI): no geo-location
+  const isNoGeoType = (): boolean => isNoGeoInfraType(infraType);
 
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -426,8 +432,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       // Local infra (LR, LB, LFCS, etc.): free-text ID + coordinates, NO chainage
       const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartX', 'StartY', 'EndX', 'EndY'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
-    } else if (infraType.toLowerCase() === 'cos' || infraType.toLowerCase() === 'ni' || infraType.toLowerCase() === 'non-infra') {
-      // CoS / Non-Infra: no geo-coords
+    } else if (isNoGeoType()) {
+      // Consultancy / Non-Infra: no geo-coords
       const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
     } else {
@@ -985,7 +991,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         <div>
           <h4 className="text-lg font-semibold text-gray-800">Work Locations</h4>
           <p className="text-sm text-gray-600 mt-1">
-            Configure work location for {infraType || 'this project'}
+            Configure work location for {infraTypeLabel || 'this project'}
           </p>
         </div>
       </div>
@@ -1044,7 +1050,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 </div>
 
                 {/* Infrastructure Type Specific Information */}
-                {(infraType?.toLowerCase() === 'road' || infraType?.toLowerCase() === 'roads') ? (
+                {isRoadType() ? (
                   <div className="mt-4 p-3 bg-blue-50 rounded-md">
                     <div className="flex items-center">
                       <div className="text-sm text-blue-700">
@@ -1052,16 +1058,22 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                       </div>
                     </div>
                   </div>
-                ) : (infraType?.toLowerCase() === 'bridge' || infraType?.toLowerCase() === 'bridges') ? (
+                ) : isBridgeType() ? (
                   <div className="mt-4 p-3 bg-green-50 rounded-md">
                     <div className="text-sm text-green-700">
                       <strong>Bridge Infrastructure:</strong> Length and target units are automatically determined based on the selected bridge.
                     </div>
                   </div>
-                ) : (infraType?.toLowerCase() === 'consultancy' || infraType?.toLowerCase() === 'non-infra') ? (
+                ) : isLocalType() ? (
+                  <div className="mt-4 p-3 bg-teal-50 rounded-md">
+                    <div className="text-sm text-teal-700">
+                      <strong>Local Infrastructure ({infraTypeLabel}):</strong> Use coordinate fields to define location. An ID can be entered manually or auto-generated.
+                    </div>
+                  </div>
+                ) : isNoGeoType() ? (
                   <div className="mt-4 p-3 bg-orange-50 rounded-md">
                     <div className="text-sm text-orange-500">
-                      <strong>Consultancy Infrastructure:</strong> No Geo-Location available for this infrastructure.
+                      <strong>Consultancy / Non-Infra:</strong> No Geo-Location available for this infrastructure type.
                     </div>
                   </div>
                 ) : (
@@ -1098,7 +1110,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No work Target</h3>
             <p className="text-sm text-gray-500 mb-4 text-wrap">
-              Get started by adding your first work target. The form will adapt based on your infrastructure type ({infraType || 'Not specified'}).
+              Get started by adding your first work target. The form will adapt based on your infrastructure type ({infraTypeLabel || 'Not specified'}).
             </p>
           </div>
         </div>
@@ -1125,6 +1137,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       <DeleteWorkLocationDialog
         onConfirmDelete={onDelete}
         infraType={infraType}
+        infraTypeLabel={infraTypeLabel}
       />
     </div>
   );
