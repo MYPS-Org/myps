@@ -1,3 +1,45 @@
+# UserManual.md — Changelog v3.15 → v3.16 (FE/UserManual.md)
+
+**Date:** October 25, 2026
+**Branch:** feature/project-group-bulk-membership (uncommitted, on top of `1f151295`)
+**Source:** UAT S05 issue #452 ("Add Projects to a Project Group", "Remove Projects from a Project Group"). Implemented under `documents/plans/project-group-bulk-membership.md`, with the user's decisions D1–D3: add by pasting a list of Project IDs, remove with checkboxes, partial success on add, and a project in another group is never moved. Verified by `e2e/tests/project-group-bulk-membership.spec.ts` against `localhost/myps_db_dev`.
+
+---
+
+## 1. Document Header
+
+| Field | v3.15 | v3.16 |
+|-------|-------|-------|
+| Version | 3.15 | 3.16 |
+| Date | October 24, 2026 | October 25, 2026 |
+
+A v3.16 row was added to the Revision History table.
+
+---
+
+## 2. Section 5.5.3 — Project Group Details
+
+| # | Item | Old | New | Reason |
+|---|------|-----|-----|--------|
+| 1 | Project table columns | "Project ID, Category, Description, Origin, City, Legislative District, Operating Unit, Implementing Office, DEO, Region, Agency, Created By, Created Date, Add Project" | "a selection checkbox, Project ID, Category, Description, Implementing Office, Region, Created Date, Actions (trash icon)" | The old list named columns the table does not show. The checkbox column is new. |
+| 2 | Step 3 (add) | "To add a project: click **Add Project** and select the project." | Click **Add Projects**, paste or type the Project IDs (commas, semicolons, spaces, tabs or new lines), click **Add**. The result lists each ID as **Added**, **Already in this group**, **In another group (not moved)** (with that group's name, and how to move it) or **Not found**. **Add more** clears the box; **Close** returns to the group and keeps unsaved Name/Description edits. | The old dialog looked up one exact ID at a time, and the save was all-or-nothing: one unknown or already-grouped ID rejected the whole list. |
+| 3 | Step 4 (remove) | *(no step)* | **New:** tick rows (or the header checkbox to select all), click **Remove selected (N)**, or click a row's trash icon; check the list and click **Remove**. | Bulk remove was missing. The old per-row remove required typing DELETE in a dialog titled "Delete Program" that said the item would be permanently removed from the system. |
+| 4 | Note | *(no note)* | **New:** removing a project from a group does not delete the project; it can be added back here or to another group. | The remove confirm no longer asks for DELETE, because nothing is deleted. |
+| 5 | On Success | "Selected projects are compiled in the group and displayed in the projects table." | Separate outcomes for Add (Added projects appear when the dialog closes) and Remove (a message with the count, rows disappear, and a second message lists any project no longer in this group). | Follows the new flows. |
+| 6 | Field Reference | *(none)* | **New** table: PG-A03 Add Projects, PG-F04 Project IDs (at most 500), PG-A04 Add, PG-A05 Add more, PG-A06 Close, PG-F05 Row checkbox, PG-F06 Select-all checkbox, PG-A07 Remove selected (N), PG-A08 Trash icon, PG-A09 Remove. Numbering continues from Section 5.5.2 (PG-F03, PG-A02). | Documents the new controls. |
+| 7 | Validation messages | *(none)* | **New:** "Please enter at least one Project ID." and "You can add at most 500 projects at a time." | Both are shown inline in the dialog; the second is also the server's refusal. |
+
+---
+
+## 3. Commits Covered
+
+| Commit | Message | Impact |
+|--------|---------|--------|
+| `1f151295` | docs(plans): add plan for bulk add/remove of projects in Project Group Details | The plan and decisions this entry follows |
+| *(uncommitted)* | Project Groups: paste-list add with per-ID results, checkbox/select-all remove scoped to the group (`ProjectGroupController.AddProject` / `DeleteProject`, `AddProjectDialog`, `RemoveProjectsDialog`, `ProjectGroupDetails`) | Section 2 rows 1–7 |
+
+---
+
 # UserManual.md — Changelog v3.13 → v3.14 (FE/UserManual.md)
 
 **Date:** October 15, 2026

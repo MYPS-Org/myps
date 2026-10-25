@@ -1,4 +1,4 @@
-import type { ProjectGroupFilter, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns, UserGroups, updateProjectGroupModel, ProjectList } from "./Model.d";
+import type { ProjectGroupFilter, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns, UserGroups, updateProjectGroupModel, AddProjectsToGroupResult, RemoveProjectsFromGroupResult } from "./Model.d";
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 
 export const fetchProjectGroup = async (data: PaginatedRequest<ProjectGroupFilter>) => {
@@ -37,7 +37,7 @@ export const fetchProjectGroupByName = async (name: string) => {
     }
 }
 
-export const updateProjectGroup = async (data: updateProjectGroupModel) => {
+export const updateProjectGroup = async (data: Pick<updateProjectGroupModel, 'GroupDetails'>) => {
     try {
         const response = await httpClient.post<ProjectGroupDetailsModel>(`/projectgroup/updateprojectgroupdetails`, data, {
             preloaderMessage: 'Updating project group...'
@@ -61,38 +61,26 @@ export const deleteProjectGroup = async (groupId: string) => {
     }
 }
 
-export const fetchProjectById = async (projectId: string) => {
-    try {
-        const response = await httpClient.post<{Project: ProjectList}>(`/projectgroup/searchproject`, { ProjectId: projectId }, {
-            preloaderMessage: 'Loading project details...'
-        });
-        return response;
-    } catch (error) {
-        console.error('Error fetching project by ID:', error);
-        throw error;
-    }
-}
-
 export const addProjectToGroup = async (data: { ProjectId: string[], GroupId: string }) => {
     try {
-        const response = await httpClient.post<ErrorResponse>(`/projectgroup/addproject`, data, {
-            preloaderMessage: 'Adding project to group...'
+        const response = await httpClient.post<AddProjectsToGroupResult>(`/projectgroup/addproject`, data, {
+            preloaderMessage: 'Adding projects to group...'
         });
         return response;
     } catch (error) {
-        console.error('Error adding project to group:', error);
+        console.error('Error adding projects to group:', error);
         throw error;
     }
 };
 
-export const deleteProject = async (projectId: string) => {
+export const removeProjectsFromGroup = async (data: { GroupId: string, ProjectIds: string[] }) => {
     try {
-        const response = await httpClient.post<ErrorResponse>(`/projectgroup/deleteproject`, { ProjectId: projectId }, {
-            preloaderMessage: 'Deleting project...'
+        const response = await httpClient.post<RemoveProjectsFromGroupResult>(`/projectgroup/deleteproject`, data, {
+            preloaderMessage: 'Removing projects from group...'
         });
         return response;
     } catch (error) {
-        console.error('Error deleting project:', error);
+        console.error('Error removing projects from group:', error);
         throw error;
     }
 }

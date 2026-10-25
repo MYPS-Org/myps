@@ -36,6 +36,8 @@ export interface updateProjectGroupModel {
 
 export interface ProjectList {
     Id?: number;
+	IsLumpSum?: boolean;
+	StageName?: string;
 	ProgramId?: string;
 	ProgramName?: string;
 	ProjectId: string;
@@ -89,4 +91,22 @@ export interface UserGroups {
 
 export interface ProjectGroupsDropDowns extends PaginationResponse<ProjectGroupList> {
     Dropdowns: { UserGroups: UserGroups[] }
+}
+
+/** Response of /projectgroup/addproject. IDs are Project IDs, even when the request matched by PK. */
+export interface AddProjectsToGroupResult {
+    Message: string;
+    Title: string;
+    AddedProjectIds: string[];
+    AlreadyInGroupProjectIds: string[];
+    InOtherGroupProjects: { ProjectId: string; GroupName: string }[];
+    NotFoundProjectIds: string[];
+}
+
+/** Response of /projectgroup/deleteproject. NotInGroupProjectIds were left unchanged. */
+export interface RemoveProjectsFromGroupResult {
+    Message: string;
+    Title: string;
+    RemovedProjectIds: string[];
+    NotInGroupProjectIds: string[];
 }

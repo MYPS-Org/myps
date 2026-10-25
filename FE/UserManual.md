@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.15
-**Date:** October 24, 2026
+**Version:** 3.16
+**Date:** October 25, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -39,6 +39,7 @@
 | 3.13 | October 14, 2026 | RP | RP | Section 5.1 Dashboard: the header title is now **Program Stage**, with a line under it naming the stage the figures cover (a stage's code and full name, or "All budget stages"); new **Program Type** and **Program Stage Name** filters beside Category (Live DB only), which narrow every section together with Category and the fiscal year; the regional map's badge names the chosen stage; choosing a header stage clears a stage selected in the Project Stages chart; the details of the FY Infrastructure Budget, Active Portfolio Projects and Publication Compliance cards list their projects per program (program rows adding up to the card, each expanding to its projects in Program Details' columns, no per-project amount); selecting a project opens that project's details page (a Lump Sum Project opens in Lump Sum Projects) instead of the Projects list, and its Project ID can be opened in a new tab; a Common Outcome explains why a project's total cost can exceed what the Dashboard counts; the region tables follow DPWH's region order (tOptionAdminAreaRegion.Hierarchy) and Northern/Southern Luzon show their amount; the Annual Budget chart prints each year's two amounts and no longer disappears when a year is selected; the Project Stages box became **Project Categories**, which applies the Category filter; changing the year or a filter keeps the page where it is, with sections showing their previous figures marked **Updating…** while they reload; Step-by-Step, pinned-header step, On Success and Common Outcomes updated |
 | 3.14 | October 15, 2026 | RP | RP | Section 5.1 Dashboard: every program is read at one program stage, as Program Details shows it — the stage chosen in **Program Stage Name**, or else the program's current stage (the line under the title and the region map badge read **Current program stages**; the dropdown's first choice is now **Current stages**). A program is shown under its name at that stage (e.g. *NEP 2025 OO-1*), and its projects, project count ("*5,121 of 5,121 projects*") and amounts are the ones Program Details lists for that stage; the **at \<stage\>** marker on project rows was removed, since all of a program's projects are now at its stage. Projects that stopped at an earlier stage than their program's current stage count only when that stage is chosen. "What counts toward a fiscal year", the Summary cards row and Common Outcomes updated, including why the Programs list can show a slightly different count or amount for a stage. In a card's details, a program's name opens its Program Details in a new tab and the footer's Project Repository button was removed; the FY Regional Infrastructure Portfolio no longer shows a per-project amount or page total, and its project summary's Project Repository opens that project's details page in a new tab; Project Categories shows each share to two decimal places |
 | 3.15 | October 24, 2026 | RP | RP | Section 5.2.5 Batch Restore Projects updated: opened from **Batch Actions → Batch Restore** (the Add Existing Project button is gone); same users as Batch Delete; projects come back at the stage they were deleted from and the program Total Cost is updated; nothing is restored in an Approved program or for a published project; permanently deleted (incl. itemized) projects cannot be restored; messages now name each ID not restored and why |
+| 3.16 | October 25, 2026 | RP | RP | Section 5.5.3 Project Group Details updated: **Add Projects** now takes a pasted list of Project IDs (up to 500) and reports each one as Added, Already in this group, In another group (not moved) or Not found, with **Add more** to continue; projects are removed by ticking rows (or select-all) and **Remove selected (N)**, or by the row's trash icon, with one confirmation and no typing of DELETE; removing does not delete the project; project table column list corrected; Field Reference and validation messages added |
 
 ### Consultant
 
@@ -2164,17 +2165,59 @@ In the modification form, major items can be copied to a different component usi
 
 **Map:** A map showing the general geographic location of the projects in the group is displayed alongside the group fields.
 
-**Project table columns:** Project ID, Category, Description, Origin, City, Legislative District, Operating Unit, Implementing Office, DEO, Region, Agency, Created By, Created Date, Add Project
+**Project table columns:** a selection checkbox, Project ID, Category, Description, Implementing Office, Region, Created Date, Actions (trash icon)
+
+A project can belong to only one project group at a time.
+
+**Field Reference:**
+
+| Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
+|---|---|---|---|
+| PG-A03 | Add Projects | Opens the Add Projects to Group dialog | Button |
+| PG-F04 | Project IDs | The Project IDs to add, pasted or typed. Separate them with commas, semicolons, spaces, tabs or new lines. A live count under the box shows how many distinct IDs were entered; repeated IDs are counted once | Text area; required; at most 500 IDs per add |
+| PG-A04 | Add | Adds the entered projects to the group and shows the result | Button |
+| PG-A05 | Add more | Clears the box to add another list, without closing the dialog | Button (result view) |
+| PG-A06 | Close | Closes the dialog. The projects table refreshes if anything was added | Button (result view) |
+| PG-F05 | Row checkbox | Selects a project for removal | Checkbox |
+| PG-F06 | Select-all checkbox | Selects or clears every project in the table. Shows a dash when only some are selected | Checkbox (table header) |
+| PG-A07 | Remove selected (N) | Opens the remove confirmation for the N selected projects. Disabled when nothing is selected | Button (red) |
+| PG-A08 | Trash icon | Opens the remove confirmation for that one project | Button (per row) |
+| PG-A09 | Remove | Confirms removing the listed projects from the group | Button (confirmation) |
 
 **Step-by-Step:**
 
 1. Open a project group from the list.
 2. To update group info: edit the fields and click **Update**.
-3. To add a project: click **Add Project** and select the project.
+3. To add projects:
+   1. Click **Add Projects**.
+   2. Paste or type the Project IDs. You can copy a list of IDs from another screen or a spreadsheet and paste it in.
+   3. Click **Add**. The dialog then shows what happened to each ID:
+      - **Added**: the project is now in this group.
+      - **Already in this group**: no change was needed.
+      - **In another group (not moved)**: the project belongs to the group named next to its ID and was left there. To move it here, open that group, remove the project, and then add it here.
+      - **Not found**: no project has that ID. Check it for typing errors.
+   4. Click **Add more** to add another list, or **Close** to return to the group. Edits you have made to the Name or Description but not yet saved are kept.
+4. To remove projects:
+   1. Tick the checkbox of each project to remove, or tick the checkbox in the table header to select them all.
+   2. Click **Remove selected (N)**. To remove a single project, you can also click the trash icon on its row.
+   3. Check the list in the confirmation and click **Remove**.
+
+> Removing a project from a group does **not** delete the project. It only unlinks the project from this group. The project can still be opened from the Projects section, and it can be added back to this group or to another one.
 
 [Insert Screenshot: Project Group Details Screen]
 
-**On Success:** Selected projects are compiled in the group and displayed in the projects table.
+[Insert Screenshot: Add Projects to Group Dialog — result view]
+
+**On Success:**
+- **Add:** the Added projects appear in the projects table when the dialog is closed.
+- **Remove:** a message confirms how many projects were removed, and their rows disappear from the table. If any selected project was no longer in this group, a second message lists it.
+
+**Validation messages:**
+
+| Message | Cause |
+|---|---|
+| Please enter at least one Project ID. | **Add** was clicked with an empty box |
+| You can add at most 500 projects at a time. | More than 500 distinct IDs were entered; split the list |
 
 ---
 
