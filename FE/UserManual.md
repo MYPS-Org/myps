@@ -2290,7 +2290,7 @@ In the modification form, major items can be copied to a different component usi
 
 **Toggle Active / Inactive**
 
-All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference.
+All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference. **Exception:** Project Details **Category** and **Thrust** are offered in the project form according to their validity years, not their Active status (see 5.7.6).
 
 To toggle a record's status:
 1. Locate the record in the table.
@@ -2430,6 +2430,24 @@ To toggle a record's status:
 2. Click **Add**.
 3. Enter **Program Name**, **Sub-Program**, **Activity**, **Seq #**, **Description**, **Infra Type**, **Valid From**, and **Valid To**.
 4. Click **Check** to save.
+
+**Filtering Categories and Thrusts**
+
+The **Category** and **Thrust** sub-tabs each have two filters beside the Search box. They combine with each other and with Search, and the record count under the table shows how many rows match.
+
+| Filter | Options | What it shows |
+|--------|---------|---------------|
+| Validity | All Validity, Valid, Not Valid | **Valid**: rows whose end year has not yet passed. For a Category the end year is **Valid Until**; for a Thrust it is **Valid To**. An end year of 0 means no expiry (shown as **No expiry** for a Category and **Present** for a Thrust), so those rows are always Valid. A row whose end year is the current year stays Valid until that year ends. A Thrust's **Valid From** year is not considered. **Not Valid**: rows whose end year has passed. |
+| Status | All Statuses, Active, Inactive | Rows by their **Active** column. |
+
+**What Valid and Active/Inactive do for Category and Thrust**
+
+- **Validity decides what can be picked.** The project form's **Category** and **Sub-Category** (Thrust) dropdowns offer only **Valid** rows, whether they are Active or Inactive. A project that already has a Category or Sub-Category that is no longer valid still shows that value.
+- **Active/Inactive matters only once a row is no longer valid.** When a project is saved, its Category and Sub-Category are accepted if they are **Active or Valid**:
+  - **Valid** (Active or Inactive): offered in the dropdown and accepted on save.
+  - **Not Valid but Active**: no longer offered for a new selection, but projects that already use it can still be saved with it.
+  - **Not Valid and Inactive**: fully retired. A project that uses the Category is refused on save with *"Selected Category '…' is not valid."*; a retired Sub-Category is accepted while the project's Category and Sub-Category are left unchanged, but changing the Category while keeping that Sub-Category is refused with *"Selected Sub-Category '…' is not valid."*. A project import whose program year is after the Category's Valid Until year is refused with *"Category is no longer valid"*.
+- **To stop a Category or Thrust from being offered in the project form, set its Valid Until / Valid To to a past year.** Setting it to Inactive alone does not remove it from the dropdown while it is still valid.
 
 ---
 
