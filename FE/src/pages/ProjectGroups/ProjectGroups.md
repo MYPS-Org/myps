@@ -16,9 +16,11 @@ ProjectGroups/
     index.ts                          # Re-exports all dialog components
     AddProjectGroupDialog.tsx         # Create a new project group
     DeleteProjectGroupDialog.tsx      # Confirm-delete a project group (requires typing "delete")
-    AddProjectDialog.tsx              # Search + batch-add projects to a group
-    DeleteProjectDialog.tsx           # Confirm-delete a project from a group (requires typing "delete")
+    AddProjectDialog.tsx              # Paste a list of Project IDs, add them, show the per-ID result
+    RemoveProjectsDialog.tsx          # Confirm removing one or many projects from the group (no typing)
     FilterProjectGroupDialog.tsx      # Filter the project groups list
+  components/
+    IdChipGroup.tsx                   # "Title (n)" + up to ten ID chips + "+N more" (copy of Program's PreviewGroup)
   Views/
     ProjectGroup.tsx                  # List page — paginated group list
     ProjectGroupDetails.tsx           # Detail page — edit group info + manage projects
@@ -140,6 +142,28 @@ interface ProjectGroupsDropDowns extends PaginationResponse<ProjectGroupList> {
 
 > The list page fetch (`fetchProjectGroup`) returns the group list AND the UserGroups dropdown in a single response. The dropdown is passed directly to `AddProjectGroupDialog` as `dropdownData`.
 
+### `AddProjectsToGroupResult` / `RemoveProjectsFromGroupResult` (membership responses)
+
+```ts
+interface AddProjectsToGroupResult {
+  Message: string;
+  Title: string;
+  AddedProjectIds: string[];
+  AlreadyInGroupProjectIds: string[];
+  InOtherGroupProjects: { ProjectId: string; GroupName: string }[];
+  NotFoundProjectIds: string[];      // as typed
+}
+
+interface RemoveProjectsFromGroupResult {
+  Message: string;
+  Title: string;
+  RemovedProjectIds: string[];
+  NotInGroupProjectIds: string[];    // not found, ungrouped, or in another group; left unchanged
+}
+```
+
+> Every ID in these results is a **Project ID**, even when the request matched a project by its `ProjectPK`. Both responses are 200 even when nothing changed.
+
 ### `UserGroups` (local mirror of RBAC user group)
 
 ```ts
@@ -166,11 +190,12 @@ All calls use `httpClient.post<T>(url, body, options)` from `../../services/http
 | `fetchProjectGroup(data)` | `POST /projectgroup/showprojectgroups` | `ProjectGroupPagination` | `ProjectGroupsDropDowns` | Returns list + UserGroups dropdown |
 | `addProjectGroup(data)` | `POST /projectgroup/addprojectgroup` | `AddProjectGroupModel` | `AddProjectGroupModel` | Response includes `NewGroupId` for redirect |
 | `fetchProjectGroupByName(name)` | `POST /projectgroup/projectgroupdetails` | `{ GroupId: name }` | `ProjectGroupDetailsModel & UserGroups` | `name` is a `GroupId` string |
-| `updateProjectGroup(data)` | `POST /projectgroup/updateprojectgroupdetails` | `updateProjectGroupModel` | `ProjectGroupDetailsModel` | Full group + project list |
+| `updateProjectGroup(data)` | `POST /projectgroup/updateprojectgroupdetails` | `{ GroupDetails }` | `ProjectGroupDetailsModel` | Group fields only (Name, Description, User Group). The DTO has no `Projects` list: membership is saved only by `addproject` / `deleteproject` |
 | `deleteProjectGroup(groupId)` | `POST /projectgroup/deleteprojectgroup` | `{ GroupId: groupId }` | `ErrorResponse` | GroupId is the string key |
-| `fetchProjectById(projectId)` | `POST /projectgroup/searchproject` | `{ ProjectId: projectId }` | `{ Project: ProjectList }` | Exact match by ProjectId |
-| `addProjectToGroup(data)` | `POST /projectgroup/addproject` | `{ ProjectId: string[], GroupId: string }` | `ErrorResponse` | Accepts a batch array of project IDs |
-| `deleteProject(projectId)` | `POST /projectgroup/deleteproject` | `{ ProjectId: projectId }` | `ErrorResponse` | Removes project from whichever group it is in |
+| `addProjectToGroup(data)` | `POST /projectgroup/addproject` | `{ ProjectId: string[], GroupId: string }` | `AddProjectsToGroupResult` | Partial success: adds only ungrouped projects, reports the rest. At most 500 IDs (400 above that). Never moves a project out of another group: the write is conditional, and a concurrent change gives 409 "Try Again". A project still pointing at a deleted group counts as ungrouped |
+| `removeProjectsFromGroup(data)` | `POST /projectgroup/deleteproject` | `{ GroupId: string, ProjectIds: string[] }` | `RemoveProjectsFromGroupResult` | Nulls `ProjectGroupFK` only where it equals **this** group (conditional write; 409 "Try Again" on a concurrent change); other IDs come back in `NotInGroupProjectIds` |
+
+> The action names stay `AddProject` / `DeleteProject`, so the existing `vUserActionPermission` rows still apply. `SearchProject` still exists on the API but the FE no longer calls it.
 
 ---
 
@@ -258,8 +283,8 @@ Full CRUD page for a single project group: edit group metadata and manage the pr
 | `formData` | `updateProjectGroupModel` | Editable copy of GroupDetails + Projects (what gets submitted) |
 | `isLoading` | `boolean` | Loading/skeleton state |
 | `isAddProjectOpen` | `boolean` | Controls `AddProjectDialog` |
-| `isDeleteProjectOpen` | `boolean` | Controls `DeleteProjectDialog` |
-| `selectedProject` | `{ ProjectId: string }` | Project row pending delete |
+| `removeIds` | `string[] \| null` | Project IDs awaiting the remove confirm; `RemoveProjectsDialog` is open while non-null |
+| `selectedIds` | `Set<string>` | Ticked rows, keyed by `ProjectId`. Cleared on every refresh |
 
 ### Initialization
 
@@ -283,31 +308,36 @@ UserGroup dropdown is populated from `projectGroupDetails.UserGroups` (loaded wi
 
 ### Update Flow
 
-Click **Update** → `handleUpdate()` → `updateProjectGroup(formData)` → `POST /projectgroup/updateprojectgroupdetails`. No re-fetch on success; current `formData` remains as-is.
+Click **Update** → `handleUpdate()` → `updateProjectGroup({ GroupDetails: formData.GroupDetails })` → `POST /projectgroup/updateprojectgroupdetails`. On success the saved copy (`projectGroupDetails.GroupDetails`) is set from `formData`, so the dialogs show the new name. No re-fetch.
+
+> Until 2026-10-25 the page sent `formData.Projects` too, and the DTO bound them as `ProjectsInGroup` (string `Category`). The rows carry a numeric `Category`, so Update failed with 400 "Category: Please provide a valid text value." for any group with projects.
 
 ### Projects Table
 
-Columns: Project ID (blue link → `/projects/project-details/{ProjectId}`), Category, Description, Origin, City, Legislative District, Operating Unit, Implementing Office, DEO, Region, Agency, Created By, Created Date, Actions (red trash delete).
+Columns: a row checkbox (header checkbox = select all; indeterminate, set through a ref, when only some rows are ticked), Project ID (blue link → `/projects/project-details/{ProjectId}:{StageName}`, or `/lumpsum/{Id}` for a Lump Sum Project, as in the Projects list; a bare ProjectId shows "Project Not Available"), Category, Description, Implementing Office, Region, Created Date, Actions (red trash = remove this one).
 
 Rendered from `projectGroupDetails.Projects` (display state, not `formData.Projects`).
 
-### Add Project Flow
+Header buttons: **Remove selected (N)** (red, disabled at N = 0) → `setRemoveIds([...selectedIds])`, and **Add Projects** → opens `AddProjectDialog`.
 
-1. Click **Add Project** → `AddProjectDialog` opens.
-2. User enters an exact `ProjectId` and clicks the search icon (or presses Enter).
-3. Dialog calls `fetchProjectById(searchTerm)` → `POST /projectgroup/searchproject` → shows the matched `ProjectList` row.
-4. User clicks the `+` icon to add the match to a local staging list.
-5. Multiple searches can be made; each match is added to the staging list.
-6. Click **Submit** → `addProjectToGroup({ ProjectId: string[], GroupId })` → batch insert.
-7. On success: dialog calls `onSubmit(selectedProjects)` → parent calls `handleAutoRefresh()` → re-fetches full group details.
+### Refresh after add/remove: `refreshProjects()`
 
-### Delete Project Flow
+Both dialogs call `onClose(changed)`. When `changed` is true the page calls `refreshProjects()`, which re-fetches the details and replaces **only** `Projects` in both states, then clears the selection.
 
-1. Click the red trash icon on a project row → `handleDeleteOpen(project.ProjectId)` → sets `selectedProject` + opens `DeleteProjectDialog`.
-2. `DeleteProjectDialog` calls `deleteProject(projectId)` → `POST /projectgroup/deleteproject`.
-3. On success: parent `handleDeleteProject(projectId)` removes from both `formData.Projects` and `projectGroupDetails.Projects` optimistically (no re-fetch).
+> **Do not refresh through `fetchProjectGroupDetails`.** It sets `isLoading`, and `if (isLoading) return <skeleton/>` unmounts the whole page, including any open dialog. It also overwrites `formData.GroupDetails`, which throws away unsaved Name/Description edits.
 
-> **Important:** The delete API call is made inside the dialog component itself. The parent handler only manages local state cleanup after the dialog calls `onSubmit`.
+### Add Projects Flow
+
+1. Click **Add Projects** → `AddProjectDialog` opens.
+2. The user pastes IDs. `parseProjectIds` splits on `/[,;\s]+/` and drops empties and case-insensitive duplicates (the first spelling wins). A live "N project ID(s)" count shows below.
+3. **Add**: an empty list or more than 500 IDs gives an inline error, and no request is sent. Otherwise one `addProjectToGroup` call is made, and the dialog switches to its result view (`IdChipGroup`s: Added, Already in this group, In another group (not moved) as `ProjectId — GroupName`, Not found).
+4. **Add more** clears back to the input. **Close**, the X and the backdrop all call `onClose(changed)`. Closing is ignored while a request is in flight, so `changed` is not lost.
+
+### Remove Projects Flow
+
+1. A row's trash icon sets `removeIds = [ProjectId]`. **Remove selected (N)** sets `removeIds` to the selection.
+2. `RemoveProjectsDialog` shows "Remove N project(s) from *Group*? The projects are not deleted and can be added back." with the IDs as chips. No typing is required.
+3. **Remove** → `removeProjectsFromGroup({ GroupId, ProjectIds })`. A success (or info, if nothing was removed) toast shows the API `Message`; `NotInGroupProjectIds` gets a second info toast. Then `onClose(removed > 0)`. On a failure the dialog stays open.
 
 ---
 
@@ -338,22 +368,21 @@ Rendered from `projectGroupDetails.Projects` (display state, not `formData.Proje
 
 | Aspect | Detail |
 |---|---|
-| Purpose | Search projects by ID and batch-add to the current group |
-| Props | `isOpen`, `onClose`, `onSubmit`, `groupId?: string` |
-| Search | Exact `ProjectId` match via `fetchProjectById` — one result at a time |
-| Staging | Results are added to an in-dialog list; user can queue multiple before submitting |
-| On success | `addProjectToGroup({ ProjectId: string[], GroupId })` → calls `onSubmit(selectedProjects)` |
-| Reset | Clears search and staging list on open |
+| Purpose | Paste a list of Project IDs and add them to the current group |
+| Props | `isOpen`, `groupId: string`, `groupName: string`, `onClose(changed: boolean)` |
+| Input | One textarea; separators `, ; space tab newline`; client-side dedupe; at most 500 IDs |
+| Result | Per-ID breakdown from `AddProjectsToGroupResult`; **Add more** / **Close** |
+| Reset | Clears everything when `isOpen` becomes true |
 
-### `DeleteProjectDialog`
+### `RemoveProjectsDialog`
 
 | Aspect | Detail |
 |---|---|
-| Purpose | Remove a project from the group |
-| Props | `isOpen`, `onClose`, `onSubmit`, `project: ProjectList` |
-| Confirmation | User must type `"delete"` (case-insensitive) |
-| On success | `deleteProject(project.ProjectId)` → calls `onSubmit(project.ProjectId)` → parent removes from local state |
-| Note | Dialog title incorrectly reads "Delete Program" — copy-paste artifact from Program module |
+| Purpose | Remove one or many projects from the group (unlink; the projects are not deleted) |
+| Props | `projectIds: string[] \| null` (open while non-null), `groupId`, `groupName`, `onClose(changed: boolean)` |
+| Confirmation | Plain Cancel / **Remove**. No typing, because nothing is deleted |
+| On success | Toasts the API `Message` (+ `NotInGroupProjectIds`), then `onClose(RemovedProjectIds.length > 0)` |
+| Note | Replaces `DeleteProjectDialog`, whose "Delete Program" title and "permanently remove" text were wrong |
 
 ### `FilterProjectGroupDialog`
 
@@ -383,16 +412,15 @@ ProjectGroupDetails.tsx (mount from :groupId param)
         └── response.Data → projectGroupDetails + formData
 
 ProjectGroupDetails.tsx → Update button
-  └── updateProjectGroup(formData)       // no re-fetch; formData retained as-is
+  └── updateProjectGroup({ GroupDetails })  // group fields only; no re-fetch
 
-ProjectGroupDetails.tsx → Add Project → AddProjectDialog
-  └── fetchProjectById(searchTerm)       // lookup
-  └── addProjectToGroup({ ProjectId[], GroupId })
-        └── onSubmit → handleAutoRefresh → fetchProjectGroupByName (full re-fetch)
+ProjectGroupDetails.tsx → Add Projects → AddProjectDialog
+  └── addProjectToGroup({ ProjectId[], GroupId })   // one call per Add; result shown in the dialog
+        └── onClose(changed) → refreshProjects()    // Projects only; no skeleton, edits kept
 
-ProjectGroupDetails.tsx → Delete Project → DeleteProjectDialog
-  └── deleteProject(projectId)           // API call in dialog
-        └── onSubmit → handleDeleteProject → local state removal only
+ProjectGroupDetails.tsx → Remove selected (N) / row trash → RemoveProjectsDialog
+  └── removeProjectsFromGroup({ GroupId, ProjectIds[] })
+        └── onClose(changed) → refreshProjects()
 ```
 
 ---
@@ -401,7 +429,7 @@ ProjectGroupDetails.tsx → Delete Project → DeleteProjectDialog
 
 - **Sorting not implemented**: Sort logic in `ProjectGroup.tsx` is wrapped in a commented-out `#region Sorting Logic` block. Column headers are not sortable in the current release.
 - **Map View placeholder**: The detail page right column contains a static placeholder (pin SVG + "Map View" label). No map library is integrated yet.
-- **Dialog title mismatch**: `DeleteProjectDialog` and `DeleteProjectGroupDialog` both show the title "Delete Program" — copy-paste artifact from the Program module; does not affect functionality.
+- **Dialog title mismatch**: `DeleteProjectGroupDialog` shows the title "Delete Program", a copy-paste artifact from the Program module. It does not affect functionality. (`DeleteProjectDialog` had the same title; it was replaced by `RemoveProjectsDialog`.)
 - **No loading indicator on detail update**: `handleUpdate` sets `isLoading` but no skeleton or spinner is shown in the form area during update.
 - **Commented-out code**: `fetchProjectGroupEnums` call in `handleOpenDialog`, `editProjectGroup` import, breadcrumb nav, status badge helper — all commented out and pending future use.
-- **`deleteProject` local state note**: After deleting a project via the dialog, only `formData.Projects` and `projectGroupDetails.Projects` are updated locally. If the user clicks Update afterwards, the `formData.Projects` (already without the deleted project) is re-submitted, which is consistent. However, if `handleUpdate` ran first and then delete happened, no additional backend sync is needed.
+- **Membership is not saved by Update**: `UpdateProjectGroupDetails` ignores `dto.Projects`. Adding and removing projects happen only through `AddProject` / `DeleteProject`, so `formData.Projects` is display-only.

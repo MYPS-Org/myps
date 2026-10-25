@@ -1,6 +1,6 @@
 # Plan: Bulk add / remove projects in Project Group Details
 
-Status: Planned
+Status: Implemented
 Created: 2026-10-25
 Branch: `feature/project-group-bulk-membership` (off `main` @ 7c2bf06e)
 Source: user request, 2026-10-25: "make it easier for a user to add or remove projects from a project
@@ -278,3 +278,32 @@ Add rows to the field table for the textarea, Add, Add more, the checkboxes and 
    - SQL (localhost): `SELECT TOP 20 * FROM tTransactionLog WHERE AffectedColumn='ProjectGroupFK' ORDER BY CreatedDate DESC` shows one row per add/remove.
 4. E2E: new `e2e/tests/project-group-bulk-membership.spec.ts` following `e2e/CLAUDE.md`. Use `login(page)` from `helpers/auth`. Pick projects by asking the DB/API (don't hard-code IDs). Wait for the dialog/result state, not loading text. Model it on `e2e/tests/program-detail-batch-actions.spec.ts`. Flow: create group → paste-add 2 valid + 1 bogus → assert Added 2 / Not found 1 → close → table has 2 rows → select-all → Remove → table empty → delete group (cleanup in teardown).
 5. Then the repo workflow: `/code-review`, check it against these Acceptance Criteria, then `/create-pr-issue`. Mark this plan `Status: Implemented` and add a Completion Log.
+
+## Completion Log
+Date: 2026-10-25
+- Implementation: B1 `AddProject` is partial success (per-ID Added / AlreadyInGroup / InOtherGroup with group name / NotFound, 200 even when nothing is added, 500-ID cap). B2 `DeleteProject` is bulk (`GroupId` + `ProjectIds[]`) and only unlinks rows whose `ProjectGroupFK` is this group; the rest are reported in `NotInGroupProjectIds`. Both open their transaction after all reads and roll back with `CancellationToken.None`; the PK→ProjectId lookup and normalisation are shared private helpers. F1–F5 as planned: result types, `removeProjectsFromGroup`, `fetchProjectById`/`deleteProject` removed, `IdChipGroup`, a rewritten `AddProjectDialog`, `RemoveProjectsDialog` (renamed with `git mv`), and `ProjectGroupDetails` with selection, select-all with indeterminate state, **Remove selected (N)**, a per-row trash using the same confirm, and `refreshProjects()` (no skeleton, unsaved edits kept). E2E spec `e2e/tests/project-group-bulk-membership.spec.ts` (2 tests).
+- Documentation: `FE/UserManual.md` §5.5.3 rewritten (steps, result groups, Field Reference PG-A03…PG-A09 / PG-F04…F06, validation messages, corrected column list), version 3.15 → 3.16 with a Revision History row; `documents/UserManual_Changelog.md` v3.15 → v3.16 entry; `FE/src/pages/ProjectGroups/UserManual.md` and `ProjectGroups.md` updated; `e2e/CLAUDE.md` coverage map row and data-testid note.
+Deviations / flags:
+- **E2E never deletes the group.** The planned flow ended with "delete group (cleanup in teardown)", but Delete Project Group is a soft delete and must not be run. The spec reuses two fixture groups (`E2E project group bulk membership fixture` and `… (other)`), creating them only when missing and leaving them empty. It also gained an API test for A6/A9/R6/S4/C2.
+- **Add stays enabled on an empty box** (F4 said to disable it at count 0), so that A2's inline error can actually be seen. It is disabled only while a request is in flight. Closing the dialog is also ignored while in flight, so `changed` is not lost.
+- **The A6 PK case is only exercised when a picked project's PK differs from its ProjectId.** On `localhost/myps_db_dev` the projects picked were at BP (PK = ProjectId).
+- **AddProject also reports a matched view row with no `tProjects` row as Not found**, so every ID lands in exactly one group. This guard was added after the e2e run (build re-verified, e2e not re-run).
+- **C2 rationale:** EF Core 8 sends `Contains` as one OPENJSON parameter, so the 2100-parameter limit does not apply. The 500 cap stays as a UX limit. Remove has no cap.
+- The spec defines its own `post`/`apiLogin` (same as `helpers/lumpSumFixture.ts`) instead of importing that module, which pulls in `xlsx` via `importWorkbook.ts`.
+- The two `data-testid`s (`add-projects-result`, `project-id-count`) are new in AddProjectDialog.
+- `SearchProject` (B3) is now unused by the FE and can be removed from the API later.
+- **Two existing bugs fixed at the user's request (found while recording a demo; both also on `main`).**
+  1. **Update returned 400 for any group with projects** ("Category: Please provide a valid text value."). The page sent `formData.Projects`, and `UpdateProjectGroupDetailsDTO` bound them as `ProjectsInGroup` (string `Category`), never reading them. Fix: the DTO's `Projects` list is removed (System.Text.Json ignores the field now), and `handleUpdate` sends only `GroupDetails`. It also refreshes `projectGroupDetails.GroupDetails`, so the dialogs show the saved name.
+  2. **A Project ID link opened "Project Not Available".** It went to `/projects/project-details/<ProjectId>`, but the details page needs `<ProjectId>:<StageName>`. Fix: the same routes as the Projects list (`StageName` from the `vProjectLatest` row; a Lump Sum Project goes to `/lumpsum/<Id>`). `ProjectList` gains `StageName?` and `IsLumpSum?`.
+  Both are covered by a third e2e test plus an API assertion. Re-verified on localhost: 3 passed.
+- **`/code-review` fixes (2026-10-25):**
+  - Add and remove are now **conditional writes** (`ExecuteUpdate … WHERE ProjectGroupFK IS NULL` / `= this group`). If another request changed one of the projects between the read and the write, nothing is written and the API answers 409 "Try Again". This enforces A9/R6 under concurrency, which is why the explicit transaction is kept.
+  - A project whose FK still points at a **soft-deleted group** counts as ungrouped, so it can be re-linked. Its log row keeps the old FK as `OldValue`. (The old DeleteProject could unlink these; the group-scoped one cannot.)
+  - `ProjectGroupDetails` sets the computed **`IsLumpSum`** (as `ShowProjects` does), so a Lump Sum Project's link opens `/lumpsum/<Id>`. It was always false before.
+  - The result reports the **ProjectId the user typed** when a PK has several view rows.
+  - **Select-all** compares distinct ProjectIds. The table **refreshes after any successful remove**, including "Not in this group". The project link guards a missing StageName and encodes both parts.
+  - The spec now finds ungrouped projects from group members: the list's ProjectId filter takes up to 11 s per call, which used up the test budget. The spec also escapes its URL regex.
+  - Not changed, as plan decisions or out of scope: `IdChipGroup` stays a copy (F2); inline validation errors (A2/A3); `SearchProject` stays (B3); the spec keeps local `post`/`apiLogin` (`lumpSumFixture` pulls in `xlsx`); `formData.Projects` is still kept in sync though unused. A ProjectId and its PK pasted together are one project and are reported once.
+- The user decided (2026-10-25) that the group's **User Group stays an owner label and list filter**. It does not restrict who can see or edit a group, although `FE/src/pages/ProjectGroups/UserManual.md` says it controls "ownership or visibility". Access rules are a separate issue.
+- **Verified against `localhost/myps_db_dev`**, not `myps_db_migrated_uat`, which does not exist on this machine. `ConnectionStrings__*` env vars are ignored by `Main/Program.cs` (it re-adds the env JSON last); the test API used an edited copy of `appsettings.Development.json` in its scratch build folder. Result: 2 passed; 10 add and 10 remove `tTransactionLog` rows (one per project); both fixture groups end live and empty.
+Files changed: `WebAPI/Controllers/ProjectGroups/ProjectGroupController.cs`, `WebAPI/Controllers/ProjectGroups/DTOProjectGroup.cs`, `FE/src/pages/ProjectGroups/{Model.d.ts, Service.ts, Views/ProjectGroupDetails.tsx, dialogs/AddProjectDialog.tsx, dialogs/RemoveProjectsDialog.tsx (renamed from DeleteProjectDialog.tsx), dialogs/index.ts, components/IdChipGroup.tsx (new), UserManual.md, ProjectGroups.md}`, `FE/UserManual.md`, `documents/UserManual_Changelog.md`, `e2e/tests/project-group-bulk-membership.spec.ts` (new), `e2e/CLAUDE.md`, this plan.

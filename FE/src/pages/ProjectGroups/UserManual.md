@@ -96,43 +96,34 @@ Below the group info section, a **Projects** table lists all projects linked to 
 
 | Column | What it shows |
 |---|---|
+| *(checkbox)* | Tick to select the project for removal. The checkbox in the header selects or clears every row |
 | **Project ID** | Click to open the full project detail page |
-| **Category** | Project category code |
+| **Category** | Project category |
 | **Description** | Short project description |
-| **Origin** | Origin code |
-| **City** | City code |
-| **Legislative District** | Legislative district assignment |
-| **Operating Unit** | Assigned operating unit |
 | **Implementing Office** | Implementing office |
-| **DEO** | DEO assignment |
-| **Region** | Region code |
-| **Agency** | Agency code |
-| **Created By** | Who added this project |
-| **Created Date** | When the project was added |
+| **Region** | Region |
+| **Created Date** | When the project was created |
 | **Actions** | Red trash icon to remove the project from this group |
+
+A project can belong to only one project group at a time.
 
 ### Adding projects to a group
 
-1. Click the blue **Add Project** button above the projects table.
-2. A search dialog opens.
-3. Type the exact **Project ID** of the project you want to add.
-4. Click the **search icon** or press **Enter**. The system looks up the project.
-5. If found, the project's details appear in the results area. Click the **+** icon to add it to your selection list.
-6. You can search for additional projects and add them to the same selection list before submitting.
-7. To remove a project from the selection list before submitting, click the **−** icon next to it.
-8. Once you have selected all the projects you want to add, click **Submit**.
-9. The dialog closes and the projects table refreshes to show the newly added projects.
+1. Click the blue **Add Projects** button above the projects table.
+2. Paste or type the **Project IDs**. Separate them with commas, semicolons, spaces, tabs or new lines; a list copied from a spreadsheet column works as is. The count under the box shows how many distinct IDs you entered. An ID entered twice is counted once.
+3. Click **Add**. You can add up to 500 projects at a time.
+4. The dialog shows what happened to each ID:
+   - **Added**: the project is now in this group.
+   - **Already in this group**: nothing needed to change.
+   - **In another group (not moved)**: the project belongs to the group named next to it and was left there. To move it, open that group, remove the project, then add it here.
+   - **Not found**: no project has that ID. Check it for typing errors.
+5. Click **Add more** to paste another list, or **Close**. The projects table shows the added projects. Name or Description edits you have not saved yet are kept.
 
-> Projects are added by their exact Project ID. The search will not find partial matches — you must type the full ID.
->
-> If a project is already in the group, adding it again through this dialog will not create a duplicate (the system prevents it).
+### Removing projects from a group
 
-### Removing a project from a group
-
-1. Click the red **trash icon** in the Actions column of the project row you want to remove.
-2. A confirmation dialog appears showing the Project ID and a warning.
-3. Type **delete** in the confirmation field (any case).
-4. Click **Delete** to confirm. The project is immediately removed from the table.
+1. Tick the checkbox of each project to remove, or tick the header checkbox to select them all.
+2. Click the red **Remove selected (N)** button. To remove a single project, you can instead click the trash icon on its row.
+3. Check the list of projects in the confirmation and click **Remove**. The rows disappear and a message says how many were removed.
 
 > Removing a project from a group does **not** delete the project itself — it only unlinks it from this group. The project still exists in the system and can be found through the main Projects section or added to another group.
 
@@ -146,8 +137,8 @@ Below the group info section, a **Projects** table lists all projects linked to 
 2. Click **Add Project Group**.
 3. Enter the group name, description, and select the team's user group from the dropdown.
 4. Click **Submit** — you are redirected to the new group's detail page.
-5. Click **Add Project** and search for each project you want to include using their Project IDs.
-6. Submit your selection to link the projects.
+5. Click **Add Projects**, paste the list of Project IDs to include, and click **Add**.
+6. Check the result: fix and re-add any **Not found** IDs with **Add more**.
 
 ### Changing which team owns a project group
 
@@ -158,8 +149,8 @@ Below the group info section, a **Projects** table lists all projects linked to 
 ### Removing a project that was incorrectly linked
 
 1. Go to the group's detail page.
-2. Find the project in the table and click the red trash icon.
-3. Type **delete** to confirm removal.
+2. Find the project in the table and click the red trash icon (or tick several projects and click **Remove selected (N)**).
+3. Click **Remove** to confirm.
 4. The project disappears from the group's list. It remains in the system and can be added back or linked to a different group if needed.
 
 ### Finding groups for a specific team
@@ -175,5 +166,5 @@ Below the group info section, a **Projects** table lists all projects linked to 
 - **Group names are not automatically unique** at the UI level — be consistent with naming conventions to avoid confusion.
 - **The Number of Projects count** in the list page reflects the count from the last data load. After adding or removing projects on the detail page, go back to the list page to see the updated count.
 - **Sorting is not available** on the project groups list. Use the Name filter to narrow the list when there are many groups.
-- **Project ID must be exact** when searching in the Add Project dialog. If you are not sure of the exact ID, find it through the Projects section first and copy the ID before coming back here.
-- **The Update button** on the detail page saves only the group metadata (Name, Description, User Group). Adding or removing projects is handled separately through the Add Project and Delete project buttons.
+- **Project IDs must be complete** in the Add Projects dialog; partial IDs come back as **Not found**. Letter case does not matter.
+- **The Update button** on the detail page saves only the group metadata (Name, Description, User Group). Adding and removing projects takes effect immediately through **Add Projects** and **Remove**, without clicking Update.

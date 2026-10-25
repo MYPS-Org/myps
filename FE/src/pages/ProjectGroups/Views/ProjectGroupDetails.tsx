@@ -1,11 +1,11 @@
 "use-client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProjectGroupDetailsModel, updateProjectGroupModel, ProjectList } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
 import { fetchProjectGroupByName, updateProjectGroup  } from '../Service';
-import { AddProjectDialog, DeleteProjectDialog} from '../dialogs';
+import { AddProjectDialog, RemoveProjectsDialog } from '../dialogs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -78,22 +78,62 @@ const ProjectGroupDetails: React.FC = () => {
     }
   };
 
-  // Set Dialog Open/Close State
-  const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
-  const [isDeleteProjectOpen, setIsDeleteProjectOpen] = useState(false);
-
-  const [selectedProject, setSelectedProject] = useState({
-    ProjectId: ''
-  });
-
-  const handleDeleteOpen = (project: string) => {
-    setSelectedProject({ ProjectId: project });
-    setIsDeleteProjectOpen(true);
+  // Reloads only the Projects table after an add/remove. It must not go through
+  // fetchProjectGroupDetails: isLoading swaps the page for the skeleton (unmounting any open
+  // dialog), and it would overwrite unsaved Name/Description edits in formData.
+  const refreshProjects = async () => {
+    if (!groupId) return;
+    try {
+      const response = await fetchProjectGroupByName(groupId);
+      setProjectGroupDetails(prev => ({ ...prev, Projects: response.Data.Projects }));
+      setFormData(prev => ({ ...prev, Projects: response.Data.Projects }));
+      setSelectedIds(new Set());
+    } catch (error) {
+      console.error('Error refreshing projects:', error);
+      // The interceptor already toasted any API error that carried a Message.
+      if (!(error as { Message?: string } | undefined)?.Message) {
+        showToast({ type: 'error', message: 'Failed to refresh projects. Please try again.' });
+      }
+    }
   };
 
-  const handleAutoRefresh = async () => {
-    if (groupId) {
-      await fetchProjectGroupDetails(groupId);
+  // Set Dialog Open/Close State
+  const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
+  // Project IDs awaiting the remove confirm; the dialog is open while this is non-null.
+  const [removeIds, setRemoveIds] = useState<string[] | null>(null);
+
+  // Row selection for "Remove selected", keyed by ProjectId.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  const projects = projectGroupDetails.Projects ?? [];
+  // Distinct, because vProjectLatest can return more than one row for a project.
+  const projectIds = Array.from(new Set(projects.map((p) => p.ProjectId)));
+  const allSelected = projectIds.length > 0 && projectIds.every((id) => selectedIds.has(id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected, isLoading]);
+
+  const toggleRow = (projectId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(projectIds));
     }
   };
 
@@ -129,7 +169,11 @@ const ProjectGroupDetails: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await updateProjectGroup(formData);
+      // Only the group's own fields. Membership is saved by Add Projects / Remove, and sending the
+      // project rows here made Update fail validation (400) for any group that had projects.
+      await updateProjectGroup({ GroupDetails: formData.GroupDetails });
+      // The dialogs show the saved name, so keep the saved copy in step.
+      setProjectGroupDetails(prev => ({ ...prev, GroupDetails: formData.GroupDetails }));
     } catch (error) {
       console.error('Error updating program details:', error);
       // httpClient interceptor already showed the API error toast
@@ -138,50 +182,28 @@ const ProjectGroupDetails: React.FC = () => {
     }
   };
 
-  const handleOpenDialog = async () => {
-    setIsAddProjectOpen(true);
-    // Logic to open the dialog for adding a new project
-    // This could involve setting state or navigating to a different route
-  }
-  const handleCloseDialog = () => {
-    setIsAddProjectOpen(false);
-    setIsDeleteProjectOpen(false);
+  // Same routes as the Projects list (Project.tsx): the details page needs "ProjectId:StageName",
+  // and a bare ProjectId opened "Project Not Available". A Lump Sum Project opens its own page.
+  const openProject = (project: ProjectList) => {
+    if (project.IsLumpSum) {
+      navigate(`/lumpsum/${project.Id}`);
+      return;
+    }
+    if (!project.ProjectId || !project.StageName) {
+      showToast({ type: 'info', message: `Project ${project.ProjectId ?? ''} has no stage to open.` });
+      return;
+    }
+    navigate(`/projects/project-details/${encodeURIComponent(project.ProjectId)}:${encodeURIComponent(project.StageName)}`);
   };
 
-  const handleAddProjects = async (projects: ProjectList[]) => {
-    try {
-      handleAutoRefresh();
-      
-      console.log('Added projects:', projects);
-    } catch (error) {
-      console.error('Error adding projects:', error);
-    }
-  }
+  const handleAddClose = (changed: boolean) => {
+    setIsAddProjectOpen(false);
+    if (changed) refreshProjects();
+  };
 
-  const handleDeleteProject = async (projectId: string) => {
-    try {
-      // Remove project from the current group's project list
-      const updatedProjects = formData.Projects.filter(p => p.ProjectId !== projectId);
-
-      // Update the form data
-      setFormData(prev => ({
-        ...prev,
-        Projects: updatedProjects
-      }));
-
-      // Update the display data
-      setProjectGroupDetails(prev => ({
-        ...prev,
-        Projects: updatedProjects
-      }));
-
-      // Optionally save to backend immediately
-      // await updateProjectGroup(formData);
-
-      console.log('Deleted project:', projectId);
-    } catch (error) {
-      console.error('Error deleting project:', error);
-    }
+  const handleRemoveClose = (changed: boolean) => {
+    setRemoveIds(null);
+    if (changed) refreshProjects();
   };
 
   if (isLoading) {
@@ -283,15 +305,36 @@ const ProjectGroupDetails: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
-            <Button color="blue" onClick={handleOpenDialog}>
-                Add Project
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                color="red"
+                disabled={selectedIds.size === 0}
+                onClick={() => setRemoveIds(Array.from(selectedIds))}
+              >
+                  Remove selected ({selectedIds.size})
+              </Button>
+              <Button color="blue" onClick={() => setIsAddProjectOpen(true)}>
+                  Add Projects
+              </Button>
             </div>
-            
+            </div>
+
             <div className="overflow-x-auto">
               <Table>
                 <TableHead>
                   <TableRow>
+                      <TableHeader className="px-6 py-3 w-10">
+                        <input
+                          ref={selectAllRef}
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={toggleAll}
+                          disabled={projects.length === 0}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          title="Select all"
+                          aria-label="Select all projects"
+                        />
+                      </TableHeader>
                       <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Project ID
                       </TableHeader>
@@ -316,10 +359,19 @@ const ProjectGroupDetails: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                {projectGroupDetails.Projects?.map((project) => (
-                    <TableRow key={project.Id} className="hover:bg-gray-50">
+                {projects.map((project) => (
+                    <TableRow key={project.Id} className={selectedIds.has(project.ProjectId) ? 'bg-blue-50' : 'hover:bg-gray-50'}>
+                      <TableCell className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(project.ProjectId)}
+                            onChange={() => toggleRow(project.ProjectId)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            aria-label={`Select ${project.ProjectId}`}
+                          />
+                      </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
-                          <button className="text-blue-600 hover:text-blue-800 font-medium" onClick={() => navigate(`/projects/project-details/${project.ProjectId}`)}>
+                          <button className="text-blue-600 hover:text-blue-800 font-medium" onClick={() => openProject(project)}>
                             {project.ProjectId}
                           </button>
                       </TableCell>
@@ -339,7 +391,7 @@ const ProjectGroupDetails: React.FC = () => {
                           {project.CreatedDate ? project.CreatedDate.StringToDate() : ''}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <Button onClick={() => handleDeleteOpen(project.ProjectId ?? '')} color="red" className="px-2 py-1">
+                          <Button onClick={() => setRemoveIds([project.ProjectId])} color="red" className="px-2 py-1" aria-label={`Remove ${project.ProjectId}`}>
                             <TrashIcon />
                           </Button>
                       </TableCell>
@@ -350,19 +402,19 @@ const ProjectGroupDetails: React.FC = () => {
             </div>
         </div>
 
-        {/* Add Project Dialog */}
+        {/* Add Projects Dialog */}
         <AddProjectDialog
           isOpen={isAddProjectOpen}
-          onClose={handleCloseDialog}
-          onSubmit={handleAddProjects}
+          onClose={handleAddClose}
           groupId={projectGroupDetails.GroupDetails.GroupId}
+          groupName={projectGroupDetails.GroupDetails.Name}
         />
-        {/* Delete Project Dialog */}
-        <DeleteProjectDialog
-          isOpen={isDeleteProjectOpen}
-          onClose={handleCloseDialog}
-          onSubmit={handleDeleteProject}
-          project={selectedProject}
+        {/* Remove Projects Dialog */}
+        <RemoveProjectsDialog
+          projectIds={removeIds}
+          onClose={handleRemoveClose}
+          groupId={projectGroupDetails.GroupDetails.GroupId}
+          groupName={projectGroupDetails.GroupDetails.Name}
         />
       </div>
   );
