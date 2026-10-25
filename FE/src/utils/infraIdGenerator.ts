@@ -168,6 +168,16 @@ export const isBridgeInfraType = (infraType: string): boolean => {
 };
 
 /**
+ * Checks if an InfraCode has no geo-location: Consultancy (CS) or Non-Infra (NI).
+ * These are tOptionInfraType codes; not to be confused with the CS (Construction
+ * Supervision) and CoS (Consultancy) component types.
+ */
+export const isNoGeoInfraType = (infraType: string): boolean => {
+  const type = infraType.toLowerCase().trim();
+  return type === 'cs' || type === 'ni' || type === 'consultancy' || type === 'non-infra';
+};
+
+/**
  * Resolves an InfraCode to its display name (e.g. "FCS" → "Flood Control Structures").
  * Use the code for logic and this label for display. Falls back to the code if no match.
  */
@@ -175,7 +185,8 @@ export const getInfraTypeLabel = (
   infraCode: string,
   infraTypeEnums?: { InfraCode: string; InfraName: string }[]
 ): string => {
-  return infraTypeEnums?.find(x => x.InfraCode === infraCode)?.InfraName || infraCode;
+  const code = infraCode.trim().toLowerCase();
+  return infraTypeEnums?.find(x => x.InfraCode?.trim().toLowerCase() === code)?.InfraName || infraCode;
 };
 
 /**

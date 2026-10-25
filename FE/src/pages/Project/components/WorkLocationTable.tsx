@@ -4,7 +4,7 @@ import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroico
 import { chainageToLrpConverter, lrpToChainageConverter } from '../Service';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../dialogs/deleteDialogs/DeleteWorkLocationDialog';
-import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType } from '../../../utils/infraIdGenerator';
+import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType, isNoGeoInfraType } from '../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../Model.d';
 import type { ProgramLatest } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
@@ -60,6 +60,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const isBridgeType = (): boolean => isBridgeInfraType(infraType);
   // Local Infra: LR, LB, LFCS, LWW, etc. (L-prefix, ≥2 chars)
   const isLocalType = (): boolean => isLocalInfraType(infraType);
+  // Consultancy (CS) / Non-Infra (NI): no geo-location
+  const isNoGeoType = (): boolean => isNoGeoInfraType(infraType);
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -417,8 +419,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       // Local infra (LR, LB, LFCS, etc.): free-text ID + coordinates, NO chainage
       const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartX', 'StartY', 'EndX', 'EndY'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
-    } else if (infraType.toLowerCase() === 'cos' || infraType.toLowerCase() === 'ni' || infraType.toLowerCase() === 'non-infra') {
-      // CoS / Non-Infra: no geo-coords
+    } else if (isNoGeoType()) {
+      // Consultancy / Non-Infra: no geo-coords
       const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
     } else {
@@ -1048,7 +1050,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                       <strong>Local Infrastructure ({infraTypeLabel}):</strong> Use coordinate fields to define location. An ID can be entered manually or auto-generated.
                     </div>
                   </div>
-                ) : (infraType?.toLowerCase() === 'cs' || infraType?.toLowerCase() === 'ni') ? (
+                ) : isNoGeoType() ? (
                   <div className="mt-4 p-3 bg-orange-50 rounded-md">
                     <div className="text-sm text-orange-500">
                       <strong>Consultancy / Non-Infra:</strong> No Geo-Location available for this infrastructure type.

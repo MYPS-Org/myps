@@ -518,7 +518,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           ComponentId: majorItemToDelete.ComponentId,
           WorkTypeId: majorItemToDelete.WorkTypeFK,
           YearOfWork: majorItemToDelete.YearOfWork,
-          InfraType: getInfraName(majorItemToDelete.InfraTypeFK),
+          InfraType: majorItemToDelete.InfraTypeFK,
+          InfraTypeLabel: getInfraName(majorItemToDelete.InfraTypeFK),
           TargetUnit: majorItemToDelete.TargetUnit,
           MajorItemLocations: majorItemToDelete.MajorItemLocations,
         } : null}

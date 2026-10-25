@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
-import { isRoadInfraType, isBridgeInfraType } from '../../../../utils/infraIdGenerator';
+import { isRoadInfraType, isBridgeInfraType, isNoGeoInfraType } from '../../../../utils/infraIdGenerator';
 import type { MajorItemLocations } from '../../Model';
 
 interface DeleteWorkLocationDialogProps {
@@ -153,8 +153,8 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
                       )}
                     </>
                   )}
-                  {/* Coordinates for other infrastructure types */}
-                  {!(isRoadInfraType(infraType ?? '') || isBridgeInfraType(infraType ?? '')) && (
+                  {/* Coordinates for other infrastructure types (none for Consultancy / Non-Infra) */}
+                  {!(isRoadInfraType(infraType ?? '') || isBridgeInfraType(infraType ?? '') || isNoGeoInfraType(infraType ?? '')) && (
                     <>
                       {(workLocation.StartX || workLocation.StartY) && (
                         <div className="flex justify-between">
