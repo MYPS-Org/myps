@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDownIcon, TagIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ChevronDownIcon, TagIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { batchAllowPublishing, batchDeleteProjects, batchRestrictPublishing } from '../../Service';
 import BatchTagDialog from '../../dialogs/BatchTagDialog';
@@ -13,6 +13,8 @@ interface BatchActionsDropdownProps {
   /** Told which action just ran: only a delete removes rows, so only it resets the table to page 1. */
   onRefresh: (action: 'tag' | 'delete' | 'unpublish' | 'publish') => Promise<void>;
   onLoadingChange: (loading: boolean) => void;
+  /** Opens the parent's BatchRestoreDialog, which owns the restore call and the table refresh. */
+  onBatchRestore: () => void;
 }
 
 const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
@@ -23,6 +25,7 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
   defaultStatus,
   onRefresh,
   onLoadingChange,
+  onBatchRestore,
 }) => {
   const { showToast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -115,6 +118,18 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                   </svg>
                   Batch Delete
+                </button>
+                {/* Undoes Batch Delete. Its only entry point used to be the "Add Existing Project"
+                    button, commented out in de295446, which left restore unreachable (S01-TC008-P001). */}
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    onBatchRestore();
+                  }}
+                  className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-indigo-500 hover:text-white"
+                >
+                  <ArrowPathIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" aria-hidden="true" />
+                  Batch Restore
                 </button>
                 {showPublishActions && (
                   <>

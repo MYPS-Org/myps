@@ -197,11 +197,119 @@ public sealed class ProgramControllerPublishRestrictionContractTests
 
         // 2026-10-06: a cancelled request reaches the catch with that cancellation as `ex`; a
         // rollback handed the same token throws again inside the catch, so _exceptionHandler never
-        // sees the error and it goes out as a raw, unlogged 500. BatchAddExistingProject still has
-        // the old line (deferred: batch-add-existing-project-restore-fixes.md, RS3), so this is
-        // scoped to BatchDelete -- copying Restore's catch back here is exactly what it guards.
+        // sees the error and it goes out as a raw, unlogged 500. BatchAddExistingProject is pinned
+        // the same way below (RS3, 2026-10-24).
         Assert.DoesNotContain("RollbackAsync(cancellationToken)", method, StringComparison.Ordinal);
         Assert.Contains("RollbackAsync(CancellationToken.None)", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchAddExistingProject_RecomputesProgramCostInsideTransaction()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAddExistingProject");
+
+        // 2026-10-24 (RS1, batch-add-existing-project-restore-fixes.md): a restored project counts
+        // toward its program's Cost again, and Program Details reads the STORED Cost. The recompute
+        // must run after the restore and before the commit, as in BatchDelete.
+        int update = method.IndexOf("ExecuteUpdateAsync", StringComparison.Ordinal);
+        int recompute = method.IndexOf("RecomputeProgramCostAsync", StringComparison.Ordinal);
+        int commit = method.IndexOf("CommitAsync", StringComparison.Ordinal);
+
+        Assert.True(update >= 0 && recompute >= 0 && commit >= 0, "BatchAddExistingProject's shape changed; revisit this test.");
+        Assert.InRange(recompute, update, commit);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchAddExistingProject_OpensItsTransactionAfterValidation()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAddExistingProject");
+
+        // 2026-10-24 (RS2): a rejected request must not open a transaction. It begins after the
+        // first NothingRestored refusal (nothing restorable among the ids) and before the lock and
+        // the first write.
+        int begin = method.IndexOf("BeginTransactionAsync", StringComparison.Ordinal);
+        int firstRefusal = method.IndexOf("NothingRestored(", StringComparison.Ordinal);
+        int theLock = method.IndexOf("AcquireProgramDeletionLockAsync", StringComparison.Ordinal);
+
+        Assert.True(firstRefusal >= 0 && theLock >= 0, "BatchAddExistingProject's shape changed; revisit this test.");
+        Assert.InRange(begin, firstRefusal, theLock);
+        Assert.DoesNotContain("using var transaction", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchAddExistingProject_DecidesAgainOnLockedRowsBeforeWriting()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAddExistingProject");
+
+        // 2026-10-24: the first classification is read without a lock (so a hopeless request opens
+        // no transaction). It must be repeated on locked rows, after the program lock and before the
+        // un-delete, as BatchDelete does, or a publish / approval / Lump Sum change in between slips by.
+        int theLock = method.IndexOf("AcquireProgramDeletionLockAsync", StringComparison.Ordinal);
+        int decide = method.IndexOf("DecideProjectDeletionsUnderLockAsync", StringComparison.Ordinal);
+        int firstWrite = method.IndexOf("ExecuteUpdateAsync", StringComparison.Ordinal);
+
+        Assert.True(theLock >= 0 && decide >= 0 && firstWrite >= 0, "BatchAddExistingProject's shape changed; revisit this test.");
+        Assert.InRange(decide, theLock, firstWrite);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchAddExistingProject_RollsBackWithoutTheRequestToken()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAddExistingProject");
+
+        // 2026-10-24 (RS3): same reason as BatchDelete_RollsBackWithoutTheRequestToken.
+        Assert.DoesNotContain("RollbackAsync(cancellationToken)", method, StringComparison.Ordinal);
+        Assert.Contains("RollbackAsync(CancellationToken.None)", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchAddExistingProject_RefusesApprovedProgramsAndPublishedProjects()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAddExistingProject");
+
+        // 2026-10-24: nothing is restored in an Approved program or for a published project, as Batch
+        // Delete refuses both. Read from the flags, not Tier: the tier rates an itemized child Hard even
+        // in an Approved program. Lump Sum projects are restored like any other (RS4, confirmed), so the
+        // refusal must not look at Kind. It runs on the unlocked read and again on the locked one.
+        string refusal = ExtractHelper(source, "string? RestoreRefusal(");
+        Assert.Contains("row.IsPublished", refusal, StringComparison.Ordinal);
+        Assert.Contains("row.ProgramApproved", refusal, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProjectDeletionKinds", refusal, StringComparison.Ordinal);
+        Assert.True(CountOf(method, "RestoreRefusal(") >= 2, "RestoreRefusal must run on the unlocked read and on the locked one.");
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchAddExistingProject_RefusesOnlyDeletedProjects()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAddExistingProject");
+
+        // 2026-10-25 (review R2): the tier resolver ignores IsDeleted, so a live id is resolved too.
+        // The deleted-revision lookup must come before the first RestoreRefusal, or a live project
+        // is refused as "published" / "program is approved" instead of reported as not deleted.
+        int deletedLookup = method.IndexOf("deletedFKs", StringComparison.Ordinal);
+        int firstRefusal = method.IndexOf("RestoreRefusal(", StringComparison.Ordinal);
+
+        Assert.True(deletedLookup >= 0 && firstRefusal >= 0, "BatchAddExistingProject's shape changed; revisit this test.");
+        Assert.True(deletedLookup < firstRefusal, "Only projects with a deleted revision may reach RestoreRefusal.");
+        Assert.Contains("deletedFKs.Contains(", method, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -318,10 +426,25 @@ public sealed class ProgramControllerPublishRestrictionContractTests
     }
 
     private static string ExtractMethod(string source, string methodName)
+        => ExtractBody(source, $"Task<IActionResult> {methodName}", methodName);
+
+    /// <summary>A non-action helper, found by its exact signature text (e.g. "string? RestoreRefusal(").</summary>
+    private static string ExtractHelper(string source, string signature)
+        => ExtractBody(source, signature, signature);
+
+    private static int CountOf(string text, string value)
     {
-        int signatureStart = source.IndexOf(
-            $"Task<IActionResult> {methodName}",
-            StringComparison.Ordinal);
+        int count = 0;
+        for (int at = text.IndexOf(value, StringComparison.Ordinal); at >= 0; at = text.IndexOf(value, at + value.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+        return count;
+    }
+
+    private static string ExtractBody(string source, string signature, string methodName)
+    {
+        int signatureStart = source.IndexOf(signature, StringComparison.Ordinal);
 
         Assert.True(signatureStart >= 0, $"Could not find {methodName}.");
 

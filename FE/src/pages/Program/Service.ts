@@ -237,7 +237,7 @@ export const batchRestrictPublishing = async (data: { ProgramId: string; Project
 
 export const batchRestoreProjects = async (data: { ProgramId: string; ProjectIds: string }) => {
     try {
-        const request = await httpClient.post('/Program/BatchAddExistingProject', data, {
+        const request = await httpClient.post<BatchActionResponse>('/Program/BatchAddExistingProject', data, {
             preloaderMessage: 'Restoring projects...'
         });
         return request;

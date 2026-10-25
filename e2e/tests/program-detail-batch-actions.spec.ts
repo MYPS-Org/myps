@@ -48,7 +48,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { captureApiCalls } from './helpers/networkCapture';
 import { apiLogin, post, provisionLumpSum, type ProvisionedLumpSum } from './helpers/lumpSumFixture';
-import { addOrdinaryProject } from './helpers/crossStageFixture';
+import { addOrdinaryProject, batchDelete, batchRestore, ensureCrossStageFixture, projectsAt } from './helpers/crossStageFixture';
 import { withFixtureProgram, type FixtureProgram } from './helpers/approvedProgramFixture';
 
 /** ProgramDetail's route param is `${ProgramPK}:${StageName}` — see Program.tsx's handleViewDetails. */
@@ -71,8 +71,59 @@ const openBatchAction = async (page: Page, item: string) => {
   await page.getByRole('button', { name: item, exact: true }).click();
 };
 
+/**
+ * The projects table's state for one ProjectId, read in ONE evaluate(): 'loading' while
+ * ProgramDetail shows its skeleton, else 'present' / 'absent'. See the first test for why the
+ * page must be sampled atomically and never through '.animate-pulse'.
+ */
+const rowState = (page: Page, projectId: string) =>
+  page.evaluate((id) => {
+    const rendered = Array.from(document.querySelectorAll('h2')).some((h) => h.textContent?.trim() === 'Projects');
+    if (!rendered) return 'loading';
+    const rows = Array.from(document.querySelectorAll('tbody tr'));
+    return rows.some((r) => r.textContent?.includes(id)) ? 'present' : 'absent';
+  }, projectId);
+
 test.describe('Program Details — batch actions', () => {
   test.describe.configure({ mode: 'serial' });
+
+  /*  S01-TC008-P001 (issue #376, comment by ken 2026-10-23): "Batch Restore button MISSING from
+      in Actions dropdown button in Program Details Page". Restore only undoes a SOFT delete, so
+      this uses the cross-stage fixture program (crossStageFixture.ts): its one project is live
+      at BP and NEP, so deleting it at NEP is soft. The delete is set up through the API; the
+      restore is driven through the menu. The finally puts the fixture back if the UI did not,
+      so batch-delete-restore-cross-stage.spec.ts finds it as it expects. */
+  test('S01-TC008-P001: Batch Restore is in the Batch Actions menu and brings a deleted row back without a reload', async ({ page }) => {
+    await apiLogin(page);
+    const { program, projectIdAtNEP } = await ensureCrossStageFixture(page);
+
+    const del = await batchDelete(page, program, projectIdAtNEP);
+    expect(del.status, `BatchDelete (setup) failed: ${JSON.stringify(del.body)}`).toBe(200);
+
+    try {
+      await page.goto(`/programs/programdetails/${program.ProgramPK}:${program.StageName}`); // already authenticated
+      await expect
+        .poll(() => rowState(page, projectIdAtNEP), { timeout: 60_000, message: 'the deleted project is not listed before the restore' })
+        .toBe('absent');
+
+      await openBatchAction(page, 'Batch Restore');
+      await page.locator('textarea#restoreProjectIds').fill(projectIdAtNEP);
+      await page.getByRole('button', { name: 'Restore Projects', exact: true }).click();
+      await page.getByRole('button', { name: 'Yes, Restore Projects', exact: true }).click();
+
+      // The toast is the API's own Message, which says how many came back.
+      await expect(page.getByText('1 project(s) restored to their original stage.')).toBeVisible();
+
+      // No goto, no reload: the row must come back because the handler re-queried the table.
+      await expect
+        .poll(() => rowState(page, projectIdAtNEP), { timeout: 60_000, message: 'the restored row is back once the page has re-rendered, with no reload' })
+        .toBe('present');
+    } finally {
+      if ((await projectsAt(page, program, 'NEP')).length === 0) {
+        await batchRestore(page, program, projectIdAtNEP);
+      }
+    }
+  });
 
   test('batch delete removes the row from the table without a reload', async ({ page }) => {
     await apiLogin(page);

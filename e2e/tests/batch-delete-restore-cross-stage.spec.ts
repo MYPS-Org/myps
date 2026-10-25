@@ -42,6 +42,7 @@ import {
   batchRestore,
   createProgramAtBP,
   ensureCrossStageFixture,
+  programCost,
   projectsAt,
   reloadProgram,
   STAGE_HGAB,
@@ -61,6 +62,13 @@ test.describe('Batch Delete / Batch Restore — cross-stage visibility (operator
     // The fixture's starting state: one project, live on both stages.
     expect(ids(await projectsAt(page, program, 'NEP'))).toEqual([projectIdAtNEP]);
     expect(ids(await projectsAt(page, program, 'BP'))).toEqual([projectIdAtBP]);
+    const costBefore = await programCost(page, program);
+    if (costBefore === 0) {
+      // The fixture project carries no funding, so a restore that skipped the recompute would still
+      // read 0 and this round trip cannot catch it. The contract test
+      // BatchAddExistingProject_RecomputesProgramCostInsideTransaction pins the call itself.
+      test.info().annotations.push({ type: 'note', description: 'fixture program Cost is 0; the Cost round-trip check cannot detect a missing recompute' });
+    }
 
     // Delete AT NEP, the program's current stage.
     const del = await batchDelete(page, program, projectIdAtNEP);
@@ -68,6 +76,10 @@ test.describe('Batch Delete / Batch Restore — cross-stage visibility (operator
     expect(del.body.Title, `expected a real delete, got: ${JSON.stringify(del.body)}`).toBe('Project Deletion Successful');
 
     try {
+      if (costBefore > 0) {
+        // The fixture's only project is gone at NEP, so the recomputed Cost must drop.
+        expect(await programCost(page, program), 'program Cost should drop after the delete').toBeLessThan(costBefore);
+      }
       expect(ids(await projectsAt(page, program, 'NEP')), 'project must be gone from NEP after deleting it there').toEqual([]);
       // RULE #1: still listed at BP, the stage it was never deleted from.
       expect(
@@ -85,6 +97,8 @@ test.describe('Batch Delete / Batch Restore — cross-stage visibility (operator
     // Same-stage round trip: back at NEP, BP unchanged.
     expect(ids(await projectsAt(page, program, 'NEP')), 'restore should list the project at NEP again').toEqual([projectIdAtNEP]);
     expect(ids(await projectsAt(page, program, 'BP'))).toEqual([projectIdAtBP]);
+    // RS1: the restore recomputes the stored program Cost, so the header matches its pre-delete figure.
+    expect(await programCost(page, program), 'program Cost after delete + restore should equal Cost before the delete').toBe(costBefore);
 
     // Nothing left to restore: a second restore is refused, not reported as a success.
     const again = await batchRestore(page, program, projectIdAtNEP);

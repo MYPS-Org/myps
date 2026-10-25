@@ -256,15 +256,19 @@ const ProgramDetail: React.FC = () => {
   };
 
   const handleBatchRestoreSubmit = async (programId: string, projectIds: string) => {
+    setIsLoading(true);
+    let restored = false;
     try {
-      setIsLoading(true);
-      await batchRestoreProjects({ ProgramId: programId, ProjectIds: projectIds });
+      const response = await batchRestoreProjects({ ProgramId: programId, ProjectIds: projectIds });
+      // The API's message says how many came back and names the ids that did not, and why. A
+      // partial restore is a warning, so refused or missing ids are not read past as "done".
+      const data = response.Data;
+      const partial = !!(data?.RefusedProjects?.length || data?.MissingProjectIds?.length);
       showToast({
-        type: 'success',
-        message: 'Projects restored successfully.',
+        type: partial ? 'warning' : 'success',
+        message: data?.Message || 'Projects restored successfully.',
       });
-      await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
-      refreshProjects(true);
+      restored = true;
     } catch (error) {
       console.error('Error restoring projects:', error);
       // The interceptor toasted (and set Message) for any API error that carried one;
@@ -272,9 +276,20 @@ const ProgramDetail: React.FC = () => {
       if (!(error as { Message?: string } | undefined)?.Message) {
         showToast({ type: 'error', message: 'Failed to restore projects. Please try again.' });
       }
-    } finally {
-      setIsLoading(false);
     }
+
+    // Refresh is separate from the restore, as in BatchActionsDropdown: once the restore has
+    // committed, a failed reload must not say "Failed to restore", or the user retries it.
+    if (restored) {
+      try {
+        refreshProjects(true);
+        await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
+      } catch (error) {
+        console.error('Error refreshing after batch restore:', error);
+        showToast({ type: 'warning', message: 'The action completed, but the page failed to refresh. Please reload to see the latest data.' });
+      }
+    }
+    setIsLoading(false);
   };
 
   const handleAddExistingProjectSubmit = async (projectIds: string[]) => {
@@ -698,6 +713,7 @@ const ProgramDetail: React.FC = () => {
                 await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
               }}
               onLoadingChange={setIsLoading}
+              onBatchRestore={() => setIsBatchRestoreDialogOpen(true)}
             />
             <ActionsDropdown
               programId={programEnums?.Details.ProgramPK ?? ''}
@@ -853,7 +869,9 @@ const ProgramDetail: React.FC = () => {
           isOpen={isBatchRestoreDialogOpen}
           onClose={() => setIsBatchRestoreDialogOpen(false)}
           onSubmit={handleBatchRestoreSubmit}
-          programId={programEnums?.Details.ProgramPK}
+          // BatchAddExistingProject looks the program up by vProgramLatest.ProgramId, as Batch
+          // Delete does; the ProgramPK it was given here answered "Program not found".
+          programId={programEnums?.Details.ProgramId}
           programName={programEnums?.Details.Name}
         />
       )}

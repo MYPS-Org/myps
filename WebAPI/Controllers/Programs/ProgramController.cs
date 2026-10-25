@@ -2681,7 +2681,10 @@ namespace WebAPI.Controllers.Programs
         [RequiresDeletionObjects]
         public async Task<IActionResult> BatchAddExistingProject([FromBody] BatchAddExistingProjectDTO dto, CancellationToken cancellationToken)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            // 2026-10-24 (RS2, batch-add-existing-project-restore-fixes.md): opened just before the
+            // first write, as BatchDelete does, not here. Everything up to the lock is validation
+            // and read-only id resolution, and a rejected request should not pay for a transaction.
+            IDbContextTransaction? transaction = null;
             try
             {
                 // 2026-09-05: aligned with its 3 sibling Batch* actions (BatchRestrictPublish,
@@ -2734,6 +2737,7 @@ namespace WebAPI.Controllers.Programs
                 var projectIds = dto.ProjectIds
                     .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
 
                 // Resolve the deleted revisions that belong to THIS program, across all of its
@@ -2758,16 +2762,77 @@ namespace WebAPI.Controllers.Programs
                 // both find the project (only its ProjectFK is used; restore is not a delete).
                 // A hard-deleted project no longer exists and is reported as not found; an
                 // ambiguous reference (one string, two projects) is not restored.
-                // 2026-10-16: the per-program delete lock before anything is read for the write, so a
-                // restore never runs alongside a delete in the same program.
-                await _db.AcquireProgramDeletionLockAsync(ProgramParent.ProgramPK, cancellationToken);
+                // 2026-10-24: read here without a lock to refuse what can never be restored before a
+                // transaction is opened (RS2); decided again on locked rows below before anything is
+                // written, as Batch Delete does.
                 var resolved = await _db.DetermineProjectDeletionTiersAsync(projectIds, ProgramParent.ProgramPK, cancellationToken);
-                var projectFKByRef = resolved
-                    .GroupBy(x => x.Ref, StringComparer.OrdinalIgnoreCase)
-                    .Where(g => g.Select(x => x.ProjectFK).Distinct().Count() == 1)
-                    .ToDictionary(g => g.Key, g => g.First().ProjectFK, StringComparer.OrdinalIgnoreCase);
-                var projectFKs = projectFKByRef.Values.Distinct().ToArray();
 
+                // 2026-10-25 (review R2): the tier resolver ignores IsDeleted, so it also finds live
+                // projects. Only a project with a deleted revision in this program is a restore
+                // candidate; any other is left out here and reported as "not found or not deleted",
+                // not refused as "published" / "program is approved" as if it were deleted and blocked.
+                var resolvedFKs = resolved.Select(x => x.ProjectFK).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                var deletedFKs = (await _db.tProjectRevisions.AsNoTracking()
+                        .Where(r => r.ProgramFK == ProgramParent.ProgramPK && resolvedFKs.Contains(r.ProjectFK) && r.IsDeleted)
+                        .Select(r => r.ProjectFK)
+                        .Distinct()
+                        .ToListAsync(cancellationToken))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var refused = new List<BatchDeleteRefusal>();
+                var projectFKByRef = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var refGroup in resolved.GroupBy(x => x.Ref, StringComparer.OrdinalIgnoreCase))
+                {
+                    var rows = refGroup.ToList();
+                    bool ambiguous = rows.Select(x => x.ProjectFK).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
+                    if (!ambiguous && !deletedFKs.Contains(rows[0].ProjectFK))
+                    {
+                        continue;
+                    }
+                    string? reason = ambiguous
+                        ? "matches more than one project in this program"
+                        : RestoreRefusal(rows[0]);
+                    if (reason != null)
+                    {
+                        refused.Add(new BatchDeleteRefusal(refGroup.Key, reason));
+                    }
+                    else
+                    {
+                        projectFKByRef[refGroup.Key] = rows[0].ProjectFK;
+                    }
+                }
+                var refusedRefs = refused.Select(x => x.ProjectId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var projectFKs = projectFKByRef.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+                if (projectFKs.Length == 0)
+                {
+                    return NothingRestored(projectIds.Where(x => !refusedRefs.Contains(x)).ToArray(), refused);
+                }
+
+                transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+                // 2026-10-16: the per-program delete lock first, so a restore never runs alongside a
+                // delete in the same program.
+                await _db.AcquireProgramDeletionLockAsync(ProgramParent.ProgramPK, cancellationToken);
+
+                // 2026-10-24: every project decided again on locked rows (project, its stages, the
+                // program's status), so a publish or an approval that landed after the read above
+                // refuses the batch instead of slipping by. Throws when a project is no
+                // longer there (e.g. a concurrent hard delete).
+                var decided = await _db.DecideProjectDeletionsUnderLockAsync(projectFKs, ProgramParent.ProgramPK, cancellationToken);
+                foreach (var (projectRef, projectFK) in projectFKByRef)
+                {
+                    var reason = RestoreRefusal(decided[projectFK]);
+                    if (reason != null)
+                    {
+                        throw new ProjectHelper.DeletionRefusedException($"Project {projectRef} can no longer be restored here: {reason}.");
+                    }
+                }
+
+                // 2026-10-24 (RS5, confirmed 2026-10-25: latest deleted revision only): only the project's
+                // LATEST deleted revision in this program comes back (Max(Id)), as before. Batch
+                // Delete flags one revision per call (the current stage's), so this is its inverse
+                // for the most recent delete; an older stage's deleted revision needs another restore.
                 var latestDeletedRevisions = await (
                     from revision in _db.tProjectRevisions
                     where revision.ProgramFK == ProgramParent.ProgramPK
@@ -2796,7 +2861,7 @@ namespace WebAPI.Controllers.Programs
                 );
 
                 var missingProjectIds = projectIds
-                    .Where(x => !restoredSet.Contains(x))
+                    .Where(x => !restoredSet.Contains(x) && !refusedRefs.Contains(x))
                     .ToArray();
 
                 if (latestDeletedRevisions.Count > 0)
@@ -2815,34 +2880,123 @@ namespace WebAPI.Controllers.Programs
                         deleted: false, _Session.UserId, CurrentDate);
                     await _db.SaveChangesAsync(cancellationToken);
 
+                    // 2026-10-24 (RS1): a restored project counts toward its program's Cost again,
+                    // and Program Details reads the STORED tProgramRevisions.Cost, so recompute it
+                    // before the commit, exactly as BatchDelete does after its delete. Without this
+                    // the header kept the post-delete figure.
+                    await _db.RecomputeProgramCostAsync(ProgramParent.ProgramPK, cancellationToken);
+
                     // The restore itself went through ExecuteUpdateAsync (no change tracking);
-                    // the commit is what persists it, together with the audit rows.
+                    // the commit is what persists it, together with the audit rows and the Cost.
                     await transaction.CommitAsync(cancellationToken);
 
+                    bool partial = missingProjectIds.Length > 0 || refused.Count > 0;
                     return Ok(new
                     {
-                        Message = $"The selected projects have been successfully restored to their original stage.\n\nList of projects not found or already active:{string.Join("\n", missingProjectIds)}.",
-                        Title = "Restore Projects Successful"
+                        Message =
+                            $"{latestDeletedRevisions.Count} project(s) restored to their original stage." +
+                            (partial ? " " + DescribeNotRestored(missingProjectIds, refused) : string.Empty),
+                        Title = partial ? "Restore Projects Partially Successful" : "Restore Projects Successful",
+                        UpdatedCount = projectsToRestore,
+                        RestoredProjectIds = projectIds.Where(x => restoredSet.Contains(x)).ToArray(),
+                        MissingProjectIds = missingProjectIds,
+                        RefusedProjects = refused
                     });
                 }
 
-                return new BadRequestObjectResult(new
-                {
-                    Message = "No deleted projects were found matching the provided IDs. They may already be active or do not belong to this program.",
-                    Title = "No Projects Restored"
-                });
+                // Nothing was written; DisposeAsync in the finally rolls the empty transaction back.
+                return NothingRestored(missingProjectIds, refused);
             }
             catch (ProjectHelper.DeletionRefusedException ex)
             {
                 // The program delete lock could not be had (a Delete Program of it is running).
-                try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                if (transaction != null)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                }
                 return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Restore Not Possible" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                if (transaction != null)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                }
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(cancellationToken);
+                if (transaction != null)
+                {
+                    // 2026-10-24 (RS3): CancellationToken.None, not the request's token, for the
+                    // reason given in BatchDelete's catch: a cancelled request would throw again
+                    // here and reach the client as a raw, unlogged 500.
+                    try
+                    {
+                        await transaction.RollbackAsync(CancellationToken.None);
+                    }
+                    catch
+                    {
+                    }
+                }
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
+            finally
+            {
+                if (transaction != null)
+                {
+                    await transaction.DisposeAsync();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Why <see cref="BatchAddExistingProject"/> will not restore a project, or null when it may.
+        /// Read from the same tier row Batch Delete decides on: nothing is changed in an Approved
+        /// program or for a published project. Lump Sum projects are restored like any other
+        /// (confirmed 2026-10-24): an itemized child is always hard-deleted, so it is simply not
+        /// found, and a Lump Sum parent soft-deleted past its first stage gets its latest revision
+        /// back. The flags are read directly, not via Tier, because the tier rates an itemized child
+        /// Hard even in an Approved program.
+        /// </summary>
+        private static string? RestoreRefusal(ProjectHelper.ProjectDeletionTierResult row)
+        {
+            if (row.IsPublished)
+            {
+                return "published";
+            }
+            return row.ProgramApproved ? "program is approved" : null;
+        }
+
+        /// <summary>The ids a restore left alone, by reason, for the Message the UI toasts.</summary>
+        private static string DescribeNotRestored(IReadOnlyCollection<string> missingProjectIds, IReadOnlyCollection<BatchDeleteRefusal> refused)
+        {
+            var notes = new List<string>();
+            if (missingProjectIds.Count > 0)
+            {
+                notes.Add($"Not found or not deleted: {string.Join(", ", missingProjectIds)}.");
+            }
+            foreach (var byReason in refused.GroupBy(x => x.Reason))
+            {
+                notes.Add($"Not restored ({byReason.Key}): {string.Join(", ", byReason.Select(x => x.ProjectId))}.");
+            }
+            return string.Join(" ", notes);
+        }
+
+        /// <summary>The 400 for a restore that changed nothing. Names every id and why, since the UI
+        /// shows only Message.</summary>
+        private static BadRequestObjectResult NothingRestored(string[] missingProjectIds, List<BatchDeleteRefusal> refused)
+        {
+            string message = refused.Count == 0
+                ? "No deleted projects were found matching the provided IDs. They may already be active or do not belong to this program."
+                : "None of the project IDs can be restored. " + DescribeNotRestored(missingProjectIds, refused);
+            return new BadRequestObjectResult(new
+            {
+                Message = message,
+                Title = "No Projects Restored",
+                MissingProjectIds = missingProjectIds,
+                RefusedProjects = refused
+            });
         }
         #endregion
 

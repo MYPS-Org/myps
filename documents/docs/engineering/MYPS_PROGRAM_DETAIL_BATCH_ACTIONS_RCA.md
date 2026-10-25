@@ -102,7 +102,7 @@ Branch `fix/batch-delete-restore-cross-stage-verification`; plan `documents/plan
 
 **`UpdateProgramStage` takes the program's name from the request** (`Name = dto.Name` on the new program revision). An API caller that omits it blanks the name. The UI always sends it. Recorded here, not changed.
 
-**Batch Restore (`BatchAddExistingProject`) is deferred to its own fix**, `documents/plans/batch-add-existing-project-restore-fixes.md`. The main item is that a committed restore does not recompute the program cost. It also revives Lump Sum soft-deletes, and its dialog is handed `ProgramPK` where the API wants `ProgramId`. Its menu entry stays commented out until then.
+**Batch Restore (`BatchAddExistingProject`) was fixed separately (2026-10-24)**, `documents/plans/batch-add-existing-project-restore-fixes.md`. A committed restore now recomputes the program cost, refuses published projects and Approved programs (decided again on locked rows), opens its transaction after validation and rolls back without the request token; its dialog gets `ProgramId`. Lump Sum projects are restored like any other (confirmed 2026-10-24). It is back in the Batch Actions menu, next to Batch Delete (S01-TC008-P001, #376).
 
 **Test programs that cannot be removed.** Each was advanced past BP, so no endpoint can delete it. (`myps_db_dpwh_2025`'s `DESKTOP-EV51R65_10042026_*` programs are the two approval fixture programs. They are intended, and not in this table.)
 
