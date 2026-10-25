@@ -2403,6 +2403,16 @@ To toggle a record's status:
 
 **Purpose:** Manage dropdown values (Agency, Category, Origin, Thrust) used in the Add Project form.
 
+On the **Agency** and **Thrust** sub-tabs, long text wraps onto several lines inside its column, so you can read every Agency Name, Description, Program Name, Sub-Program, Activity and Infra Type in full without opening **Edit**. Every field in an add or edit row is the same height.
+
+| Field (Agency) | Input | Rules |
+|----------------|-------|-------|
+| Name ID | Number box | Required; must be unique |
+| Agency Name | Single-line text box | Required; must be unique; up to 200 characters |
+| Description | Single-line text box | Optional; up to 500 characters |
+
+New agencies are saved as **Active**, so they appear in the Add Project form's Agency dropdown straight away. Editing an agency keeps its current Active/Inactive status.
+
 **Step-by-Step: Adding an Agency**
 
 1. Select **Code Tables** → **Project Details** → **Agency** sub-tab.
@@ -2428,8 +2438,14 @@ To toggle a record's status:
 
 1. Select **Code Tables** → **Project Details** → **Thrust** sub-tab.
 2. Click **Add**.
-3. Enter **Program Name**, **Sub-Program**, **Activity**, **Seq #**, **Description**, **Infra Type**, **Valid From**, and **Valid To**.
+3. Enter **Program Name**, **Sub-Program**, **Activity**, **Seq #**, **Description**, **Valid From**, and **Valid To**, and pick an **Infra Type** from the dropdown.
 4. Click **Check** to save.
+
+| Field (Thrust) | Input | Rules |
+|----------------|-------|-------|
+| Infra Type | Dropdown | Optional (**— None —** leaves it blank); one type per thrust; lists the active types from **Code Tables** → **Major Item** → **Infrastructure Type** (e.g. Bridges, Flood Control Structures, Roads). If a thrust already holds a value that is not in that list, it is shown as "*value* (not in list)" so editing the thrust does not clear it. |
+
+New thrusts are saved as **Active**. Editing a thrust keeps its current Active/Inactive status.
 
 ---
 
