@@ -27,7 +27,7 @@ so that the program's cost and Lump Sum allocations stay correct.
       so they are never found; a soft-deleted parent gets its latest revision back and the program
       Cost, which includes its OriginalAllocation, is recomputed.)*
 - [x] RS5 Decision recorded: a project deleted at several stages gets back only its latest deleted
-      revision (Max(Id)), or every revision BatchDelete flagged. *(Latest only; pending maintainer confirmation.)*
+      revision (Max(Id)), or every revision BatchDelete flagged. *(Latest only; confirmed by the user 2026-10-25.)*
 - [x] RS6 BatchRestoreDialog receives Details.ProgramId (ProgramId changes on every stage advance;
       ProgramPK does not).
 - [x] RS7 handleBatchRestoreSubmit toasts a generic error only when the error has no Message.
@@ -77,7 +77,7 @@ Date: 2026-10-24
 
 Deviations / flags:
 - RS4 (Lump Sum restored like any other project) confirmed by the user. RS5 (latest deleted revision
-  only) was decided by the implementer with the user and is PENDING MAINTAINER CONFIRMATION.
+  only) was decided by the implementer with the user and confirmed 2026-10-25.
 - RS8 "same permission as Batch Delete" is met on the server (grant migration). The FE has no
   per-button permission gating, so the entry shows for everyone, as Batch Delete's does.
 - The e2e Cost assertion is weak on the fixture (its Cost is 0). RS1 was verified separately on
@@ -121,3 +121,17 @@ MYPS.ApiIntegrationTests/ProgramControllerPublishRestrictionContractTests.cs,
 e2e/tests/batch-delete-restore-cross-stage.spec.ts, e2e/tests/helpers/crossStageFixture.ts,
 Main/Resources/Internal/SQLScripts/Migration.BatchRestorePermission.2026-10-24.sql,
 documents/docs/engineering/MYPS_PROGRAM_DETAIL_BATCH_ACTIONS_RCA.md, this plan.
+
+Review follow-up (2026-10-25, code review + risk analysis R2/R4/R5/R12):
+- R2: the tier resolver ignores IsDeleted, so a live id reached `RestoreRefusal` and was reported
+  "Not restored (published)" / "(program is approved)". `BatchAddExistingProject` now reads which
+  resolved projects have a deleted revision in this program (`deletedFKs`) before classifying; any
+  other id is reported as "Not found or not deleted". Only real candidates are re-decided under the
+  lock, so a live id published concurrently no longer rejects the whole batch (mostly closes R3).
+  Contract test: `BatchAddExistingProject_RefusesOnlyDeletedProjects`.
+- R4: `handleBatchRestoreSubmit` toasts a warning, not a success, when `RefusedProjects` or
+  `MissingProjectIds` is non-empty.
+- R5: RS5 (latest deleted revision only) confirmed by the user.
+- R12: program.md no longer lists Lump Sum as a refusal reason.
+- R1 (deploy): `Migration.BatchRestorePermission.2026-10-24.sql` must be run by hand per environment;
+  carried in the PR body.

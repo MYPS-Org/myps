@@ -296,6 +296,25 @@ public sealed class ProgramControllerPublishRestrictionContractTests
     [Fact]
     [Trait("Layer", "ProcessConformance")]
     [Trait("Controller", "Program")]
+    public void BatchAddExistingProject_RefusesOnlyDeletedProjects()
+    {
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        string method = ExtractMethod(source, "BatchAddExistingProject");
+
+        // 2026-10-25 (review R2): the tier resolver ignores IsDeleted, so a live id is resolved too.
+        // The deleted-revision lookup must come before the first RestoreRefusal, or a live project
+        // is refused as "published" / "program is approved" instead of reported as not deleted.
+        int deletedLookup = method.IndexOf("deletedFKs", StringComparison.Ordinal);
+        int firstRefusal = method.IndexOf("RestoreRefusal(", StringComparison.Ordinal);
+
+        Assert.True(deletedLookup >= 0 && firstRefusal >= 0, "BatchAddExistingProject's shape changed; revisit this test.");
+        Assert.True(deletedLookup < firstRefusal, "Only projects with a deleted revision may reach RestoreRefusal.");
+        Assert.Contains("deletedFKs.Contains(", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
     public void BatchAddExistingProject_ScopesItsRevisionLookupToTheProgram()
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");

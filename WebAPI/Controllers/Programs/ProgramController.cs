@@ -2766,12 +2766,30 @@ namespace WebAPI.Controllers.Programs
                 // transaction is opened (RS2); decided again on locked rows below before anything is
                 // written, as Batch Delete does.
                 var resolved = await _db.DetermineProjectDeletionTiersAsync(projectIds, ProgramParent.ProgramPK, cancellationToken);
+
+                // 2026-10-25 (review R2): the tier resolver ignores IsDeleted, so it also finds live
+                // projects. Only a project with a deleted revision in this program is a restore
+                // candidate; any other is left out here and reported as "not found or not deleted",
+                // not refused as "published" / "program is approved" as if it were deleted and blocked.
+                var resolvedFKs = resolved.Select(x => x.ProjectFK).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                var deletedFKs = (await _db.tProjectRevisions.AsNoTracking()
+                        .Where(r => r.ProgramFK == ProgramParent.ProgramPK && resolvedFKs.Contains(r.ProjectFK) && r.IsDeleted)
+                        .Select(r => r.ProjectFK)
+                        .Distinct()
+                        .ToListAsync(cancellationToken))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
                 var refused = new List<BatchDeleteRefusal>();
                 var projectFKByRef = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var refGroup in resolved.GroupBy(x => x.Ref, StringComparer.OrdinalIgnoreCase))
                 {
                     var rows = refGroup.ToList();
-                    string? reason = rows.Select(x => x.ProjectFK).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1
+                    bool ambiguous = rows.Select(x => x.ProjectFK).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
+                    if (!ambiguous && !deletedFKs.Contains(rows[0].ProjectFK))
+                    {
+                        continue;
+                    }
+                    string? reason = ambiguous
                         ? "matches more than one project in this program"
                         : RestoreRefusal(rows[0]);
                     if (reason != null)
@@ -2811,7 +2829,7 @@ namespace WebAPI.Controllers.Programs
                     }
                 }
 
-                // 2026-10-24 (RS5, decision pending maintainer confirmation): only the project's
+                // 2026-10-24 (RS5, confirmed 2026-10-25: latest deleted revision only): only the project's
                 // LATEST deleted revision in this program comes back (Max(Id)), as before. Batch
                 // Delete flags one revision per call (the current stage's), so this is its inverse
                 // for the most recent delete; an older stage's deleted revision needs another restore.

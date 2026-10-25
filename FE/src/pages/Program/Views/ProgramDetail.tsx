@@ -260,10 +260,13 @@ const ProgramDetail: React.FC = () => {
     let restored = false;
     try {
       const response = await batchRestoreProjects({ ProgramId: programId, ProjectIds: projectIds });
-      // The API's message says how many came back and names the ids that did not, and why.
+      // The API's message says how many came back and names the ids that did not, and why. A
+      // partial restore is a warning, so refused or missing ids are not read past as "done".
+      const data = response.Data;
+      const partial = !!(data?.RefusedProjects?.length || data?.MissingProjectIds?.length);
       showToast({
-        type: 'success',
-        message: response.Data?.Message || 'Projects restored successfully.',
+        type: partial ? 'warning' : 'success',
+        message: data?.Message || 'Projects restored successfully.',
       });
       restored = true;
     } catch (error) {
