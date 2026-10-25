@@ -536,7 +536,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 var ProgramParent = ValidateProgramId.Data.Program;
                 var ProgramRevision = ValidateProgramId.Data.ProgramRevision;
-                string programDisplayName = !string.IsNullOrEmpty(ProgramRevision.Name) ? ProgramRevision.Name : ProgramParent.ProgramPK;
+                string programDisplayName = ProgramHelper.Capitalize(ProgramHelper.ProgramLabel(ProgramRevision.Name));
 
                 // The whole decision lives in ProgramHelper.ExecuteProgramDeletionAsync, inside the
                 // delete transaction on locked rows: Blocked when the program is Approved, has
@@ -549,7 +549,7 @@ namespace WebAPI.Controllers.Programs
 
                 return Ok(new
                 {
-                    Message = $"Program '{programDisplayName}' has been deleted.",
+                    Message = $"{programDisplayName} has been deleted.",
                     Title = "Program Deleted",
                     DeletedProjects = removedLeftovers
                 });
@@ -1565,7 +1565,7 @@ namespace WebAPI.Controllers.Programs
 
                 if (programDetails == null)
                 {
-                    return new BadRequestObjectResult(new { Data = $"Program ID \'{dto.ProgramId}\' does not exist in the Programs table.", Message = "Program not found in the system.", Title = "Program Not Found" });
+                    return await ProgramNotCurrentResultAsync(dto.ProgramId, cancellationToken);
                 }
 
                 var validationResult = await _db.ValidateProgramId(
@@ -1788,12 +1788,7 @@ namespace WebAPI.Controllers.Programs
 
                 if (programDetails == null)
                 {
-                    return new BadRequestObjectResult(new
-                    {
-                        Data = $"Program ID '{dto.ProgramId}' does not exist in the Programs table.",
-                        Message = "Program not found in the system.",
-                        Title = "Program Not Found"
-                    });
+                    return await ProgramNotCurrentResultAsync(dto.ProgramId, cancellationToken);
                 }
 
 
@@ -2339,6 +2334,17 @@ namespace WebAPI.Controllers.Programs
         /// Read-only. Shared by <see cref="BatchDelete"/> and <see cref="PreviewBatchDelete"/> so the
         /// preview a user confirms is exactly what the delete then does.
         /// </summary>
+        /// <summary>
+        /// The 400 for a batch action that found no program at the ProgramId sent. It names the
+        /// program and its current stage, not the id (UAT S01-TC008-P001; see
+        /// ProgramHelper.DescribeProgramNotCurrentAsync).
+        /// </summary>
+        private async Task<BadRequestObjectResult> ProgramNotCurrentResultAsync(string programId, CancellationToken cancellationToken)
+        {
+            var (title, message) = await _db.DescribeProgramNotCurrentAsync(programId, cancellationToken);
+            return new BadRequestObjectResult(new { Data = message, Message = message, Title = title });
+        }
+
         private async Task<(IActionResult? Error, BatchDeletePlan? Plan)> ResolveBatchDeleteAsync(
             BatchUnpublishTaggingDTO? dto, CancellationToken cancellationToken)
         {
@@ -2363,12 +2369,7 @@ namespace WebAPI.Controllers.Programs
 
             if (programDetails == null)
             {
-                return (new BadRequestObjectResult(new
-                {
-                    Data = $"Program ID '{dto.ProgramId}' does not exist in the Programs table.",
-                    Message = "Program not found in the system.",
-                    Title = "Program Not Found"
-                }), null);
+                return (await ProgramNotCurrentResultAsync(dto.ProgramId, cancellationToken), null);
             }
 
             var validationResult = await _db.ValidateProgramId(
@@ -2711,11 +2712,7 @@ namespace WebAPI.Controllers.Programs
                 var checkProgram = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
-                    return new BadRequestObjectResult(new {
-                        Data = $"Program ID '{dto.ProgramId}' does not exist in the Programs table.",
-                        Message = "Program not found in the system.",
-                        Title = "Program not found"
-                    });
+                    return await ProgramNotCurrentResultAsync(dto.ProgramId, cancellationToken);
                 }
                 var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
                 {

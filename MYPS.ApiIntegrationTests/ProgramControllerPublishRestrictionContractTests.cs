@@ -399,6 +399,28 @@ public sealed class ProgramControllerPublishRestrictionContractTests
         Assert.Contains("SkipReason = dto.IsSkipped ? dto.SkipReason : null", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Layer", "ProcessConformance")]
+    [Trait("Controller", "Program")]
+    public void BatchActions_ExplainAMissedProgramByName_NotById()
+    {
+        // UAT S01-TC008-P001 (2026-10-25): a page on a stage the program has moved past sends that
+        // stage's ProgramId, and the batch actions answered "Program ID '<code>' does not exist".
+        // All four now explain it by program name and current stage, through one helper.
+        string source = ReadSourceFile("WebAPI", "Controllers", "Programs", "ProgramController.cs");
+        foreach (string action in new[] { nameof(ProgramController.BatchRestrictPublish), nameof(ProgramController.BatchAllowPublish), nameof(ProgramController.BatchAddExistingProject) })
+        {
+            Assert.Contains("ProgramNotCurrentResultAsync(dto.ProgramId", ExtractMethod(source, action), StringComparison.Ordinal);
+        }
+        Assert.Contains("ProgramNotCurrentResultAsync(dto.ProgramId",
+            ExtractHelper(source, "Task<(IActionResult? Error, BatchDeletePlan? Plan)> ResolveBatchDeleteAsync("), StringComparison.Ordinal);
+        Assert.DoesNotContain("does not exist in the Programs table", source, StringComparison.Ordinal);
+
+        // ValidateProgramId's prompts (every program action goes through it) name the program too.
+        string helper = ReadSourceFile("Helpers", "ProgramHelper.cs");
+        Assert.DoesNotContain("{dto.ProgramId}", ExtractHelper(helper, "Task<ProgramHelperResponse> ValidateProgramId("), StringComparison.Ordinal);
+    }
+
     private static MethodInfo GetPublicAction(string actionName)
     {
         return typeof(ProgramController)
