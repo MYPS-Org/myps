@@ -256,7 +256,7 @@ const LumpSumComponentCostDialog: React.FC<LumpSumComponentCostDialogProps> = ({
     const validPerYearCosts = componentCostPerYear.filter(c => !c.IsDeleted);
 
     if (validPerYearCosts.length === 0) {
-      showToast({ type: 'error', message: 'Please add at least one per-year cost.' });
+      showToast({ type: 'error', message: 'Component details are required for at least one year.' });
       return;
     }
 

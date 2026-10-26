@@ -419,7 +419,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         }
 
         if(componentCostPerYear.filter(cost => !cost.IsDeleted).length === 0) {
-          showToast({ type: 'error', message: 'Please add at least one per-year cost.' });
+          showToast({ type: 'error', message: 'Component details are required for at least one year.' });
           return;
         }
 

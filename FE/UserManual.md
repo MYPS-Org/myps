@@ -1223,7 +1223,7 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
 | *"Please select a Component Type."* | The Component Type dropdown was left blank when clicking Save. | Select a Component Type before clicking Save. |
-| *"Please add at least one per-year cost."* | No per-year rows were added before clicking Save. | Click **Add Year** and fill in at least one year entry. |
+| *"Component details are required for at least one year."* | No year rows were added (or all were deleted) before clicking Save. | Click **Add Year** and fill in at least one year entry. |
 | *"Please enter a valid year for cost entry N."* | A year row has a blank or zero Year field. | Enter a valid fiscal year for that row. |
 | *"Please enter a valid amount for cost entry N."* | A year row has a blank or zero Amount field. | Enter a valid amount greater than zero. |
 | *"Please select a Start Date for cost entry N."* | The Start Date field of a year row is empty. | Select a start date. |
