@@ -428,10 +428,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleEditComponentCost = (index: number, updatedCost: ComponentCost, updatedCostPerYear: ComponentCostPerYear[]) => {
-    const existingCost = componentCosts[index];
-    if (existingCost?.ComponentId) {
-      updateComponentCost(String(existingCost.ComponentId), updatedCost, updatedCostPerYear);
-    }
+    updateComponentCost(index, updatedCost, updatedCostPerYear);
   };
 
   const handleDeleteComponentCost = (index: number) => {

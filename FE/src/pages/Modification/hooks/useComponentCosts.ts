@@ -37,16 +37,41 @@ export function useComponentCosts() {
     }
   }, [setCosts, setCostPerYear]);
 
-  const update = useCallback((componentId: string, updated: ComponentCost, costPerYear?: ComponentCostPerYear[]) => {
-    setCosts(prev => prev.map(c => c.ComponentId === componentId ? updated : c));
+  /**
+   * Replaces the component at `index`. Changing its Component Type changes its ComponentId
+   * (e.g. CoS -> CW1), so its rows are found by what it was BEFORE the edit: a saved
+   * component by Id (ComponentCostFK), an unsaved one by its old ComponentId, since every
+   * unsaved component shares ComponentCostFK 0. Its Major Items and work locations get the
+   * new ComponentId, because the backend matches new ones to their component by that ID.
+   */
+  const update = useCallback((index: number, updated: ComponentCost, costPerYear?: ComponentCostPerYear[]) => {
+    const previous = costs[index];
+    if (!previous) return;
+    const previousComponentId = previous.ComponentId;
+    const belongsToEdited = (fk: number, componentId: string) =>
+      previous.Id > 0 ? fk === previous.Id : (!fk || fk <= 0) && componentId === previousComponentId;
+
+    setCosts(prev => prev.map((c, i) => i === index ? updated : c));
     if (costPerYear !== undefined) {
-      // ComponentCostPerYear.ComponentCostFK links to ComponentCost.Id (not ComponentId)
+      // Saved rows already soft-deleted stay, so the delete still reaches the backend;
+      // the dialog only received the active rows.
       setCostPerYear(prev => [
-        ...prev.filter(c => c.ComponentCostFK !== updated.Id),
+        ...prev.filter(c => !belongsToEdited(c.ComponentCostFK, c.ComponentId) || (c.IsDeleted && c.Id > 0)),
         ...costPerYear
       ]);
     }
-  }, [setCosts, setCostPerYear]);
+
+    if (previousComponentId !== updated.ComponentId) {
+      setMajorItemsAtom(prev => prev.map(item =>
+        !item.IsDeleted && belongsToEdited(item.ComponentCostFK, item.ComponentId)
+          ? { ...item, ComponentId: updated.ComponentId }
+          : item));
+      setLocationsAtom(prev => prev.map(loc =>
+        !loc.IsDeleted && loc.ComponentId === previousComponentId
+          ? { ...loc, ComponentId: updated.ComponentId }
+          : loc));
+    }
+  }, [costs, setCosts, setCostPerYear, setMajorItemsAtom, setLocationsAtom]);
 
   const remove = useCallback((componentId: string) => {
     setCosts(prev => prev.filter(c => c.ComponentId !== componentId));

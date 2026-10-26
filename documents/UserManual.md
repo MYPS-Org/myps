@@ -1101,7 +1101,7 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
 | *"Please select a Component Type."* | The Component Type dropdown was left blank when clicking Save. | Select a Component Type before clicking Save. |
-| *"Please add at least one per-year cost."* | No per-year rows were added before clicking Save. | Click **Add Year** and fill in at least one year entry. |
+| *"Component details are required for at least one year."* | No year rows were added (or all were deleted) before clicking Save. | Click **Add Year** and fill in at least one year entry. |
 | *"Please enter a valid year for cost entry N."* | A year row has a blank or zero Year field. | Enter a valid fiscal year for that row. |
 | *"Please enter a valid amount for cost entry N."* | A year row has a blank or zero Amount field. | Enter a valid amount greater than zero. |
 | *"Please select a Start Date for cost entry N."* | The Start Date field of a year row is empty. | Select a start date. |
@@ -1304,7 +1304,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | 1 | Tab | Selects the data source | Road Sections (for `R`) or Bridges (for `B`); pre-selected based on Infrastructure Type |
-| 2 | Search | Filter term | Text input; searches Road Section ID or Bridge ID |
+| 2 | Search | Filter term | Text input; partial match. **Road Sections** tab: Section ID or Road Name. **Bridges** tab: Bridge ID or Bridge Name. Press Enter to search; clear it and press Enter to show all |
 | 3 | Search button | Executes the search | Button |
 | 4 | Filter by Road Section | (Bridge tab only) Narrows bridge list by road section | Dropdown; populated by the user's DEO road sections |
 | 5 | Page Size | Records per page | Dropdown: 10, 25, 50, 100 |

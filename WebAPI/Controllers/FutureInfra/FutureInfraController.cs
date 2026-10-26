@@ -1217,6 +1217,9 @@ namespace WebAPI.Controllers.Programs
                 if (!string.IsNullOrEmpty(dto.Filters.RoadName))
                     filters.Add(("v.RoadName LIKE @RoadName", "@RoadName", $"%{dto.Filters.RoadName.Trim()}%"));
 
+                if (!string.IsNullOrWhiteSpace(dto.Filters.Search))
+                    filters.Add(("v.RoadSectionId LIKE @Search OR v.RoadName LIKE @Search", "@Search", $"%{dto.Filters.Search.Trim()}%"));
+
                 FilterDataResult<InfraRoadSectionOption> result =
                     await _db.FilterDataCursor<
                         InfraRoadSectionOption,
@@ -1278,6 +1281,9 @@ namespace WebAPI.Controllers.Programs
 
                 if (!string.IsNullOrEmpty(dto.Filters.RoadSectionId))
                     filters.Add(("v.RoadSectionId LIKE @RoadSectionId", "@RoadSectionId", $"%{dto.Filters.RoadSectionId.Trim()}%"));
+
+                if (!string.IsNullOrWhiteSpace(dto.Filters.Search))
+                    filters.Add(("v.BridgeId LIKE @Search OR v.BridgeName LIKE @Search", "@Search", $"%{dto.Filters.Search.Trim()}%"));
 
                 FilterDataResult<InfraBridgeOption> result =
                     await _db.FilterDataCursor<

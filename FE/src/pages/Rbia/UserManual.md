@@ -163,7 +163,7 @@ Each road section row has a blue **+ Add Bridge** button. Click it to open the A
 
 ### What is a Bridge?
 
-A bridge is a structure on a road section. It records the starting position (chainage), the bridge length, the number of carriage ways, and the overall width.
+A bridge is a structure on a road section. It records the starting position (chainage), the bridge length, and the carriageway width.
 
 ### The Bridge ID Format
 
@@ -182,7 +182,7 @@ Bridge IDs follow this format: **`FB{5-digit-number}{IslandCode}`**
 | Bridge ID | Unique bridge identifier (purple badge) |
 | From (m) | Starting chainage from the section start |
 | Length (m) | Bridge length in metres |
-| Carriage Way | Number of carriageways (blue badge, shows "N Way") |
+| Carriageway Width (m) | Width of the carriageway, shown as "{value} m" ("—" when not recorded) |
 | Actions | Edit and Delete buttons |
 
 ### How to Add a Bridge
@@ -257,11 +257,11 @@ Use the import function when:
 ### Full Infrastructure Setup (Road → Section → Bridge)
 
 1. Go to the **Roads tab**.
-2. Click **Add Road**. Enter the Road ID, name, and classification. Save.
+2. Click **Add Road**. Pick the island, and enter the name and classification. Save. MYPS generates the Road ID.
 3. On the new road's row, click **+ Add Section**.
-4. Enter the section number, DEO, and length. Save.
+4. Enter the DEO and length. Save. MYPS generates the Section Road ID.
 5. On the **Road Sections tab**, find the new section. Click **+ Add Bridge**.
-6. Enter the bridge number, name, chainage, length, and carriage ways. Save.
+6. Enter the name, chainage, length, and carriageway width. Save. MYPS generates the Bridge ID.
 
 ### Importing Existing Road Network
 

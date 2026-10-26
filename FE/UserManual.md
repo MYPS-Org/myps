@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.16
+**Version:** 3.17
 **Date:** October 25, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -40,6 +40,7 @@
 | 3.14 | October 15, 2026 | RP | RP | Section 5.1 Dashboard: every program is read at one program stage, as Program Details shows it — the stage chosen in **Program Stage Name**, or else the program's current stage (the line under the title and the region map badge read **Current program stages**; the dropdown's first choice is now **Current stages**). A program is shown under its name at that stage (e.g. *NEP 2025 OO-1*), and its projects, project count ("*5,121 of 5,121 projects*") and amounts are the ones Program Details lists for that stage; the **at \<stage\>** marker on project rows was removed, since all of a program's projects are now at its stage. Projects that stopped at an earlier stage than their program's current stage count only when that stage is chosen. "What counts toward a fiscal year", the Summary cards row and Common Outcomes updated, including why the Programs list can show a slightly different count or amount for a stage. In a card's details, a program's name opens its Program Details in a new tab and the footer's Project Repository button was removed; the FY Regional Infrastructure Portfolio no longer shows a per-project amount or page total, and its project summary's Project Repository opens that project's details page in a new tab; Project Categories shows each share to two decimal places |
 | 3.15 | October 24, 2026 | RP | RP | Section 5.2.5 Batch Restore Projects updated: opened from **Batch Actions → Batch Restore** (the Add Existing Project button is gone); same users as Batch Delete; projects come back at the stage they were deleted from and the program Total Cost is updated; nothing is restored in an Approved program or for a published project; permanently deleted (incl. itemized) projects cannot be restored; messages now name each ID not restored and why |
 | 3.16 | October 25, 2026 | RP | RP | Section 5.5.3 Project Group Details updated: **Add Projects** now takes a pasted list of Project IDs (up to 500) and reports each one as Added, Already in this group, In another group (not moved) or Not found, with **Add more** to continue; projects are removed by ticking rows (or select-all) and **Remove selected (N)**, or by the row's trash icon, with one confirmation and no typing of DELETE; removing does not delete the project; project table column list corrected; Field Reference and validation messages added |
+| 3.17 | October 25, 2026 | RP | RP | Sections 5.2.5 and 5.2.6: batch action prompts name the program, never its internal Program ID. A batch action started from a stage the program has moved past now says so and names the current stage, instead of "Program not found" |
 
 ### Consultant
 
@@ -771,6 +772,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 | *"… Not restored (&lt;reason&gt;): …"* | The listed IDs were left as they are, for the reason shown: *program is approved*, *published*, or *matches more than one project in this program*. | Nothing can be restored for these here. For the last one, enter the project's full ID. |
 | *"No deleted projects were found matching the provided IDs. …"* or *"None of the project IDs can be restored. …"* | Nothing was restored or changed. The second form lists each ID and why. | Check the IDs and that you are in the right program. |
 | *"Project … can no longer be restored here: …"* | The project changed (for example, was published or the program was approved) while the restore was running. Nothing was changed. | Refresh the page and check the project. |
+| *"Program '&lt;name&gt;' has moved on to the &lt;stage&gt; stage. Batch actions only work on a program's current stage …"* | You opened an earlier stage of the program (for example from an old link). Nothing was changed. | Open the program at the stage named in the message and try again. |
 | *"This program was being changed at the same time. Try again."* | Another delete or restore on this program was running. | Wait a moment and try again. |
 | *"Failed to restore projects. Please try again."* | A server error prevented the restore. | Verify the project IDs are correct; retry or contact the administrator. |
 
@@ -781,6 +783,8 @@ When a program row is expanded, a nested table lists all budget stages under tha
 **Purpose:** Perform bulk operations on multiple projects within a program.
 
 **Who uses this:** PS Admin (Allow/Restrict Publishing); DPC, RPC, PS Admin (Batch Delete)
+
+> **Note:** Batch actions work on the program's **current** stage only. Started from an earlier stage, every batch action (Allow / Restrict Publishing, Batch Delete, Batch Restore) stops with *"Program '&lt;name&gt;' has moved on to the &lt;stage&gt; stage. Batch actions only work on a program's current stage: open it at &lt;stage&gt; and try again."* Nothing is changed. Prompts name the program, never its internal Program ID.
 
 ---
 
@@ -1219,7 +1223,7 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
 | *"Please select a Component Type."* | The Component Type dropdown was left blank when clicking Save. | Select a Component Type before clicking Save. |
-| *"Please add at least one per-year cost."* | No per-year rows were added before clicking Save. | Click **Add Year** and fill in at least one year entry. |
+| *"Component details are required for at least one year."* | No year rows were added (or all were deleted) before clicking Save. | Click **Add Year** and fill in at least one year entry. |
 | *"Please enter a valid year for cost entry N."* | A year row has a blank or zero Year field. | Enter a valid fiscal year for that row. |
 | *"Please enter a valid amount for cost entry N."* | A year row has a blank or zero Amount field. | Enter a valid amount greater than zero. |
 | *"Please select a Start Date for cost entry N."* | The Start Date field of a year row is empty. | Select a start date. |
@@ -1422,7 +1426,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | WL-DLG-F01 | Tab | Selects the data source | Road Sections (for `R`) or Bridges (for `B`); pre-selected based on Infrastructure Type |
-| WL-DLG-F02 | Search | Filter term | Text input; searches Road Section ID or Bridge ID |
+| WL-DLG-F02 | Search | Filter term | Text input; partial match. **Road Sections** tab: Section ID or Road Name. **Bridges** tab: Bridge ID or Bridge Name. Press Enter to search; clear it and press Enter to show all |
 | WL-DLG-A01 | Search button | Executes the search | Button |
 | WL-DLG-F03 | Filter by Road Section | (Bridge tab only) Narrows bridge list by road section | Dropdown; populated by the user's DEO road sections |
 | WL-DLG-F04 | Page Size | Records per page | Dropdown: 10, 25, 50, 100 |
@@ -2333,7 +2337,7 @@ A project can belong to only one project group at a time.
 
 **Toggle Active / Inactive**
 
-All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference.
+All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference. **Exception:** Project Details **Category** and **Thrust** are offered in the project form according to their validity years, not their Active status (see 5.7.6).
 
 To toggle a record's status:
 1. Locate the record in the table.
@@ -2446,6 +2450,16 @@ To toggle a record's status:
 
 **Purpose:** Manage dropdown values (Agency, Category, Origin, Thrust) used in the Add Project form.
 
+On the **Agency** and **Thrust** sub-tabs, long text wraps onto several lines inside its column, so you can read every Agency Name, Description, Program Name, Sub-Program, Activity and Infra Type in full without opening **Edit**. Every field in an add or edit row is the same height.
+
+| Field (Agency) | Input | Rules |
+|----------------|-------|-------|
+| Name ID | Number box | Required; must be unique |
+| Agency Name | Single-line text box | Required; must be unique; up to 200 characters |
+| Description | Single-line text box | Optional; up to 500 characters |
+
+New agencies are saved as **Active**, so they appear in the Add Project form's Agency dropdown straight away. Editing an agency keeps its current Active/Inactive status.
+
 **Step-by-Step: Adding an Agency**
 
 1. Select **Code Tables** → **Project Details** → **Agency** sub-tab.
@@ -2471,8 +2485,32 @@ To toggle a record's status:
 
 1. Select **Code Tables** → **Project Details** → **Thrust** sub-tab.
 2. Click **Add**.
-3. Enter **Program Name**, **Sub-Program**, **Activity**, **Seq #**, **Description**, **Infra Type**, **Valid From**, and **Valid To**.
+3. Enter **Program Name**, **Sub-Program**, **Activity**, **Seq #**, **Description**, **Valid From**, and **Valid To**, and pick an **Infra Type** from the dropdown.
 4. Click **Check** to save.
+
+| Field (Thrust) | Input | Rules |
+|----------------|-------|-------|
+| Infra Type | Dropdown | Optional (**— None —** leaves it blank); one type per thrust; lists the active types from **Code Tables** → **Major Item** → **Infrastructure Type** (e.g. Bridges, Flood Control Structures, Roads). If a thrust already holds a value that is not in that list, it is shown as "*value* (not in list)" so editing the thrust does not clear it. |
+
+New thrusts are saved as **Active**. Editing a thrust keeps its current Active/Inactive status.
+
+**Filtering Categories and Thrusts**
+
+The **Category** and **Thrust** sub-tabs each have two filters beside the Search box. They combine with each other and with Search, and the record count under the table shows how many rows match.
+
+| Filter | Options | What it shows |
+|--------|---------|---------------|
+| Validity | All Validity, Valid, Not Valid | **Valid**: rows whose end year has not yet passed. For a Category the end year is **Valid Until**; for a Thrust it is **Valid To**. An end year of 0 means no expiry (shown as **No expiry** for a Category and **Present** for a Thrust), so those rows are always Valid. A row whose end year is the current year stays Valid until that year ends. A Thrust's **Valid From** year is not considered. **Not Valid**: rows whose end year has passed. |
+| Status | All Statuses, Active, Inactive | Rows by their **Active** column. |
+
+**What Valid and Active/Inactive do for Category and Thrust**
+
+- **Validity decides what can be picked.** The project form's **Category** and **Sub-Category** (Thrust) dropdowns offer only **Valid** rows, whether they are Active or Inactive. A project that already has a Category or Sub-Category that is no longer valid still shows that value.
+- **Active/Inactive matters only once a row is no longer valid.** When a project is saved, its Category and Sub-Category are accepted if they are **Active or Valid**:
+  - **Valid** (Active or Inactive): offered in the dropdown and accepted on save.
+  - **Not Valid but Active**: no longer offered for a new selection, but projects that already use it can still be saved with it.
+  - **Not Valid and Inactive**: fully retired. A project that uses the Category is refused on save with *"Selected Category '…' is not valid."*; a retired Sub-Category is accepted while the project's Category and Sub-Category are left unchanged, but changing the Category while keeping that Sub-Category is refused with *"Selected Sub-Category '…' is not valid."*. A project import whose program year is after the Category's Valid Until year is refused with *"Category is no longer valid"*.
+- **To stop a Category or Thrust from being offered in the project form, set its Valid Until / Valid To to a past year.** Setting it to Inactive alone does not remove it from the dropdown while it is still valid.
 
 ---
 
@@ -2975,13 +3013,24 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 
 The **Infrastructure Administration** page (header: "Infrastructure Administration", subtitle: "Manage future roads, road sections, and bridges") displays three tabs and a global **Import** button.
 
-| Tab | Icon | What it shows |
-|-----|------|---------------|
-| Roads | Stack | All future national roads |
-| Road Sections | Building | All future road sections linked to those roads |
-| Bridges | Arrows-pointing-out | All future bridges linked to road sections |
+| Tab | What it shows |
+|-----|---------------|
+| Roads | All future national roads |
+| Road Sections | All future road sections linked to those roads |
+| Bridges | All future bridges linked to road sections |
 
-Each tab shows a count badge with the current total number of records. The counts are loaded once when the page opens.
+The tabs are labelled with text only (no icons). Each tab shows a count badge with the current total number of records. The counts are loaded once when the page opens.
+
+**Record Source — MYPS vs. RBIA:**
+
+| Source | Row actions | Notes |
+|--------|-------------|-------|
+| Created in MYPS | Yellow **Edit** (pencil) and red **Delete** (trash) icons | Can be edited and deleted |
+| Migrated from RBIA | Grey **RBIA** badge in place of Edit / Delete | View-only: maintained in RBIA, so it cannot be edited or deleted in MYPS. Hover the badge to see "Maintained in RBIA: it cannot be edited or deleted in MYPS". |
+
+> The **+ Add Section** (road rows) and **+ Add Bridge** (road section rows) buttons stay available on RBIA rows, so you can add a section to an RBIA road and a bridge to an RBIA section.
+
+**Generated IDs:** Road IDs (`FR{5digits}{IslandCode}`), Section Road IDs (`FS{5digits}{IslandCode}`) and Bridge IDs (`FB{5digits}{IslandCode}`) are never typed. MYPS assigns the next free 5-digit number when you save, and the success message shows the new ID.
 
 **Hierarchy Rule:**
 
@@ -3002,7 +3051,7 @@ Each tab shows a count badge with the current total number of records. The count
 | Search input + **Search** button | Filters the list by the tab's primary identifier. Press Enter or click Search. |
 | **Clear Filter** button (red) | Appears only when a search or filter is active. Resets the table to show all records. |
 | **Filter** button | Opens a filter dialog for advanced multi-field filtering. Turns orange with a count badge when filters are active. |
-| Column header (sortable) | Click to sort ascending; click again to sort descending. Applies to: Road ID, Road Name, Classification (Roads); Section Road ID, Road ID, Length (m), Engineering District (Road Sections); Section Road ID, Bridge Name, Bridge ID, From (m), Length (m), Carriage Way (Bridges). |
+| Column header (sortable) | Click to sort ascending; click again to sort descending. Applies to: Road ID, Road Name, Classification (Roads); Section Road ID, Road ID, Length (m), Engineering District (Road Sections); Section Road ID, Bridge Name, Bridge ID, From (m), Length (m), Carriageway Width (m) (Bridges). |
 | Pagination | **First** / page number buttons / **Last**. Shows current page range and total count at the bottom of the table. |
 
 ---
@@ -3017,8 +3066,8 @@ Each tab shows a count badge with the current total number of records. The count
 |--------|-------------|
 | Road ID | Unique road identifier (blue badge) |
 | Road Name | Name of the road |
-| Classification | Road class (green badge): Primary, Secondary, Tertiary, or Quaternary |
-| Actions | Yellow **Edit** (pencil) icon, red **Delete** (trash) icon, blue **+ Add Section** button |
+| Classification | Road class (green badge): Primary, Secondary, or Tertiary (labels loaded from the road classification table) |
+| Actions | Yellow **Edit** (pencil) icon and red **Delete** (trash) icon for roads created in MYPS, or a grey **RBIA** badge for roads migrated from RBIA (view-only); blue **+ Add Section** button on every row |
 
 **Field Reference — Roads Tab Toolbar:**
 
@@ -3038,42 +3087,45 @@ Each tab shows a count badge with the current total number of records. The count
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-R-F10 | ROAD ID | Unique identifier for the road | Text input; required; format: `FR{5digits}{IslandCode}` (e.g., `FR00001LZ`) |
+| UI-UX-0128-R-F10 | ISLAND | Island group the road belongs to; determines the island code at the end of the generated Road ID | Dropdown: Luzon (LZ), Visayas (VS), Mindanao (MN); required. The Road ID itself is not typed: MYPS generates `FR{next free 5digits}{IslandCode}` (e.g., `FR00001LZ`) when you save |
 | UI-UX-0128-R-F11 | ROAD NAME | Name of the road | Text input; required |
-| UI-UX-0128-R-F12 | CLASSIFICATION | Road classification | Dropdown: Primary (1), Secondary (2), Tertiary (3), Quaternary (4); required |
-| UI-UX-0128-R-A10 | ✕ (close) | Dismiss the dialog without saving | Button |
-| UI-UX-0128-R-A11 | Save | Validate and save the new road | Button (blue) |
+| UI-UX-0128-R-F12 | ROAD CLASSIFICATION | Road classification | Dropdown: Primary, Secondary, Tertiary (loaded from the road classification table); required |
+| UI-UX-0128-R-A10 | ✕ (close) / Cancel | Dismiss the dialog without saving | Button (✕ in the header; **Cancel** (zinc) beside the submit button) |
+| UI-UX-0128-R-A11 | Create Road | Validate and save the new road | Button (orange) |
 
 1. Click **Add Road**. The **Add New Future Road** dialog opens.
-2. Enter the **Road ID** following the format `FR{5digits}{IslandCode}` (e.g., `FR00001LZ` for Luzon, `FR00002VS` for Visayas).
+2. Select the **Island** (Luzon, Visayas or Mindanao). You do not type a Road ID: MYPS generates it when you save.
 3. Enter the **Road Name**.
-4. Select the **Classification** from the dropdown.
-5. Click **Save**.
+4. Select the **Road Classification** from the dropdown.
+5. Click **Create Road**.
 
 [Insert Screenshot: Add New Future Road Dialog]
 
-**On Success:** The road appears in the Roads table.
+**On Success:** A success message shows the generated Road ID (e.g., *"Future road FR00001LZ added."*) and the road appears in the Roads table.
 
 **Common Outcomes & What to Do:**
 
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
-| *"Please fill in all required fields"* | One or more of Road ID, Road Name, or Classification was left blank | Complete all required fields before clicking Save |
+| *"Please fill in all required fields."* | One or more of Island, Road Name, or Road Classification was left blank | Complete all required fields before clicking Create Road |
+| *"Future Road name '…' already exists in the System."* | Another road already uses this name | Enter a different road name |
 
 ---
 
 **Step-by-Step: Editing a Road**
 
-The **Edit Future Road** dialog uses the same fields as the Add dialog. All fields are editable.
+The **Edit Future Road** dialog shows the **Road ID** as a read-only field in place of the Island dropdown (UI-UX-0128-R-F10). Only the Road Name and Road Classification can be changed. The submit button reads **Update Road**.
+
+> Only roads created in MYPS can be edited. Roads migrated from RBIA show an **RBIA** badge instead of the pencil icon.
 
 1. Click the yellow **pencil icon** on the road's row.
-2. The **Edit Future Road** dialog opens, pre-filled with the road's current data.
-3. Modify any field as needed.
-4. Click **Save**.
+2. The **Edit Future Road** dialog opens, pre-filled with the road's current data. The Road ID is shown read-only.
+3. Update the **Road Name** and/or **Road Classification** as needed.
+4. Click **Update Road**.
 
 [Insert Screenshot: Edit Future Road Dialog]
 
-**On Success:** The road record is updated and the table refreshes.
+**On Success:** A success message (*"Future road updated."*) appears and the table refreshes.
 
 ---
 
@@ -3085,6 +3137,8 @@ The **Edit Future Road** dialog uses the same fields as the Add dialog. All fiel
 | UI-UX-0128-R-DEL-F02 | CONFIRMATION INPUT | Must type **DELETE** to enable the delete button | Text input; required; case-insensitive |
 | UI-UX-0128-R-DEL-A01 | Cancel | Closes the dialog without deleting | Button |
 | UI-UX-0128-R-DEL-A02 | Delete Road | Permanently removes the road | Button (red); disabled until confirmation text is typed |
+
+> Only roads created in MYPS can be deleted. Roads migrated from RBIA show an **RBIA** badge instead of the trash icon.
 
 1. Click the red **trash icon** on the road's row.
 2. The **Delete Future Road** dialog opens, displaying the road's ID, name, and classification, along with a warning that the action cannot be undone.
@@ -3101,6 +3155,7 @@ The **Edit Future Road** dialog uses the same fields as the Add dialog. All fiel
 |---|---|---|
 | Delete Road button remains disabled | The confirmation text has not been typed | Type the word DELETE in the confirmation field |
 | *"Failed to delete road. Please try again."* | A server-side error prevented the deletion | Retry; if persistent, verify there are no active road sections linked to this road |
+| *"The selected road still has N road section(s). Delete them in the Road Sections tab first."* | The road still has linked road sections | Delete the road's sections in the Road Sections tab, then delete the road |
 
 > **Warning:** Deleting a road permanently removes it from the system and may affect linked road sections and bridges.
 
@@ -3112,7 +3167,7 @@ The **Edit Future Road** dialog uses the same fields as the Add dialog. All fiel
 |---|---|---|---|
 | UI-UX-0128-R-FLT-F01 | ROAD ID | Filter by road identifier (partial match) | Text input |
 | UI-UX-0128-R-FLT-F02 | ROAD NAME | Filter by road name (partial match) | Text input |
-| UI-UX-0128-R-FLT-F03 | CLASSIFICATION | Filter by road class | Dropdown: All / Primary / Secondary / Tertiary / Quaternary |
+| UI-UX-0128-R-FLT-F03 | CLASSIFICATION | Filter by road class | Dropdown: All / Primary / Secondary / Tertiary (loaded from the road classification table) |
 | UI-UX-0128-R-FLT-A01 | Clear Filter | Resets all filter fields and reloads all roads | Button (zinc); disabled when all fields are empty |
 | UI-UX-0128-R-FLT-A02 | Cancel | Closes the dialog without applying | Button (zinc) |
 | UI-UX-0128-R-FLT-A03 | Apply Filter | Applies the filter criteria and refreshes the table | Button (orange) |
@@ -3128,32 +3183,39 @@ The **Edit Future Road** dialog uses the same fields as the Add dialog. All fiel
 
 **Step-by-Step: Adding a Road Section from a Road Row**
 
-Each road row has a blue **+ Add Section** button. This is the only way to create new road sections.
+Each road row has a blue **+ Add Section** button. This is the only way to create new road sections. The button is available on every road, including roads migrated from RBIA.
 
 **Field Reference — Add Road Section Dialog (launched from road row):**
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | UI-UX-0128-RS-F01 | PARENT ROAD ID | The road this section belongs to | Read-only text field; pre-filled with `{RoadId} - {RoadName}` |
-| UI-UX-0128-RS-F02 | SECTION ROAD ID | Section identifier, assembled from three parts | Split input: prefix `FS` (fixed) + 5-digit number (user-entered, digits only, max 5 chars) + island code suffix (auto-derived from parent Road ID) |
+| UI-UX-0128-RS-F02 | SECTION ROAD ID | Section identifier, generated by MYPS | Read-only; shows `FS·····{IslandCode}` as a preview (island code taken from the parent Road ID). The 5-digit number is assigned when you save |
 | UI-UX-0128-RS-F03 | ENGINEERING DISTRICT | DEO responsible for this section | Dropdown (loaded from DEO list); required |
-| UI-UX-0128-RS-F04 | ROAD LENGTH | Length of the road section in metres | Numeric input; required |
-| UI-UX-0128-RS-A01 | ✕ (close) | Dismiss the dialog without saving | Button |
-| UI-UX-0128-RS-A02 | Save | Validate and save the road section | Button (blue) |
+| UI-UX-0128-RS-F04 | LENGTH (METERS) | Length of the road section in metres | Text input (decimal number, greater than 0); required |
+| UI-UX-0128-RS-A01 | ✕ (close) / Cancel | Dismiss the dialog without saving | Button (✕ in the header; **Cancel** (zinc) beside the submit button) |
+| UI-UX-0128-RS-A02 | Create Road Section | Validate and save the road section | Button (orange) |
 
-> The **Section Road ID** is composed in real time as the user types. When the 5-digit number is entered, the full ID is assembled as `FS{00000}{IslandCode}`. The island code is extracted automatically from the parent road's Road ID (e.g., if the road is `FR00001LZ`, the island code is `LZ`).
+> The **Section Road ID** is never typed. When you save, MYPS assigns `FS` + the next free 5-digit number + the parent road's island code (e.g., if the road is `FR00001LZ`, the island code is `LZ`), and the success message shows the new ID.
 
 1. Locate the road in the Roads table.
 2. Click the blue **+ Add Section** button on that road's row.
-3. The **Add Road Section** dialog opens. The **Parent Road ID** field is pre-filled and read-only.
-4. In the **Section Road ID** field, type the 5-digit section number (e.g., `00001`). The system automatically assembles the full ID and displays it as a preview.
+3. The **Add Road Section for {RoadId} - {RoadName}** dialog opens. The **Parent Road ID** field is pre-filled and read-only, and the **Section Road ID** shows a read-only preview.
+4. Enter the **Length (meters)**.
 5. Select the **Engineering District** (DEO) from the dropdown.
-6. Enter the **Road Length** in metres.
-7. Click **Save**.
+6. Click **Create Road Section**.
 
 [Insert Screenshot: Add Road Section Dialog]
 
-**On Success:** The road section is created with an auto-generated Section Road ID (`FS{5digits}{IslandCode}`). It appears in the **Road Sections** tab.
+**On Success:** A success message shows the generated Section Road ID (e.g., *"Future road section FS00001LZ added."*). The section appears in the **Road Sections** tab.
+
+**Common Outcomes & What to Do:**
+
+| Message / Situation | What it Means | What You Should Do |
+|---|---|---|
+| *"Please enter the length."* | Length was left blank | Enter the section length in metres |
+| *"Please select an engineering district."* | No DEO was selected | Select an Engineering District |
+| *"Length '…' is not a valid number of meters greater than 0."* | The length is not a positive number | Enter a number greater than 0 |
 
 ---
 
@@ -3171,7 +3233,7 @@ Each road row has a blue **+ Add Section** button. This is the only way to creat
 | Road ID | Parent road identifier (blue badge) |
 | Length (m) | Section length in metres |
 | Engineering District | DEO responsible for this section (orange badge showing DEO name) |
-| Actions | Yellow **Edit** (pencil) icon, red **Delete** (trash) icon, blue **+ Add Bridge** button |
+| Actions | Yellow **Edit** (pencil) icon and red **Delete** (trash) icon for sections created in MYPS, or a grey **RBIA** badge for sections migrated from RBIA (view-only); blue **+ Add Bridge** button on every row |
 
 **Field Reference — Road Sections Tab Toolbar:**
 
@@ -3188,23 +3250,32 @@ Each road row has a blue **+ Add Section** button. This is the only way to creat
 
 The **Edit Future Road Section** dialog opens when the pencil icon is clicked directly in the Road Sections tab.
 
+> Only road sections created in MYPS can be edited. Sections migrated from RBIA show an **RBIA** badge instead of the pencil icon.
+
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-RS-F10 | PARENT ROAD ID | The parent road | Dropdown of all roads; required |
-| UI-UX-0128-RS-F11 | SECTION ROAD ID | Section identifier | Split input: `FS` prefix + 5-digit number + island code suffix |
+| UI-UX-0128-RS-F10 | PARENT ROAD ID | The parent road | Dropdown of roads (`{RoadId} - {RoadName}`); required |
+| UI-UX-0128-RS-F11 | SECTION ROAD ID | Section identifier | Read-only. The 5-digit number never changes; the island code follows the parent road selected in RS-F10 |
 | UI-UX-0128-RS-F12 | ENGINEERING DISTRICT | DEO responsible | Dropdown; required |
-| UI-UX-0128-RS-F13 | ROAD LENGTH | Length in metres | Numeric; required |
-| UI-UX-0128-RS-A10 | ✕ (close) | Dismiss without saving | Button |
-| UI-UX-0128-RS-A11 | Save | Validate and save | Button (blue) |
+| UI-UX-0128-RS-F13 | LENGTH (METERS) | Length in metres | Text input (decimal number, greater than 0); required |
+| UI-UX-0128-RS-A10 | ✕ (close) / Cancel | Dismiss without saving | Button |
+| UI-UX-0128-RS-A11 | Update Road Section | Validate and save | Button (orange) |
 
 1. Click the yellow **pencil icon** on the road section's row.
-2. The **Edit Future Road Section** dialog opens, pre-filled with the section's current data.
-3. Modify any field as needed.
-4. Click **Save**.
+2. The **Edit Future Road Section** dialog opens, pre-filled with the section's current data. The Section Road ID is shown read-only.
+3. Update the **Parent Road ID**, **Length (meters)** and/or **Engineering District** as needed. If you pick a road on another island, the Section Road ID's island code changes with it (and so do the IDs of the section's bridges).
+4. Click **Update Road Section**.
 
 [Insert Screenshot: Edit Future Road Section Dialog]
 
-**On Success:** The road section record is updated and the table refreshes.
+**On Success:** A success message (*"Future road section updated."*) appears and the table refreshes.
+
+**Common Outcomes & What to Do:**
+
+| Message / Situation | What it Means | What You Should Do |
+|---|---|---|
+| *"The selected road section is currently in use, so its ID and parent road cannot be changed."* | A project refers to this section | Leave the Parent Road ID unchanged; you can still update the length and engineering district |
+| *"A bridge on this road section is used by a project, so the section cannot move to a road on another island."* | Moving the section would change the ID of a bridge that a project uses | Pick a parent road on the same island, or leave the parent road unchanged |
 
 ---
 
@@ -3216,6 +3287,8 @@ The **Edit Future Road Section** dialog opens when the pencil icon is clicked di
 | UI-UX-0128-RS-DEL-F02 | CONFIRMATION INPUT | Must type **DELETE** to enable the delete button | Text input; required; case-insensitive |
 | UI-UX-0128-RS-DEL-A01 | Cancel | Closes the dialog without deleting | Button |
 | UI-UX-0128-RS-DEL-A02 | Delete Road Section | Permanently removes the section | Button (red); disabled until confirmation text is typed |
+
+> Only road sections created in MYPS can be deleted. Sections migrated from RBIA show an **RBIA** badge instead of the trash icon.
 
 1. Click the red **trash icon** on the section's row.
 2. The **Delete Road Section** dialog opens showing the Section Road ID, Parent Road ID, Length, and Engineering District, with a warning that the action cannot be undone.
@@ -3259,42 +3332,41 @@ The **Edit Future Road Section** dialog opens when the pencil icon is clicked di
 
 **Step-by-Step: Adding a Bridge from a Road Section Row**
 
-Each road section row has a blue **+ Add Bridge** button. This is the only way to create new bridges.
+Each road section row has a blue **+ Add Bridge** button. This is the only way to create new bridges. The button is available on every section, including sections migrated from RBIA.
 
 **Field Reference — Add Bridge Dialog (launched from road section row):**
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | UI-UX-0128-B-F01 | SECTION ROAD ID | The road section this bridge belongs to | Read-only; pre-filled with the parent section's ID |
-| UI-UX-0128-B-F02 | BRIDGE ID | Bridge identifier, assembled from three parts | Split input: prefix `FB` (fixed) + 5-digit number (user-entered, digits only, max 5 chars) + island code suffix (auto-derived from parent section ID) |
+| UI-UX-0128-B-F02 | BRIDGE ID | Bridge identifier, generated by MYPS | Read-only; shows `FB·····{IslandCode}` as a preview (island code taken from the parent Section Road ID). The 5-digit number is assigned when you save |
 | UI-UX-0128-B-F03 | BRIDGE NAME | Name of the bridge | Text input; required |
-| UI-UX-0128-B-F04 | FROM CHAINAGE (km) | Starting position of the bridge along the road section, in kilometres | Numeric input (step 0.01, min 0); required |
+| UI-UX-0128-B-F04 | FROM CHAINAGE (km) | Starting position of the bridge along the road section, in kilometres | Numeric input (step 0.01, min 0); required (0 is allowed: the start of the section) |
 | UI-UX-0128-B-F05 | BRIDGE LENGTH (m) | Total length of the bridge structure, in metres | Numeric input (step 0.01, min 0.01); required |
-| UI-UX-0128-B-F06 | WEIGHT OF CARRIAGE WAYS (Kg) | Load capacity of the bridge's carriageway(s) in kilograms | Numeric input (step 1, min 0); required |
-| UI-UX-0128-B-A01 | ✕ (close) | Dismiss the dialog without saving | Button |
-| UI-UX-0128-B-A02 | Save | Validate and save the bridge | Button (blue) |
+| UI-UX-0128-B-F06 | CARRIAGEWAY WIDTH (m) | Width of the bridge's carriageway, in metres | Numeric input (step 0.01, min 0); required |
+| UI-UX-0128-B-A01 | ✕ (close) / Cancel | Dismiss the dialog without saving | Button (✕ in the header; **Cancel** (zinc) beside the submit button) |
+| UI-UX-0128-B-A02 | Create Bridge | Validate and save the bridge | Button (orange) |
 
-> The **Bridge ID** is assembled in real time: `FB{00000}{IslandCode}`. The island code is derived automatically from the parent section's Section Road ID. A preview of the full ID is displayed below the input as soon as the number is entered.
+> The **Bridge ID** is never typed. When you save, MYPS assigns `FB` + the next free 5-digit number + the parent section's island code, and the success message shows the new ID.
 
 1. Locate the road section in the Road Sections table.
 2. Click the blue **+ Add Bridge** button on that section's row.
-3. The **Add New Future Bridge** dialog opens. The **Section Road ID** is pre-filled and read-only.
-4. Enter the 5-digit **Bridge number** in the Bridge ID field (e.g., `00001`). The full ID preview updates automatically.
-5. Enter the **Bridge Name**.
-6. Enter the **From Chainage** (starting position in kilometres along the road section).
-7. Enter the **Bridge Length** in metres.
-8. Enter the **Weight of Carriage Ways** in kilograms.
-9. Click **Save**.
+3. The **Add New Future Bridge** dialog opens. The **Section Road ID** is pre-filled and read-only, and the **Bridge ID** shows a read-only preview.
+4. Enter the **Bridge Name**.
+5. Enter the **From Chainage** (starting position in kilometres along the road section).
+6. Enter the **Bridge Length** in metres.
+7. Enter the **Carriageway Width** in metres.
+8. Click **Create Bridge**.
 
 [Insert Screenshot: Add New Future Bridge Dialog]
 
-**On Success:** The bridge is created with an auto-generated Bridge ID (`FB{5digits}{IslandCode}`) and appears in the **Bridges** tab.
+**On Success:** A success message shows the generated Bridge ID (e.g., *"Future bridge FB00001LZ added."*). The bridge appears in the **Bridges** tab.
 
 **Common Outcomes & What to Do:**
 
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
-| *"Please fill in all required fields with valid values"* | One or more of Section Road ID, Bridge Name, From Chainage, Bridge Length, or Weight of Carriage Ways was left blank or zero | Complete all required fields with valid values before clicking Save |
+| *"Please fill in all required fields with valid values."* | One or more of Section Road ID, Bridge Name, From Chainage, Bridge Length, or Carriageway Width was left blank, or Bridge Length / Carriageway Width is zero | Complete all required fields with valid values before clicking Create Bridge |
 
 ---
 
@@ -3313,8 +3385,8 @@ Each road section row has a blue **+ Add Bridge** button. This is the only way t
 | Bridge ID | Unique bridge identifier (purple badge) |
 | From (m) | Starting chainage of the bridge from the section start, displayed in metres |
 | Length (m) | Bridge length in metres |
-| Carriage Way | Load capacity badge (blue, displayed as "{value} Way") |
-| Actions | Yellow **Edit** (pencil) icon, red **Delete** (trash) icon |
+| Carriageway Width (m) | Width of the bridge's carriageway, displayed as "{value} m" ("—" when not recorded) |
+| Actions | Yellow **Edit** (pencil) icon and red **Delete** (trash) icon for bridges created in MYPS, or a grey **RBIA** badge for bridges migrated from RBIA (view-only) |
 
 **Field Reference — Bridges Tab Toolbar:**
 
@@ -3329,16 +3401,22 @@ Each road section row has a blue **+ Add Bridge** button. This is the only way t
 
 **Step-by-Step: Editing a Bridge**
 
-The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fields are editable.
+The **Edit Future Bridge** dialog uses the same fields as the Add dialog, with these differences:
+
+- **Section Road ID** (UI-UX-0128-B-F01) is a dropdown of road sections, so the bridge can be moved to another section.
+- **Bridge ID** (UI-UX-0128-B-F02) is read-only. Its 5-digit number never changes; its island code follows the road section selected in B-F01.
+- The submit button reads **Update Bridge**.
+
+> Only bridges created in MYPS can be edited. Bridges migrated from RBIA show an **RBIA** badge instead of the pencil icon.
 
 1. Click the yellow **pencil icon** on the bridge's row.
-2. The **Edit Future Bridge** dialog opens, pre-filled with the bridge's current data.
-3. Modify any field as needed.
-4. Click **Save**.
+2. The **Edit Future Bridge** dialog opens, pre-filled with the bridge's current data. The Bridge ID is shown read-only.
+3. Update the Section Road ID, Bridge Name, From Chainage, Bridge Length and/or Carriageway Width as needed.
+4. Click **Update Bridge**.
 
 [Insert Screenshot: Edit Future Bridge Dialog]
 
-**On Success:** The bridge record is updated and the table refreshes.
+**On Success:** A success message (*"Future bridge updated."*) appears and the table refreshes.
 
 ---
 
@@ -3346,13 +3424,15 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-B-DEL-F01 | Bridge info panel | Displays Bridge Name, Section Road ID, From Chainage, Length, and Carriage Ways | Read-only |
+| UI-UX-0128-B-DEL-F01 | Bridge info panel | Displays Bridge Name, Section Road ID, From Chainage, Length, and Carriageway Width | Read-only |
 | UI-UX-0128-B-DEL-F02 | CONFIRMATION INPUT | Must type **DELETE** to enable the delete button | Text input; required; case-insensitive |
 | UI-UX-0128-B-DEL-A01 | Cancel | Closes the dialog without deleting | Button |
 | UI-UX-0128-B-DEL-A02 | Delete Bridge | Permanently removes the bridge | Button (red); disabled until confirmation text is typed |
 
+> Only bridges created in MYPS can be deleted. Bridges migrated from RBIA show an **RBIA** badge instead of the trash icon.
+
 1. Click the red **trash icon** on the bridge's row.
-2. The **Delete Bridge** dialog opens showing the Bridge Name, Section Road ID, From Chainage, Length, and Carriage Ways, along with a warning that the action cannot be undone.
+2. The **Delete Bridge** dialog opens showing the Bridge Name, Section Road ID, From Chainage, Length, and Carriageway Width, along with a warning that the action cannot be undone.
 3. Type **DELETE** in the confirmation field.
 4. Click **Delete Bridge**.
 

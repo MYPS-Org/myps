@@ -63,7 +63,7 @@ interface RoadSectionsPaneProps {
 
 const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSize, selectedInfraId, onSelect, onPageSizeChange }) => {
   const pagination = usePagination<InfraRoadSectionFilter, InfraRoadSectionOption>(fetchRoadSectionsForDialog, {
-    initialFilters: { DEO: deo || '', RoadName: search },
+    initialFilters: { DEO: deo || '', Search: search },
     limit: pageSize,
     enabled: !!deo,
   });
@@ -75,7 +75,7 @@ const RoadSectionsPane: React.FC<RoadSectionsPaneProps> = ({ deo, search, pageSi
       return;
     }
     if (!deo) return;
-    pagination.applyFilters({ DEO: deo, RoadName: search });
+    pagination.applyFilters({ DEO: deo, Search: search });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, deo]);
 
@@ -178,7 +178,7 @@ interface BridgesPaneProps {
 
 const BridgesPane: React.FC<BridgesPaneProps> = ({ deo, selectedRoadSectionId, search, pageSize, selectedInfraId, onSelect, onPageSizeChange }) => {
   const pagination = usePagination<InfraBridgeFilter, InfraBridgeOption>(fetchBridgesForDialog, {
-    initialFilters: { DEO: deo || '', RoadSectionId: selectedRoadSectionId || '', BridgeName: search },
+    initialFilters: { DEO: deo || '', RoadSectionId: selectedRoadSectionId || '', Search: search },
     limit: pageSize,
     enabled: !!deo,
   });
@@ -190,7 +190,7 @@ const BridgesPane: React.FC<BridgesPaneProps> = ({ deo, selectedRoadSectionId, s
       return;
     }
     if (!deo) return;
-    pagination.applyFilters({ DEO: deo, RoadSectionId: selectedRoadSectionId || '', BridgeName: search });
+    pagination.applyFilters({ DEO: deo, RoadSectionId: selectedRoadSectionId || '', Search: search });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, selectedRoadSectionId, deo]);
 
@@ -464,7 +464,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder={activeTab === 'bridge' ? 'Search by Bridge Name...' : 'Search by Road Name...'}
+                placeholder={activeTab === 'bridge' ? 'Search by Bridge ID or Bridge Name...' : 'Search by Section ID or Road Name...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}

@@ -53,6 +53,56 @@ namespace Helpers
     }
     public static class ProgramHelper
     {
+        // 2026-10-25, UAT S01-TC008-P001: prompts name the program, never its ProgramId/ProgramPK.
+        // Users don't know those codes, and the ProgramId changes on every stage advance, so the one
+        // in a prompt rarely matched the one in the page URL.
+        public const string ProgramNotFoundMessage =
+            "This program could not be found. It may have been deleted. Reload the Program List and open it again.";
+
+        /// <summary>"program 'HGAB 2025 SSP'", or "this program" when the name is blank.</summary>
+        public static string ProgramLabel(string? name) =>
+            string.IsNullOrWhiteSpace(name) ? "this program" : $"program '{name.Trim()}'";
+
+        public static string Capitalize(string label) => char.ToUpperInvariant(label[0]) + label[1..];
+
+        /// <summary>
+        /// The program's current name for a message (a lookup may have matched an older stage's
+        /// revision, with an older name), falling back to <paramref name="fallbackName"/>.
+        /// </summary>
+        public static async Task<string> CurrentProgramLabelAsync(this MYPSDbContext _db, string programPK, string? fallbackName, CancellationToken cancellationToken)
+        {
+            var name = await _db.vProgramLatest.AsNoTracking()
+                .Where(x => x.ProgramPK == programPK)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+            return ProgramLabel(string.IsNullOrWhiteSpace(name) ? fallbackName : name);
+        }
+
+        /// <summary>
+        /// Why a batch action's program lookup missed. The batch actions find the program by its
+        /// CURRENT ProgramId (vProgramLatest), which changes on every stage advance, so a miss is
+        /// almost always the page sending the ProgramId of an older stage the user is viewing, not
+        /// a missing program. Says so by name and current stage instead of echoing the id.
+        /// </summary>
+        public static async Task<(string Title, string Message)> DescribeProgramNotCurrentAsync(this MYPSDbContext _db, string programId, CancellationToken cancellationToken)
+        {
+            var revision = await _db.tProgramRevisions.AsNoTracking()
+                .Where(x => x.ProgramId == programId)
+                .Select(x => new { x.ProgramFK, x.Name })
+                .FirstOrDefaultAsync(cancellationToken);
+            var latest = revision == null ? null : await _db.vProgramLatest.AsNoTracking()
+                .Where(x => x.ProgramPK == revision.ProgramFK)
+                .Select(x => new { x.Name, x.StageName })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (latest == null)
+            {
+                return ("Program Not Found", ProgramNotFoundMessage);
+            }
+            var label = ProgramLabel(string.IsNullOrWhiteSpace(latest.Name) ? revision!.Name : latest.Name);
+            return ("Not the Current Stage",
+                $"{Capitalize(label)} has moved on to the {latest.StageName} stage. Batch actions only work on a program's current stage: open it at {latest.StageName} and try again.");
+        }
+
         public static async Task<ProgramHelperResponse> ValidateProgramId(this MYPSDbContext _db, ProgramHelperParams dto, CancellationToken cancellationToken)
         {
             var response = new ProgramHelperResponse();
@@ -84,7 +134,7 @@ namespace Helpers
             if (GetProgramPK == null)
             {
                 response.Title = "Program Not Found";
-                response.Message = $"The program with ID '{dto.ProgramId}' does not exist in the system.";
+                response.Message = ProgramNotFoundMessage;
                 return response;
             }
             var CheckProgramStage = await _db.fProgramStages
@@ -94,7 +144,7 @@ namespace Helpers
             if (CheckProgramStage == null)
             {
                 response.Title = "Stage Not Found";
-                response.Message = $"The stage '{dto.StageName}' does not exist for the program with ID '{dto.ProgramId}'.";
+                response.Message = $"The {dto.StageName} stage does not exist for {await _db.CurrentProgramLabelAsync(GetProgramPK.ProgramFK, GetProgramPK.Name, cancellationToken)}.";
                 return response;
             }
             if (!dto.ViewOldStage)
@@ -120,7 +170,7 @@ namespace Helpers
             if (ProgramParent == null)
             {
                 response.Title = "Program Not Found";
-                response.Message = $"The program with ID '{dto.ProgramId}' does not exist in the system.";
+                response.Message = ProgramNotFoundMessage;
                 return response;
             }
             if (dto._Session.ApplyFilter)
@@ -128,7 +178,7 @@ namespace Helpers
                 if (!ProgramParent.DataSecurityGroup.Contains(dto._Session.RegCode))
                 {
                     response.Title = "Access Denied";
-                    response.Message = $"You do not have permission to update the program with ID '{dto.ProgramId}'. Please contact your administrator.";
+                    response.Message = $"You do not have permission to update {await _db.CurrentProgramLabelAsync(GetProgramPK.ProgramFK, GetProgramPK.Name, cancellationToken)}. Please contact your administrator.";
                     return response;
                 }
             }
@@ -138,14 +188,14 @@ namespace Helpers
             if(GetProgramRevision == null)
             {
                 response.Title = "Program Revision Not Found";
-                response.Message = $"The program revision for program ID '{dto.ProgramId}' does not exist in the system.";
+                response.Message = $"The {dto.StageName} details of {await _db.CurrentProgramLabelAsync(GetProgramPK.ProgramFK, GetProgramPK.Name, cancellationToken)} could not be found.";
                 return response;
             }
             var GetProgramStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CheckProgramStage.Id, cancellationToken);
             if (GetProgramStage == null)
             {
                 response.Title = "Program Stage Not Found";
-                response.Message = $"The program stage for program ID '{dto.ProgramId}' does not exist in the system.";
+                response.Message = $"The {dto.StageName} stage of {await _db.CurrentProgramLabelAsync(GetProgramPK.ProgramFK, GetProgramPK.Name, cancellationToken)} could not be found.";
                 return response;
             }
             response.Data.ProgramRevision = GetProgramRevision;
