@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../../../../components/tailwindui/table';
@@ -40,6 +40,18 @@ const ThrustTable: React.FC = () => {
 
   const rows: ThrustEnum[] = (codeTableData?.ProjectThrusts ?? []) as ThrustEnum[];
 
+  // Infra Type choices come from Code Tables → Major Item → Infrastructure Types (already in
+  // the code-table payload). The column stores the type's name (e.g. "Roads"), one per thrust.
+  const infraTypeNames = useMemo(
+    () => [...new Set(
+      (codeTableData?.InfraTypes ?? [])
+        .filter(t => t.IsActive !== false)
+        .map(t => t.InfraName.trim())
+        .filter(Boolean),
+    )].sort((a, b) => a.localeCompare(b)),
+    [codeTableData?.InfraTypes],
+  );
+
   const filtered = rows.filter(r =>
     r.ProgramName.toLowerCase().includes(search.toLowerCase()) ||
     r.SubProgramName.toLowerCase().includes(search.toLowerCase()) ||
@@ -52,7 +64,8 @@ const ThrustTable: React.FC = () => {
     setEditForm({
       PAPKey: r.PAPKey, ProgramName: r.ProgramName, SubProgramName: r.SubProgramName,
       ActivityName: r.ActivityName, SequenceNumber: r.SequenceNumber,
-      ThrustDescription: r.ThrustDescription, InfrastructureType: r.InfrastructureType ?? '',
+      // Many legacy rows hold a single space for "no infra type"; treat that as empty.
+      ThrustDescription: r.ThrustDescription, InfrastructureType: r.InfrastructureType?.trim() ?? '',
       ValidFromDate: r.ValidFromDate, ValidToDate: r.ValidToDate,
     });
     setDeleteConfirmId(null);
@@ -84,7 +97,10 @@ const ThrustTable: React.FC = () => {
 
   const saveEdit = async () => {
     try {
-      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, InfrastructureType: editForm.InfrastructureType || undefined }));
+      // Keep the row's Active state: the API reads a missing IsActive as false, so leaving it
+      // out would quietly deactivate the thrust on every edit.
+      const original = rows.find(r => r.Id === editId);
+      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, InfrastructureType: editForm.InfrastructureType || undefined, IsActive: original?.IsActive !== false }));
       showToast({ type: 'success', message: 'Thrust updated successfully.' });
       await refetch();
     } catch {
@@ -95,7 +111,8 @@ const ThrustTable: React.FC = () => {
   const saveAdd = async () => {
     if (!addForm) return;
     try {
-      await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, InfrastructureType: addForm.InfrastructureType || undefined }));
+      // New thrusts go straight into the Project form's Thrust dropdown, which lists active rows only.
+      await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, InfrastructureType: addForm.InfrastructureType || undefined, IsActive: true }));
       showToast({ type: 'success', message: 'Thrust added successfully.' });
       await refetch();
     } catch {
@@ -152,8 +169,22 @@ const ThrustTable: React.FC = () => {
     });
   };
 
+  // One fixed height for every field in the add/edit row, so the inputs line up.
   const inp = (color: 'add' | 'edit', extraClass = 'w-full') =>
-    `${extraClass} px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${color === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
+    `${extraClass} h-9 px-2 text-sm bg-white border rounded focus:outline-none focus:ring-1 ${color === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
+
+  // Infra Type dropdown. A saved value that is no longer an active Infrastructure Type (or a
+  // legacy misspelling) stays selectable, so opening Edit never silently clears it.
+  const infraTypeSelect = (color: 'add' | 'edit', value: string, onChange: (v: string) => void) => {
+    const isUnlisted = !!value && !infraTypeNames.includes(value);
+    return (
+      <select value={value} onChange={e => onChange(e.target.value)} className={inp(color, 'w-full min-w-[150px]')}>
+        <option value="">— None —</option>
+        {isUnlisted && <option value={value}>{value} (not in list)</option>}
+        {infraTypeNames.map(name => <option key={name} value={name}>{name}</option>)}
+      </select>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -206,12 +237,12 @@ const ThrustTable: React.FC = () => {
                 {addForm !== null && (
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell><input autoFocus type="number" value={addForm.PAPKey} onChange={e => setAddForm(f => f ? { ...f, PAPKey: +e.target.value } : f)} placeholder="Key" className={inp('add', 'w-16')} /></TableCell>
-                    <TableCell><textarea value={addForm.ProgramName} onChange={e => setAddForm(f => f ? { ...f, ProgramName: e.target.value } : f)} placeholder="Program name..." rows={2} className={inp('add')} /></TableCell>
-                    <TableCell><textarea value={addForm.SubProgramName} onChange={e => setAddForm(f => f ? { ...f, SubProgramName: e.target.value } : f)} placeholder="Sub-program..." rows={2} className={inp('add')} /></TableCell>
-                    <TableCell><textarea value={addForm.ActivityName} onChange={e => setAddForm(f => f ? { ...f, ActivityName: e.target.value } : f)} placeholder="Activity..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell><input type="text" value={addForm.ProgramName} maxLength={200} onChange={e => setAddForm(f => f ? { ...f, ProgramName: e.target.value } : f)} placeholder="Program name..." className={inp('add')} /></TableCell>
+                    <TableCell><input type="text" value={addForm.SubProgramName} maxLength={200} onChange={e => setAddForm(f => f ? { ...f, SubProgramName: e.target.value } : f)} placeholder="Sub-program..." className={inp('add')} /></TableCell>
+                    <TableCell><input type="text" value={addForm.ActivityName} maxLength={400} onChange={e => setAddForm(f => f ? { ...f, ActivityName: e.target.value } : f)} placeholder="Activity..." className={inp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.SequenceNumber} onChange={e => setAddForm(f => f ? { ...f, SequenceNumber: +e.target.value } : f)} placeholder="0" className={inp('add', 'w-14')} /></TableCell>
-                    <TableCell><textarea value={addForm.ThrustDescription} onChange={e => setAddForm(f => f ? { ...f, ThrustDescription: e.target.value } : f)} placeholder="Description..." rows={3} className={inp('add')} /></TableCell>
-                    <TableCell><textarea value={addForm.InfrastructureType} onChange={e => setAddForm(f => f ? { ...f, InfrastructureType: e.target.value } : f)} placeholder="Infra type..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell><input type="text" value={addForm.ThrustDescription} maxLength={400} onChange={e => setAddForm(f => f ? { ...f, ThrustDescription: e.target.value } : f)} placeholder="Description..." className={inp('add')} /></TableCell>
+                    <TableCell>{infraTypeSelect('add', addForm.InfrastructureType, v => setAddForm(f => f ? { ...f, InfrastructureType: v } : f))}</TableCell>
                     <TableCell><input type="number" value={addForm.ValidFromDate} onChange={e => setAddForm(f => f ? { ...f, ValidFromDate: +e.target.value } : f)} placeholder="Year" className={inp('add', 'w-16')} /></TableCell>
                     <TableCell><input type="number" value={addForm.ValidToDate} onChange={e => setAddForm(f => f ? { ...f, ValidToDate: +e.target.value } : f)} placeholder="0=now" className={inp('add', 'w-16')} /></TableCell>
                     <TableCell />
@@ -230,12 +261,12 @@ const ThrustTable: React.FC = () => {
                     {editId === item.Id ? (
                       <>
                         <TableCell><input autoFocus type="number" value={editForm.PAPKey} onChange={e => setEditForm(f => ({ ...f, PAPKey: +e.target.value }))} className={inp('edit', 'w-16')} /></TableCell>
-                        <TableCell><textarea value={editForm.ProgramName} onChange={e => setEditForm(f => ({ ...f, ProgramName: e.target.value }))} placeholder="Program..." rows={2} className={inp('edit')} /></TableCell>
-                        <TableCell><textarea value={editForm.SubProgramName} onChange={e => setEditForm(f => ({ ...f, SubProgramName: e.target.value }))} placeholder="Sub-program..." rows={2} className={inp('edit')} /></TableCell>
-                        <TableCell><textarea value={editForm.ActivityName} onChange={e => setEditForm(f => ({ ...f, ActivityName: e.target.value }))} placeholder="Activity..." rows={2} className={inp('edit')} /></TableCell>
+                        <TableCell><input type="text" value={editForm.ProgramName} maxLength={200} onChange={e => setEditForm(f => ({ ...f, ProgramName: e.target.value }))} placeholder="Program..." className={inp('edit')} /></TableCell>
+                        <TableCell><input type="text" value={editForm.SubProgramName} maxLength={200} onChange={e => setEditForm(f => ({ ...f, SubProgramName: e.target.value }))} placeholder="Sub-program..." className={inp('edit')} /></TableCell>
+                        <TableCell><input type="text" value={editForm.ActivityName} maxLength={400} onChange={e => setEditForm(f => ({ ...f, ActivityName: e.target.value }))} placeholder="Activity..." className={inp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.SequenceNumber} onChange={e => setEditForm(f => ({ ...f, SequenceNumber: +e.target.value }))} className={inp('edit', 'w-14')} /></TableCell>
-                        <TableCell><textarea value={editForm.ThrustDescription} onChange={e => setEditForm(f => ({ ...f, ThrustDescription: e.target.value }))} rows={3} className={inp('edit')} /></TableCell>
-                        <TableCell><textarea value={editForm.InfrastructureType} onChange={e => setEditForm(f => ({ ...f, InfrastructureType: e.target.value }))} placeholder="Infra type..." rows={2} className={inp('edit')} /></TableCell>
+                        <TableCell><input type="text" value={editForm.ThrustDescription} maxLength={400} onChange={e => setEditForm(f => ({ ...f, ThrustDescription: e.target.value }))} className={inp('edit')} /></TableCell>
+                        <TableCell>{infraTypeSelect('edit', editForm.InfrastructureType, v => setEditForm(f => ({ ...f, InfrastructureType: v })))}</TableCell>
                         <TableCell><input type="number" value={editForm.ValidFromDate} onChange={e => setEditForm(f => ({ ...f, ValidFromDate: +e.target.value }))} className={inp('edit', 'w-16')} /></TableCell>
                         <TableCell><input type="number" value={editForm.ValidToDate} onChange={e => setEditForm(f => ({ ...f, ValidToDate: +e.target.value }))} placeholder="0=now" className={inp('edit', 'w-16')} /></TableCell>
                         <TableCell className="text-center">
@@ -258,12 +289,13 @@ const ThrustTable: React.FC = () => {
                     ) : (
                       <>
                         <TableCell><span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.PAPKey}</span></TableCell>
-                        <TableCell className="text-sm font-medium text-gray-900 max-w-[180px] truncate" title={item.ProgramName}>{item.ProgramName}</TableCell>
-                        <TableCell className="text-sm text-gray-600 max-w-[150px] truncate" title={item.SubProgramName || ''}>{item.SubProgramName || '—'}</TableCell>
-                        <TableCell className="text-sm text-gray-600 max-w-[120px] truncate" title={item.ActivityName || ''}>{item.ActivityName || '—'}</TableCell>
+                        {/* The table wrapper is whitespace-nowrap; wrap the text columns so they read in full without opening Edit. */}
+                        <TableCell className="text-sm font-medium text-gray-900 min-w-[180px] max-w-[260px] whitespace-normal break-words">{item.ProgramName}</TableCell>
+                        <TableCell className="text-sm text-gray-600 min-w-[160px] max-w-[240px] whitespace-normal break-words">{item.SubProgramName?.trim() || '—'}</TableCell>
+                        <TableCell className="text-sm text-gray-600 min-w-[160px] max-w-[240px] whitespace-normal break-words">{item.ActivityName?.trim() || '—'}</TableCell>
                         <TableCell className="text-center text-sm text-gray-600">{item.SequenceNumber}</TableCell>
-                        <TableCell className="text-sm text-gray-500 max-w-xs truncate" title={item.ThrustDescription}>{item.ThrustDescription}</TableCell>
-                        <TableCell className="text-sm text-gray-600 max-w-[120px] truncate" title={item.InfrastructureType ?? ''}>{item.InfrastructureType ?? '—'}</TableCell>
+                        <TableCell className="text-sm text-gray-500 min-w-[200px] max-w-xs whitespace-normal break-words">{item.ThrustDescription}</TableCell>
+                        <TableCell className="text-sm text-gray-600 min-w-[120px] max-w-[180px] whitespace-normal break-words">{item.InfrastructureType?.trim() || '—'}</TableCell>
                         <TableCell className="text-center text-sm text-gray-600">{item.ValidFromDate}</TableCell>
                         <TableCell className="text-center text-sm text-gray-600">{item.ValidToDate === 0 ? 'Present' : item.ValidToDate}</TableCell>
                         <TableCell className="text-center">
