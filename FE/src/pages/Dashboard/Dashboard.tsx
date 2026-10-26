@@ -293,9 +293,11 @@ const DashboardContent: React.FC = () => {
                 : 'bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 text-white border-slate-800'
             }`}
           >
+            {/* lg:items-start, not centred (#461): centred against the title, the controls rose
+                and fell as either column's height settled on load. */}
             <div
               className={`relative flex justify-between ${
-                isHeaderPinned ? 'flex-row flex-wrap items-center gap-3' : 'flex-col lg:flex-row lg:items-center gap-6'
+                isHeaderPinned ? 'flex-row flex-wrap items-center gap-3' : 'flex-col lg:flex-row lg:items-start gap-6'
               }`}
             >
               {isHeaderPinned ? (
@@ -312,7 +314,9 @@ const DashboardContent: React.FC = () => {
                   </span>
                 </div>
               ) : (
-                <div>
+                // The title takes whatever the controls leave (lg:flex-1), so a longer or
+                // shorter stage line never moves the controls (UAT S01-TC002-P002, #461).
+                <div className="lg:flex-1 lg:min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20">
                       DPWH Executive Command Center
@@ -340,7 +344,10 @@ const DashboardContent: React.FC = () => {
                 </div>
               )}
 
-              <div className={`flex flex-wrap items-center ${isHeaderPinned ? 'gap-2' : 'gap-3'}`}>
+              {/* A fixed width beside the title (#461). Sized by content, this column grew and
+                  shrank as the stage line, the categories and the fiscal years loaded, and every
+                  control in it slid sideways on load or refresh. 45rem fits it in two rows. */}
+              <div className={`flex flex-wrap items-center ${isHeaderPinned ? 'gap-2' : 'gap-3 lg:shrink-0 lg:w-[min(45rem,68%)]'}`}>
                 {/* Real DB vs Benchmark Switch Toggle */}
                 <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-700/80 shadow-inner">
                   <button
