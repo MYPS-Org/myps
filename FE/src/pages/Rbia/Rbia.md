@@ -131,9 +131,9 @@ All MYPS backend calls use `httpClient.post<T>(url, body)`. Import calls use `gi
 
 | Function | Endpoint | Body | Return |
 |---|---|---|---|
-| `fetchRoadInitData()` | `POST /futureInfra/initfilterFutureRoads` | — | `{ Classifications: FutureRoadsClassification[] }` |
+| `fetchRoadInitData()` | `POST /futureInfra/initfilterFutureRoads` | — | `{ Classifications: FutureRoadsClassification[]; IslandCodes: string[] }` |
 | `fetchRoads(data)` | `POST /futureInfra/ShowFutureRoads` | `RoadPagination` | `PaginationResponse<FutureRoads>` |
-| `addFutureRoad(road)` | `POST /futureInfra/addFutureRoads` | `RoadFilter` (Id/Name/Classification) | `RoadFilter` |
+| `addFutureRoad(road)` | `POST /futureInfra/addFutureRoads` | `AddFutureRoadRequest` (`IslandCode`/`Name`/`Classification`) | `{ RoadId: string; Message: string }` (the generated `FR#####{Island}`) |
 | `editFutureRoad(road)` | `POST /futureInfra/editFutureRoads` | `FutureRoads` | `FutureRoads` |
 | `deleteFutureRoad(roadId)` | `POST /futureinfra/DeleteFutureRoad` | `{ RoadId: string }` | `{ success: boolean }` |
 | `fetchRoadSectionInitData()` | `POST /futureinfra/InitFilterFutureRoadSections` | — | `{ DEOs: RODEOEnum[] }` |
@@ -170,7 +170,7 @@ interface FutureRoads {
   InfraExistingOrFutureId: number;
   RoadId: string;              // Format: FR{5digits}{IslandCode}  e.g. FR00001LZ
   Name: string;
-  Classification: number;      // 1=Primary, 2=Secondary, 3=Tertiary, 4=Quaternary
+  Classification: number;      // tFutureRoadsClassification.ClassificationId: 1=Primary, 2=Secondary, 3=Tertiary
   CreatedBy: string;
   CreatedDate: string | null;
   UpdatedBy?: string;
@@ -234,7 +234,8 @@ interface BridgePagination extends PaginationParams      { filters?: BridgeFilte
 ### `FutureRoadsClassification`
 
 ```ts
-interface FutureRoadsClassification { Id: number; Classification: number; Description: string; CreatedBy: string; CreatedDate: string; }
+interface FutureRoadsClassification { Id: number; ClassificationId: number; Classification: string; Description: string; CreatedBy: string; CreatedDate: string; }
+// ClassificationId = the value tFutureRoads.Classification stores; Classification = its label ("Primary", ...)
 ```
 
 ---
@@ -365,7 +366,9 @@ On mount: `getInfraCounts()` → `POST FutureInfra/GetInfraInfo` → sets all th
 - Red trash → `handleDelete(road)` → opens `DeleteRoadDialog` with `roadToDelete` state
 - Blue "Add Section" → `handleAddSection(road)` → opens `FutureRoadSectionDialog` with `road` prop pre-filled
 
-**Table columns:** Road ID (blue badge) | Road Name | Classification (green badge, label-mapped) | Actions
+**RBIA rows are view-only (all three tabs):** pencil and trash render only when `isCreatedInMyps(row)` (`networkStatus.ts`: `NetworkStatusId` 2 = MYPS, or legacy 0). RBIA rows (`NetworkStatusId` 1) show a grey "RBIA" badge (tooltip `RBIA_READ_ONLY_TITLE`) instead; "Add Section" / "Add Bridge" stay on every row. The Edit and Delete APIs refuse RBIA rows too.
+
+**Table columns:** Road ID (blue badge) | Road Name | Classification (green badge, label from `roadClassificationsAtom` by `ClassificationId`) | Actions
 
 **Add Road button**: enabled. Calls `handleCreate()` → clears `selectedItemAtom` → opens `FutureRoadDialog` in add mode.
 
@@ -399,10 +402,10 @@ On mount: `getInfraCounts()` → `POST FutureInfra/GetInfraInfo` → sets all th
 ### `FutureRoadDialog`
 
 - Dual-mode: add (when `selectedItemAtom === null`) or edit (when `selectedItemAtom` is a `FutureRoads`).
-- Required fields: Road ID, Road Name, Classification (dropdown from `roadClassificationsAtom`).
-- Road ID format guidance: `FR{5-digit-number}{IslandCode}` (e.g., `FR00001LZ`, `FR00002VS`).
-- Add payload sent to `addFutureRoad`: `{ RoadId, Name, Classification: string }`.
-- Edit payload sent to `editFutureRoad`: full `FutureRoads` object.
+- Required fields: Island (add) / Road ID (edit, read-only), Road Name, Classification (dropdown from `roadClassificationsAtom`, option value = `ClassificationId`).
+- Road ID is never typed: add mode shows an Island dropdown (`roadIslandCodesAtom`, LZ / VS / MN) and the API generates the next free `FR{5-digit-number}{IslandCode}`; the success toast shows it. Edit mode shows the Road ID read-only.
+- Add payload sent to `addFutureRoad`: `AddFutureRoadRequest` `{ IslandCode, Name, Classification: number }`.
+- Edit payload sent to `editFutureRoad`: full `FutureRoads` object (numeric `Classification`). The API refuses RBIA-migrated roads ("Maintained in RBIA").
 
 ### `FutureRoadSectionDialog`
 
@@ -435,7 +438,7 @@ See `DELETE_OPERATIONS.md` for the full pattern. Summary:
 
 | Dialog | Fields |
 |---|---|
-| `FilterRoadDialog` | Road ID (text), Road Name (text), Classification (text — numeric value) |
+| `FilterRoadDialog` | Road ID (text), Road Name (text), Classification (select: All + `roadClassificationsAtom`, value = `ClassificationId` as string) |
 | `FilterRoadSectionDialog` | Road ID (text), Section Road ID (text), DEO (`SearchableDropdown` from `deoList` prop) |
 | `FilterBridgeDialog` | Section Road ID (text), Bridge ID (text), Bridge Name (text) |
 
@@ -471,12 +474,13 @@ Island code is the trailing alphabetic suffix: regex `/[A-Za-z]+$/`.
 
 ## Classification Label Map
 
-| Value | Label |
+Labels are not hard-coded: they come from `tFutureRoadsClassification` (via `fetchRoadInitData()` → `roadClassificationsAtom`). The Roads table, `FutureRoadDialog` and `FilterRoadDialog` all resolve `FutureRoads.Classification` against `ClassificationId`. The table holds values 1-3:
+
+| Value (`ClassificationId`) | Label (`Classification`) |
 |---|---|
 | 1 | Primary |
 | 2 | Secondary |
 | 3 | Tertiary |
-| 4 | Quaternary |
 
 ---
 
@@ -487,5 +491,4 @@ Island code is the trailing alphabetic suffix: regex `/[A-Za-z]+$/`.
 - **Add Road Section / Add Bridge standalone**: Both "Add Road Section" and "Add Bridge" standalone buttons are commented out in `RoadSection.tsx` and `Bridge.tsx`. These entities can only be created from their parent entity row ("Add Section" on Road, "Add Bridge" on Road Section).
 - **Import checkboxes are UI-only granularity**: The GIS API has no per-entity import — only "import all infrastructure" and "import all admin/org lookups". So checking just "Roads" still imports road sections and bridges too (and vice versa); same for the two admin/org checkboxes.
 - **`FutureRoadDialog` optimistic add**: After `addFutureRoad` succeeds, the dialog pushes `formData` to the legacy `roadsAtom` array but does NOT update the paginated `roadDataAtom`. This means the table does not show the new road until a re-fetch. The `addRoadToState` optimistic helper exists in the hook but is not called from the dialog currently.
-- **Classification in add payload is sent as string**: `addFutureRoad` sends `{ Classification: formData.Classification.toString() }`. Edit sends the numeric value. Inconsistency with the API — may cause issues.
 - **`deoListAtom` shared between Road and Road Section hooks**: Both `useRoadData.initializeData` and `useRoadSectionData.initializeData` both call `fetchRoadSectionInitData()` and write to `deoListAtom`. Whichever resolves last wins. Since both fetch the same data, this is harmless but redundant.

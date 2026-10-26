@@ -154,11 +154,17 @@ export const deleteFutureBridge = async (bridgeId: string) => {
     }
 }
 
+// Row counts the GIS API upserted per entity (myps-gis infrastructure_inventory.services.import_all).
+export interface ImportAllInfrastructureResult {
+    status: string;
+    meta: { roads: number; road_sections: number; bridges: number; lrps: number };
+}
+
 // Covers Roads, Road Section, Bridges, and Region — the GIS API only exposes one
 // combined infrastructure import endpoint (no per-entity import).
 export const importAllInfrastructure = async (userName: string) => {
     try {
-        const response = await gisClient.put(
+        const response = await gisClient.put<ImportAllInfrastructureResult>(
             `/infra_inventory/import_all?username=${encodeURIComponent(userName)}`,
             undefined,
             { preloaderMessage: 'Importing road network data...' }

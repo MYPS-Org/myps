@@ -66,7 +66,10 @@ const AgencyTable: React.FC = () => {
 
   const saveEdit = async () => {
     try {
-      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, NameId: editForm.NameId, Name: editForm.Name, Description: editForm.Description || null }));
+      // Keep the row's Active state: the API reads a missing IsActive as false, so leaving it
+      // out would quietly deactivate the agency on every edit.
+      const original = rows.find(r => r.Id === editId);
+      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, NameId: editForm.NameId, Name: editForm.Name, Description: editForm.Description || null, IsActive: original?.IsActive !== false }));
       showToast({ type: 'success', message: 'Agency updated successfully.' });
       await refetch();
     } catch {
@@ -77,7 +80,8 @@ const AgencyTable: React.FC = () => {
   const saveAdd = async () => {
     if (!addForm) return;
     try {
-      await updateCodeTable(CODE, 0, JSON.stringify({ NameId: addForm.NameId, Name: addForm.Name, Description: addForm.Description || null }));
+      // New agencies go straight into the Project form's Agency dropdown, which lists active rows only.
+      await updateCodeTable(CODE, 0, JSON.stringify({ NameId: addForm.NameId, Name: addForm.Name, Description: addForm.Description || null, IsActive: true }));
       showToast({ type: 'success', message: 'Agency added successfully.' });
       await refetch();
     } catch {
@@ -122,8 +126,9 @@ const AgencyTable: React.FC = () => {
     });
   };
 
+  // One fixed height for every field in the add/edit row, so the inputs line up.
   const inputClass = (variant: 'add' | 'edit') =>
-    `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${
+    `w-full h-9 px-2 text-sm bg-white border rounded focus:outline-none focus:ring-1 ${
       variant === 'add'
         ? 'border-indigo-300 focus:ring-indigo-500'
         : 'border-amber-300 focus:ring-amber-500'
@@ -190,14 +195,14 @@ const AgencyTable: React.FC = () => {
                         placeholder="NameId *" className={inputClass('add')} />
                     </TableCell>
                     <TableCell>
-                      <textarea value={addForm.Name}
+                      <input type="text" value={addForm.Name} maxLength={200}
                         onChange={e => setAddForm(f => f ? { ...f, Name: e.target.value } : f)}
-                        placeholder="Agency Name *" rows={2} className={inputClass('add')} />
+                        placeholder="Agency Name *" className={inputClass('add')} />
                     </TableCell>
                     <TableCell>
-                      <textarea value={addForm.Description}
+                      <input type="text" value={addForm.Description} maxLength={500}
                         onChange={e => setAddForm(f => f ? { ...f, Description: e.target.value } : f)}
-                        placeholder="Description (optional)" rows={3} className={inputClass('add')} />
+                        placeholder="Description (optional)" className={inputClass('add')} />
                     </TableCell>
                     <TableCell />
                     <TableCell>
@@ -225,15 +230,15 @@ const AgencyTable: React.FC = () => {
                             className={inputClass('edit')} />
                         </TableCell>
                         <TableCell>
-                          <textarea value={editForm.Name}
+                          <input type="text" value={editForm.Name} maxLength={200}
                             onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))}
-                            rows={2} className={inputClass('edit')} />
+                            className={inputClass('edit')} />
                         </TableCell>
                         <TableCell>
-                          <textarea value={editForm.Description}
+                          <input type="text" value={editForm.Description} maxLength={500}
                             onChange={e => setEditForm(f => ({ ...f, Description: e.target.value }))}
                             placeholder="Description (optional)"
-                            rows={3} className={inputClass('edit')} />
+                            className={inputClass('edit')} />
                         </TableCell>
                         <TableCell className="text-center">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
@@ -260,8 +265,9 @@ const AgencyTable: React.FC = () => {
                         <TableCell>
                           <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.NameId}</span>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-900 max-w-[180px] truncate" title={item.Name}>{item.Name}</TableCell>
-                        <TableCell className="text-sm text-gray-500 max-w-xs truncate" title={item.Description ?? ''}>{item.Description ?? '—'}</TableCell>
+                        {/* The table wrapper is whitespace-nowrap; wrap these so long names read in full without opening Edit. */}
+                        <TableCell className="text-sm text-gray-900 min-w-[220px] max-w-md whitespace-normal break-words">{item.Name}</TableCell>
+                        <TableCell className="text-sm text-gray-500 min-w-[200px] max-w-md whitespace-normal break-words">{item.Description || '—'}</TableCell>
                         <TableCell className="text-center">
                           <button
                             onClick={() => requestToggleActive(item)}

@@ -17,6 +17,7 @@ import type {
 import type { ProgramLatest } from '../../../Program/Model.d';
 import type { FieldRules } from '../../Model';
 import { getDisabledClass, generateTempId } from '../../../../utils/GlobalFunctions';
+import { getInfraTypeLabel } from '../../../../utils/infraIdGenerator';
 import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
 import { useMajorItemLocations } from '../../hooks/useMajorItemLocations';
 
@@ -307,10 +308,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     };
   };
 
-  const getInfraName = (infraTypeCode: string): string => {
-    const infraType = infraTypeEnums?.find(infra => infra.InfraCode === infraTypeCode);
-    return infraType?.InfraName || infraTypeCode;
-  }
+  const getInfraName = (infraTypeCode: string): string => getInfraTypeLabel(infraTypeCode, infraTypeEnums);
 
   // Calculate total physical target for a major item
   const getTotalPhysicalTarget = (majorItem: MajorItemOfWorksWithDropdown): number => {
@@ -340,8 +338,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
+      {/* No inner title: the section card above already reads "Major Items of Work" (S02-TC004-P001) */}
+      <div className="flex justify-end items-center mb-4">
         <Button 
           color="blue" 
           onClick={handleAddMajorItem} 
@@ -463,12 +461,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         onDelete={(workLocationIndex) => handleDeleteWorkLocation(index, workLocationIndex)}
                         programDetails={programDetails}
                         infraData={infraData}
-                        infraType={item.InfraTypeFK}
                         workTypeId={item.WorkTypeFK}
                         targetUnit={item.TargetUnit}
                         maxAmount={getMinMaxAmounts(item.WorkTypeFK).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeFK).min}
                         parentId={item.Id}
+                        infraTypeLabel={getInfraName(item.InfraTypeFK)}
                         dropDowns={dropDowns}
                         disabled={false}
                         fieldRules={fieldRules}
@@ -521,6 +519,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           WorkTypeId: majorItemToDelete.WorkTypeFK,
           YearOfWork: majorItemToDelete.YearOfWork,
           InfraType: majorItemToDelete.InfraTypeFK,
+          InfraTypeLabel: getInfraName(majorItemToDelete.InfraTypeFK),
           TargetUnit: majorItemToDelete.TargetUnit,
           MajorItemLocations: majorItemToDelete.MajorItemLocations,
         } : null}
@@ -536,6 +535,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         }}
         onConfirm={handleConfirmCopyMajorItem}
         majorItemToCopy={majorItemToCopy}
+        infraTypeLabel={majorItemToCopy ? getInfraName(majorItemToCopy.InfraTypeFK) : undefined}
         componentCosts={componentCosts}
         existingMajorItems={items.map(item => ({ ComponentId: item.ComponentId }))}
       />

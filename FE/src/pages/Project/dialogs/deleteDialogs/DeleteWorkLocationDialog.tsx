@@ -3,6 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
+import { isRoadInfraType, isBridgeInfraType, isNoGeoInfraType } from '../../../../utils/infraIdGenerator';
 import type { MajorItemLocations } from '../../Model';
 
 interface DeleteWorkLocationDialogProps {
@@ -12,6 +13,8 @@ interface DeleteWorkLocationDialogProps {
   workLocation: MajorItemLocations | null;
   deleteIndex: number | null;
   infraType?: string;
+  /** Display name for the infra type (e.g. "Roads"); falls back to infraType. */
+  infraTypeLabel?: string;
 }
 
 const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
@@ -20,7 +23,8 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
   onConfirmDelete,
   workLocation,
   deleteIndex,
-  infraType
+  infraType,
+  infraTypeLabel
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const { showToast } = useToast();
@@ -112,7 +116,7 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
                   )}
                   <div className="flex justify-between">
                     <span className="text-gray-600">Infrastructure Type:</span>
-                    <span className="font-medium">{infraType || 'Unknown'}</span>
+                    <span className="font-medium">{infraTypeLabel || infraType || 'Unknown'}</span>
                   </div>
                   {workLocation.TargetUnit && (
                     <div className="flex justify-between">
@@ -127,7 +131,7 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
                     </div>
                   )}
                   {/* Infrastructure-specific details */}
-                  {(infraType?.toLowerCase() === 'road' || infraType?.toLowerCase() === 'roads') && (
+                  {isRoadInfraType(infraType ?? '') && (
                     <>
                       {workLocation.StartStationLimit && (
                         <div className="flex justify-between">
@@ -149,8 +153,8 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
                       )}
                     </>
                   )}
-                  {/* Coordinates for other infrastructure types */}
-                  {!(infraType?.toLowerCase() === 'road' || infraType?.toLowerCase() === 'roads' || infraType?.toLowerCase() === 'bridge' || infraType?.toLowerCase() === 'bridges') && (
+                  {/* Coordinates for other infrastructure types (none for Consultancy / Non-Infra) */}
+                  {!(isRoadInfraType(infraType ?? '') || isBridgeInfraType(infraType ?? '') || isNoGeoInfraType(infraType ?? '')) && (
                     <>
                       {(workLocation.StartX || workLocation.StartY) && (
                         <div className="flex justify-between">

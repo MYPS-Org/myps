@@ -15,6 +15,7 @@ import type {
 } from '../Model.d';
 import type { ProgramLatest } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
+import { getInfraTypeLabel } from '../../../utils/infraIdGenerator';
 
 interface MajorItemOfWorksFormProps {
   majorItems: MajorItemOfWorksWithDropdown[];
@@ -264,10 +265,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     onEdit(majorItemIndex, updatedItem);
   };
 
-  const getInfraTypeName = (infraCode: string): string => {
-    const infraType = infraTypeEnums.find(x => x.InfraCode === infraCode);
-    return infraType?.InfraName || infraCode;
-  };
+  const getInfraTypeName = (infraCode: string): string => getInfraTypeLabel(infraCode, infraTypeEnums);
 
   const getMinMaxAmounts = (workTypeId: number) => {
     const workType = dropDowns?.find(option => option.Enum === workTypeId);
@@ -308,8 +306,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
+      {/* No inner title: the section card above already reads "Major Items of Work" (S02-TC004-P001) */}
+      <div className="flex justify-end items-center mb-4">
         <Button color="blue" onClick={handleAddMajorItem} disabled={disabled}>
           <PlusIcon className="w-4 h-4 mr-1" />
           Add Major Item
@@ -418,12 +416,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         onDelete={(workLocationIndex) => handleDeleteWorkLocation(index, workLocationIndex)}
                         programDetails={programDetails}
                         infraData={infraData}
-                        infraType={item.InfraTypeFK}
                         workTypeId={item.WorkTypeFK}
                         targetUnit={item.TargetUnit}
                         maxAmount={getMinMaxAmounts(item.WorkTypeFK).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeFK).min}
                         parentId={item.ComponentId}
+                        infraTypeLabel={getInfraTypeName(item.InfraTypeFK)}
                         dropDowns={dropDowns}
                         disabled={disabled}
                         deo={deo}
@@ -472,6 +470,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           WorkTypeFK: deletingMajorItem.WorkTypeFK,
           YearOfWork: deletingMajorItem.YearOfWork,
           InfraTypeFK: deletingMajorItem.InfraTypeFK,
+          InfraTypeLabel: getInfraTypeName(deletingMajorItem.InfraTypeFK),
           TargetUnitId: deletingMajorItem.TargetUnitId,
           TargetUnit: deletingMajorItem.TargetUnit,
           MajorItemLocations: deletingMajorItem.MajorItemLocations

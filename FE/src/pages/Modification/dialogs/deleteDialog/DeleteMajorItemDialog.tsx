@@ -14,6 +14,8 @@ interface DeleteMajorItemDialogProps {
     WorkTypeId: number;
     YearOfWork: string | number;
     InfraType: string;
+    /** Display name for InfraType (e.g. "Roads"); falls back to the code. */
+    InfraTypeLabel?: string;
     TargetUnit: string;
     MajorItemLocations?: any[];
   } | null;
@@ -129,7 +131,7 @@ const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Infrastructure Type:</span>
-                    <span className="font-medium">{majorItem.InfraType}</span>
+                    <span className="font-medium">{majorItem.InfraTypeLabel || majorItem.InfraType}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Target Unit:</span>

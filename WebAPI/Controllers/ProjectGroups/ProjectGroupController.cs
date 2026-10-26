@@ -5,6 +5,7 @@ using Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Newtonsoft.Json;
 using WebAPI.MicroService;
 using ProjectGroupTable = DBHelper.Models.Table.ProjectGroups;
@@ -15,6 +16,9 @@ namespace WebAPI.Controllers.ProjectGroup
     [Route("api/[controller]/[action]")]
     public class ProjectGroupController : CoreController
     {
+        // Keeps one paste to a size a user can review in the result chips.
+        private const int MaxProjectsPerAdd = 500;
+
         public ProjectGroupController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
         [HttpPost]
@@ -298,10 +302,16 @@ namespace WebAPI.Controllers.ProjectGroup
             }
         }
 
+        /// <summary>
+        /// Adds the pasted projects to the group. Partial success: ungrouped projects are added,
+        /// the rest are skipped and reported (not found / already in this group / in another
+        /// group). A project in another group is never moved. Returns 200 even when nothing was
+        /// added, so the dialog can show the breakdown instead of an error toast.
+        /// </summary>
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] ProjectGroupAddProjectDTO dto, CancellationToken cancellationToken)
         {
-            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            IDbContextTransaction? transaction = null;
             try
             {
                 if (!TryParseGroupId(dto.GroupId, out var groupId))
@@ -315,140 +325,218 @@ namespace WebAPI.Controllers.ProjectGroup
                     return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
                 }
 
-                var requestedProjectIds = dto.ProjectId
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Select(x => x.Trim())
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToArray();
-
+                var requestedProjectIds = NormalizeProjectIds(dto.ProjectId);
                 if (requestedProjectIds.Length == 0)
                 {
                     return new BadRequestObjectResult(new { Message = "No Projects selected.", Title = "Parameter Error" });
                 }
 
-                var projects = await _db.vProjectLatest
-                    .AsNoTracking()
-                    .Where(x => requestedProjectIds.Contains(x.ProjectId) || requestedProjectIds.Contains(x.ProjectPK))
-                    .ToListAsync(cancellationToken);
-
-                var missingProjects = requestedProjectIds
-                    .Where(id => !projects.Any(p =>
-                        string.Equals(p.ProjectId, id, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(p.ProjectPK, id, StringComparison.OrdinalIgnoreCase)))
-                    .ToList();
-
-                if (missingProjects.Count > 0)
+                if (requestedProjectIds.Length > MaxProjectsPerAdd)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Projects {string.Join(", ", missingProjects)} not found.", Title = "Not Found" });
+                    return new BadRequestObjectResult(new { Message = $"You can add at most {MaxProjectsPerAdd} projects at a time.", Title = "Parameter Error" });
                 }
 
-                var resolvedProjectPks = projects.Select(x => x.ProjectPK).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                var (projectIdByPk, notFoundProjectIds) = await ResolveProjectIdsAsync(requestedProjectIds, cancellationToken);
+                var resolvedProjectPks = projectIdByPk.Keys.ToArray();
                 var projectRows = await _db.tProjects
+                    .AsNoTracking()
                     .Where(x => resolvedProjectPks.Contains(x.ProjectPK))
                     .ToListAsync(cancellationToken);
 
-                var alreadyGrouped = projectRows.Where(x => x.ProjectGroupFK != null).ToList();
-                if (alreadyGrouped.Count > 0)
-                {
-                    var joinedProjectIds = string.Join(", ", alreadyGrouped.Select(x => x.ProjectPK));
-                    return new BadRequestObjectResult(new
-                    {
-                        Title = "Project Already Grouped",
-                        Message = $"Projects {joinedProjectIds} are already assigned to a group. Please remove them from the current group before reassigning."
-                    });
-                }
+                // Every project found must land in exactly one result group, so a view row with
+                // no tProjects row behind it is reported as not found rather than dropped. (A
+                // ProjectId and its PK pasted together are one project and are reported once.)
+                var rowPks = projectRows.Select(x => x.ProjectPK).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                notFoundProjectIds = notFoundProjectIds
+                    .Concat(projectIdByPk.Where(x => !rowPks.Contains(x.Key)).Select(x => x.Value))
+                    .ToArray();
 
-                var currentDate = Functions.CurrentDate();
-                var transactionLogs = new List<TransactionLog>();
-                foreach (var project in projectRows)
+                var alreadyInGroupProjectIds = projectRows
+                    .Where(x => x.ProjectGroupFK == group.Id)
+                    .Select(x => projectIdByPk[x.ProjectPK])
+                    .ToArray();
+
+                // Only a live group owns a project. A project whose FK still points at a
+                // soft-deleted group (deleted before DeleteProjectGroup nulled its members) is
+                // treated as ungrouped, so it can be re-linked instead of being stuck.
+                var otherGroupIds = projectRows
+                    .Where(x => x.ProjectGroupFK != null && x.ProjectGroupFK != group.Id)
+                    .Select(x => x.ProjectGroupFK!.Value)
+                    .Distinct()
+                    .ToArray();
+                var liveOtherGroupNames = await _db.tProjectGroups
+                    .AsNoTracking()
+                    .Where(x => otherGroupIds.Contains(x.Id) && !x.IsDeleted)
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+                var inOtherGroupProjects = projectRows
+                    .Where(x => x.ProjectGroupFK != null && liveOtherGroupNames.ContainsKey(x.ProjectGroupFK.Value))
+                    .Select(x => new
+                    {
+                        ProjectId = projectIdByPk[x.ProjectPK],
+                        GroupName = liveOtherGroupNames[x.ProjectGroupFK!.Value]
+                    })
+                    .ToArray();
+
+                var rowsToAdd = projectRows
+                    .Where(x => x.ProjectGroupFK == null
+                        || (x.ProjectGroupFK != group.Id && !liveOtherGroupNames.ContainsKey(x.ProjectGroupFK.Value)))
+                    .ToList();
+                if (rowsToAdd.Count > 0)
                 {
-                    project.ProjectGroupFK = group.Id;
-                    transactionLogs.Add(new TransactionLog
+                    var addPks = rowsToAdd.Select(x => x.ProjectPK).ToArray();
+                    var staleGroupIds = rowsToAdd.Where(x => x.ProjectGroupFK != null).Select(x => x.ProjectGroupFK!.Value).Distinct().ToArray();
+                    transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+                    // Conditional write: only rows that are still ungrouped (or still point at a
+                    // deleted group). If another request grouped one of them since the read above,
+                    // nothing is written, so a project in another group is never moved.
+                    var updated = await _db.tProjects
+                        .Where(x => addPks.Contains(x.ProjectPK)
+                            && (x.ProjectGroupFK == null || staleGroupIds.Contains(x.ProjectGroupFK.Value)))
+                        .ExecuteUpdateAsync(s => s.SetProperty(x => x.ProjectGroupFK, (int?)group.Id), cancellationToken);
+                    if (updated != rowsToAdd.Count)
+                    {
+                        await RollbackQuietlyAsync(transaction);
+                        return new ConflictObjectResult(new { Message = "Some of these projects were changed by someone else at the same time. Try again.", Title = "Try Again" });
+                    }
+
+                    var currentDate = Functions.CurrentDate();
+                    var transactionLogs = rowsToAdd.Select(project => new TransactionLog
                     {
                         ReferenceId = project.ProjectPK,
                         TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProjects",
                         AffectedColumn = "ProjectGroupFK",
                         NewValue = group.Id.ToString(),
-                        OldValue = string.Empty,
+                        OldValue = project.ProjectGroupFK?.ToString() ?? string.Empty,
                         CreatedBy = _Session.UserId ?? string.Empty,
                         Hostname = Environment.MachineName,
                         CreatedDate = currentDate
-                    });
-                }
+                    }).ToList();
 
-                await _db.tTransactionLog.AddRangeAsync(transactionLogs, cancellationToken);
-                await _db.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
+                    await _db.tTransactionLog.AddRangeAsync(transactionLogs, cancellationToken);
+                    await _db.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+                }
 
                 return Ok(new
                 {
-                    Message = "Project(s) added to group successfully",
-                    Title = "Add Complete"
+                    Message = rowsToAdd.Count > 0 ? $"{rowsToAdd.Count} project(s) added to group." : "No projects were added.",
+                    Title = rowsToAdd.Count > 0 ? "Add Complete" : "Nothing Added",
+                    AddedProjectIds = rowsToAdd.Select(x => projectIdByPk[x.ProjectPK]).ToArray(),
+                    AlreadyInGroupProjectIds = alreadyInGroupProjectIds,
+                    InOtherGroupProjects = inOtherGroupProjects,
+                    NotFoundProjectIds = notFoundProjectIds
                 });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(cancellationToken);
+                await RollbackQuietlyAsync(transaction);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+            finally
+            {
+                if (transaction != null)
+                {
+                    await transaction.DisposeAsync();
+                }
             }
         }
 
+        /// <summary>
+        /// Removes the given projects from this group (sets ProjectGroupFK to null; the projects
+        /// are not deleted). Only projects whose ProjectGroupFK is this group are touched; any
+        /// other ID (not found, ungrouped, or in another group) is reported in NotInGroupProjectIds.
+        /// </summary>
         [HttpPost]
         public async Task<IActionResult> DeleteProject([FromBody] ProjectGroupDeleteProjectDTO dto, CancellationToken cancellationToken)
         {
-            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            IDbContextTransaction? transaction = null;
             try
             {
-                var projectId = dto.ProjectId?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(projectId))
+                if (!TryParseGroupId(dto.GroupId, out var groupId))
                 {
-                    return new BadRequestObjectResult(new { Message = "Project ID is required.", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Invalid Project Group ID.", Title = "Parameter Error" });
                 }
 
-                var latestProject = await _db.vProjectLatest
+                var group = await _db.tProjectGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == groupId && !x.IsDeleted, cancellationToken);
+                if (group == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
+                }
+
+                var requestedProjectIds = NormalizeProjectIds(dto.ProjectIds);
+                if (requestedProjectIds.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "No Projects selected.", Title = "Parameter Error" });
+                }
+
+                var (projectIdByPk, notFoundProjectIds) = await ResolveProjectIdsAsync(requestedProjectIds, cancellationToken);
+                var resolvedProjectPks = projectIdByPk.Keys.ToArray();
+                var rowsToRemove = await _db.tProjects
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.ProjectId == projectId || x.ProjectPK == projectId, cancellationToken);
+                    .Where(x => resolvedProjectPks.Contains(x.ProjectPK) && x.ProjectGroupFK == group.Id)
+                    .ToListAsync(cancellationToken);
 
-                if (latestProject == null)
+                var removedPks = rowsToRemove.Select(x => x.ProjectPK).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var notInGroupProjectIds = notFoundProjectIds
+                    .Concat(projectIdByPk.Where(x => !removedPks.Contains(x.Key)).Select(x => x.Value))
+                    .ToArray();
+
+                if (rowsToRemove.Count > 0)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Not Found" });
+                    var removePks = removedPks.ToArray();
+                    transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+                    // Conditional write: only rows still in THIS group. If one was moved to another
+                    // group since the read above, nothing is written, so that group keeps it.
+                    var updated = await _db.tProjects
+                        .Where(x => removePks.Contains(x.ProjectPK) && x.ProjectGroupFK == group.Id)
+                        .ExecuteUpdateAsync(s => s.SetProperty(x => x.ProjectGroupFK, (int?)null), cancellationToken);
+                    if (updated != rowsToRemove.Count)
+                    {
+                        await RollbackQuietlyAsync(transaction);
+                        return new ConflictObjectResult(new { Message = "Some of these projects were changed by someone else at the same time. Try again.", Title = "Try Again" });
+                    }
+
+                    var currentDate = Functions.CurrentDate();
+                    var transactionLogs = rowsToRemove.Select(project => new TransactionLog
+                    {
+                        ReferenceId = project.ProjectPK,
+                        TransactionType = EnumTransactionType.Update.ToString(),
+                        AffectedTable = "tProjects",
+                        AffectedColumn = "ProjectGroupFK",
+                        NewValue = string.Empty,
+                        OldValue = group.Id.ToString(),
+                        CreatedBy = _Session.UserId ?? string.Empty,
+                        Hostname = Environment.MachineName,
+                        CreatedDate = currentDate
+                    }).ToList();
+
+                    await _db.tTransactionLog.AddRangeAsync(transactionLogs, cancellationToken);
+                    await _db.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
                 }
-
-                var existingProject = await _db.tProjects.FirstOrDefaultAsync(x => x.ProjectPK == latestProject.ProjectPK, cancellationToken);
-                if (existingProject?.ProjectGroupFK == null)
-                {
-                    return new BadRequestObjectResult(new { Message = "Project not found in group.", Title = "Not Found" });
-                }
-
-                var currentDate = Functions.CurrentDate();
-                await _db.tTransactionLog.AddAsync(new TransactionLog
-                {
-                    ReferenceId = existingProject.ProjectPK,
-                    TransactionType = EnumTransactionType.Update.ToString(),
-                    AffectedTable = "tProjects",
-                    AffectedColumn = "ProjectGroupFK",
-                    NewValue = string.Empty,
-                    OldValue = existingProject.ProjectGroupFK.Value.ToString(),
-                    CreatedBy = _Session.UserId ?? string.Empty,
-                    Hostname = Environment.MachineName,
-                    CreatedDate = currentDate
-                }, cancellationToken);
-
-                existingProject.ProjectGroupFK = null;
-                await _db.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
                 {
-                    Message = "Project removed from group successfully",
-                    Title = "Delete Complete"
+                    Message = rowsToRemove.Count > 0 ? $"{rowsToRemove.Count} project(s) removed from group." : "No projects were removed.",
+                    Title = rowsToRemove.Count > 0 ? "Remove Complete" : "Nothing Removed",
+                    RemovedProjectIds = rowsToRemove.Select(x => projectIdByPk[x.ProjectPK]).ToArray(),
+                    NotInGroupProjectIds = notInGroupProjectIds
                 });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(cancellationToken);
+                await RollbackQuietlyAsync(transaction);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
+            }
+            finally
+            {
+                if (transaction != null)
+                {
+                    await transaction.DisposeAsync();
+                }
             }
         }
 
@@ -471,16 +559,25 @@ namespace WebAPI.Controllers.ProjectGroup
                     return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
                 }
 
-                var projectKeys = await _db.tProjects
+                var members = await _db.tProjects
                     .AsNoTracking()
                     .Where(x => x.ProjectGroupFK == groupId)
-                    .Select(x => x.ProjectPK)
+                    .Select(x => new { x.ProjectPK, IsLumpSum = x.ProjectType == "LS" && x.ParentProjectId == null })
                     .ToListAsync(cancellationToken);
+                var projectKeys = members.Select(x => x.ProjectPK).ToList();
 
                 var projectList = await _db.vProjectLatest
                     .AsNoTracking()
                     .Where(x => projectKeys.Contains(x.ProjectPK))
                     .ToListAsync(cancellationToken);
+
+                // IsLumpSum is computed, not a view column (see ProjectLatest). Set it here as
+                // ShowProjects does, so a Lump Sum Project's link opens the Lump Sum page.
+                var lumpSumPks = members.Where(x => x.IsLumpSum).Select(x => x.ProjectPK).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (var row in projectList)
+                {
+                    row.IsLumpSum = lumpSumPks.Contains(row.ProjectPK);
+                }
 
                 var userGroups = await _db.tGroups.AsNoTracking().ToListAsync(cancellationToken);
 
@@ -636,6 +733,65 @@ namespace WebAPI.Controllers.ProjectGroup
         {
             groupId = 0;
             return !string.IsNullOrWhiteSpace(value) && int.TryParse(value.Trim(), out groupId) && groupId > 0;
+        }
+
+        private static string[] NormalizeProjectIds(IEnumerable<string>? projectIds)
+        {
+            return (projectIds ?? Array.Empty<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Resolves each requested ID (a Project ID or a Project PK, any case) against vProjectLatest.
+        /// Returns PK → Project ID for the projects found (so results always report Project IDs),
+        /// and the IDs that matched nothing, as typed. vProjectLatest can hold more than one row
+        /// per PK, so each PK takes the Project ID the user typed, else the first one in order.
+        /// </summary>
+        private async Task<(Dictionary<string, string> ProjectIdByPk, string[] NotFoundProjectIds)> ResolveProjectIdsAsync(
+            string[] requestedProjectIds, CancellationToken cancellationToken)
+        {
+            var matches = await _db.vProjectLatest
+                .AsNoTracking()
+                .Where(x => requestedProjectIds.Contains(x.ProjectId) || requestedProjectIds.Contains(x.ProjectPK))
+                .Select(x => new { x.ProjectPK, x.ProjectId })
+                .ToListAsync(cancellationToken);
+
+            var typed = requestedProjectIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var projectIdByPk = matches
+                .GroupBy(x => x.ProjectPK, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    x => x.Key,
+                    x => (x.FirstOrDefault(p => typed.Contains(p.ProjectId)) ?? x.OrderBy(p => p.ProjectId, StringComparer.OrdinalIgnoreCase).First()).ProjectId,
+                    StringComparer.OrdinalIgnoreCase);
+
+            var notFoundProjectIds = requestedProjectIds
+                .Where(id => !matches.Any(p =>
+                    string.Equals(p.ProjectId, id, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(p.ProjectPK, id, StringComparison.OrdinalIgnoreCase)))
+                .ToArray();
+
+            return (projectIdByPk, notFoundProjectIds);
+        }
+
+        // CancellationToken.None: when the request is cancelled mid-write, a rollback handed the
+        // request's token throws again inside the catch and masks the original error.
+        private static async Task RollbackQuietlyAsync(IDbContextTransaction? transaction)
+        {
+            if (transaction == null)
+            {
+                return;
+            }
+
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+            catch
+            {
+            }
         }
 
         private static object ToProjectGroupResponse(ProjectGroupTable group, string? userGroupName, int numberOfProjects)

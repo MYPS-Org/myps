@@ -3,6 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../components/toaster/ToasterContext';
 import { importAllInfrastructure, importAdminOrgLookups } from '../Service';
 
 // ── Import options ────────────────────────────────────────────────────────────
@@ -24,19 +25,28 @@ const IMPORT_OPTIONS: ImportOption[] = [
 interface ImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Called after the RBIA infrastructure import succeeded, so the page can refresh its counts and lists. */
+  onImported?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
+const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose, onImported }) => {
   const [selected, setSelected] = useState<Set<ImportOptionId>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
   const { user } = useAuth();
+  const { showToast } = useToast();
 
-  const handleClose = () => {
+  const resetAndClose = () => {
     setSelected(new Set());
     setIsImporting(false);
     onClose();
+  };
+
+  // X, backdrop and Escape must not close mid-import: the late result would act on a reopened dialog.
+  const handleClose = () => {
+    if (isImporting) return;
+    resetAndClose();
   };
 
   const toggleItem = (id: ImportOptionId) => {
@@ -48,21 +58,65 @@ const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
     });
   };
 
+  // Each selected import reports its own outcome (S06-TC015/TC016: the tester could not tell
+  // whether an import worked — the dialog used to close silently and only console.error on failure).
   const handleImport = async () => {
     if (selected.size === 0) return;
     setIsImporting(true);
     const userName = user?.UserId ?? '';
-    try {
-      const tasks: Promise<unknown>[] = [];
-      if (selected.has('infra-inventory')) tasks.push(importAllInfrastructure(userName));
-      if (selected.has('admin-org-lookups')) tasks.push(importAdminOrgLookups(userName));
-      await Promise.all(tasks);
-      handleClose();
-    } catch (error) {
-      console.error('[ImportDialog] Import failed:', error);
-    } finally {
-      setIsImporting(false);
+
+    const tasks: { id: ImportOptionId; label: string; run: () => Promise<string> }[] = [];
+    if (selected.has('infra-inventory')) {
+      tasks.push({
+        id: 'infra-inventory',
+        label: 'Infrastructure Inventory',
+        run: async () => {
+          const { Data } = await importAllInfrastructure(userName);
+          const meta = Data?.meta;
+          const hasCounts = [meta?.roads, meta?.road_sections, meta?.bridges].every((n) => typeof n === 'number');
+          return hasCounts
+            ? `Infrastructure Inventory imported from RBIA: ${meta!.roads} roads, ${meta!.road_sections} road sections and ${meta!.bridges} bridges.`
+            : 'Infrastructure Inventory imported from RBIA.';
+        },
+      });
     }
+    if (selected.has('admin-org-lookups')) {
+      tasks.push({
+        id: 'admin-org-lookups',
+        label: 'Admin Areas and Internal Org Units',
+        run: async () => {
+          await importAdminOrgLookups(userName);
+          return 'Admin Areas imported from AAMS and Internal Org Units imported from IOMS.';
+        },
+      });
+    }
+
+    const results = await Promise.allSettled(tasks.map((t) => t.run()));
+    const succeeded = new Set<ImportOptionId>();
+    let anyFailed = false;
+    results.forEach((result, i) => {
+      if (result.status === 'fulfilled') {
+        succeeded.add(tasks[i].id);
+        showToast({ type: 'success', message: result.value });
+      } else {
+        anyFailed = true;
+        console.error('[ImportDialog] Import failed:', result.reason);
+        // The interceptor toasted (and set Message) for any API error that carried one.
+        if (!(result.reason as { Message?: string } | undefined)?.Message) {
+          showToast({ type: 'error', message: `Failed to import ${tasks[i].label}. Please try again.` });
+        }
+      }
+    });
+
+    setIsImporting(false);
+    // Only the RBIA import changes roads/sections/bridges; AAMS/IOMS does not touch these lists.
+    if (succeeded.has('infra-inventory')) onImported?.();
+    if (!anyFailed) {
+      resetAndClose();
+      return;
+    }
+    // Stay open on a failure, keeping only the failed imports ticked so a retry doesn't re-run a successful one.
+    setSelected((prev) => new Set([...prev].filter((id) => !succeeded.has(id))));
   };
 
   return (
@@ -79,7 +133,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
               <ArrowUpTrayIcon className="h-5 w-5 text-blue-600" />
               Import Road Network
             </DialogTitle>
-            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+            <button onClick={handleClose} disabled={isImporting} className="text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>

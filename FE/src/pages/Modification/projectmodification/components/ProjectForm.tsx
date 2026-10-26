@@ -529,7 +529,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
   // #endregion
 
-  // #region Funding Profiles
+  // #region Funding Profile
   const handleAddFundingProfile = () => {
     // The backend always re-derives ProjectRevisionFK server-side from the project's
     // current revision on save — it never trusts the client value. We just carry through
@@ -1051,7 +1051,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
             <div className="px-4 py-6 sm:p-8">
               <div className="mb-6">
-                <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profile</h3>
               </div>
               <FundingProfileForm
                 fundingProfiles={fundingProfiles}

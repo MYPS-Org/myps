@@ -13,6 +13,8 @@ interface CopyMajorItemDialogProps {
   majorItemList?: MajorItemOfWorksWithDropdown[];
   componentCosts: ComponentCost[];
   existingMajorItems: Array<{ ComponentId: string }>;
+  /** Display name for the copied item's infra type (e.g. "Roads"); falls back to its InfraTypeFK. */
+  infraTypeLabel?: string;
 }
 
 const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
@@ -23,6 +25,7 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
   componentCosts,
   existingMajorItems,
   majorItemList: _majorItemList,
+  infraTypeLabel,
 }) => {
   const [selectedComponentId, setSelectedComponentId] = useState('');
   const { showToast } = useToast();
@@ -111,7 +114,7 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Infrastructure Type:</span>
-                  <span className="font-medium">{majorItemToCopy.InfraTypeFK}</span>
+                  <span className="font-medium">{infraTypeLabel || majorItemToCopy.InfraTypeFK}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Work Locations:</span>

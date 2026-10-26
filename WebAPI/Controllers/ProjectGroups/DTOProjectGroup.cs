@@ -49,7 +49,9 @@ namespace WebAPI.Controllers.ProjectGroup
     public class ProjectGroupDeleteProjectDTO
     {
         [Required]
-        public string ProjectId { get; set; } = string.Empty;
+        public string GroupId { get; set; } = string.Empty;
+        [Required]
+        public string[] ProjectIds { get; set; } = Array.Empty<string>();
     }
     public class ShowProjectGroupDetailsDTO
     {
@@ -60,7 +62,8 @@ namespace WebAPI.Controllers.ProjectGroup
     {
         [Required]
         public DBHelper.Models.Views.Project.ProjectGroups GroupDetails { get; set; } = new();
-        [Required]
-        public List<DBHelper.Models.Views.Project.ProjectsInGroup> Projects { get; set; } = new List<DBHelper.Models.Views.Project.ProjectsInGroup>();
+        // No Projects list: membership is saved only by AddProject / DeleteProject. A Projects list
+        // used to be bound here and never read, and the page's project rows (numeric Category)
+        // failed its validation, so Update returned 400 for any group that had projects.
     }
 }
