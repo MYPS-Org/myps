@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.16
+**Version:** 3.17
 **Date:** October 25, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -40,6 +40,7 @@
 | 3.14 | October 15, 2026 | RP | RP | Section 5.1 Dashboard: every program is read at one program stage, as Program Details shows it — the stage chosen in **Program Stage Name**, or else the program's current stage (the line under the title and the region map badge read **Current program stages**; the dropdown's first choice is now **Current stages**). A program is shown under its name at that stage (e.g. *NEP 2025 OO-1*), and its projects, project count ("*5,121 of 5,121 projects*") and amounts are the ones Program Details lists for that stage; the **at \<stage\>** marker on project rows was removed, since all of a program's projects are now at its stage. Projects that stopped at an earlier stage than their program's current stage count only when that stage is chosen. "What counts toward a fiscal year", the Summary cards row and Common Outcomes updated, including why the Programs list can show a slightly different count or amount for a stage. In a card's details, a program's name opens its Program Details in a new tab and the footer's Project Repository button was removed; the FY Regional Infrastructure Portfolio no longer shows a per-project amount or page total, and its project summary's Project Repository opens that project's details page in a new tab; Project Categories shows each share to two decimal places |
 | 3.15 | October 24, 2026 | RP | RP | Section 5.2.5 Batch Restore Projects updated: opened from **Batch Actions → Batch Restore** (the Add Existing Project button is gone); same users as Batch Delete; projects come back at the stage they were deleted from and the program Total Cost is updated; nothing is restored in an Approved program or for a published project; permanently deleted (incl. itemized) projects cannot be restored; messages now name each ID not restored and why |
 | 3.16 | October 25, 2026 | RP | RP | Section 5.5.3 Project Group Details updated: **Add Projects** now takes a pasted list of Project IDs (up to 500) and reports each one as Added, Already in this group, In another group (not moved) or Not found, with **Add more** to continue; projects are removed by ticking rows (or select-all) and **Remove selected (N)**, or by the row's trash icon, with one confirmation and no typing of DELETE; removing does not delete the project; project table column list corrected; Field Reference and validation messages added |
+| 3.17 | October 25, 2026 | RP | RP | Sections 5.2.5 and 5.2.6: batch action prompts name the program, never its internal Program ID. A batch action started from a stage the program has moved past now says so and names the current stage, instead of "Program not found" |
 
 ### Consultant
 
@@ -771,6 +772,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 | *"… Not restored (&lt;reason&gt;): …"* | The listed IDs were left as they are, for the reason shown: *program is approved*, *published*, or *matches more than one project in this program*. | Nothing can be restored for these here. For the last one, enter the project's full ID. |
 | *"No deleted projects were found matching the provided IDs. …"* or *"None of the project IDs can be restored. …"* | Nothing was restored or changed. The second form lists each ID and why. | Check the IDs and that you are in the right program. |
 | *"Project … can no longer be restored here: …"* | The project changed (for example, was published or the program was approved) while the restore was running. Nothing was changed. | Refresh the page and check the project. |
+| *"Program '&lt;name&gt;' has moved on to the &lt;stage&gt; stage. Batch actions only work on a program's current stage …"* | You opened an earlier stage of the program (for example from an old link). Nothing was changed. | Open the program at the stage named in the message and try again. |
 | *"This program was being changed at the same time. Try again."* | Another delete or restore on this program was running. | Wait a moment and try again. |
 | *"Failed to restore projects. Please try again."* | A server error prevented the restore. | Verify the project IDs are correct; retry or contact the administrator. |
 
@@ -781,6 +783,8 @@ When a program row is expanded, a nested table lists all budget stages under tha
 **Purpose:** Perform bulk operations on multiple projects within a program.
 
 **Who uses this:** PS Admin (Allow/Restrict Publishing); DPC, RPC, PS Admin (Batch Delete)
+
+> **Note:** Batch actions work on the program's **current** stage only. Started from an earlier stage, every batch action (Allow / Restrict Publishing, Batch Delete, Batch Restore) stops with *"Program '&lt;name&gt;' has moved on to the &lt;stage&gt; stage. Batch actions only work on a program's current stage: open it at &lt;stage&gt; and try again."* Nothing is changed. Prompts name the program, never its internal Program ID.
 
 ---
 

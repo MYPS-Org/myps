@@ -266,6 +266,68 @@ public sealed class DeletionEndpointsHttpTests : IAsyncLifetime
         Assert.Equal(1, await CountAsync($"SELECT COUNT(*) FROM dbo.tPrograms WHERE ProgramPK = '{programFK}'"));
     }
 
+    /*  UAT S01-TC008-P001 (2026-10-25): the batch actions find the program by its CURRENT ProgramId,
+        and the Program Details page sends the ProgramId of the stage being viewed. On a stage the
+        program has moved past, the answer was "Program ID '<code>' does not exist", for a program
+        that plainly exists. It must name the program and its current stage, and never echo the code. */
+    [LocalDatabaseFact]
+    [Trait("Layer", "HttpIntegration")]
+    public async Task BatchDelete_RealHttpCall_OlderStageProgramId_NamesTheProgramAndItsCurrentStage()
+    {
+        var (programFK, project1FK, project2FK) = await SeedProgramWithTwoProjectsAsync(programStatus: 3);
+        // Advance to NEP the way UpdateProgramStage does: a new revision under a new ProgramId.
+        await using (var conn = new SqlConnection(_fixture.ConnectionString))
+        {
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO dbo.tProgramRevisions (ProgramFK, ProgramId, Name, Status, Cost, CreatedBy, CreatedDate)
+                VALUES (@ProgramFK, @NepProgramId, N'Deep Protocol HTTP Test Program', 3, 0, @UserId, SYSUTCDATETIME());
+                INSERT INTO dbo.tProgramStages (ProgramFK, ProgramId, RevisionId, StageId, StageName, CreatedBy, CreatedDate)
+                VALUES (@ProgramFK, @NepProgramId, SCOPE_IDENTITY(), 2, N'NEP', @UserId, SYSUTCDATETIME());
+                """;
+            cmd.Parameters.AddWithValue("@ProgramFK", programFK);
+            cmd.Parameters.AddWithValue("@NepProgramId", $"{programFK}-NEP");
+            cmd.Parameters.AddWithValue("@UserId", _fixture.TestUserId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        using var client = _fixture.CreateAuthenticatedClient();
+
+        var response = await client.PostAsJsonAsync("/api/Program/BatchDelete", new
+        {
+            ProgramId = programFK, // the BP-era ProgramId, as a page still on BP would send
+            ProjectIds = $"{project1FK},{project2FK}"
+        });
+
+        string body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.BadRequest, $"Expected 400, got {response.StatusCode}: {body}");
+        Assert.Contains("Not the Current Stage", body);
+        Assert.Contains("Deep Protocol HTTP Test Program", body);
+        Assert.Contains("moved on to the NEP stage", body);
+        Assert.DoesNotContain(programFK, body);
+        Assert.Equal(2, await CountAsync($"SELECT COUNT(*) FROM dbo.tProjects WHERE ProgramFK = '{programFK}'"));
+    }
+
+    [LocalDatabaseFact]
+    [Trait("Layer", "HttpIntegration")]
+    public async Task BatchDelete_RealHttpCall_UnknownProgramId_SaysNotFoundWithoutEchoingTheId()
+    {
+        string unknownProgramId = $"{DeletionEndpointsHttpFixture.TestPrefix}NoSuchProgram";
+        using var client = _fixture.CreateAuthenticatedClient();
+
+        var response = await client.PostAsJsonAsync("/api/Program/BatchDelete", new
+        {
+            ProgramId = unknownProgramId,
+            ProjectIds = "BP00000000LZ"
+        });
+
+        string body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.BadRequest, $"Expected 400, got {response.StatusCode}: {body}");
+        Assert.Contains("Program Not Found", body);
+        Assert.Contains("This program could not be found", body);
+        Assert.DoesNotContain(unknownProgramId, body);
+    }
+
     [LocalDatabaseFact]
     [Trait("Layer", "HttpIntegration")]
     public async Task DeleteItemizedProject_RealHttpCall_HardDeletesAnOrdinaryProjectAndWritesAuditRow()
