@@ -12,6 +12,8 @@ import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 import { updateCodeTable } from '../../Service';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { useToast } from '../../../../components/toaster/ToasterContext';
+import ValidityStatusFilters from './ValidityStatusFilters';
+import { matchesValidityStatus, type StatusFilter, type ValidityFilter } from './validityStatusFilter';
 
 const CODE = 'ProjectCategory';
 
@@ -26,14 +28,18 @@ const CategoryTable: React.FC = () => {
   const [addForm, setAddForm]          = useState<FormState | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [search, setSearch]            = useState('');
+  const [validityFilter, setValidityFilter] = useState<ValidityFilter>('All');
+  const [statusFilter, setStatusFilter]     = useState<StatusFilter>('All');
   const confirm                        = useConfirmDialog();
   const { showToast }                  = useToast();
 
   const rows: CategoryEnum[] = (codeTableData?.ProjectCategories ?? []) as CategoryEnum[];
 
   const filtered = rows.filter(r =>
-    (r.CategoryName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    String(r.CategoryId ?? '').toLowerCase().includes(search.toLowerCase())
+    (
+      (r.CategoryName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      String(r.CategoryId ?? '').toLowerCase().includes(search.toLowerCase())
+    ) && matchesValidityStatus(r, validityFilter, statusFilter)
   );
 
   const startEdit = (r: CategoryEnum) => {
@@ -138,12 +144,16 @@ const CategoryTable: React.FC = () => {
           <h4 className="text-lg font-semibold text-gray-900">Project Category</h4>
           <p className="text-sm text-gray-500 mt-0.5">Defines cost thresholds and validity for project categories</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-52" />
           </div>
+          <ValidityStatusFilters
+            validity={validityFilter} onValidityChange={setValidityFilter}
+            status={statusFilter} onStatusChange={setStatusFilter}
+          />
           <Button color="indigo" className="flex items-center gap-1 text-sm" onClick={() => setAddForm(EMPTY_FORM)} disabled={!!addForm}>
             <PlusIcon className="h-4 w-4" /> Add
           </Button>
@@ -228,7 +238,7 @@ const CategoryTable: React.FC = () => {
                         <TableCell className="text-sm font-medium text-gray-900 max-w-[150px] truncate" title={item.CategoryName}>{item.CategoryName}</TableCell>
                         <TableCell className="text-sm text-gray-600">{item.Minimum.toLocaleString()}</TableCell>
                         <TableCell className="text-sm text-gray-600">{item.Maximum.toLocaleString()}</TableCell>
-                        <TableCell className="text-sm text-gray-600">{item.ValidUntil}</TableCell>
+                        <TableCell className="text-sm text-gray-600">{item.ValidUntil === 0 ? 'No expiry' : item.ValidUntil}</TableCell>
                         <TableCell className="text-center">
                           <button
                             onClick={() => requestToggleActive(item)}

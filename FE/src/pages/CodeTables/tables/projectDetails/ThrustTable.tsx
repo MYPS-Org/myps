@@ -12,6 +12,8 @@ import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 import { updateCodeTable } from '../../Service';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { useToast } from '../../../../components/toaster/ToasterContext';
+import ValidityStatusFilters from './ValidityStatusFilters';
+import { matchesValidityStatus, type StatusFilter, type ValidityFilter } from './validityStatusFilter';
 
 const CODE = 'ProjectThrust';
 
@@ -36,6 +38,8 @@ const ThrustTable: React.FC = () => {
   const [addForm, setAddForm]          = useState<FormState | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [search, setSearch]            = useState('');
+  const [validityFilter, setValidityFilter] = useState<ValidityFilter>('All');
+  const [statusFilter, setStatusFilter]     = useState<StatusFilter>('All');
   const confirm                        = useConfirmDialog();
 
   const rows: ThrustEnum[] = (codeTableData?.ProjectThrusts ?? []) as ThrustEnum[];
@@ -53,10 +57,12 @@ const ThrustTable: React.FC = () => {
   );
 
   const filtered = rows.filter(r =>
-    r.ProgramName.toLowerCase().includes(search.toLowerCase()) ||
-    r.SubProgramName.toLowerCase().includes(search.toLowerCase()) ||
-    (r.InfrastructureType ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    r.ThrustDescription.toLowerCase().includes(search.toLowerCase())
+    (
+      r.ProgramName.toLowerCase().includes(search.toLowerCase()) ||
+      r.SubProgramName.toLowerCase().includes(search.toLowerCase()) ||
+      (r.InfrastructureType ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      r.ThrustDescription.toLowerCase().includes(search.toLowerCase())
+    ) && matchesValidityStatus(r, validityFilter, statusFilter)
   );
 
   const startEdit = (r: ThrustEnum) => {
@@ -193,12 +199,16 @@ const ThrustTable: React.FC = () => {
           <h4 className="text-lg font-semibold text-gray-900">Thrust / PAP</h4>
           <p className="text-sm text-gray-500 mt-0.5">Program Attributable Programs and associated thrusts used in project classification</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-52" />
           </div>
+          <ValidityStatusFilters
+            validity={validityFilter} onValidityChange={setValidityFilter}
+            status={statusFilter} onStatusChange={setStatusFilter}
+          />
           <Button color="indigo" className="flex items-center gap-1 text-sm" onClick={() => setAddForm(EMPTY_FORM)} disabled={!!addForm}>
             <PlusIcon className="h-4 w-4" /> Add
           </Button>
