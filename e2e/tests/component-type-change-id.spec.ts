@@ -84,10 +84,11 @@ const fundingAmount = (page: Page) => page.getByRole('row')
   .filter({ has: page.getByRole('spinbutton') })
   .getByPlaceholder('₱0.00');
 
-/** The funding Amount field counts every digit as centavos, so ₱1,000,000.00 is typed as
- *  "100000000". Checked on screen, since the percentage is worked out from it. */
+/** Typed with its ".00": the funding Amount reads every digit as a centavo today (#463), and
+ *  "1000000.00" is ₱1,000,000.00 both that way and read as written. Checked on screen, since
+ *  the percentage is worked out from it. */
 const setFunding = async (page: Page, pesos: number) => {
-  await retype(fundingAmount(page), String(pesos * 100));
+  await retype(fundingAmount(page), `${pesos}.00`);
   await expect(fundingAmount(page)).toHaveValue(new RegExp(`${pesos.toLocaleString('en-PH')}\\.00`));
 };
 
