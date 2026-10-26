@@ -1304,7 +1304,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | 1 | Tab | Selects the data source | Road Sections (for `R`) or Bridges (for `B`); pre-selected based on Infrastructure Type |
-| 2 | Search | Filter term | Text input; searches Road Section ID or Bridge ID |
+| 2 | Search | Filter term | Text input; partial match. **Road Sections** tab: Section ID or Road Name. **Bridges** tab: Bridge ID or Bridge Name. Press Enter to search; clear it and press Enter to show all |
 | 3 | Search button | Executes the search | Button |
 | 4 | Filter by Road Section | (Bridge tab only) Narrows bridge list by road section | Dropdown; populated by the user's DEO road sections |
 | 5 | Page Size | Records per page | Dropdown: 10, 25, 50, 100 |
