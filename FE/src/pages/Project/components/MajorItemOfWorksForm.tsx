@@ -306,8 +306,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
+      {/* No inner title: the section card above already reads "Major Items of Work" (S02-TC004-P001) */}
+      <div className="flex justify-end items-center mb-4">
         <Button color="blue" onClick={handleAddMajorItem} disabled={disabled}>
           <PlusIcon className="w-4 h-4 mr-1" />
           Add Major Item
