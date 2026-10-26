@@ -143,10 +143,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     if (modalMode === 'add') {
       add(cost, costPerYear);
     } else if (modalMode === 'edit' && editingIndex !== null) {
-      const componentId = cost.ComponentId || componentCosts[editingIndex]?.ComponentId;
-      if (componentId) {
-        update(componentId, cost, costPerYear);
-      }
+      update(editingIndex, cost, costPerYear);
     }
 
     handleCloseModal();
@@ -300,7 +297,11 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         onSave={handleSaveCost}
         editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
         editingCostPerYear={editingIndex !== null && componentCosts[editingIndex] ?
-          componentCostPerYear.filter(cost => cost.ComponentCostFK === componentCosts[editingIndex].Id && !cost.IsDeleted) :
+          // A saved component's rows carry its Id; every unsaved component's carry 0, so
+          // those are told apart by ComponentId (unique per active component).
+          componentCostPerYear.filter(cost => !cost.IsDeleted && (componentCosts[editingIndex].Id > 0
+            ? cost.ComponentCostFK === componentCosts[editingIndex].Id
+            : (!cost.ComponentCostFK || cost.ComponentCostFK <= 0) && cost.ComponentId === componentCosts[editingIndex].ComponentId)) :
           []}
         mode={modalMode}
         componentTypes={initialData?.Dropdowns?.ComponentTypes}
