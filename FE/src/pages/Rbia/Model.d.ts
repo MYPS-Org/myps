@@ -142,6 +142,8 @@ export interface InfraRoadSectionPagination extends PaginationParams {
 export interface InfraRoadSectionFilter {
   DEO: string;
   RoadName?: string;
+  /** The picker's search box: matches Road Section ID or Road Name. */
+  Search?: string;
 }
 
 export interface InfraBridgeOption {
@@ -175,4 +177,6 @@ export interface InfraBridgeFilter {
   DEO: string;
   BridgeName?: string;
   RoadSectionId?: string;
+  /** The picker's search box: matches Bridge ID or Bridge Name. */
+  Search?: string;
 }

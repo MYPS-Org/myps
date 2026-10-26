@@ -166,6 +166,8 @@ namespace WebAPI.Controllers.Programs
         [Required]
         public string DEO { get; set; } = string.Empty;
         public string? RoadName { get; set; }
+        /// <summary>The picker's search box: matches Road Section ID or Road Name.</summary>
+        public string? Search { get; set; }
     }
     public class ShowInfraBridgesDTO : EnumPagination<ShowInfraBridgesFilterDTO> { }
     public class ShowInfraBridgesFilterDTO
@@ -174,6 +176,8 @@ namespace WebAPI.Controllers.Programs
         public string DEO { get; set; } = string.Empty;
         public string? BridgeName { get; set; }
         public string? RoadSectionId { get; set; }
+        /// <summary>The picker's search box: matches Bridge ID or Bridge Name.</summary>
+        public string? Search { get; set; }
     }
     #endregion
 }
