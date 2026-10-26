@@ -97,54 +97,52 @@ export const handleNumberFocus = (e: React.FocusEvent<HTMLInputElement>) => {
   }
 };
 
-export const handleCurrencyFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-  // Remove currency formatting and show raw number for easier editing
-  const value = e.target.value;
-  const numericValue = value.replace(/[₱,\s]/g, '');
-  if (numericValue && numericValue !== '0') {
-    e.target.value = numericValue;
-  } else {
-    e.target.value = '';
+/**
+ * Reads a currency field's typed or pasted text as pesos, the way it is written: "1000000",
+ * "1,000,000" and "₱1,000,000.00" are all ₱1,000,000.00, and "1500.5" is ₱1,500.50. `text` is
+ * what the field shows while it is being edited: digits and at most one point with two decimals.
+ * (#463: this used to shift every digit in as a centavo, so a pasted "1000000" became ₱10,000.00.)
+ */
+export const parseCurrencyText = (value: string): { text: string; amount: number } => {
+  let text = value.replace(/[^\d.]/g, '');
+  const point = text.indexOf('.');
+  if (point !== -1) {
+    text = text.slice(0, point + 1) + text.slice(point + 1).replace(/\./g, '').slice(0, 2);
   }
+  return { text, amount: parseFloat(text) || 0 };
+};
+
+/** The text a currency field shows while it is being edited: the plain number, '' for zero. */
+export const toCurrencyEditText = (amount: number | null | undefined): string =>
+  amount != null && amount > 0 ? String(amount) : '';
+
+/**
+ * Selects the field's text once focus has swapped the formatted amount for the plain one, so
+ * typing or pasting replaces the amount instead of being added to it.
+ */
+export const handleCurrencyFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+  const input = e.currentTarget;
+  requestAnimationFrame(() => {
+    if (document.activeElement === input) input.select();
+  });
 };
 
 export const handleCurrencyBlur = (
-  e: React.FocusEvent<HTMLInputElement>, 
+  e: React.FocusEvent<HTMLInputElement>,
   onValueChange: (value: number) => void
 ) => {
-  // Parse the input value and format it as currency
-  const numericValue = parseFloat(e.target.value.replace(/[₱,\s]/g, '')) || 0;
-  
-  // Update the form data with the numeric value
-  onValueChange(numericValue);
-  
-  // Format and display as currency
-  if (numericValue > 0) {
-    e.target.value = numericValue.FormatToCurrency();
-  } else {
-    e.target.value = '';
-  }
+  onValueChange(parseCurrencyText(e.target.value).amount);
 };
 
 export const handleCurrencyChange = (
-    value: string, 
-    setDisplayValue: (value: string) => void, 
+    value: string,
+    setDisplayValue: (value: string) => void,
     handleChange: (field: string, value: number) => void,
     fieldName: string = "Total"
   ) => {
-    // Remove non-digits
-    let numeric = value.replace(/\D/g, "");
-
-    if (numeric === "") numeric = "0";
-
-    // Format with 2 decimals
-    const formatted = (parseInt(numeric, 10) / 100).toFixed(2);
-
-    // Update local display
-    setDisplayValue(formatted);
-
-    // Update your formData as number with the specified field name
-    handleChange(fieldName, parseFloat(formatted));
+    const { text, amount } = parseCurrencyText(value);
+    setDisplayValue(text);
+    handleChange(fieldName, amount);
   };
 
 Number.prototype.FormatToCurrency = function (): string {

@@ -3,7 +3,7 @@ import type { FundingProfile, SourceEnum, AgreementEnum } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
-import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus, formatDropdownOptions } from "../../../utils/GlobalFunctions";
+import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus, formatDropdownOptions, toCurrencyEditText } from "../../../utils/GlobalFunctions";
 import SearchableDropdown from "../../../components/ui/SearchableDropdown";
 
 interface FundingProfileFormProps {
@@ -37,7 +37,10 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   const onEditRef = useRef(onEdit);
   const onTotalAmountChangeRef = useRef(onTotalAmountChange);
   const previousAmountsRef = useRef<string>('');
-  
+  // The row whose Amount is being typed in. Its text stays as typed until it loses focus;
+  // re-formatting it on every keystroke is what forced digit-by-digit (centavo) entry (#463).
+  const editingAmountRef = useRef<number | null>(null);
+
   useEffect(() => {
     onEditRef.current = onEdit;
     onTotalAmountChangeRef.current = onTotalAmountChange;
@@ -106,16 +109,20 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   }, [fundingProfiles]);
 
   useEffect(() => {
-    const newDisplayValues: { [key: number]: string } = {};
+    setDisplayValues(prev => {
+      const newDisplayValues: { [key: number]: string } = {};
 
-    fundingProfiles.forEach((profile, index) => {
-      if (profile.Amount != null && profile.Amount > 0) {
-        newDisplayValues[index] = profile.Amount.FormatToCurrency();
-      } else {
-        newDisplayValues[index] = '';
-      }
+      fundingProfiles.forEach((profile, index) => {
+        if (index === editingAmountRef.current) {
+          newDisplayValues[index] = prev[index] ?? '';
+        } else if (profile.Amount != null && profile.Amount > 0) {
+          newDisplayValues[index] = profile.Amount.FormatToCurrency();
+        } else {
+          newDisplayValues[index] = '';
+        }
+      });
+      return newDisplayValues;
     });
-    setDisplayValues(newDisplayValues);
   }, [fundingProfiles]);
 
   // Validate percentage and update errors
@@ -238,8 +245,18 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     type="text"
                     value={displayValues[index] || ''}
                     onChange={(e) => handleAmountChange(index, profile, e.target.value)}
-                    onFocus={handleCurrencyFocus}
-                    onBlur={(e) => handleCurrencyBlur(e, (value) => onEdit(index, { ...profile, Amount: value }))}
+                    onFocus={(e) => {
+                      editingAmountRef.current = index;
+                      setDisplayValues(prev => ({ ...prev, [index]: toCurrencyEditText(profile.Amount) }));
+                      handleCurrencyFocus(e);
+                    }}
+                    onBlur={(e) => {
+                      editingAmountRef.current = null;
+                      handleCurrencyBlur(e, (value) => {
+                        setDisplayValues(prev => ({ ...prev, [index]: value > 0 ? value.FormatToCurrency() : '' }));
+                        onEdit(index, { ...profile, Amount: value });
+                      });
+                    }}
                     className={`w-full px-2 py-1 border border-gray-300 rounded text-right ${getDisabledClass(disabled)}`}
                     placeholder="₱0.00"
                     disabled={disabled}

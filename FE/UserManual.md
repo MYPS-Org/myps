@@ -1091,7 +1091,7 @@ Identifies the island group or region associated with the project (e.g., `LZ` = 
 |---|---|---|---|
 | FP-F01 | Source | Funding source organization | Dropdown (Code Tables → Funding Profile → Funding Source); required |
 | FP-F02 | Agreement | Loan or grant agreement | Dropdown (Code Tables → Funding Profile → Funding Agreement); required |
-| FP-F03 | Amount | Allocated budget amount | Numeric input; required |
+| FP-F03 | Amount | Allocated budget amount | Numeric input; required. Type or paste the amount in pesos as written: `1000000`, `1,000,000` and `₱1,000,000.00` are all ₱1,000,000.00, and centavos need a decimal point (`1500.50`). Clicking into the field selects the amount, so what you type or paste replaces it; it is formatted as currency when you leave the field |
 | FP-A01 | Add Funding | Add a new funding row | Button (blue) |
 | FP-A02 | Delete | Remove a funding row | Button |
 
