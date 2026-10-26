@@ -150,6 +150,19 @@ test.describe('#467 S02-TC003: an edited Component Type saves the new Component 
     expect(years.map((y: any) => [y.ComponentId, y.Amount])).toEqual([['CW1', 1000000]]);
   });
 
+  test('S02-TC003: with a CW1 already added, Consultancy changed to Civil Works is saved as CW2', async ({ page }) => {
+    await addComponent(page, 'Civil Works', '600000');
+    await addComponent(page, 'Consultancy', '400000');
+    await addFullFunding(page, 1_000_000);
+    await changeComponentType(page, 'CoS', 'Civil Works', 'CW2');
+    await updateProject(page);
+
+    const { components, years } = await projectDetails(page, projectPK);
+    const byId = (rows: any[], f: (r: any) => unknown) => rows.map(f).sort((a: any, b: any) => String(a).localeCompare(String(b)));
+    expect(byId(components, (c: any) => `${c.ComponentId} ${c.ComponentType}`)).toEqual(['CW1 Civil Works', 'CW2 Civil Works']);
+    expect(byId(years, (y: any) => `${y.ComponentId} ${y.Amount}`)).toEqual(['CW1 600000', 'CW2 400000']);
+  });
+
   test('S02-TC003: a saved Consultancy changed to Civil Works keeps one year row, with the edited amount', async ({ page }) => {
     await addComponent(page, 'Consultancy', '1000000');
     await addFullFunding(page, 1_000_000);
