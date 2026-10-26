@@ -126,7 +126,8 @@ export const createProgramAtBP = async (page: Page, name: string): Promise<Cross
         later means the range was consumed, not that the code broke: pick another
         active CategoryId from tOptionProjectCategory.
     An ORDINARY project, not a Lump Sum one: AddProject needs no CreateLumpSum grant. */
-export const addOrdinaryProject = async (page: Page, program: CrossStageProgram, description: string, stageName = 'BP'): Promise<string> => {
+/** `extra` adds or overrides fields, e.g. a Thrust for a spec that saves the project through the Update Project form (which requires one). */
+export const addOrdinaryProject = async (page: Page, program: CrossStageProgram, description: string, stageName = 'BP', extra: Record<string, unknown> = {}): Promise<string> => {
   const res = await post(page, '/api/Project/AddProject', {
     ProgramId: program.ProgramId,
     StageName: stageName,
@@ -151,6 +152,7 @@ export const addOrdinaryProject = async (page: Page, program: CrossStageProgram,
     Feasibility: 1,
     FeasibilityDate: new Date().toISOString(),
     DetailedDesign: 0,
+    ...extra,
   });
   if (res.status !== 200) throw new Error(`AddProject failed: ${JSON.stringify(res.body).slice(0, 300)}`);
   return String(res.body?.ProjectId ?? ''); // AddProject answers with the new ProjectPK

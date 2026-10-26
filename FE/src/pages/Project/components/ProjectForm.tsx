@@ -381,23 +381,41 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     console.log('Updated cost:', updatedCost);
     console.log('Updated cost per year:', updatedCostPerYear);
     console.log('Current componentCosts before edit:', componentCosts);
-    
+
+    // Changing the Component Type changes the ComponentId (e.g. CoS -> CW1), so the
+    // rows to replace must be found by the ID the component had BEFORE this edit.
+    const previousComponentId = componentCosts[index]?.ComponentId ?? updatedCost.ComponentId;
+    const newComponentId = updatedCost.ComponentId;
+
     setComponentCosts(prev => {
       const updated = prev.map((cost, i) => i === index ? updatedCost : cost);
       console.log('Updated componentCosts after edit:', updated);
       return updated;
     });
-    
+
     // Update per-year costs for this component
     setComponentCostPerYear(prev => {
-      // Remove existing per-year costs for this component
-      const filteredCosts = prev.filter(cost => cost.ComponentId !== updatedCost.ComponentId);
+      // Remove existing per-year costs for this component. Rows already soft-deleted
+      // (saved, IsDeleted) are kept so the delete still reaches the backend; the dialog
+      // only received the active rows.
+      const filteredCosts = prev.filter(cost => cost.ComponentId !== previousComponentId || (cost.IsDeleted && cost.Id > 0));
       // Add updated per-year costs
       const updated = [...filteredCosts, ...updatedCostPerYear];
       console.log('Updated componentCostPerYear after edit:', updated);
       return updated;
     });
-    
+
+    // Major Items and their work locations point at the component by ComponentId; a new
+    // (unsaved) one is matched to its component by that ID alone, so carry the new ID over.
+    if (previousComponentId !== newComponentId) {
+      setMajorItems(prev => prev.map(item => item.ComponentId !== previousComponentId || item.IsDeleted ? item : {
+        ...item,
+        ComponentId: newComponentId,
+        MajorItemLocations: item.MajorItemLocations?.map(loc =>
+          loc.ComponentId === previousComponentId ? { ...loc, ComponentId: newComponentId } : loc),
+      }));
+    }
+
     console.log('Updated component cost in staging:', updatedCost);
   };
 
