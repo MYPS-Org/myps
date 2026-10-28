@@ -184,6 +184,40 @@ test.describe('#479 S04-TC032/TC033: a retired Infra Type / Type of Work keeps s
     expect(deleted.status, JSON.stringify(deleted.body).slice(0, 300)).toBe(200);
   });
 
+  // Ken's comment on #479 (Sir Alvin): deleting the components that held the retired "LB" rows
+  // did not get rid of them. The form marks a deleted component's Major Items IsDeleted, but the
+  // API still checked those rows, so the save kept failing and the rows stayed.
+  test('S04-TC032 (comment): a component whose Major Item has a retired Infra Type can be deleted', async ({ page }) => {
+    const infra = await codeTableRow(page, 'InfraTypes', (r) => r.InfraCode === INFRA.code);
+    await setActive(page, 'ProjectInfraType', infra, false);
+    restore = () => setActive(page, 'ProjectInfraType', infra, true);
+
+    await page.reload();
+    await expect(majorItemRow(page)).toContainText(INFRA.name, { timeout: 30_000 });
+
+    // "Deleting this component will also delete 1 related major item(s)..." is a native confirm().
+    page.on('dialog', (d) => d.accept());
+    await page.getByRole('row')
+      .filter({ has: page.getByRole('cell', { name: 'CW1', exact: true }) })
+      .filter({ hasNotText: WORK.name })
+      .getByTitle('Delete')
+      .click();
+    await page.getByRole('dialog').filter({ hasText: 'Delete Component Cost' })
+      .getByRole('button', { name: 'Remove Component' }).click();
+    await expect(majorItemRow(page)).toHaveCount(0);
+
+    // Funding must still total the remaining component (CW2, 400,000).
+    const amount = page.getByRole('row').filter({ has: page.getByRole('spinbutton') }).getByPlaceholder('₱0.00');
+    await retype(amount, '400000.00');
+    await updateProject(page);
+
+    const res = await post(page, '/api/Project/ShowProjectDetails', { ProjectId: projectPK, StageName: 'BP' });
+    expect(res.status, JSON.stringify(res.body).slice(0, 300)).toBe(200);
+    const data = res.body?.Data ?? res.body;
+    expect((data.MajorItemOfWorks ?? []).filter((m: any) => !m.IsDeleted)).toEqual([]);
+    expect((data.ComponentCosts ?? []).filter((c: any) => !c.IsDeleted).map((c: any) => c.ComponentId)).toEqual(['CW2']);
+  });
+
   test('S04-TC033: Type of Work set Inactive', async ({ page }) => {
     const work = await codeTableRow(page, 'ScopeOfWorks', (r) => r.Enum === WORK.id);
     await setActive(page, 'ProjectScopeOfWork', work, false);
