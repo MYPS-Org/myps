@@ -83,7 +83,8 @@ export const projectsAt = async (page: Page, program: CrossStageProgram, stageNa
 };
 
 /** Create a Working, Regular Infrastructure program at BP, copying a donor's groups. */
-export const createProgramAtBP = async (page: Page, name: string): Promise<CrossStageProgram> => {
+/** `yearStart` sets the program StartYear (default: this year), e.g. for validity-by-program-year specs (#488). */
+export const createProgramAtBP = async (page: Page, name: string, yearStart = new Date().getFullYear()): Promise<CrossStageProgram> => {
   const programs = await listPrograms(page);
   const donor = programs.find((p) => Array.isArray(p.DataSecurityGroup) && withoutBlanks(p.DataSecurityGroup).length > 0);
   if (!donor) throw new Error('no existing program to copy a valid DataSecurityGroup from.');
@@ -93,7 +94,7 @@ export const createProgramAtBP = async (page: Page, name: string): Promise<Cross
     Status: 3, // Working
     Type: 1, // Regular Infrastructure
     Name: name,
-    YearStart: new Date().getFullYear(),
+    YearStart: yearStart,
     DataSecurityGroup: withoutBlanks(donor.DataSecurityGroup),
     UserGroup: withoutBlanks(donor.UserGroup),
     IsSkipped: false,

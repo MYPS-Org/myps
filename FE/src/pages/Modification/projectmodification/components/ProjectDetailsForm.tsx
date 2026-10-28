@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../../../Project/Model.d";
 import type { FormValidationError } from "../../../../utils/FormValidation";
 import type { FieldRules } from '../../Model';
-import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, isThrustAllowedForCategory, toDateInputValue } from '../../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, isThrustAllowedForCategory, toDateInputValue, validityYear, isCategoryValidForYear, isThrustValidForYear } from '../../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../../components/ui/SearchableDropdown';
 import { EditableField } from '../../../../components/ui/EditableField';
 import { DateInput } from '../../../../components/tailwindui/date-input';
@@ -23,6 +23,8 @@ interface ProjectDetailsFormProps {
     packageStatus?: string;
     currentCase?: string;
     category?: string;
+    /** #488: the program StartYear Category / Sub-Category validity is judged for. */
+    programYear?: number;
 }
 
 const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({ 
@@ -32,8 +34,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     mode = '',
     errors = {},
     fieldRules,
+    initialData,
+    programYear: programStartYear,
 }) => {
     const isLumpSum = projectDetails?.IslandCode === 'LS';
+    // #488: Category / Sub-Category validity is judged for the revised project's program year.
+    const programYear = validityYear(programStartYear ?? initialData?.ProgramDetails?.StartYear);
 
     // 2026-09-11 fix (F2): see Project/components/ProjectDetailsForm.tsx's identical comment --
     // isThrustAllowedForCategory needs the real Thrust PAPKey set so a dangling mapping row can't
@@ -384,7 +390,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                             options={formatDropdownOptions(
                                                 filterKeepingSelected(
                                                     projectEnums?.Categories,
-                                                    x => x.IsCurrentlyValid,
+                                                    x => isCategoryValidForYear(x, programYear),
                                                     'CategoryId',
                                                     projectDetails?.Category
                                                 ),
@@ -416,7 +422,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                             options={formatDropdownOptions(
                                                 filterKeepingSelected(
                                                     projectEnums?.Thrusts,
-                                                    x => x.IsCurrentlyValid && isThrustAllowedForCategory(x.PAPKey, projectDetails?.Category, projectEnums?.CategoryThrustMap, validThrustPAPKeys),
+                                                    x => isThrustValidForYear(x, programYear) && isThrustAllowedForCategory(x.PAPKey, projectDetails?.Category, projectEnums?.CategoryThrustMap, validThrustPAPKeys),
                                                     'PAPKey',
                                                     projectDetails?.Thrust
                                                 ),

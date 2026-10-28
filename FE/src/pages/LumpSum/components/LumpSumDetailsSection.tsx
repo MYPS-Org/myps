@@ -27,7 +27,7 @@ import React from 'react';
 import type { LumpSum } from '../Model.d';
 import type { ProjectEnums } from '../../Project/Model.d';
 import { useLocationFilters } from '../../Project/filteringLocations';
-import { getDisabledClass, formatDropdownOptions, filterKeepingSelected } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, validityYear, isCategoryValidForYear, isThrustValidForYear } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 
 // Region Wide options — hardcoded same as ProjectDetailsForm to avoid an enum lookup
@@ -57,6 +57,8 @@ const LumpSumDetailsSection: React.FC<LumpSumDetailsSectionProps> = ({
   mode = 'add',
   itemizedCount = 0,
 }) => {
+  // #488: Category / Sub-Category validity is judged for the program's year, not today's.
+  const programYear = validityYear(lumpSum.StartYear);
   /*  ONLY THE REQUIRED FIELDS ARE RENDERED, plus Alternate ID and UACS (both
       editable). The sixteen optional fields (Multi Year ID, External ID, Rank, MYCA
       date, the six location/office fields, and the implementation-readiness
@@ -254,7 +256,7 @@ const LumpSumDetailsSection: React.FC<LumpSumDetailsSectionProps> = ({
                   options={formatDropdownOptions(
                     filterKeepingSelected(
                       projectEnums?.Categories,
-                      x => x.IsCurrentlyValid,
+                      x => isCategoryValidForYear(x, programYear),
                       'CategoryId',
                       lumpSum.CategoryId
                     ),
@@ -291,7 +293,7 @@ const LumpSumDetailsSection: React.FC<LumpSumDetailsSectionProps> = ({
                   options={formatDropdownOptions(
                     filterKeepingSelected(
                       projectEnums?.Thrusts,
-                      x => x.IsCurrentlyValid && (allowedPAPKeys === null || allowedPAPKeys.has(x.PAPKey)),
+                      x => isThrustValidForYear(x, programYear) && (allowedPAPKeys === null || allowedPAPKeys.has(x.PAPKey)),
                       'PAPKey',
                       lumpSum.SubCategoryId
                     ),

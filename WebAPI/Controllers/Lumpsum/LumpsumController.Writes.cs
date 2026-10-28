@@ -91,7 +91,8 @@ namespace WebAPI.Controllers.Lumpsum
                     unknown one rather than defaulting it. */
                 dto.Tier ??= 1;
 
-                var Refusal = await ValidateRequiredFieldsAsync(dto, cancellationToken);
+                // #488: Category / Sub-Category validity is judged for the program's year.
+                var Refusal = await ValidateRequiredFieldsAsync(dto, cancellationToken, programYear: Program.StartYear);
                 if (Refusal != null) return Refusal;
 
                 /*  Resolved by CODE. tProjectComponentCost stores the component's
@@ -141,7 +142,8 @@ namespace WebAPI.Controllers.Lumpsum
                             Feasibility = dto.Feasibility,
                             FeasibilityDate = dto.FeasibilityDate,
                             DetailedDesign = dto.DetailedDesign,
-                            DetailedDesignDate = dto.DetailedDesignDate
+                            DetailedDesignDate = dto.DetailedDesignDate,
+                            ProgramYear = Program.StartYear
                         }, cancellationToken);
 
                     if (!DetailValidation.IsValid)
@@ -155,7 +157,7 @@ namespace WebAPI.Controllers.Lumpsum
                 }
                 else
                 {
-                    var LookupRefusal = await ValidateTierAndCategoryAsync(dto.Tier ?? 1, dto.CategoryId ?? 0, cancellationToken);
+                    var LookupRefusal = await ValidateTierAndCategoryAsync(dto.Tier ?? 1, dto.CategoryId ?? 0, Program.StartYear, cancellationToken);
                     if (LookupRefusal != null) return LookupRefusal;
 
                     // #481: the Region path checks these inside ValidateProjectDetailsLookups; a new
@@ -468,7 +470,8 @@ namespace WebAPI.Controllers.Lumpsum
                 var Refusal = await ValidateRequiredFieldsAsync(
                     dto, cancellationToken,
                     previousCategory: LumpSumProject.Category,
-                    previousThrust: LumpSumProject.Thrust);
+                    previousThrust: LumpSumProject.Thrust,
+                    programYear: LumpSumProject.StartYear ?? 0);
                 if (Refusal != null) return Refusal;
 
                 // #481: a retired (Inactive) Origin, Agency, ... the project already holds is kept;
@@ -1189,7 +1192,7 @@ namespace WebAPI.Controllers.Lumpsum
         /// </summary>
         private async Task<IActionResult?> ValidateRequiredFieldsAsync(
             LumpSumDetailFieldsDTO dto, CancellationToken cancellationToken,
-            int? previousCategory = null, int? previousThrust = null)
+            int? previousCategory = null, int? previousThrust = null, int programYear = 0)
         {
             /*  Category first: GenerateProjectID builds the Project ID from it, and
                 a zero produced a malformed id ("BP011LS" instead of "BP01100001LS")
@@ -1217,7 +1220,7 @@ namespace WebAPI.Controllers.Lumpsum
                 Id (1..164, disjoint from the PAPKeys at 1001+) unnoticed until
                 2026-09-05. Refused now, on create and update alike. */
             var SubCategoryRefusal = await ValidateSubCategoryAsync(
-                dto.CategoryId ?? 0, dto.SubCategoryId ?? 0, previousCategory, previousThrust, cancellationToken);
+                dto.CategoryId ?? 0, dto.SubCategoryId ?? 0, previousCategory, previousThrust, programYear, cancellationToken);
             if (SubCategoryRefusal != null) return SubCategoryRefusal;
 
             /*  Create carries a single allocation and one funding line; update
@@ -1409,10 +1412,10 @@ namespace WebAPI.Controllers.Lumpsum
         /// Project is always validated.
         /// </remarks>
         private async Task<IActionResult?> ValidateSubCategoryAsync(
-            int categoryId, int papKey, int? previousCategory, int? previousThrust, CancellationToken cancellationToken)
+            int categoryId, int papKey, int? previousCategory, int? previousThrust, int programYear, CancellationToken cancellationToken)
         {
             var Refusal = await _db.ValidateThrustForCategoryAsync(
-                categoryId, papKey, previousCategory, previousThrust, cancellationToken);
+                categoryId, papKey, previousCategory, previousThrust, programYear, cancellationToken);
 
             if (!Refusal.IsValid)
                 return new BadRequestObjectResult(new { Message = Refusal.Message, Title = Refusal.Title });
@@ -1426,7 +1429,7 @@ namespace WebAPI.Controllers.Lumpsum
 
         /// <summary>Tier and Category, for the path where no Region was supplied.</summary>
         private async Task<IActionResult?> ValidateTierAndCategoryAsync(
-            int tier, int category, CancellationToken cancellationToken)
+            int tier, int category, int programYear, CancellationToken cancellationToken)
         {
             bool TierOk = await _db.tOptionProjectTier.AsNoTracking()
                 .AnyAsync(x => x.NameId == tier, cancellationToken);
@@ -1435,7 +1438,7 @@ namespace WebAPI.Controllers.Lumpsum
                 return new BadRequestObjectResult(new { Message = $"Selected Tier '{tier}' is not valid.", Title = "Invalid Tier" });
 
             // CreateLumpSum only, so the Category is always new (#482: ProjectHelper.ValidateCategoryAsync).
-            var CategoryCheck = await _db.ValidateCategoryAsync(category, null, cancellationToken);
+            var CategoryCheck = await _db.ValidateCategoryAsync(category, null, programYear, cancellationToken);
             if (!CategoryCheck.IsValid)
                 return new BadRequestObjectResult(new { Message = CategoryCheck.Message, Title = CategoryCheck.Title });
 

@@ -2545,6 +2545,7 @@ The **Category** and **Thrust** sub-tabs each have two filters beside the Search
 
 **What Valid and Active/Inactive do for Category and Thrust**
 
+- **Valid means valid for the project's program year, not for today.** A Category is valid for a program year when its **Valid Until** is 0 (no expiry) or that year or later. A Sub-Category (Thrust) is valid when the program year falls within its **Valid From**–**Valid To** years, both years included (0 = no limit on that side). For example, when you edit or revise a project in a 2025 program during 2027, a Category valid until 2025 still counts as valid. This applies to Project Details, Modification, Lump Sum and project import alike. (The **Validity** filter on the Code Tables screen above still shows validity for the current year.)
 - **Validity decides what can be picked.** The project form's **Category** and **Sub-Category** (Thrust) dropdowns offer only **Valid** rows, whether they are Active or Inactive. A project that already has a Category or Sub-Category that is no longer valid still shows that value.
 - **Active/Inactive matters only once a row is no longer valid.** When a project is saved, its Category and Sub-Category are accepted if they are **Active or Valid**:
   - **Valid** (Active or Inactive): offered in the dropdown and accepted on save.

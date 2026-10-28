@@ -578,6 +578,9 @@ namespace Helpers
             // as PreviousThrust. Left null by AddProject and CreateLumpSum (everything is new);
             // UpdateProjectDetails and UpdateLumpSum supply it from the stored record.
             public ProjectDetailsLookupValues? Previous { get; set; }
+            // #488: the StartYear of the project's program. Category / Sub-Category validity is
+            // judged for the year the project belongs to, not for today (ReferenceYear: 0 = today).
+            public int ProgramYear { get; set; }
         }
         public static async Task<ProjectHelperResponse<string>> ValidateProjectDetailsLookups(this MYPSDbContext _db, ValidateProjectDetailsLookupsParams p, CancellationToken cancellationToken)
         {
@@ -594,7 +597,7 @@ namespace Helpers
             // new or changed Category only. An unchanged one always saves, even once it is fully
             // retired (Inactive AND expired): the form posts the whole project on every save, so
             // checking it locked such a project out of saving for any reason. Same gate as Thrust.
-            var ValidateCategory = await _db.ValidateCategoryAsync(p.Category, p.PreviousCategory, cancellationToken);
+            var ValidateCategory = await _db.ValidateCategoryAsync(p.Category, p.PreviousCategory, p.ProgramYear, cancellationToken);
             if (!ValidateCategory.IsValid)
                 return ValidateCategory;
 
@@ -608,7 +611,7 @@ namespace Helpers
             // RESTRICTION, the opposite of the operator's rule. Converged again 2026-09-12; the
             // shared method's header carries the rule and the gate.
             var ValidateThrustPair = await _db.ValidateThrustForCategoryAsync(
-                p.Category, p.Thrust, p.PreviousCategory, p.PreviousThrust, cancellationToken);
+                p.Category, p.Thrust, p.PreviousCategory, p.PreviousThrust, p.ProgramYear, cancellationToken);
             if (!ValidateThrustPair.IsValid)
                 return ValidateThrustPair;
             string UserId = p._Session.UserId;
@@ -767,13 +770,27 @@ namespace Helpers
             isActive || validUntil == 0 || validUntil >= year;
 
         /// <summary>
+        /// The Sub-Category (Thrust) rule (#488): selectable while Active OR when the year falls in
+        /// its validity window, both ends included (Valid From / Valid To 0 = open on that side).
+        /// </summary>
+        public static bool ThrustIsSelectable(bool isActive, int validFrom, int validTo, int year) =>
+            isActive || ((validFrom == 0 || validFrom <= year) && (validTo == 0 || validTo >= year));
+
+        /// <summary>
+        /// The year Category / Sub-Category validity is judged for (#488): the project's program
+        /// StartYear, as the importer has always used; today's year when it is not known (0).
+        /// </summary>
+        public static int ReferenceYear(int programStartYear) =>
+            programStartYear > 0 ? programStartYear : Functions.CurrentDate().Year;
+
+        /// <summary>
         /// The one Category check (#482): the Category must exist, and a new or changed one must be
         /// selectable (CategoryIsSelectable). Unchanged against <paramref name="previousCategory"/> --
         /// or against <paramref name="alsoKept"/>, a resubmitted request's earlier Category -- it is
         /// kept even once fully retired. Used by ValidateProjectDetailsLookups, CreateLumpSum and
         /// RequestRevision / ResubmitRevision.
         /// </summary>
-        public static async Task<ProjectHelperResponse<string>> ValidateCategoryAsync(this MYPSDbContext _db, int category, int? previousCategory, CancellationToken cancellationToken, int? alsoKept = null)
+        public static async Task<ProjectHelperResponse<string>> ValidateCategoryAsync(this MYPSDbContext _db, int category, int? previousCategory, int programYear, CancellationToken cancellationToken, int? alsoKept = null)
         {
             var response = new ProjectHelperResponse<string>();
             var Row = await _db.tOptionProjectCategory.AsNoTracking()
@@ -781,7 +798,7 @@ namespace Helpers
                 .Select(x => new { x.IsActive, x.ValidUntil })
                 .FirstOrDefaultAsync(cancellationToken);
             bool Kept = !CategoryNeedsValidityCheck(category, previousCategory) || category == alsoKept;
-            if (Row == null || (!Kept && !CategoryIsSelectable(Row.IsActive, Row.ValidUntil, Functions.CurrentDate().Year)))
+            if (Row == null || (!Kept && !CategoryIsSelectable(Row.IsActive, Row.ValidUntil, ReferenceYear(programYear))))
             {
                 response.Message = $"Selected Category '{category}' is not valid."; response.Title = "Invalid Category";
                 return response;
@@ -1019,7 +1036,7 @@ namespace Helpers
         /// </remarks>
         public static async Task<ProjectHelperResponse<string>> ValidateThrustForCategoryAsync(
             this MYPSDbContext _db, int category, int? thrust,
-            int? previousCategory, int? previousThrust, CancellationToken cancellationToken)
+            int? previousCategory, int? previousThrust, int programYear, CancellationToken cancellationToken)
         {
             var response = new ProjectHelperResponse<string> { Data = string.Empty };
 
@@ -1049,12 +1066,11 @@ namespace Helpers
                 return response;
             }
 
-            int CurrentYear = Functions.CurrentDate().Year;
-
+            // #488: valid for the program's year (inclusive window), not today's.
             var ValidateThrust = await _db.tOptionProjectThrustList.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.PAPKey == thrust.Value
-                                       && (x.IsActive || (x.ValidToDate == 0 || x.ValidToDate >= CurrentYear)), cancellationToken);
-            if (ValidateThrust == null)
+                .FirstOrDefaultAsync(x => x.PAPKey == thrust.Value, cancellationToken);
+            if (ValidateThrust == null
+                || !ThrustIsSelectable(ValidateThrust.IsActive, ValidateThrust.ValidFromDate, ValidateThrust.ValidToDate, ReferenceYear(programYear)))
             {
                 response.Message = $"Selected Sub-Category '{thrust}' is not valid."; response.Title = "Invalid Sub-Category";
                 return response;

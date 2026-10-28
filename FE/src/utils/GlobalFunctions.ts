@@ -180,6 +180,19 @@ export const formatDropdownOptions = (
   }));
 };
 
+/** #488: the year Category / Sub-Category validity is judged for -- the project's program
+ *  StartYear (as the server and the importer use), else this year. */
+export const validityYear = (programStartYear?: number | null) =>
+  programStartYear && programStartYear > 0 ? programStartYear : new Date().getFullYear();
+
+/** A Category is offered for a year while its Valid Until is 0 (no expiry) or not before it. */
+export const isCategoryValidForYear = (category: { ValidUntil?: number | null }, year: number) =>
+  !category.ValidUntil || category.ValidUntil >= year;
+
+/** A Sub-Category (Thrust) is offered for a year inside its window, both ends included (0 = open). */
+export const isThrustValidForYear = (thrust: { ValidFromDate?: number | null; ValidToDate?: number | null }, year: number) =>
+  (!thrust.ValidFromDate || thrust.ValidFromDate <= year) && (!thrust.ValidToDate || thrust.ValidToDate >= year);
+
 // Keeps the currently-selected item visible even if it fails the availability filter --
 // SearchableDropdown resolves its label purely via options.find(value), no fallback, so a
 // filtered-out selected value renders as the placeholder instead of its real label.

@@ -1156,6 +1156,7 @@ namespace WebAPI.Controllers.Revision
                     // Taken before UpdateRevisionData, which changes ProjectRevisions in place (#481).
                     var StoredLookups = new ProjectDetailsLookupValues(ProjectRevisions.Tier, ProjectRevisions.Origin, ProjectRevisions.Agency, ProjectRevisions.ImplementationMode, ProjectRevisions.EmergencyMode, ProjectRevisions.RowAvailable, ProjectRevisions.Feasibility, ProjectRevisions.DetailedDesign);
                     int StoredCategory = ProjectRevisions.Category;
+                    int? StoredThrust = ProjectRevisions.Thrust;
                     var UpdateAndGenerateLogs = ProjectDetailsRules.UpdateRevisionData(User, TransactionId, "tRevisionProjects", CurrentDate, NewProjectRevision, ProjectRevisions);
                     Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
                     ProjectRevision = UpdateAndGenerateLogs.Data;
@@ -1173,11 +1174,20 @@ namespace WebAPI.Controllers.Revision
                     }
                     // #482: a changed Category must be selectable (Active OR still valid); the project's
                     // own Category is kept even once fully retired. RequestRevision did not check it at all.
-                    var ValidateCategory = await _db.ValidateCategoryAsync(ProjectRevision.Category, StoredCategory, cancellationToken);
+                    var ValidateCategory = await _db.ValidateCategoryAsync(ProjectRevision.Category, StoredCategory, ProgramParent.StartYear, cancellationToken);
                     if (!ValidateCategory.IsValid)
                     {
                         await transaction.RollbackAsync(cancellationToken);
                         return new BadRequestObjectResult(new { Message = ValidateCategory.Message, Title = ValidateCategory.Title });
+                    }
+                    // #488: the Sub-Category too, for the program's year (RequestRevision never checked
+                    // it). An untouched Category / Sub-Category pair is skipped by the shared method.
+                    var ValidateThrust = await _db.ValidateThrustForCategoryAsync(
+                        ProjectRevision.Category, ProjectRevision.Thrust, StoredCategory, StoredThrust, ProgramParent.StartYear, cancellationToken);
+                    if (!ValidateThrust.IsValid)
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        return new BadRequestObjectResult(new { Message = ValidateThrust.Message, Title = ValidateThrust.Title });
                     }
                     NewRevisionProject.IsActive = isCOUser ? true : false;
                     NewRevisionProject.TransactionId = TransactionId;
@@ -2980,7 +2990,7 @@ namespace WebAPI.Controllers.Revision
                         // doesn't touch the rest of that helper's fields.
                         // #482: changing back to the project's own Category is kept even once it is fully
                         // retired; any other change must be selectable (Active OR still valid).
-                        var ValidateNewCategory = await _db.ValidateCategoryAsync(RevisionProject.Category, StoredCategory, cancellationToken);
+                        var ValidateNewCategory = await _db.ValidateCategoryAsync(RevisionProject.Category, StoredCategory, ValidateProgram.Data.Program.StartYear, cancellationToken);
                         if (!ValidateNewCategory.IsValid)
                         {
                             await transaction.RollbackAsync(cancellationToken);
@@ -3014,7 +3024,7 @@ namespace WebAPI.Controllers.Revision
                         // since 2026-09-12 -- recorded as a follow-up, not widened here.
                         var ValidateNewThrustPair = await _db.ValidateThrustForCategoryAsync(
                             RevisionProject.Category, RevisionProject.Thrust,
-                            previousCategory: null, previousThrust: null, cancellationToken);
+                            previousCategory: null, previousThrust: null, ValidateProgram.Data.Program.StartYear, cancellationToken);
                         // 2026-09-12: the Option A rebase had nested the OLD inline block inside
                         // this failure branch, so a refusal from the shared validator was thrown
                         // away and the branch re-ran the retired checks instead -- including a

@@ -228,7 +228,8 @@ namespace Hangfire.Importing
             // today's calendar year — a Program can legitimately be for a past or future year, and
             // "was this Category valid in the Program's year" is the question that actually matters
             // for a row being imported into that Program.
-            else if (!Category.IsActive && Category.ValidUntil != 0 && Category.ValidUntil < programStartYear)
+            // #488: the same shared rule the app now uses everywhere (ProjectHelper.CategoryIsSelectable).
+            else if (!CategoryIsSelectable(Category.IsActive, Category.ValidUntil, ReferenceYear(programStartYear)))
             {
                 v.Fail("Category is no longer valid");
             }
@@ -237,11 +238,11 @@ namespace Hangfire.Importing
             {
                 v.Fail("Incorrect Sub-Category");
             }
-            // Mirrors the FE dropdown's own window rule (ProjectDetailsForm.tsx: ValidToDate === 0
-            // means "no expiry"; otherwise only ValidFromDate < year < ValidToDate is selectable) —
-            // same shape as the Category.ValidUntil check above, including comparing against the
-            // Program's StartYear rather than today's calendar year, for the same reason.
-            else if (Thrust.ValidToDate != 0 && !(Thrust.ValidFromDate < programStartYear && Thrust.ValidToDate > programStartYear))
+            // #488: the app's shared rule (ProjectHelper.ThrustIsSelectable): Active, or the
+            // Program's StartYear inside the validity window, both ends included (0 = open). This
+            // was a strict ValidFrom < year < ValidTo with no Active fallback, so a Sub-Category
+            // ending in the program's own year was refused here while the app accepted it.
+            else if (!ThrustIsSelectable(Thrust.IsActive, Thrust.ValidFromDate, Thrust.ValidToDate, ReferenceYear(programStartYear)))
             {
                 v.Fail("Selected Sub-Category is no longer valid");
             }

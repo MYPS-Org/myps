@@ -590,6 +590,8 @@ namespace WebAPI.Controllers.Projects
                     DetailedDesign  = dto.DetailedDesign,
                     DetailedDesignDate  = dto.DetailedDesignDate,
                     Thrust = dto.Thrust,
+                    // #488: Category / Sub-Category validity is judged for the program's year.
+                    ProgramYear = ProgramParent.StartYear,
                 };
                 var ValidateProjectLookUps = await _db.ValidateProjectDetailsLookups(pLookup, cancellationToken);
                 if (!ValidateProjectLookUps.IsValid)
@@ -1004,6 +1006,8 @@ namespace WebAPI.Controllers.Projects
                     PreviousCategory = ProjectRevision.Category,
                     // #481: a stored Origin / Agency / ... retired since is kept; only a change is checked.
                     Previous = new ProjectDetailsLookupValues(ProjectRevision.Tier, ProjectRevision.Origin, ProjectRevision.Agency, ProjectRevision.ImplementationMode, ProjectRevision.EmergencyMode, ProjectRevision.RowAvailable, ProjectRevision.Feasibility, ProjectRevision.DetailedDesign),
+                    // #488: Category / Sub-Category validity is judged for the program's year.
+                    ProgramYear = CurrentProgramVersion.StartYear,
                 };
                 var ValidateProjectLookUps = await _db.ValidateProjectDetailsLookups(pLookup, cancellationToken);
                 if (!ValidateProjectLookUps.IsValid)

@@ -1023,6 +1023,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   packageStatus={packageStatus}
                   currentCase={currentCase}
                   category={modificationCategory}
+                  programYear={programDetails?.StartYear}
                 />
               </div>
               <div className="flex justify-end px-4 pb-6 sm:px-8">

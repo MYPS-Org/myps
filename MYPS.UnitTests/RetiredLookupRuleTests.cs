@@ -164,4 +164,25 @@ public sealed class RetiredLookupRuleTests
     [InlineData(false, 2020, false)] // Inactive AND expired: fully retired
     public void Category_IsSelectable_WhenActiveOrValid(bool isActive, int validUntil, bool expected) =>
         Assert.Equal(expected, ProjectHelper.CategoryIsSelectable(isActive, validUntil, 2026));
+
+    // #488: Sub-Category validity for the program year, both ends included (0 = open).
+    [Theory]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    [InlineData(false, 2023, 2025, 2025, true)]  // last year of the window
+    [InlineData(false, 2023, 2025, 2023, true)]  // first year of the window
+    [InlineData(false, 2023, 2025, 2026, false)] // after the window
+    [InlineData(false, 2023, 2025, 2022, false)] // before the window
+    [InlineData(false, 0, 2025, 1990, true)]     // no start
+    [InlineData(false, 2023, 0, 2099, true)]     // no end
+    [InlineData(true, 2023, 2025, 2030, true)]   // Active wins
+    public void Thrust_IsSelectable_ForTheProgramYear(bool isActive, int validFrom, int validTo, int year, bool expected) =>
+        Assert.Equal(expected, ProjectHelper.ThrustIsSelectable(isActive, validFrom, validTo, year));
+
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void ReferenceYear_IsTheProgramYear_ElseToday()
+    {
+        Assert.Equal(2025, ProjectHelper.ReferenceYear(2025));
+        Assert.Equal(Functions.CurrentDate().Year, ProjectHelper.ReferenceYear(0));
+    }
 }
