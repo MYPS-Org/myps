@@ -1,37 +1,40 @@
 ---
 name: create-pr-issue
-description: 'Open a Gitea pull request for the current branch from one or more UAT issues, using the issue''s test cases as the Acceptance Criteria. Runs pre-flight checks (branch sanity, diff-scoped typecheck/build, SQL migration detection, change-size rating No-op/Low/Medium/High, /code-review offer), maps each test case to evidence in the diff, asks whether the PR is Draft (WIP) or Ready for review and whether to write an e2e test, then pushes and opens the PR after the user approves the title and body. Use when: a fix branch is ready (or nearly ready) and needs a PR, or the user says "create a PR", "open a PR for issue #N", "raise the PR".'
+description: 'Open a GitHub pull request for the current branch from one or more UAT issues, using the issue''s test cases as the Acceptance Criteria. Runs pre-flight checks (branch sanity, diff-scoped typecheck/build, SQL migration detection, change-size rating No-op/Low/Medium/High, /code-review offer), maps each test case to evidence in the diff, asks whether the PR is Draft or Ready for review and whether to write an e2e test, then pushes and opens the PR after the user approves the title and body. Use when: a fix branch is ready (or nearly ready) and needs a PR, or the user says "create a PR", "open a PR for issue #N", "raise the PR".'
 argument-hint: 'Optional: issue number(s), e.g. "423" or "#423 #425". If omitted, the issue is inferred from the branch name and commits.'
 ---
 
 # Create PR from Issue
 
 ## Purpose
-Turn a finished fix branch into a Gitea PR whose Acceptance Criteria are the **test cases written in the UAT issue**, not criteria re-invented from the diff. This is the step after `implement-task` / `code-review` in the workflow described in the root `CLAUDE.md`.
+Turn a finished fix branch into a GitHub PR whose Acceptance Criteria are the **test cases written in the UAT issue**, not criteria re-invented from the diff. This is the step after `implement-task` / `code-review` in the workflow described in the root `CLAUDE.md`.
 
 The PR is outward-facing: nothing is pushed or posted until the user has approved the final title and body (Step 8).
 
 ## Repo facts this skill relies on
-- Remote `origin` is **Gitea**: `https://gitea.eptisa-dev.com`, repo `myps/myps_server`. `gh` does not work and there is no `tea` CLI. Use the REST API at `https://gitea.eptisa-dev.com/api/v1/repos/myps/myps_server`.
-- PRs target **`main`**. Confirm against the last few merged PRs (`git log --oneline origin/main -15 | grep "Merge pull request"`) and ask if it looks different.
-- **Draft = `WIP: ` title prefix.** Gitea has no separate draft flag in this setup; PR #427 is the reference. "Ready for review" = no prefix.
-- **Issue linking pattern:** PRs carry the issue's `[UAT][S0x] [TC-IDs]` prefix in the title and mention the issue as a bare `#N` in the body. **Never** use `Closes` / `Fixes` / `Resolves`. Issues stay open after merge so QA can retest. **Do not touch issue labels or post issue comments.** The triage lead manages `has-pr`, `fix-merged`, `forqa` and `uat-state/*` and posts the "Referenced by PR" comment.
-- **Auth:** git's credential manager holds the user's Gitea token. Read it only through the helper below, never print it, never put it literally on a command line, and send it to `gitea.eptisa-dev.com` only. Always set `GCM_INTERACTIVE=never GIT_TERMINAL_PROMPT=0`: a dead credential otherwise opens a GUI prompt and hangs the shell. If auth fails (401), stop and ask the user for a new personal access token (Gitea → Settings → Applications).
-- **Python is not installed** (`python` opens the Microsoft Store). Build JSON with `node`.
+- Remote `origin` is **GitHub**: `https://github.com/MYPS-Org/myps` (public, moved from Gitea on 2026-10-28). The `gh` CLI is not installed. Use the REST API at `https://api.github.com/repos/MYPS-Org/myps`.
+- PRs target **`main`**. The "Protect main" ruleset requires a PR with 1 approval and blocks force pushes. Confirm the base against the last few merged PRs (`git log --oneline origin/main -15 | grep "Merge pull request"`) and ask if it looks different.
+- **Draft = GitHub's draft flag** (`"draft": true` on create). No `WIP: ` title prefix. "Ready for review" = `draft: false`.
+- **Issue linking pattern:** PRs carry the issue's `[UAT][S0x] [TC-IDs]` prefix in the title and mention the issue as a bare `#N` in the body. **Never** use `Closes` / `Fixes` / `Resolves`: GitHub closes the issue on merge, and issues must stay open so QA can retest. **Do not touch issue labels or post issue comments.** The triage lead manages `has-pr`, `fix-merged`, `forqa` and `uat-state/*`.
+- **The repo is public.** Never put a real password, connection string or token in a commit, PR title or PR body. Real values live in gitignored local files (see "Local secrets" in the root `CLAUDE.md`).
+- **No Claude attribution.** Commits and PRs carry only the user's own account. No `Co-Authored-By: Claude` trailer, no "Generated with Claude Code" line.
+- **Auth:** git's credential manager holds the user's GitHub token. Read it only through the helper below, never print it, never put it literally on a command line, and send it to `api.github.com` only. Always set `GCM_INTERACTIVE=never GIT_TERMINAL_PROMPT=0`: a dead credential otherwise opens a GUI prompt and hangs the shell. If auth fails (401), stop and ask the user to sign in again (`git push` to the repo once re-runs the GitHub login).
+- Build JSON with `node`.
 
 ### API helper (Bash)
 
 ```bash
-gitea() {  # usage: gitea METHOD PATH [JSON_FILE]   e.g. gitea GET "/issues/423"
-  local cred U P B=https://gitea.eptisa-dev.com/api/v1/repos/myps/myps_server
-  cred=$(printf "protocol=https\nhost=gitea.eptisa-dev.com\n\n" | GCM_INTERACTIVE=never GIT_TERMINAL_PROMPT=0 git credential fill 2>/dev/null)
-  U=$(printf "%s\n" "$cred" | sed -n 's/^username=//p'); P=$(printf "%s\n" "$cred" | sed -n 's/^password=//p')
-  if [ -n "$3" ]; then curl -s -u "$U:$P" -X "$1" -H "Content-Type: application/json" --data-binary @"$3" "$B$2"
-  else curl -s -u "$U:$P" -X "$1" "$B$2"; fi
+github() {  # usage: github METHOD PATH [JSON_FILE]   e.g. github GET "/issues/12"; a PATH starting with https:// is used as-is
+  local P U=https://api.github.com/repos/MYPS-Org/myps$2
+  case "$2" in https://*) U=$2 ;; esac
+  P=$(printf "protocol=https\nhost=github.com\n\n" | GCM_INTERACTIVE=never GIT_TERMINAL_PROMPT=0 git credential fill 2>/dev/null | sed -n 's/^password=//p')
+  # The token goes to curl on stdin (-K -), so it never appears on a command line.
+  if [ -n "$3" ]; then printf 'header = "Authorization: Bearer %s"\n' "$P" | curl -s -K - -X "$1" -H "Accept: application/vnd.github+json" -H "Content-Type: application/json" --data-binary @"$3" "$U"
+  else printf 'header = "Authorization: Bearer %s"\n' "$P" | curl -s -K - -X "$1" -H "Accept: application/vnd.github+json" "$U"; fi
 }
 ```
 
-Pipe the output into `node -e` to pick fields. Each Bash call is a fresh shell, so define the function in every call that uses it.
+Pipe the output into `node -e` to pick fields. Each Bash call is a fresh shell, so define the function in every call that uses it. GitHub's `/issues` endpoints also return PRs. An item with a `pull_request` key is a PR, not an issue.
 
 ---
 
@@ -39,11 +42,11 @@ Pipe the output into `node -e` to pick fields. Each Bash call is a fresh shell, 
 
 ### Step 1 — Resolve the issue(s)
 
-**With arguments:** strip `#`, then `GET /issues/<n>` for each one. Stop if any is a PR, closed, or missing, and say which.
+**With arguments:** strip `#`, then `GET /issues/<n>` for each one. Stop if any is a PR (has `pull_request`), closed, or missing, and say which.
 
 **Without arguments (auto):**
 1. Collect TC IDs from the branch name and from `git log --format=%s%n%b origin/main..HEAD`. Match `S\d{2}-TC\d{3}(-P\d{3})?`. Expand shorthand the way issue titles write it: `[S04-TC020-P001, TC021-P001]` means `S04-TC021-P001`.
-2. For each TC ID, search `GET /issues?state=open&type=issues&labels=uat&q=<TC-ID>&limit=20`, and keep issues whose **title or test-case list** contains it.
+2. For each TC ID, search `github GET "https://api.github.com/search/issues?q=repo:MYPS-Org/myps+is:issue+is:open+label:uat+<TC-ID>&per_page=20"`, and keep issues whose **title or test-case list** contains it.
 3. **Decide:**
    - **Obvious:** one candidate set covers every TC ID found, and the diff touches the module the issue names. Proceed without asking, and state the pick in one line, e.g. "Using #383 (S02-TC003-P001, from the branch name and commit 02158dd9)."
    - **Not obvious:** no TC IDs, no match, several partial matches, or the diff looks unrelated to the issue's module. Ask with `AskUserQuestion`, listing up to 4 candidates (number, title, which TC IDs matched) plus "Other" for a typed number.
@@ -80,7 +83,7 @@ Run all of these and collect the results. Don't stop at the first problem; repor
 - `git rev-parse --abbrev-ref @{u}` must **not** be `origin/main`. A branch tracking main lets VS Code Sync push straight to `main`. If it does, fix it with `git branch --unset-upstream`.
 - `git log --oneline origin/main..HEAD` must show at least one commit. `git fetch origin main` first. If the branch is behind main and conflicts, say so.
 - Check uncommitted changes with `git status --short`. **Never stage** `FE/.env.development`, `e2e/test-results/**` or `e2e/playwright-report/**` unless the user asks. When committing, stage by explicit path, never `git add -A` or `git add .`.
-- Look for an existing open PR for this branch: `GET /pulls?state=open&limit=50`, then match `head.ref`. If one exists, offer to **update** it (`PATCH /pulls/<n>`) instead of creating a duplicate.
+- Look for an existing open PR for this branch: `GET "/pulls?state=open&head=MYPS-Org:<branch>"`. If one exists, offer to **update** it (`PATCH /pulls/<n>`) instead of creating a duplicate.
 
 **b. Typecheck and build, scoped to the diff**
 - List changed files with `git diff --name-only origin/main...HEAD`.
@@ -135,17 +138,17 @@ If any TC is not Covered, **warn** with a list of the gaps. Don't block the PR. 
 
 ### Step 5 — Ask the user (one `AskUserQuestion` call)
 
-**Q1 — "Mark this PR as Draft (WIP) or Ready for review?"** Put the recommended option first and add "(Recommended)" to its label.
+**Q1 — "Mark this PR as Draft or Ready for review?"** Put the recommended option first and add "(Recommended)" to its label.
 - Recommend **Ready for review** when `/code-review` ran with no open findings, **or** when every TC is Covered, typecheck/build is clean, and the fix reads as correct.
-- Otherwise recommend **Draft (WIP)**, and say why in the option description, e.g. "S02-TC003-P002 not addressed; code review skipped".
+- Otherwise recommend **Draft**, and say why in the option description, e.g. "S02-TC003-P002 not addressed; code review skipped".
 
 **Q2 — "Create an e2e test for these test cases?"**
 - First check `e2e/CLAUDE.md`'s **Coverage map** for a spec that already covers this route or table. If one does, offer "Extend `<spec>`" as an option.
 - Recommend **Yes** when the TC describes behaviour a user can see in the browser or API and nothing covers it yet.
 - Recommend **No** for test-script-only, docs-only, or report-rendering TCs (Crystal Reports output can't be asserted here).
 
-**Q3 — "Request reviewers?"** Use multi-select. Only applies if Q1 is Ready; ignore it for a WIP PR.
-- Suggest reviewers from the last ~50 PRs whose title has the same `[UAT][S0x]` section. Use `GET /pulls?state=all&limit=50`, then collect `requested_reviewers[].login` plus the reviewers from `GET /pulls/<n>/reviews` for the 5 most recent matches.
+**Q3 — "Request reviewers?"** Use multi-select. Only applies if Q1 is Ready; ignore it for a Draft PR.
+- Suggest reviewers from the last ~50 PRs whose title has the same `[UAT][S0x]` section. Use `GET "/pulls?state=all&per_page=50"`, then collect `requested_reviewers[].login` plus `user.login` from `GET /pulls/<n>/reviews` for the 5 most recent matches. Only org members with access to the repo can be requested.
 - Exclude the current user. Up to 3 people, plus "None".
 
 ### Step 6 — Write and run the e2e test (only if Q2 = yes)
@@ -158,8 +161,8 @@ Follow `e2e/CLAUDE.md` exactly. It holds the selector convention, the helpers (`
 **Run it locally, never against the shared database.** `Main/appsettings.Development.json` points at the shared dev server (192.168.50.200), and `ConnectionStrings__*` environment variables do **not** override it: `Program.cs` adds the JSON after the environment variables. To point the API at the local database:
 1. Build the API: `dotnet build Main/Main.csproj`.
 2. Make a scratch folder holding:
-   - a copy of `Main/appsettings.json`;
-   - a copy of `appsettings.Development.json` with only `MYPSDb` and `PCMADb` replaced by `Server=localhost;Database=myps_db_dev;Trusted_Connection=True;TrustServerCertificate=True;`;
+   - copies of `Main/appsettings.json` and `Main/appsettings.Development.json`;
+   - a copy of the gitignored `Main/appsettings.Development.Local.json` (it holds the real values and loads last, so it wins) with only `MYPSDb` and `PCMADb` replaced by `Server=localhost;Database=myps_db_dev;Trusted_Connection=True;TrustServerCertificate=True;`;
    - a junction `Resources` → `Main/bin/Debug/net8.0/Resources`.
 3. Run `Main/bin/Debug/net8.0/Main.exe` with that folder as its working directory, with `ASPNETCORE_ENVIRONMENT=Development` and `ASPNETCORE_URLS=http://localhost:5099`. Start it in the background.
 4. Before any test writes, verify the API is on the local database: `SELECT TOP 1 LastHeartbeat FROM HangFire.Server ORDER BY LastHeartbeat DESC` on local `myps_db_dev` must show a fresh heartbeat. If it doesn't, stop.
@@ -175,11 +178,11 @@ Stop the API and Vite background processes when done. Commit the spec and the `e
 
 ### Step 7 — Compose the title and body
 
-**Title:** `[WIP: ]` + the issue title's bracket prefix copied verbatim + ` <type>(<scope>): <short summary>`.
+**Title:** the issue title's bracket prefix copied verbatim + ` <type>(<scope>): <short summary>`.
 - Example: `[UAT][S04] [S04-TC005-P001] fix(code-tables): Change "Export to PCMA" header to "Publishable to PCMA"`.
 - Take `type(scope)` from the branch's own conventional commits. If there are none, use `fix` for `type/bug` and `feat` for `type/enhancement`.
-- Several issues: join the prefixes with ` and `, as PR #441 does.
-- Draft: prefix `WIP: `.
+- Several issues: join the prefixes with ` and `, as Gitea PR #441 did.
+- Draft is set by the API flag in Step 9, not in the title.
 
 **Body:** use this template. Drop any section that would be empty, except Test cases.
 
@@ -221,8 +224,6 @@ Run `<migration.sql>` in each environment **before** deploying this build: <cons
 
 ## Change size
 **<No-op | Low | Medium | High>** · <N> files, +<a>/−<d> app code (excl. tests/docs) · <the factor that set the level, e.g. "adds a SQL migration">
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
 **Rules:**
@@ -241,16 +242,16 @@ Wait for an explicit OK. Apply any requested edits and show the result again.
 
 1. Re-check `git branch --show-current` matches the branch from Step 3, and that the upstream isn't `origin/main`.
 2. Push with `git push -u origin <branch>`.
-3. Write the JSON payload with `node -e`. Read the body from a scratch `.md` file, `JSON.stringify` `{title, head: <branch>, base: "main", body}` into a scratch `.json`.
-4. Open the PR: `gitea POST "/pulls" <file.json>`. For an existing PR (Step 3a), use `gitea PATCH "/pulls/<n>" <file.json>` with title and body only. Expect HTTP 201 or 200. Read `number` and `html_url` from the response.
-5. If Ready and reviewers were chosen: `gitea POST "/pulls/<n>/requested_reviewers"` with `{"reviewers": ["login", ...]}`.
+3. Write the JSON payload with `node -e`. Read the body from a scratch `.md` file, `JSON.stringify` `{title, head: <branch>, base: "main", body, draft}` into a scratch `.json`.
+4. Open the PR: `github POST "/pulls" <file.json>`. For an existing PR (Step 3a), use `github PATCH "/pulls/<n>" <file.json>` with title and body only. Expect HTTP 201 or 200. Read `number`, `node_id` and `html_url` from the response.
+5. If Ready and reviewers were chosen: `github POST "/pulls/<n>/requested_reviewers"` with `{"reviewers": ["login", ...]}`.
 6. Don't edit issue labels or post on the issue (see "Issue linking pattern").
 
 ### Step 10 — Report
 
 Tell the user:
-- The PR link and number, whether it is Draft (WIP) or Ready, and its change size.
+- The PR link and number, whether it is Draft or Ready, and its change size.
 - The AC tally, e.g. "3/4 TCs verified, 1 needs a visual check (S06-TC001: icons vs SS13)".
 - The e2e result, or why there isn't one.
 - Any deployment steps the merger must run.
-- For a WIP PR: what's left before it can lose the `WIP: ` prefix (removing the prefix in Gitea marks it ready).
+- For a Draft PR: what's left before it is ready. To mark it ready, press **Ready for review** on GitHub, or send the GraphQL mutation `markPullRequestReadyForReview(input: {pullRequestId: "<node_id>"})` to `https://api.github.com/graphql`. REST `PATCH` cannot change the draft flag.
