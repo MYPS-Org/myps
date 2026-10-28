@@ -24,6 +24,14 @@ builder.Configuration.AddJsonFile(
     optional: true,
     reloadOnChange: true);
 
+// Passwords are not in git: the tracked JSON holds ***REMOVED*** placeholders, and the real values
+// live in an untracked appsettings[.{Environment}].Local.json beside it (see appsettings.Local.example.json).
+// Loaded last so it overrides the placeholders.
+builder.Configuration.AddJsonFile(
+    Path.ChangeExtension(file, ".Local.json"),
+    optional: true,
+    reloadOnChange: true);
+
 Appsetting.WebRootPath = builder.Environment.WebRootPath;
 Appsetting.RootPath = builder.Environment.ContentRootPath;
 

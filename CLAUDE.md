@@ -11,6 +11,16 @@ This repo uses a 4-step pipeline for non-trivial work. Run them in order:
 
 Skip step 1-2 for trivial changes (typo fixes, single-line tweaks) — go straight to editing, `/code-review` and `/create-pr-issue`.
 
+## Local secrets
+
+The repo is public, so no password is committed. Tracked config holds `***REMOVED***` placeholders; the real values live in gitignored files on each machine:
+
+- **Main API** — `Main/appsettings.{Environment}.Local.json` (`appsettings.Local.json` for Production), loaded last by `Program.cs`. Start from `Main/appsettings.Local.example.json`. The machine that publishes needs the file for the target environment; publish copies it.
+- **CrystalReportService** — `CrystalReportService/connectionStrings.config`, loaded by `Web.config` via `configSource`. Start from `connectionStrings.example.config`. The service won't start without it.
+- **e2e** — `e2e/.env`, from `e2e/.env.example`.
+
+Never put a real password in a tracked file, doc, plan or `.claude/settings.json`.
+
 See `FE/CLAUDE.md` for frontend-specific conventions (HTTP/error handling, date inputs, validation patterns).
 
 See `e2e/CLAUDE.md` for Playwright test conventions and route/coverage context.

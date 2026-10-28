@@ -27,6 +27,11 @@ e2e/.auth/
 e2e/playwright-report/
 e2e/test-results/
 
+# Real passwords for the ***REMOVED*** placeholders in tracked config. Copy the
+# *.example.* file next to each one and fill it in; never commit these.
+Main/appsettings*.Local.json
+CrystalReportService/connectionStrings.config
+
 # MCP memory store (local only, do not commit)
 memory.json
 *.mcp-memory.json
