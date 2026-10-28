@@ -395,7 +395,7 @@ const LumpSumDetailsSection: React.FC<LumpSumDetailsSectionProps> = ({
               <div className="w-2/3">
                 <SearchableDropdown
                   options={formatDropdownOptions(
-                    projectEnums?.Origins || [],
+                    filterKeepingSelected(projectEnums?.Origins, x => x.IsActive !== false, 'NameId', lumpSum.Origin),
                     'NameId',
                     'Name',
                     'Id'
@@ -420,7 +420,7 @@ const LumpSumDetailsSection: React.FC<LumpSumDetailsSectionProps> = ({
               <div className="w-2/3">
                 <SearchableDropdown
                   options={formatDropdownOptions(
-                    projectEnums?.Agencies || [],
+                    filterKeepingSelected(projectEnums?.Agencies, x => x.IsActive !== false, 'NameId', lumpSum.Agency),
                     'NameId',
                     'Name'
                   )}

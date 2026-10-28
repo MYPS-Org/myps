@@ -1153,9 +1153,23 @@ namespace WebAPI.Controllers.Revision
                 .ToList();
                 if (ProjectRevisions != null)
                 {
+                    // Taken before UpdateRevisionData, which changes ProjectRevisions in place (#481).
+                    var StoredLookups = new ProjectDetailsLookupValues(ProjectRevisions.Tier, ProjectRevisions.Origin, ProjectRevisions.Agency, ProjectRevisions.ImplementationMode, ProjectRevisions.EmergencyMode, ProjectRevisions.RowAvailable, ProjectRevisions.Feasibility, ProjectRevisions.DetailedDesign);
                     var UpdateAndGenerateLogs = ProjectDetailsRules.UpdateRevisionData(User, TransactionId, "tRevisionProjects", CurrentDate, NewProjectRevision, ProjectRevisions);
                     Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
                     ProjectRevision = UpdateAndGenerateLogs.Data;
+
+                    // #481: a retired (Inactive) Origin, Agency, ... is refused only when the revision
+                    // changes it; the project's own value is kept.
+                    var ValidateActiveLookups = await _db.ValidateProjectDetailsActiveAsync(
+                        new ProjectDetailsLookupValues(ProjectRevision.Tier, ProjectRevision.Origin, ProjectRevision.Agency, ProjectRevision.ImplementationMode, ProjectRevision.EmergencyMode, ProjectRevision.RowAvailable, ProjectRevision.Feasibility, ProjectRevision.DetailedDesign),
+                        StoredLookups,
+                        cancellationToken);
+                    if (!ValidateActiveLookups.IsValid)
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        return new BadRequestObjectResult(new { Message = ValidateActiveLookups.Message, Title = ValidateActiveLookups.Title });
+                    }
                     NewRevisionProject.IsActive = isCOUser ? true : false;
                     NewRevisionProject.TransactionId = TransactionId;
                     NewRevisionProject.RevisionId = ProjectRevision.Id;
@@ -2881,9 +2895,24 @@ namespace WebAPI.Controllers.Revision
                 var NewProjectRevision = dto.ProjectDetails;
                 if (ProjectDetailsRules.Count > 0)
                 {
+                    // Taken before UpdateRevisionData, which changes ProjectRevisions in place (#481).
+                    var StoredLookups = new ProjectDetailsLookupValues(ProjectRevisions.Tier, ProjectRevisions.Origin, ProjectRevisions.Agency, ProjectRevisions.ImplementationMode, ProjectRevisions.EmergencyMode, ProjectRevisions.RowAvailable, ProjectRevisions.Feasibility, ProjectRevisions.DetailedDesign);
                     var UpdateAndGenerateLogs = ProjectDetailsRules.UpdateRevisionData(User, dto.TransactionId, "tRevisionProjects", CurrentDate, NewProjectRevision, ProjectRevisions);
                     Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
                     var RevisionProject = UpdateAndGenerateLogs.Data;
+
+                    // #481: a retired (Inactive) Origin, Agency, ... is refused only when this
+                    // resubmission changes it; what the project holds, or the request already held, is kept.
+                    var ValidateActiveLookups = await _db.ValidateProjectDetailsActiveAsync(
+                        new ProjectDetailsLookupValues(RevisionProject.Tier, RevisionProject.Origin, RevisionProject.Agency, RevisionProject.ImplementationMode, RevisionProject.EmergencyMode, RevisionProject.RowAvailable, RevisionProject.Feasibility, RevisionProject.DetailedDesign),
+                        StoredLookups,
+                        cancellationToken,
+                        alsoKept: new ProjectDetailsLookupValues(ExistingRevisionProject.Tier, ExistingRevisionProject.Origin, ExistingRevisionProject.Agency, ExistingRevisionProject.ImplementationMode, ExistingRevisionProject.EmergencyMode, ExistingRevisionProject.RowAvailable, ExistingRevisionProject.Feasibility, ExistingRevisionProject.DetailedDesign));
+                    if (!ValidateActiveLookups.IsValid)
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        return new BadRequestObjectResult(new { Message = ValidateActiveLookups.Message, Title = ValidateActiveLookups.Title });
+                    }
                     if (ExistingRevisionProject.AlternateId != RevisionProject.AlternateId)
                     {
                         Logs.Add(new RevisionTransactionLog

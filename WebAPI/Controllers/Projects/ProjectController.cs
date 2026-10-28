@@ -76,10 +76,14 @@ namespace WebAPI.Controllers.Projects
                     .OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
                 var thrusts = await _db.tOptionProjectThrustList.AsNoTracking()
                     .OrderBy(x => x.ThrustDescription).ToListAsync(cancellationToken);
+                // #481: Origin and Agency complete too, inactive rows included, for the same reason:
+                // a project whose Origin / Agency was retired showed a blank field. The forms offer
+                // only IsActive rows for a new pick (filterKeepingSelected), and
+                // ValidateProjectDetailsActiveAsync refuses changing TO a retired one.
                 var origins = await _db.tOptionProjectOrigin.AsNoTracking()
-                    .Where(o => o.IsActive).OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                    .OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var agencies = await _db.tOptionProjectAgency.AsNoTracking()
-                    .Where(a => a.IsActive).OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                    .OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var implementationModes = await _db.tOptionProjectImplementationMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var emergencyModes = await _db.tOptionProjectEmergencyMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var feasibilities = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
@@ -998,6 +1002,8 @@ namespace WebAPI.Controllers.Projects
                     PreviousThrust = ProjectRevision.Thrust,
                     // 2026-09-12: the gate watches both fields -- see ValidateThrustForCategoryAsync.
                     PreviousCategory = ProjectRevision.Category,
+                    // #481: a stored Origin / Agency / ... retired since is kept; only a change is checked.
+                    Previous = new ProjectDetailsLookupValues(ProjectRevision.Tier, ProjectRevision.Origin, ProjectRevision.Agency, ProjectRevision.ImplementationMode, ProjectRevision.EmergencyMode, ProjectRevision.RowAvailable, ProjectRevision.Feasibility, ProjectRevision.DetailedDesign),
                 };
                 var ValidateProjectLookUps = await _db.ValidateProjectDetailsLookups(pLookup, cancellationToken);
                 if (!ValidateProjectLookUps.IsValid)

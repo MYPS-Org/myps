@@ -105,4 +105,44 @@ public sealed class RetiredLookupRuleTests
                 x => x.AgreementCode,
                 new ProjectHelper.FundingLookupRow(0, false, "RETIRED-SRC", "RETIRED-AGR"),
                 new ProjectHelper.FundingLookupRow(7, true, "OTHER", "OTHER")));
+
+    // #481: Project Details lookups (Tier, Origin, Agency, ...), one value per project.
+    private static readonly ProjectHelper.ProjectDetailsLookupValues Saved = new(1, 13, 1001, 2, null, 1, 0, null);
+
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void ProjectDetails_NewRecord_ChecksEverySetValue() =>
+        Assert.Equal(
+            new[] { "Tier", "Origin", "Originating Agency", "Implementation Mode", "ROW Available", "Feasibility Study" },
+            ProjectHelper.ChangedProjectDetailsLookups(Saved, null).Select(x => x.Lookup));
+
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void ProjectDetails_Unchanged_ChecksNothing() =>
+        Assert.Empty(ProjectHelper.ChangedProjectDetailsLookups(Saved with { }, Saved));
+
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void ProjectDetails_OnlyChangedValuesAreChecked() =>
+        Assert.Equal(
+            new[] { ("Originating Agency", 1002), ("Emergency Mode", 1) },
+            ProjectHelper.ChangedProjectDetailsLookups(Saved with { Agency = 1002, EmergencyMode = 1 }, Saved));
+
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void ProjectDetails_NullValue_IsNotChecked() =>
+        // UpdateLumpSum may omit a field to keep the stored one.
+        Assert.Empty(ProjectHelper.ChangedProjectDetailsLookups(Saved with { Tier = null, ImplementationMode = null }, Saved));
+
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void ProjectDetails_Resubmit_KeepsEitherTheProjectsOrTheRequestsValue()
+    {
+        // The request had changed Agency 1001 -> 1002; resubmitting 1001 (the project's) or 1002
+        // (the request's) is kept, a third value is checked.
+        var request = Saved with { Agency = 1002 };
+        Assert.Empty(ProjectHelper.ChangedProjectDetailsLookups(Saved, Saved, alsoKept: request));
+        Assert.Empty(ProjectHelper.ChangedProjectDetailsLookups(request, Saved, alsoKept: request));
+        Assert.Equal(new[] { ("Originating Agency", 1003) }, ProjectHelper.ChangedProjectDetailsLookups(Saved with { Agency = 1003 }, Saved, alsoKept: request));
+    }
 }

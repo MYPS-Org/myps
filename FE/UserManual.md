@@ -2360,7 +2360,7 @@ A project can belong to only one project group at a time.
 
 **Toggle Active / Inactive**
 
-All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference. **Exception:** Project Details **Category** and **Thrust** are offered in the project form according to their validity years, not their Active status (see 5.7.6). Major Items that already use an Inactive **Infrastructure Type** or **Type of Work** keep it and can still be saved (see 5.7.4), and so do funding lines that use an Inactive **Funding Source** or **Funding Agreement** (see 5.7.3).
+All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference. **Exception:** Project Details **Category** and **Thrust** are offered in the project form according to their validity years, not their Active status (see 5.7.6). Major Items that already use an Inactive **Infrastructure Type** or **Type of Work** keep it and can still be saved (see 5.7.4), and so do funding lines that use an Inactive **Funding Source** or **Funding Agreement** (see 5.7.3) and projects that use an Inactive **Agency** or **Origin** (see 5.7.6).
 
 To toggle a record's status:
 1. Locate the record in the table.
@@ -2513,6 +2513,13 @@ New agencies are saved as **Active**, so they appear in the Add Project form's A
 2. Click **Add**.
 3. Enter **Name** and **Description**.
 4. Click **Check** to save.
+
+**What Inactive does for an Agency or Origin**
+
+- **Retiring one that projects use:** you can set an Agency or Origin Inactive, and edit its Description, even while projects use it. Deleting or renaming it is refused while it is in use: *"The selected project agency is currently in use, so it cannot be deleted or renamed. You can still set it Inactive."*
+- **New choices:** an Inactive Agency or Origin is not offered in Add Project, Project Details, Modification or the Lump Sum form. Changing a project to one is refused with *"Selected Originating Agency '…' is inactive and cannot be chosen."* (or *Origin*).
+- **Projects that already use it:** they keep it. The field still shows it, and the project still saves.
+- The same rule covers Tier, Implementation Mode, Emergency Mode, ROW Available, Feasibility Study and Detailed Design, although these have no Code Tables screen of their own.
 
 **Step-by-Step: Adding a Thrust**
 

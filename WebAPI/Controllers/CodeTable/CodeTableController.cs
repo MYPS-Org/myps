@@ -827,15 +827,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Agency has been selected, please select a project agency."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Agency == data.NameId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Project Agency In Use",
-                            Message = "The selected project agency is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -861,6 +852,23 @@ namespace WebAPI.Controllers.CodeTable
                         {
                             Title = "Project Agency Not Found",
                             Message = $"The project agency with id {data.Id} is not found, please select another project agency."
+                        });
+                    }
+                    // #481: an in-use agency may still be set Active / Inactive or have its Description
+                    // edited -- retiring it only takes it out of the dropdowns, and the projects that use
+                    // it keep it. Only a delete, or a change to the Name those projects show, is refused.
+                    // In use = a project or a modification request refers to the stored NameId (the
+                    // Update below never writes NameId, and the Origin screen does not even send it).
+                    // This used to refuse every update, so an in-use agency could not be retired at all.
+                    if (CheckUpdate != null
+                        && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.Name != data.Name)
+                        && (await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.Agency == CheckUpdate.NameId, cancellationToken)
+                            || await _db.tRevisionProjects.AsNoTracking().AnyAsync(x => x.Agency == CheckUpdate.NameId, cancellationToken)))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Project Agency In Use",
+                            Message = "The selected project agency is currently in use, so it cannot be deleted or renamed. You can still set it Inactive."
                         });
                     }
                     #endregion
@@ -917,15 +925,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Origin has been selected, please select a project origin."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Origin == data.NameId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Project Origin In Use",
-                            Message = "The selected project origin is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -942,6 +941,23 @@ namespace WebAPI.Controllers.CodeTable
                         {
                             Title = "Project Origin Not Found",
                             Message = $"The project origin with id {data.Id} is not found, please select another project origin."
+                        });
+                    }
+                    // #481: an in-use origin may still be set Active / Inactive or have its Description
+                    // edited -- retiring it only takes it out of the dropdowns, and the projects that use
+                    // it keep it. Only a delete, or a change to the Name those projects show, is refused.
+                    // In use = a project or a modification request refers to the stored NameId (the
+                    // Update below never writes NameId, and the Origin screen does not even send it).
+                    // This used to refuse every update, so an in-use origin could not be retired at all.
+                    if (CheckUpdate != null
+                        && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.Name != data.Name)
+                        && (await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.Origin == CheckUpdate.NameId, cancellationToken)
+                            || await _db.tRevisionProjects.AsNoTracking().AnyAsync(x => x.Origin == CheckUpdate.NameId, cancellationToken)))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Project Origin In Use",
+                            Message = "The selected project origin is currently in use, so it cannot be deleted or renamed. You can still set it Inactive."
                         });
                     }
                     #endregion

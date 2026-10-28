@@ -572,6 +572,12 @@ namespace Helpers
             // re-homed under a Category it does not fit. Supplied beside PreviousThrust by
             // UpdateProjectDetails; left null by AddProject.
             public int? PreviousCategory { get; set; }
+            // #481: the project's stored Tier / Origin / Agency / Implementation Mode / Emergency Mode /
+            // ROW Available / Feasibility / Detailed Design, so a value retired (set Inactive) after the
+            // project chose it is kept, while changing TO a retired value is refused -- the same gate
+            // as PreviousThrust. Left null by AddProject and CreateLumpSum (everything is new);
+            // UpdateProjectDetails and UpdateLumpSum supply it from the stored record.
+            public ProjectDetailsLookupValues? Previous { get; set; }
         }
         public static async Task<ProjectHelperResponse<string>> ValidateProjectDetailsLookups(this MYPSDbContext _db, ValidateProjectDetailsLookupsParams p, CancellationToken cancellationToken)
         {
@@ -675,37 +681,37 @@ namespace Helpers
             }
 
 
-            var ValidateOrigin = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.Origin && x.IsActive, cancellationToken);
+            var ValidateOrigin = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.Origin, cancellationToken);
             if (ValidateOrigin == null)
             {
                 response.Message = $"Selected Origin '{p.Origin}' is not valid."; response.Title = "Invalid Origin";
                 return response;
             }
-            var ValidateOriginatingAgency = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.Agency && x.IsActive, cancellationToken);
+            var ValidateOriginatingAgency = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.Agency, cancellationToken);
             if (ValidateOriginatingAgency == null)
             {
                 response.Message = $"Selected Originating Agency '{p.Agency}' is not valid."; response.Title = "Invalid Originating Agency";
                 return response;
             }
-            var ValidateImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.ImplementationMode && x.IsActive, cancellationToken);
+            var ValidateImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.ImplementationMode, cancellationToken);
             if (ValidateImplementationMode == null)
             {
                 response.Message = $"Selected Implementation Mode '{p.ImplementationMode}' is not valid."; response.Title = "Invalid Implementation Mode";
                 return response;
             }
-            var ValidateEmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.EmergencyMode && x.IsActive, cancellationToken);
+            var ValidateEmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.EmergencyMode, cancellationToken);
             if (ValidateEmergencyMode == null)
             {
                 response.Message = $"Selected Emergency Mode '{p.EmergencyMode}' is not valid."; response.Title = "Invalid Emergency Mode";
                 return response;
             }
-            var ValidateRowAvailable = await _db.tOptionProjectRowAvailable.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.RowAvailable && x.IsActive, cancellationToken);
+            var ValidateRowAvailable = await _db.tOptionProjectRowAvailable.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.RowAvailable, cancellationToken);
             if (ValidateRowAvailable == null)
             {
                 response.Message = $"Selected ROW Available '{p.RowAvailable}' is not valid."; response.Title = "Invalid ROW Available";
                 return response;
             }
-            var ValidateFeasibility = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.Feasibility && x.IsActive, cancellationToken);
+            var ValidateFeasibility = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.Feasibility, cancellationToken);
             if (ValidateFeasibility == null)
             {
                 response.Message = $"Selected Feasibility Study '{p.Feasibility}' is not valid."; response.Title = "Invalid Feasibility Study";
@@ -722,7 +728,7 @@ namespace Helpers
             // genuinely past date (the normal case for a field recording when a feasibility
             // study actually happened). Live data confirmed this: 100% of the 37 live
             // Feasibility=1 revisions had a today-or-future date, zero had a past date.
-            var ValidateDetailedDesign = await _db.tOptionProjectDetailedDesign.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.DetailedDesign && x.IsActive, cancellationToken);
+            var ValidateDetailedDesign = await _db.tOptionProjectDetailedDesign.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == p.DetailedDesign, cancellationToken);
             if (ValidateDetailedDesign == null)
             {
                 response.Message = $"Selected Detailed Design '{p.DetailedDesign}' is not valid."; response.Title = "Invalid Detailed Design";
@@ -736,8 +742,79 @@ namespace Helpers
             // 2026-09-11 fix: same "must always be today or later" bug as FeasibilityDate above,
             // same function -- removed for consistency (0 live rows currently use
             // DetailedDesign=1, so no live blast-radius evidence, but identical shape).
+            // Retired (Inactive) values: refused only when new or changed against p.Previous (#481).
+            var ValidateActive = await _db.ValidateProjectDetailsActiveAsync(
+                new ProjectDetailsLookupValues(p.Tier, p.Origin, p.Agency, p.ImplementationMode, p.EmergencyMode, p.RowAvailable, p.Feasibility, p.DetailedDesign),
+                p.Previous,
+                cancellationToken);
+            if (!ValidateActive.IsValid)
+                return ValidateActive;
             response.IsValid = true;
             response.Data = p.Region;//ValidateRegion.IslandCode;
+            return response;
+        }
+
+        /// <summary>The single-value Project Details lookups that can be retired (#481).</summary>
+        public sealed record ProjectDetailsLookupValues(int? Tier, int? Origin, int? Agency, int? ImplementationMode, int? EmergencyMode, int? RowAvailable, int? Feasibility, int? DetailedDesign);
+
+        /// <summary>
+        /// The lookups that must still be active: every set value of a new record
+        /// (<paramref name="previous"/> null), otherwise only the values that differ from it -- and,
+        /// when given, also from <paramref name="alsoKept"/> (a resubmitted modification request may
+        /// keep what the project holds or what the request already held).
+        /// </summary>
+        public static List<(string Lookup, int Value)> ChangedProjectDetailsLookups(ProjectDetailsLookupValues current, ProjectDetailsLookupValues? previous, ProjectDetailsLookupValues? alsoKept = null)
+        {
+            var changed = new List<(string Lookup, int Value)>();
+            void Add(string lookup, Func<ProjectDetailsLookupValues, int?> field)
+            {
+                if (field(current) is int v && (previous == null || (v != field(previous) && (alsoKept == null || v != field(alsoKept)))))
+                    changed.Add((lookup, v));
+            }
+            Add("Tier", x => x.Tier);
+            Add("Origin", x => x.Origin);
+            Add("Originating Agency", x => x.Agency);
+            Add("Implementation Mode", x => x.ImplementationMode);
+            Add("Emergency Mode", x => x.EmergencyMode);
+            Add("ROW Available", x => x.RowAvailable);
+            Add("Feasibility Study", x => x.Feasibility);
+            Add("Detailed Design", x => x.DetailedDesign);
+            return changed;
+        }
+
+        /// <summary>
+        /// Refuses a Project Details lookup value that is unknown or retired (Inactive), but only
+        /// on values that are new or changed against <paramref name="previous"/>
+        /// (ChangedProjectDetailsLookups): a project keeps a value retired after it was chosen (#481).
+        /// Shared by ValidateProjectDetailsLookups, the Lump Sum details check and the Revision saves.
+        /// </summary>
+        public static async Task<ProjectHelperResponse<string>> ValidateProjectDetailsActiveAsync(this MYPSDbContext _db, ProjectDetailsLookupValues current, ProjectDetailsLookupValues? previous, CancellationToken cancellationToken, ProjectDetailsLookupValues? alsoKept = null)
+        {
+            var response = new ProjectHelperResponse<string>();
+            foreach (var (Lookup, Value) in ChangedProjectDetailsLookups(current, previous, alsoKept))
+            {
+                var Row = Lookup switch
+                {
+                    "Tier" => await _db.tOptionProjectTier.AsNoTracking().Where(x => x.NameId == Value).Select(x => new { x.Name, IsActive = x.IsActive != false }).FirstOrDefaultAsync(cancellationToken),
+                    "Origin" => await _db.tOptionProjectOrigin.AsNoTracking().Where(x => x.NameId == Value).Select(x => new { x.Name, x.IsActive }).FirstOrDefaultAsync(cancellationToken),
+                    "Originating Agency" => await _db.tOptionProjectAgency.AsNoTracking().Where(x => x.NameId == Value).Select(x => new { x.Name, x.IsActive }).FirstOrDefaultAsync(cancellationToken),
+                    "Implementation Mode" => await _db.tOptionProjectImplementationMode.AsNoTracking().Where(x => x.NameId == Value).Select(x => new { x.Name, x.IsActive }).FirstOrDefaultAsync(cancellationToken),
+                    "Emergency Mode" => await _db.tOptionProjectEmergencyMode.AsNoTracking().Where(x => x.NameId == Value).Select(x => new { x.Name, x.IsActive }).FirstOrDefaultAsync(cancellationToken),
+                    "ROW Available" => await _db.tOptionProjectRowAvailable.AsNoTracking().Where(x => x.NameId == Value).Select(x => new { x.Name, x.IsActive }).FirstOrDefaultAsync(cancellationToken),
+                    "Feasibility Study" => await _db.tOptionProjectFeasibilityStudy.AsNoTracking().Where(x => x.NameId == Value).Select(x => new { x.Name, x.IsActive }).FirstOrDefaultAsync(cancellationToken),
+                    "Detailed Design" => await _db.tOptionProjectDetailedDesign.AsNoTracking().Where(x => x.NameId == Value).Select(x => new { x.Name, x.IsActive }).FirstOrDefaultAsync(cancellationToken),
+                    _ => throw new InvalidOperationException($"No lookup table for '{Lookup}'."),
+                };
+                if (Row == null || !Row.IsActive)
+                {
+                    response.Title = $"Invalid {Lookup}";
+                    response.Message = Row == null
+                        ? $"Selected {Lookup} '{Value}' is not valid."
+                        : $"Selected {Lookup} '{Row.Name}' is inactive and cannot be chosen.";
+                    return response;
+                }
+            }
+            response.IsValid = true;
             return response;
         }
 

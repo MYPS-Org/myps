@@ -360,7 +360,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
                                         disabled={!editable}
                                     >
-                                        {projectEnums?.Tiers?.map((tier) => (
+                                        {filterKeepingSelected(projectEnums?.Tiers, x => x.IsActive !== false, 'NameId', projectDetails?.Tier).map((tier) => (
                                             <option key={tier.Id} value={tier.NameId}>
                                                 {tier.Name}
                                             </option>
@@ -693,7 +693,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <EditableField field="Origin" isFieldEditable={isFieldEditable}>
                                         {(editable) => (
                                         <SearchableDropdown
-                                            options={formatDropdownOptions(projectEnums?.Origins || [],
+                                            options={formatDropdownOptions(filterKeepingSelected(projectEnums?.Origins, x => x.IsActive !== false, 'NameId', projectDetails?.Origin),
                                                 'NameId',
                                                 'Name',
                                                 'Description'
@@ -719,7 +719,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <EditableField field="Agency" isFieldEditable={isFieldEditable}>
                                         {(editable) => (
                                         <SearchableDropdown
-                                            options={formatDropdownOptions(projectEnums?.Agencies || [],
+                                            options={formatDropdownOptions(filterKeepingSelected(projectEnums?.Agencies, x => x.IsActive !== false, 'NameId', projectDetails?.Agency),
                                                 'NameId',
                                                 'Name',
                                             )}
@@ -758,7 +758,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={!editable}
                                     >
                                         <option value="">Select Implementation Mode</option>
-                                        {projectEnums?.ImplementationModes?.map((mode) => (
+                                        {filterKeepingSelected(projectEnums?.ImplementationModes, x => x.IsActive !== false, 'NameId', projectDetails?.ImplementationMode).map((mode) => (
                                             <option key={mode.Id} value={mode.NameId}>
                                                 {mode.Name}
                                             </option>
@@ -783,7 +783,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={!editable}
                                     >
                                         <option value="">Select Emergency Mode</option>
-                                        {projectEnums?.EmergencyModes?.map((mode) => (
+                                        {filterKeepingSelected(projectEnums?.EmergencyModes, x => x.IsActive !== false, 'NameId', projectDetails?.EmergencyMode).map((mode) => (
                                             <option key={mode.Id} value={mode.NameId}>
                                                 {mode.Name}
                                             </option>
@@ -806,7 +806,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={!editable}
                                     >
                                         <option value="">Select ROW Available</option>
-                                        {projectEnums?.RowAvailables?.map((row) => (
+                                        {filterKeepingSelected(projectEnums?.RowAvailables, x => x.IsActive !== false, 'NameId', projectDetails?.RowAvailable).map((row) => (
                                             <option key={row.Id} value={row.NameId}>
                                                 {row.Name}
                                             </option>
@@ -836,7 +836,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={!editable}
                                     >
                                         <option value="">Select Feasibility Study</option>
-                                        {projectEnums?.Feasibilities?.map((feasibility) => (
+                                        {filterKeepingSelected(projectEnums?.Feasibilities, x => x.IsActive !== false, 'NameId', projectDetails?.Feasibility).map((feasibility) => (
                                             <option key={feasibility.Id} value={feasibility.NameId}>
                                                 {feasibility.Name}
                                             </option>
@@ -877,7 +877,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={!editable}
                                     >
                                         <option value="">Select Detailed Design</option>
-                                        {projectEnums?.DetailedDesigns?.map((design) => (
+                                        {filterKeepingSelected(projectEnums?.DetailedDesigns, x => x.IsActive !== false, 'NameId', projectDetails?.DetailedDesign).map((design) => (
                                             <option key={design.Id} value={design.NameId}>
                                                 {design.Name}
                                             </option>

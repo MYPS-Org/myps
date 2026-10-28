@@ -157,6 +157,12 @@ namespace WebAPI.Controllers.Lumpsum
                 {
                     var LookupRefusal = await ValidateTierAndCategoryAsync(dto.Tier ?? 1, dto.CategoryId ?? 0, cancellationToken);
                     if (LookupRefusal != null) return LookupRefusal;
+
+                    // #481: the Region path checks these inside ValidateProjectDetailsLookups; a new
+                    // Lump Sum Project may not start on a retired (Inactive) Origin, Agency, ... either.
+                    var ActiveRefusal = await _db.ValidateProjectDetailsActiveAsync(LookupValues(dto), null, cancellationToken);
+                    if (!ActiveRefusal.IsValid)
+                        return new BadRequestObjectResult(new { Message = ActiveRefusal.Message, Title = ActiveRefusal.Title });
                 }
 
                 /*  ISLAND CODE IS THE CONSTANT 'LS'.
@@ -464,6 +470,15 @@ namespace WebAPI.Controllers.Lumpsum
                     previousCategory: LumpSumProject.Category,
                     previousThrust: LumpSumProject.Thrust);
                 if (Refusal != null) return Refusal;
+
+                // #481: a retired (Inactive) Origin, Agency, ... the project already holds is kept;
+                // changing TO one is refused.
+                var ActiveRefusal = await _db.ValidateProjectDetailsActiveAsync(
+                    LookupValues(dto),
+                    new ProjectDetailsLookupValues(LumpSumProject.Tier, LumpSumProject.Origin, LumpSumProject.Agency, LumpSumProject.ImplementationMode, LumpSumProject.EmergencyMode, LumpSumProject.RowAvailable, LumpSumProject.Feasibility, LumpSumProject.DetailedDesign),
+                    cancellationToken);
+                if (!ActiveRefusal.IsValid)
+                    return new BadRequestObjectResult(new { Message = ActiveRefusal.Message, Title = ActiveRefusal.Title });
 
                 /*  THE PROJECT'S RECORD IS CLOSED UNDER AN APPROVAL — SERVER-SIDE
                     (2026-09-09, the maintainer's decision on the risk analysis' N1).
@@ -1404,6 +1419,10 @@ namespace WebAPI.Controllers.Lumpsum
 
             return null;
         }
+
+        /// <summary>The request's retirable Project Details lookups (#481); a null one is not checked.</summary>
+        private static ProjectDetailsLookupValues LookupValues(LumpSumDetailFieldsDTO dto) =>
+            new(dto.Tier, dto.Origin, dto.Agency, dto.ImplementationMode, dto.EmergencyMode, dto.RowAvailable, dto.Feasibility, dto.DetailedDesign);
 
         /// <summary>Tier and Category, for the path where no Region was supplied.</summary>
         private async Task<IActionResult?> ValidateTierAndCategoryAsync(
