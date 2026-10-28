@@ -6,6 +6,7 @@ import type { ComponentCost, ScopeOfWorkEnum, InfraTypeEnum } from '../../Projec
 import type { ProgramLatest } from '../../Program/Model';
 import { useFieldPermissionState } from '../hooks/useFieldPermissions';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import { filterKeepingSelected } from '../../../utils/GlobalFunctions';
 
 interface AddMajorItemDialogProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ interface AddMajorItemDialogProps {
     InfraType: string;
   };
   existingMajorItems?: Array<{ ComponentId: string }>;
+  /** The row being edited is already saved (Id > 0): its own retired values stay selectable. */
+  isSavedRow?: boolean;
 }
 
 const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
@@ -41,6 +44,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   mode,
   initialData,
   existingMajorItems = [],
+  isSavedRow = false,
 }) => {
   // Stabilize defaultFormData using a primitive to avoid new object refs on every render
   const yearStart = programDetails?.StartYear || new Date().getFullYear();
@@ -101,17 +105,28 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // The lists include retired (inactive) values so saved rows can still show them (#479). New
+  // picks see only active values; a saved row keeps its original values even if retired since --
+  // its Type of Work only while its Infra Type is unchanged, as the API checks a changed row in full.
+  const keptInfraType = mode === 'edit' && isSavedRow ? initialData?.InfraType : undefined;
+  const keptWorkTypeId = keptInfraType && formData.InfraType === keptInfraType ? initialData?.WorkTypeId : undefined;
+
+  const selectableWorkTypes = useMemo<ScopeOfWorkEnum[]>(
+    () => filterKeepingSelected(dropDowns, scope => scope.IsActive !== false, 'Enum', keptWorkTypeId),
+    [dropDowns, keptWorkTypeId]
+  );
+
   // Update available work types when InfraType changes
   const availableWorkTypes = useMemo<ScopeOfWorkEnum[]>(() => {
-    if (!formData.InfraType || !dropDowns) return [];
+    if (!formData.InfraType) return [];
 
-    return dropDowns.filter(
+    return selectableWorkTypes.filter(
       scope =>
         scope.InfraType.includes(formData.InfraType) &&
         (formData.ComponentId !== "ROW" ||
           scope.Description === "ROW Acquisition")
     );
-  }, [formData.InfraType, formData.ComponentId, dropDowns]);
+  }, [formData.InfraType, formData.ComponentId, selectableWorkTypes]);
 
 
   const handleInputChange = (field: string, value: any) => {
@@ -165,8 +180,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   // Get infrastructure types: use InfraTypeEnum master list if available,
   // otherwise fall back to extracting unique codes from ScopeOfWorks
   const infraTypeOptions: InfraTypeEnum[] = infraTypeEnums.length > 0
-    ? infraTypeEnums
-    : [...new Set(dropDowns?.flatMap(scope => scope.InfraType) || [])]
+    ? filterKeepingSelected(infraTypeEnums, infraType => infraType.IsActive !== false, 'InfraCode', keptInfraType)
+    : [...new Set(selectableWorkTypes.flatMap(scope => scope.InfraType))]
         .map((code, i) => ({ Id: i, InfraId: i, InfraCode: code, InfraName: code }));
 
   // Filter out already selected ComponentIds (but allow the current one when editing)

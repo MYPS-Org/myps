@@ -741,6 +741,62 @@ namespace Helpers
             return response;
         }
 
+        /// <summary>A Major Item row as far as the retired-lookup check needs it (#479).</summary>
+        public sealed record MajorItemLookupRow(int Id, bool IsDeleted, int WorkTypeFK, string InfraTypeFK);
+
+        /// <summary>
+        /// Rejects a Major Item Work Type / Infrastructure Type that is not active, on rows that are
+        /// new or changed against <paramref name="stored"/> (RetiredLookupRule.RowsRequiringActiveCheck).
+        /// A row that already holds a since-retired value keeps it, and can be deleted (#479). Shared by
+        /// UpdateProjectDetails and the RequestRevision / ResubmitRevision saves.
+        /// </summary>
+        /// <param name="stored">The rows as currently saved, matched to <paramref name="posted"/> by Id.</param>
+        public static async Task<ProjectHelperResponse<string>> ValidateMajorItemLookupsAsync(this MYPSDbContext _db, IEnumerable<MajorItemLookupRow> posted, IEnumerable<MajorItemLookupRow> stored, CancellationToken cancellationToken)
+        {
+            var response = new ProjectHelperResponse<string>();
+            // Infra codes compared the way SQL Server does (case-insensitive, trailing blanks ignored).
+            static (int, string) Key(MajorItemLookupRow x) => (x.WorkTypeFK, (x.InfraTypeFK ?? string.Empty).Trim().ToUpperInvariant());
+            var rows = RetiredLookupRule.RowsRequiringActiveCheck(
+                posted, x => x.Id, x => x.IsDeleted, Key,
+                stored.DistinctBy(x => x.Id).ToDictionary(x => x.Id, Key));
+
+            var workTypeIds = rows.Select(x => x.WorkTypeFK).Distinct().ToList();
+            if (workTypeIds.Count > 0)
+            {
+                var validWorkTypes = await _db.tOptionScopeOfWork.AsNoTracking()
+                    .Where(x => x.IsActive && workTypeIds.Contains(x.Enum))
+                    .Select(x => x.Enum)
+                    .ToListAsync(cancellationToken);
+                var invalidWorkTypes = workTypeIds.Where(x => !validWorkTypes.Contains(x)).ToList();
+                if (invalidWorkTypes.Any())
+                {
+                    response.Title = "Invalid Work Type";
+                    response.Message = $"The following Work Type(s) are invalid or inactive: {string.Join(", ", invalidWorkTypes)}.";
+                    return response;
+                }
+            }
+
+            var infraTypeCodes = rows.Select(x => x.InfraTypeFK).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (infraTypeCodes.Count > 0)
+            {
+                var validInfraTypes = (await _db.tOptionInfraType.AsNoTracking()
+                    .Where(x => x.IsActive && infraTypeCodes.Contains(x.InfraCode))
+                    .Select(x => x.InfraCode)
+                    .ToListAsync(cancellationToken))
+                    .Select(x => x.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var invalidInfraTypes = infraTypeCodes.Where(x => !validInfraTypes.Contains((x ?? string.Empty).Trim())).ToList();
+                if (invalidInfraTypes.Any())
+                {
+                    response.Title = "Invalid Infrastructure Type";
+                    response.Message = $"The following Infrastructure Type(s) are invalid or inactive: {string.Join(", ", invalidInfraTypes)}.";
+                    return response;
+                }
+            }
+            response.IsValid = true;
+            return response;
+        }
+
         /// <summary>
         /// Thrust existence + the Category -> Sub-Category (PAPKey) mapping, in one place.
         /// </summary>

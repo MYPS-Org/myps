@@ -1461,6 +1461,18 @@ namespace WebAPI.Controllers.Revision
                 var MajorWorkItem = await _db.fProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
                 //var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && MajorItemIds.Contains(x.Id)).ToListAsync(cancellationToken);
 
+                // #479: a retired Work Type / Infra Type is refused on new or changed rows only; rows the
+                // project already holds keep theirs.
+                var ValidateMajorItemLookups = await _db.ValidateMajorItemLookupsAsync(
+                    dto.MajorItemOfWorks.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
+                    MajorWorkItem.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
+                    cancellationToken);
+                if (!ValidateMajorItemLookups.IsValid)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return new BadRequestObjectResult(new { Message = ValidateMajorItemLookups.Message, Title = ValidateMajorItemLookups.Title });
+                }
+
 
                 var MajorWorkLocations = await _db.fProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
@@ -2639,6 +2651,17 @@ namespace WebAPI.Controllers.Revision
                 if (ExistingMajorWorkItem.Count == 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Item not found" });
+                }
+                // #479: a retired Work Type / Infra Type is refused on new or changed rows only; rows the
+                // revision already holds keep theirs.
+                var ValidateMajorItemLookups = await _db.ValidateMajorItemLookupsAsync(
+                    dto.MajorItemOfWorks.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
+                    ExistingMajorWorkItem.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
+                    cancellationToken);
+                if (!ValidateMajorItemLookups.IsValid)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return new BadRequestObjectResult(new { Message = ValidateMajorItemLookups.Message, Title = ValidateMajorItemLookups.Title });
                 }
                 var ExistingMajorWorkItemIds = ExistingMajorWorkItem.Select(x => x.Id).ToList();
                 var ExistingMajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => ExistingMajorWorkItemIds.Contains(x.RevisionWorkItemFK)).ToListAsync(cancellationToken);

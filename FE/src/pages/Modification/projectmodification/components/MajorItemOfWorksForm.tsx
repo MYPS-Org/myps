@@ -502,6 +502,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           InfraType: items[editingMajorItemIndex].InfraTypeFK,
         } : undefined}
         existingMajorItems={items.map(item => ({ ComponentId: item.ComponentId }))}
+        isSavedRow={editingMajorItemIndex !== null && (items[editingMajorItemIndex].Id ?? 0) > 0}
         programDetails={programDetails}
       />
       

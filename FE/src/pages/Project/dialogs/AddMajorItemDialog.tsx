@@ -4,7 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { ComponentCost, ScopeOfWorkEnum, InfraTypeEnum } from '../Model.d';
 import type { ProgramLatest } from '../../Program/Model';
-import { getDisabledClass } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, filterKeepingSelected } from '../../../utils/GlobalFunctions';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddMajorItemDialogProps {
@@ -30,6 +30,8 @@ interface AddMajorItemDialogProps {
     IsDeleted: boolean; 
   };
   existingMajorItems?: Array<{ ComponentId: string }>;
+  /** The row being edited is already saved (Id > 0): its own retired values stay selectable. */
+  isSavedRow?: boolean;
 }
 
 const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
@@ -42,7 +44,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   infraTypeEnums = [],
   mode,
   initialData,
-  existingMajorItems = []
+  existingMajorItems = [],
+  isSavedRow = false
 }) => {
   const { showToast } = useToast();
   const [formData, setFormData] = useState({
@@ -70,17 +73,28 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     }
   }, [mode, initialData, isOpen, programDetails]);
 
+  // The lists include retired (inactive) values so saved rows can still show them (#479). New
+  // picks see only active values; a saved row keeps its own values even if retired since -- its
+  // Type of Work only while its Infra Type is unchanged, as the API checks a changed row in full.
+  const keptInfraTypeFK = mode === 'edit' && isSavedRow ? initialData?.InfraTypeFK : undefined;
+  const keptWorkTypeFK = keptInfraTypeFK && formData.InfraTypeFK === keptInfraTypeFK ? initialData?.WorkTypeFK : undefined;
+
+  const selectableWorkTypes = useMemo<ScopeOfWorkEnum[]>(
+    () => filterKeepingSelected(dropDowns, scope => scope.IsActive !== false, 'Enum', keptWorkTypeFK),
+    [dropDowns, keptWorkTypeFK]
+  );
+
   // Filter available work types based on selected InfraType (InfraCode)
   const availableWorkTypes = useMemo<ScopeOfWorkEnum[]>(() => {
-    if (!formData.InfraTypeFK || !dropDowns) return [];
+    if (!formData.InfraTypeFK) return [];
 
-    return dropDowns.filter(
+    return selectableWorkTypes.filter(
       scope =>
         scope.InfraType.includes(formData.InfraTypeFK) &&
         (formData.ComponentId !== "ROW" ||
           scope.Description === "ROW Acquisition")
     );
-  }, [formData.InfraTypeFK, formData.ComponentId, dropDowns]);
+  }, [formData.InfraTypeFK, formData.ComponentId, selectableWorkTypes]);
 
 
   const handleInputChange = (field: string, value: any) => {
@@ -142,8 +156,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   const infraTypeOptions: InfraTypeEnum[] = useMemo(() => {
   if (formData.ComponentId === "ROW") {
     // If ComponentId is "ROW", only include InfraTypes that have a "ROW Acquisition" work type
-    return infraTypeEnums.filter(infraType =>
-      dropDowns.some(
+    return filterKeepingSelected(infraTypeEnums, infraType => infraType.IsActive !== false, 'InfraCode', keptInfraTypeFK).filter(infraType =>
+      selectableWorkTypes.some(
         scope =>
           scope.InfraType.includes(infraType.InfraCode) &&
           scope.Description === "ROW Acquisition"
@@ -151,12 +165,12 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     );
   }
 
-  // Otherwise, return all InfraTypes
+  // Otherwise, return all active InfraTypes
   return infraTypeEnums.length > 0
-    ? infraTypeEnums
-    : [...new Set(dropDowns?.flatMap(scope => scope.InfraType) || [])]
+    ? filterKeepingSelected(infraTypeEnums, infraType => infraType.IsActive !== false, 'InfraCode', keptInfraTypeFK)
+    : [...new Set(selectableWorkTypes.flatMap(scope => scope.InfraType))]
         .map((code, i) => ({ Id: i, InfraId: i, InfraCode: code, InfraName: code }));
-}, [formData.ComponentId, infraTypeEnums, dropDowns]);
+}, [formData.ComponentId, infraTypeEnums, selectableWorkTypes, keptInfraTypeFK]);
   
   // Filter out already selected ComponentIds (but allow the current one when editing)
   const availableComponentCosts = componentCosts.filter(cost => {

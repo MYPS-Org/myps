@@ -457,6 +457,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           IsDeleted: majorItems[editingMajorItemIndex].IsDeleted,
         } : undefined}
         existingMajorItems={majorItems.filter(item => !item.IsDeleted).map(item => ({ ComponentId: item.ComponentId }))}
+        isSavedRow={editingMajorItemIndex !== null && (majorItems[editingMajorItemIndex].Id ?? 0) > 0}
         programDetails={programDetails}
       />
 

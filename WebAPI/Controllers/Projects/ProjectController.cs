@@ -187,14 +187,17 @@ namespace WebAPI.Controllers.Projects
                     .OrderBy(x => x.ComponentName)
                     .ToListAsync(cancellationToken);
 
+                // #479: both lists are complete, inactive rows included, for the same reason as Category
+                // and Thrust in ShowProjectDropdowns: the Major Items table looks up a row's Type of Work,
+                // Unit, min/max amounts and Infra Type name here, and a retired value would show blank.
+                // The Add Major Item dialogs offer only IsActive rows for new picks (filterKeepingSelected),
+                // and UpdateProjectDetails rejects a retired value on new or changed rows.
                 var ScopeOfWork = await _db.tOptionScopeOfWork
                     .AsNoTracking()
-                    .Where(x => x.IsActive)
                     .OrderBy(x => x.Description)
                     .ToListAsync(cancellationToken);
                 var InfraTypes = await _db.tOptionInfraType
                     .AsNoTracking()
-                    .Where(x => x.IsActive)
                     .OrderBy(x => x.InfraName)
                     .ToListAsync(cancellationToken);
 
@@ -1295,57 +1298,37 @@ namespace WebAPI.Controllers.Projects
                         });
                     }
 
-                    // Validate Work Type FK
-                    var workTypeIds = workItems
-                        .Select(x => x.WorkTypeFK)
-                        .Distinct()
+                    // Work Type / Infrastructure Type must be active -- but only on rows that are new or
+                    // whose value changed. The form posts every row on every save, so checking unchanged
+                    // and deleted rows locked a project out of saving once a type it uses was retired (#479).
+                    var postedWorkItemIds = workItems
+                        .Where(x => x.Id > 0)
+                        .Select(x => x.Id)
                         .ToList();
 
-                    List<int> validWorkTypes = await _db.tOptionScopeOfWork
-                    .AsNoTracking()
-                    .Where(x => x.IsActive && workTypeIds.Contains(x.Enum))
-                    .Select(x => x.Enum)
-                    .ToListAsync(cancellationToken);
+                    // This revision's live rows only: a posted Id of a deleted row, or of another
+                    // project's row, is not a baseline and counts as new.
+                    var storedWorkItems = postedWorkItemIds.Count == 0
+                        ? new List<MajorItemLookupRow>()
+                        : await _db.tProjectMajorWorkItem
+                            .AsNoTracking()
+                            .Where(x =>
+                                postedWorkItemIds.Contains(x.Id) &&
+                                !x.IsDeleted &&
+                                _db.tProjectComponentCost.Any(c => c.Id == x.ComponentCostFK && c.ProjectRevisionFK == ProjectRevision.Id))
+                            .Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK))
+                            .ToListAsync(cancellationToken);
 
-
-
-                    var invalidWorkTypes = workTypeIds
-                        .Where(x => !validWorkTypes.Contains(x))
-                        .ToList();
-
-                    if (invalidWorkTypes.Any())
+                    var ValidateMajorItemLookups = await _db.ValidateMajorItemLookupsAsync(
+                        workItems.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
+                        storedWorkItems,
+                        cancellationToken);
+                    if (!ValidateMajorItemLookups.IsValid)
                     {
                         return new BadRequestObjectResult(new
                         {
-                            Title = "Invalid Work Type",
-                            Message = $"The following Work Type(s) are invalid or inactive: {string.Join(", ", invalidWorkTypes)}."
-                        });
-                    }
-
-                    // Validate Infrastructure Types
-                    var infraTypes = workItems
-                        .Select(x => x.InfraTypeFK)
-                        .Distinct()
-                        .ToList();
-
-                    var validInfraTypes = await _db.tOptionInfraType
-                        .AsNoTracking()
-                        .Where(x =>
-                            x.IsActive &&
-                            infraTypes.Contains(x.InfraCode))
-                        .Select(x => x.InfraCode)
-                        .ToListAsync(cancellationToken);
-
-                    var invalidInfraTypes = infraTypes
-                        .Where(x => !validInfraTypes.Contains(x))
-                        .ToList();
-
-                    if (invalidInfraTypes.Any())
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Invalid Infrastructure Type",
-                            Message = $"The following Infrastructure Type(s) are invalid or inactive: {string.Join(", ", invalidInfraTypes)}."
+                            Title = ValidateMajorItemLookups.Title,
+                            Message = ValidateMajorItemLookups.Message
                         });
                     }
 

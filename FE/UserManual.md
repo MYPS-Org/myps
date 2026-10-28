@@ -2360,7 +2360,7 @@ A project can belong to only one project group at a time.
 
 **Toggle Active / Inactive**
 
-All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference. **Exception:** Project Details **Category** and **Thrust** are offered in the project form according to their validity years, not their Active status (see 5.7.6).
+All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference. **Exception:** Project Details **Category** and **Thrust** are offered in the project form according to their validity years, not their Active status (see 5.7.6). Major Items that already use an Inactive **Infrastructure Type** or **Type of Work** keep it and can still be saved (see 5.7.4).
 
 To toggle a record's status:
 1. Locate the record in the table.
@@ -2446,6 +2446,11 @@ To toggle a record's status:
 4. Click **Check** to save.
 
 **On Success:** New entries appear under the respective Major Item sub-category.
+
+**What Inactive does for an Infrastructure Type or Type of Work**
+
+- **New Major Items:** an Inactive Infrastructure Type or Type of Work is not offered in the **Add Major Item of Works** dialog, in Project Details or in a Modification. If it is sent anyway, the save is refused with *"The following Infrastructure Type(s) are invalid or inactive: …"* (or *Work Type(s)*).
+- **Major Items that already use it:** they keep it. The row still shows its Infrastructure Type, Type of Work and Unit, and the project still saves. Such a row can also be deleted.
 
 ---
 
