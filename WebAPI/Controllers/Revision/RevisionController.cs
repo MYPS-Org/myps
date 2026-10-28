@@ -1200,6 +1200,18 @@ namespace WebAPI.Controllers.Revision
                 var FundingIds = dto.FundingProfile.Where(x => x.Id != 0).Select(x => x.Id);
                 //var FundingProfile = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && FundingIds.Contains(x.Id)).ToListAsync(cancellationToken);
                 var FundingProfile = await _db.fProjectFundingProfile.FromSqlInterpolated($"SELECT * FROM fProjectFundingProfile({ProjectFK},{EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+
+                // #480: an inactive Funding Source / Agreement is refused on new or changed lines only;
+                // lines the project already holds keep theirs.
+                var ValidateFundingLookups = await _db.ValidateFundingLookupsAsync(
+                    dto.FundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode)),
+                    FundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode)),
+                    cancellationToken);
+                if (!ValidateFundingLookups.IsValid)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return new BadRequestObjectResult(new { Message = ValidateFundingLookups.Message, Title = ValidateFundingLookups.Title });
+                }
                 var FundingProfileRules = jsonRules.FundingProfileRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -2789,6 +2801,17 @@ namespace WebAPI.Controllers.Revision
                 if (!BlankFundingAgreement.IsNullOrEmpty())
                 {
                     return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid agreement(s). Please check and try again.", Title = "Invalid Funding Profile Agreement" });
+                }
+                // #480: an inactive Funding Source / Agreement is refused on new or changed lines only;
+                // lines the revision already holds keep theirs.
+                var ValidateFundingLookups = await _db.ValidateFundingLookupsAsync(
+                    dto.FundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode)),
+                    ExistingFundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode)),
+                    cancellationToken);
+                if (!ValidateFundingLookups.IsValid)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return new BadRequestObjectResult(new { Message = ValidateFundingLookups.Message, Title = ValidateFundingLookups.Title });
                 }
 
                 var BlankComponentCost = dto.ComponentCosts.Where(x => x.Total < 1 && x.Id == 0).ToList();

@@ -2360,7 +2360,7 @@ A project can belong to only one project group at a time.
 
 **Toggle Active / Inactive**
 
-All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference. **Exception:** Project Details **Category** and **Thrust** are offered in the project form according to their validity years, not their Active status (see 5.7.6). Major Items that already use an Inactive **Infrastructure Type** or **Type of Work** keep it and can still be saved (see 5.7.4).
+All Code Tables sub-tabs include an **Active** column showing the current status of each record (green dot = Active; grey dot = Inactive). Inactive records are hidden from dropdown menus throughout the system but remain in the database for historical reference. **Exception:** Project Details **Category** and **Thrust** are offered in the project form according to their validity years, not their Active status (see 5.7.6). Major Items that already use an Inactive **Infrastructure Type** or **Type of Work** keep it and can still be saved (see 5.7.4), and so do funding lines that use an Inactive **Funding Source** or **Funding Agreement** (see 5.7.3).
 
 To toggle a record's status:
 1. Locate the record in the table.
@@ -2417,6 +2417,11 @@ To toggle a record's status:
 4. Click **Check** to save.
 
 **On Success:** New entries appear under the respective Funding Profile sub-category.
+
+**What Inactive does for a Funding Source or Funding Agreement**
+
+- **New funding lines:** an Inactive Source or Agreement is not offered when you add a funding line in Project Details or in a Modification, when you create a Lump Sum Project, or in **Replenish**. If it is sent anyway, the save is refused with *"The following Funding Agreement(s) are invalid or inactive and cannot be used on a new or changed funding line: …"* (or *Funding Source(s)*). Replenish with no agreement chosen copies the first funding line's agreement; if that agreement is Inactive, the dialog asks you to choose one.
+- **Funding lines that already use it:** they keep it. The line still shows its Source and Agreement, and the project still saves. Changing that line's Source or Agreement means choosing an active one.
 
 ---
 

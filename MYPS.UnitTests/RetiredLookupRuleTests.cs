@@ -65,4 +65,44 @@ public sealed class RetiredLookupRuleTests
     [Trait("Feature", "CodeTableRetiredValues")]
     public void NoRows_ReturnsEmpty() =>
         Assert.Empty(Check());
+
+    // #480: funding lines. Source and Agreement are each judged on their own, compared the way
+    // SQL Server does (FundingLookupCode: trimmed, case-insensitive).
+    private static readonly ProjectHelper.FundingLookupRow StoredLine = new(7, false, "RETIRED-SRC", "RETIRED-AGR");
+
+    private static List<int> CheckFunding(Func<ProjectHelper.FundingLookupRow, string> field, params ProjectHelper.FundingLookupRow[] rows) =>
+        RetiredLookupRule.RowsRequiringActiveCheck(
+                rows, x => x.Id, x => x.IsDeleted, x => ProjectHelper.FundingLookupCode(field(x)),
+                new[] { StoredLine }.ToDictionary(x => x.Id, x => ProjectHelper.FundingLookupCode(field(x))))
+            .Select(x => x.Id)
+            .ToList();
+
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void FundingLine_UnchangedButDifferentCaseOrPadding_IsNotChecked()
+    {
+        var line = new ProjectHelper.FundingLookupRow(7, false, " retired-src", "retired-agr ");
+        Assert.Empty(CheckFunding(x => x.SourceOrg, line));
+        Assert.Empty(CheckFunding(x => x.AgreementCode, line));
+    }
+
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void FundingLine_OnlyTheChangedFieldIsChecked()
+    {
+        // A new Agreement under the line's retired Source: the Agreement is checked, the Source kept.
+        var line = new ProjectHelper.FundingLookupRow(7, false, "RETIRED-SRC", "NEW-AGR");
+        Assert.Empty(CheckFunding(x => x.SourceOrg, line));
+        Assert.Equal(new[] { 7 }, CheckFunding(x => x.AgreementCode, line));
+    }
+
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void FundingLine_NewIsChecked_DeletedIsNot() =>
+        Assert.Equal(
+            new[] { 0 },
+            CheckFunding(
+                x => x.AgreementCode,
+                new ProjectHelper.FundingLookupRow(0, false, "RETIRED-SRC", "RETIRED-AGR"),
+                new ProjectHelper.FundingLookupRow(7, true, "OTHER", "OTHER")));
 }

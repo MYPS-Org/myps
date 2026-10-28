@@ -2057,6 +2057,9 @@ namespace WebAPI.Controllers.Lumpsum
         /// unknown code — this only answers "does this real agreement sit under this
         /// source". Compared trimmed and case-insensitively, the way the first-line
         /// default is, so the two cannot disagree about "the same source".
+        /// Since #480 it also refuses an inactive Source or Agreement: every caller passes
+        /// NEW lines only (Create's one line, Replenish's top-up, UpdateLumpSum's Id == 0
+        /// lines), and an existing line, read-only here, keeps whatever it holds.
         /// </summary>
         private async Task<string?> ValidateFundingPairsAsync(
             IEnumerable<(string? Source, string? Agreement)> lines,
@@ -2087,7 +2090,12 @@ namespace WebAPI.Controllers.Lumpsum
                     return $"Funding Agreement {Pair.Agreement} does not belong to Funding Source {Pair.Source}. Choose an agreement under that source.";
             }
 
-            return null;
+            var Retired = await _db.ValidateFundingLookupsAsync(
+                Pairs.Select(x => new FundingLookupRow(0, false, x.Source, x.Agreement)),
+                Enumerable.Empty<FundingLookupRow>(),
+                cancellationToken);
+
+            return Retired.IsValid ? null : Retired.Message;
         }
 
         #endregion

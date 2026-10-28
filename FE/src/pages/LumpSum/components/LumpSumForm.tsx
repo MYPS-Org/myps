@@ -714,7 +714,7 @@ const LumpSumForm: React.FC<LumpSumFormProps> = ({
                 </label>
                 <div className="w-2/3 min-w-0">
                   <SearchableDropdown
-                    options={formatDropdownOptions(dropdowns?.Sources ?? [], 'Organization', 'Organization')}
+                    options={formatDropdownOptions((dropdowns?.Sources ?? []).filter((s) => s.IsActive !== false), 'Organization', 'Organization')}
                     value={fundingSource}
                     /*  Clearing the agreement with the source is what keeps the
                         pair valid: the list below is filtered by this value, so a
@@ -744,7 +744,8 @@ const LumpSumForm: React.FC<LumpSumFormProps> = ({
                   <SearchableDropdown
                     options={formatDropdownOptions(
                       (dropdowns?.Agreements ?? []).filter(
-                        (a) => !fundingSource || sameSource(a.SourceOrg, fundingSource),
+                        // A new Lump Sum's one line: only active (not retired) agreements, #480.
+                        (a) => a.IsActive !== false && (!fundingSource || sameSource(a.SourceOrg, fundingSource)),
                       ),
                       'Code',
                       'Code',

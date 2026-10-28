@@ -170,14 +170,16 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
+                // #480: complete lists, inactive rows included, so a funding line keeps showing its
+                // own Agreement / Source after either is retired (it used to read as blank, "Select
+                // Agreement"). The funding pickers offer only IsActive rows for new picks, and the
+                // saves refuse a retired value on new or changed lines -- see Major Items (#479) below.
                 var Agreement = await _db.tOptionFundingAgreement
                     .AsNoTracking()
-                    .Where(x => x.IsActive)
                     .OrderBy(x => x.Name)
                     .ToListAsync(cancellationToken);
                 var Source = await _db.tOptionFundingSource
                     .AsNoTracking()
-                    .Where(x => x.IsActive)
                     .OrderBy(x => x.Name)
                     .ToListAsync(cancellationToken);
 
@@ -1092,6 +1094,27 @@ namespace WebAPI.Controllers.Projects
                         Title = "Invalid Funding Profile Agreement",
                         Message = "One or more funding agreements do not belong to the selected funding source. Please review your Funding Profile and try again.",
                         InvalidEntries = invalidPairs
+                    });
+                }
+
+                // An inactive Source / Agreement only on lines that are new or changed: a line that
+                // already holds one keeps it, so retiring a code never blocks the project (#480).
+                var storedFunding = await _db.tProjectFundingProfile
+                    .AsNoTracking()
+                    .Where(x => x.ProjectRevisionFK == ProjectRevision.Id && !x.IsDeleted)
+                    .Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode))
+                    .ToListAsync(cancellationToken);
+
+                var ValidateFundingLookups = await _db.ValidateFundingLookupsAsync(
+                    dto.FundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode)),
+                    storedFunding,
+                    cancellationToken);
+                if (!ValidateFundingLookups.IsValid)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = ValidateFundingLookups.Title,
+                        Message = ValidateFundingLookups.Message
                     });
                 }
 

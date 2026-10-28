@@ -797,6 +797,65 @@ namespace Helpers
             return response;
         }
 
+        /// <summary>A funding line as far as the retired-lookup check needs it (#480).</summary>
+        public sealed record FundingLookupRow(int Id, bool IsDeleted, string SourceOrg, string AgreementCode);
+
+        /// <summary>A Source / Agreement code compared the way SQL Server does: case-insensitive, trimmed.</summary>
+        public static string FundingLookupCode(string? code) => (code ?? string.Empty).Trim().ToUpperInvariant();
+
+        /// <summary>
+        /// Rejects an inactive Funding Source / Funding Agreement on funding lines that are new, or
+        /// whose Source (resp. Agreement) changed against <paramref name="stored"/>
+        /// (RetiredLookupRule.RowsRequiringActiveCheck). Each field is judged on its own: a line keeps
+        /// a since-retired Source while its Agreement changes under it -- the form keeps showing that
+        /// Source -- and the other way round (#480). Unknown codes fail too ("invalid or inactive"):
+        /// the Revision saves have no separate existence check. Shared by UpdateProjectDetails,
+        /// RequestRevision / ResubmitRevision and the Lump Sum writes (new lines only).
+        /// </summary>
+        /// <param name="stored">The lines as currently saved, matched to <paramref name="posted"/> by Id.</param>
+        public static async Task<ProjectHelperResponse<string>> ValidateFundingLookupsAsync(this MYPSDbContext _db, IEnumerable<FundingLookupRow> posted, IEnumerable<FundingLookupRow> stored, CancellationToken cancellationToken)
+        {
+            var response = new ProjectHelperResponse<string>();
+            var postedRows = posted.ToList();
+            var storedRows = stored.DistinctBy(x => x.Id).ToList();
+
+            List<string> Changed(Func<FundingLookupRow, string> field) =>
+                RetiredLookupRule.RowsRequiringActiveCheck(
+                        postedRows, x => x.Id, x => x.IsDeleted, x => FundingLookupCode(field(x)),
+                        storedRows.ToDictionary(x => x.Id, x => FundingLookupCode(field(x))))
+                    .Select(x => (field(x) ?? string.Empty).Trim())
+                    .Where(x => x.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+            static async Task<List<string>> NotActive(List<string> codes, Func<List<string>, Task<List<string>>> loadActive)
+            {
+                if (codes.Count == 0) return new List<string>();
+                var active = (await loadActive(codes)).Select(x => x.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                return codes.Where(x => !active.Contains(x)).ToList();
+            }
+
+            var inactiveSources = await NotActive(Changed(x => x.SourceOrg), codes => _db.tOptionFundingSource.AsNoTracking()
+                .Where(x => x.IsActive && codes.Contains(x.Organization)).Select(x => x.Organization).ToListAsync(cancellationToken));
+            if (inactiveSources.Any())
+            {
+                response.Title = "Invalid Funding Profile Source";
+                response.Message = $"The following Funding Source(s) are invalid or inactive and cannot be used on a new or changed funding line: {string.Join(", ", inactiveSources)}.";
+                return response;
+            }
+
+            var inactiveAgreements = await NotActive(Changed(x => x.AgreementCode), codes => _db.tOptionFundingAgreement.AsNoTracking()
+                .Where(x => x.IsActive && codes.Contains(x.Code)).Select(x => x.Code).ToListAsync(cancellationToken));
+            if (inactiveAgreements.Any())
+            {
+                response.Title = "Invalid Funding Profile Agreement";
+                response.Message = $"The following Funding Agreement(s) are invalid or inactive and cannot be used on a new or changed funding line: {string.Join(", ", inactiveAgreements)}.";
+                return response;
+            }
+            response.IsValid = true;
+            return response;
+        }
+
         /// <summary>
         /// Thrust existence + the Category -> Sub-Category (PAPKey) mapping, in one place.
         /// </summary>

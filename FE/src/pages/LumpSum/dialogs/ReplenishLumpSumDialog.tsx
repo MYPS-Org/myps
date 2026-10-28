@@ -133,7 +133,7 @@ const ReplenishLumpSumDialog: React.FC<ReplenishLumpSumDialogProps> = ({
       are offered; with no source chosen the full list is. Same comparator as the
       first-line check, so the two halves of this dialog agree on "same source". */
   const agreementOptions = (dropdowns?.Agreements ?? []).filter(
-    (a) => !source || sameSource(a.SourceOrg, source),
+    (a) => a.IsActive !== false && (!source || sameSource(a.SourceOrg, source)),
   );
 
   const blankAgreementProblem: BlankAgreementProblem = !first
@@ -236,6 +236,16 @@ const ReplenishLumpSumDialog: React.FC<ReplenishLumpSumDialogProps> = ({
       return {
         error: `Funding Agreement ${resolvedAgreement} does not belong to Funding Source ${resolvedSource}. Choose an agreement under that source.`,
       };
+    }
+
+    /*  A top-up is a new line, and a new line may not use a retired (inactive) code
+        (#480). The pickers only offer active ones, so this catches a pair copied from
+        the first funding line after its Source or Agreement was retired. */
+    if (dropdowns?.Sources?.find((s) => sameSource(s.Organization, resolvedSource))?.IsActive === false) {
+      return { error: `Choose a Funding Source — ${resolvedSource} is inactive.` };
+    }
+    if (dropdowns?.Agreements?.find((a) => sameCode(a.Code, resolvedAgreement))?.IsActive === false) {
+      return { error: `Choose a Funding Agreement — ${resolvedAgreement} is inactive.` };
     }
 
     return { Source: resolvedSource, Agreement: resolvedAgreement };
@@ -378,7 +388,7 @@ const ReplenishLumpSumDialog: React.FC<ReplenishLumpSumDialogProps> = ({
                   {/*  Always selectable. With no first line a blank source means "the
                        agreement's own source", resolved from the lookup. */}
                   <option value="">{blankSourceLabel}</option>
-                  {(dropdowns?.Sources ?? []).map((s) => (
+                  {(dropdowns?.Sources ?? []).filter((s) => s.IsActive !== false).map((s) => (
                     <option key={s.Organization} value={s.Organization}>{s.Organization} — {s.Name}</option>
                   ))}
                 </select>

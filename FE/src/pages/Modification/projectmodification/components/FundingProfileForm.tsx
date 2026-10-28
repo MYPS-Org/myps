@@ -4,7 +4,7 @@ import type { FieldRules } from "../../Model";
 import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
-import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus, formatDropdownOptions, toCurrencyEditText } from "../../../../utils/GlobalFunctions";
+import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus, formatDropdownOptions, toCurrencyEditText, filterKeepingSelected } from "../../../../utils/GlobalFunctions";
 import SearchableDropdown from "../../../../components/ui/SearchableDropdown";
 
 interface FundingProfileFormProps {
@@ -274,8 +274,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
               return (
             <TableRow key={profile.Id === 0 ? `new-${index}` : profile.Id}>
                 <TableCell className="w-1/3">
+                  {/* #480: only active Sources / Agreements for a new pick; a line keeps its own. */}
                   <SearchableDropdown
-                    options={formatDropdownOptions(initialData?.Dropdowns?.Sources || [], 'Organization', 'Name', 'Id')}
+                    options={formatDropdownOptions(filterKeepingSelected(initialData?.Dropdowns?.Sources, x => x.IsActive !== false, 'Organization', profile.SourceOrg), 'Organization', 'Name', 'Id')}
                     value={profile.SourceOrg || ''}
                     onChange={(value) => onEdit(index, { ...profile, SourceOrg: String(value), AgreementCode: '' })}
                     placeholder="Select Source"
@@ -287,7 +288,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell className="w-1/3">
                   <SearchableDropdown
                     options={formatDropdownOptions(
-                      initialData?.Dropdowns?.Agreements?.filter((a) => a.SourceOrg === profile.SourceOrg) || [],
+                      filterKeepingSelected(initialData?.Dropdowns?.Agreements, x => x.IsActive !== false, 'Code', profile.AgreementCode).filter((a) => a.SourceOrg === profile.SourceOrg),
                       'Code',
                       'Name',
                       'Id'
