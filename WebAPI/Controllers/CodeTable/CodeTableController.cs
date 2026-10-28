@@ -558,15 +558,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Category has been selected, please select a project category."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Category == data.CategoryId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Project Category In Use",
-                            Message = "The selected project category is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -583,6 +574,23 @@ namespace WebAPI.Controllers.CodeTable
                         {
                             Title = "Project Category Not Found",
                             Message = $"The project category with id {data.Id} is not found, please select another project category."
+                        });
+                    }
+                    // #482: an in-use category may still be retired -- set Inactive, move its Valid Until,
+                    // or change its range (Minimum / Maximum only bound ProjectIds still to be minted) --
+                    // since the projects that use it keep it. Only a delete or a rename (CategoryName) is
+                    // refused. In use = a project or a modification request refers to the stored
+                    // CategoryId. This used to refuse every update, so an in-use category could not be
+                    // retired at all.
+                    if (CheckUpdate != null
+                        && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.CategoryName != data.CategoryName)
+                        && (await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.Category == CheckUpdate.CategoryId, cancellationToken)
+                            || await _db.tRevisionProjects.AsNoTracking().AnyAsync(x => x.Category == CheckUpdate.CategoryId, cancellationToken)))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Project Category In Use",
+                            Message = "The selected project category is currently in use, so it cannot be deleted or renamed. You can still set it Inactive or change its validity."
                         });
                     }
                     // RISK-072 fix (2026-09-19): ProjectId digits (D5 sequence) never encode
@@ -695,15 +703,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Thrust has been selected, please select a project thrust."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Thrust == data.PAPKey);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Project Thrust In Use",
-                            Message = "The selected project thrust is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckDescriptionIfExists = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.ThrustDescription == data.ThrustDescription);
                     if (CheckDescriptionIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckDescriptionIfExists.Id != data.Id)))
                     {
@@ -729,6 +728,22 @@ namespace WebAPI.Controllers.CodeTable
                         {
                             Title = "Project Thrust Not Found",
                             Message = $"The project thrust with id {data.Id} is not found, please select another project thrust."
+                        });
+                    }
+                    // #482: an in-use thrust may still be retired -- set Inactive, move its Valid From / To or change its Infra Type -- since
+                    // the projects that use it keep it. Only a delete, or a change to what the thrust is
+                    // (ThrustDescription, ProgramName, SubProgramName, ActivityName, SequenceNumber), is refused. In use = a project or a modification request
+                    // refers to the stored PAPKey. This used to refuse every update, so an in-use thrust
+                    // could not be retired at all.
+                    if (CheckUpdate != null
+                        && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.ThrustDescription != data.ThrustDescription || CheckUpdate.ProgramName != data.ProgramName || CheckUpdate.SubProgramName != data.SubProgramName || CheckUpdate.ActivityName != data.ActivityName || CheckUpdate.SequenceNumber != data.SequenceNumber)
+                        && (await _db.tProjectRevisions.AsNoTracking().AnyAsync(x => x.Thrust == CheckUpdate.PAPKey, cancellationToken)
+                            || await _db.tRevisionProjects.AsNoTracking().AnyAsync(x => x.Thrust == CheckUpdate.PAPKey, cancellationToken)))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Project Thrust In Use",
+                            Message = "The selected project thrust is currently in use, so it cannot be deleted or renamed. You can still set it Inactive or change its validity."
                         });
                     }
                     #endregion

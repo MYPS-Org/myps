@@ -590,12 +590,13 @@ namespace Helpers
                 return response;
             }
             DateTime CurrentDate = Functions.CurrentDate();
-            var ValidateCategory = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == p.Category && (x.IsActive || (x.ValidUntil == 0 || x.ValidUntil >= CurrentDate.Year)), cancellationToken);
-            if (ValidateCategory == null)
-            {
-                response.Message = $"Selected Category '{p.Category}' is not valid."; response.Title = "Invalid Category";
-                return response;
-            }
+            // #482: the documented rule (Active OR still valid -- FE/UserManual.md 5.7.6) applies to a
+            // new or changed Category only. An unchanged one always saves, even once it is fully
+            // retired (Inactive AND expired): the form posts the whole project on every save, so
+            // checking it locked such a project out of saving for any reason. Same gate as Thrust.
+            var ValidateCategory = await _db.ValidateCategoryAsync(p.Category, p.PreviousCategory, cancellationToken);
+            if (!ValidateCategory.IsValid)
+                return ValidateCategory;
 
             // Thrust existence + the Category<->Thrust mapping + the Option A grandfather gate.
             // ONE implementation, ValidateThrustForCategoryAsync (below), shared with the Lump Sum
@@ -751,6 +752,41 @@ namespace Helpers
                 return ValidateActive;
             response.IsValid = true;
             response.Data = p.Region;//ValidateRegion.IslandCode;
+            return response;
+        }
+
+        /// <summary>A Category is held to the selectable rule only when it is new or changed (#482).</summary>
+        public static bool CategoryNeedsValidityCheck(int category, int? previousCategory) =>
+            previousCategory == null || category != previousCategory;
+
+        /// <summary>
+        /// The documented Category rule (FE/UserManual.md 5.7.6): selectable while Active OR still
+        /// valid (Valid Until 0 = no expiry); only a row both Inactive and expired is fully retired.
+        /// </summary>
+        public static bool CategoryIsSelectable(bool isActive, int validUntil, int year) =>
+            isActive || validUntil == 0 || validUntil >= year;
+
+        /// <summary>
+        /// The one Category check (#482): the Category must exist, and a new or changed one must be
+        /// selectable (CategoryIsSelectable). Unchanged against <paramref name="previousCategory"/> --
+        /// or against <paramref name="alsoKept"/>, a resubmitted request's earlier Category -- it is
+        /// kept even once fully retired. Used by ValidateProjectDetailsLookups, CreateLumpSum and
+        /// RequestRevision / ResubmitRevision.
+        /// </summary>
+        public static async Task<ProjectHelperResponse<string>> ValidateCategoryAsync(this MYPSDbContext _db, int category, int? previousCategory, CancellationToken cancellationToken, int? alsoKept = null)
+        {
+            var response = new ProjectHelperResponse<string>();
+            var Row = await _db.tOptionProjectCategory.AsNoTracking()
+                .Where(x => x.CategoryId == category)
+                .Select(x => new { x.IsActive, x.ValidUntil })
+                .FirstOrDefaultAsync(cancellationToken);
+            bool Kept = !CategoryNeedsValidityCheck(category, previousCategory) || category == alsoKept;
+            if (Row == null || (!Kept && !CategoryIsSelectable(Row.IsActive, Row.ValidUntil, Functions.CurrentDate().Year)))
+            {
+                response.Message = $"Selected Category '{category}' is not valid."; response.Title = "Invalid Category";
+                return response;
+            }
+            response.IsValid = true;
             return response;
         }
 

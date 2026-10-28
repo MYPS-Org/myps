@@ -470,7 +470,7 @@ namespace WebAPI.Controllers.Revision
 
                 #region Dropdowns
                 var ComponentType = await _db.tOptionProjectComponentType.AsNoTracking().OrderBy(x => x.ComponentName).ToListAsync(cancellationToken);
-                var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
+                var Category = await _db.tOptionProjectCategory.AsNoTracking().OrderBy(x => x.CategoryName).ToListAsync(cancellationToken); // #482: complete, so a project's own expired Category still shows; the form offers only valid ones for a new pick
                 var Thrust = await _db.tOptionProjectThrustList.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync(cancellationToken);
                 var Origin = await _db.tOptionProjectOrigin.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
@@ -778,7 +778,7 @@ namespace WebAPI.Controllers.Revision
                 var HasAPIPermission = await _db.vUserActionPermission.AnyAsync(x => x.PermissionAction == "RequestRevision" && x.UserId == _Session.UserId && x.IsActive);
                 #region Dropdowns
                 var ComponentType = await _db.tOptionProjectComponentType.AsNoTracking().OrderBy(x => x.ComponentName).ToListAsync(cancellationToken);
-                var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
+                var Category = await _db.tOptionProjectCategory.AsNoTracking().OrderBy(x => x.CategoryName).ToListAsync(cancellationToken); // #482: complete, so a project's own expired Category still shows; the form offers only valid ones for a new pick
                 var Thrust = await _db.tOptionProjectThrustList.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync(cancellationToken);
                 var Origin = await _db.tOptionProjectOrigin.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
                 var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
@@ -1155,6 +1155,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     // Taken before UpdateRevisionData, which changes ProjectRevisions in place (#481).
                     var StoredLookups = new ProjectDetailsLookupValues(ProjectRevisions.Tier, ProjectRevisions.Origin, ProjectRevisions.Agency, ProjectRevisions.ImplementationMode, ProjectRevisions.EmergencyMode, ProjectRevisions.RowAvailable, ProjectRevisions.Feasibility, ProjectRevisions.DetailedDesign);
+                    int StoredCategory = ProjectRevisions.Category;
                     var UpdateAndGenerateLogs = ProjectDetailsRules.UpdateRevisionData(User, TransactionId, "tRevisionProjects", CurrentDate, NewProjectRevision, ProjectRevisions);
                     Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
                     ProjectRevision = UpdateAndGenerateLogs.Data;
@@ -1169,6 +1170,14 @@ namespace WebAPI.Controllers.Revision
                     {
                         await transaction.RollbackAsync(cancellationToken);
                         return new BadRequestObjectResult(new { Message = ValidateActiveLookups.Message, Title = ValidateActiveLookups.Title });
+                    }
+                    // #482: a changed Category must be selectable (Active OR still valid); the project's
+                    // own Category is kept even once fully retired. RequestRevision did not check it at all.
+                    var ValidateCategory = await _db.ValidateCategoryAsync(ProjectRevision.Category, StoredCategory, cancellationToken);
+                    if (!ValidateCategory.IsValid)
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        return new BadRequestObjectResult(new { Message = ValidateCategory.Message, Title = ValidateCategory.Title });
                     }
                     NewRevisionProject.IsActive = isCOUser ? true : false;
                     NewRevisionProject.TransactionId = TransactionId;
@@ -2897,6 +2906,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     // Taken before UpdateRevisionData, which changes ProjectRevisions in place (#481).
                     var StoredLookups = new ProjectDetailsLookupValues(ProjectRevisions.Tier, ProjectRevisions.Origin, ProjectRevisions.Agency, ProjectRevisions.ImplementationMode, ProjectRevisions.EmergencyMode, ProjectRevisions.RowAvailable, ProjectRevisions.Feasibility, ProjectRevisions.DetailedDesign);
+                    int StoredCategory = ProjectRevisions.Category;
                     var UpdateAndGenerateLogs = ProjectDetailsRules.UpdateRevisionData(User, dto.TransactionId, "tRevisionProjects", CurrentDate, NewProjectRevision, ProjectRevisions);
                     Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
                     var RevisionProject = UpdateAndGenerateLogs.Data;
@@ -2968,9 +2978,12 @@ namespace WebAPI.Controllers.Revision
                         // (ValidateProjectDetailsLookups, Helpers/ProjectHelper.cs:296). Mirrors that
                         // same check inline rather than calling the shared helper, since this endpoint
                         // doesn't touch the rest of that helper's fields.
-                        var ValidateNewCategory = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == RevisionProject.Category && (x.IsActive || (x.ValidUntil == 0 || x.ValidUntil >= CurrentDate.Year)), cancellationToken);
-                        if (ValidateNewCategory == null)
+                        // #482: changing back to the project's own Category is kept even once it is fully
+                        // retired; any other change must be selectable (Active OR still valid).
+                        var ValidateNewCategory = await _db.ValidateCategoryAsync(RevisionProject.Category, StoredCategory, cancellationToken);
+                        if (!ValidateNewCategory.IsValid)
                         {
+                            await transaction.RollbackAsync(cancellationToken);
                             return new BadRequestObjectResult(new { Message = $"Selected Category '{RevisionProject.Category}' is not valid.", Title = "Invalid Category" });
                         }
                         Logs.Add(new RevisionTransactionLog

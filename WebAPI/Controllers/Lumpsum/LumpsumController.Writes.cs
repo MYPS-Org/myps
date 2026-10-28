@@ -1434,13 +1434,10 @@ namespace WebAPI.Controllers.Lumpsum
             if (!TierOk)
                 return new BadRequestObjectResult(new { Message = $"Selected Tier '{tier}' is not valid.", Title = "Invalid Tier" });
 
-            int Year = Functions.CurrentDate().Year;
-            bool CategoryOk = await _db.tOptionProjectCategory.AsNoTracking()
-                .AnyAsync(x => x.CategoryId == category
-                            && (x.IsActive || x.ValidUntil == 0 || x.ValidUntil >= Year), cancellationToken);
-
-            if (!CategoryOk)
-                return new BadRequestObjectResult(new { Message = $"Selected Category '{category}' is not valid.", Title = "Invalid Category" });
+            // CreateLumpSum only, so the Category is always new (#482: ProjectHelper.ValidateCategoryAsync).
+            var CategoryCheck = await _db.ValidateCategoryAsync(category, null, cancellationToken);
+            if (!CategoryCheck.IsValid)
+                return new BadRequestObjectResult(new { Message = CategoryCheck.Message, Title = CategoryCheck.Title });
 
             return null;
         }

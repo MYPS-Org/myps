@@ -145,4 +145,23 @@ public sealed class RetiredLookupRuleTests
         Assert.Empty(ProjectHelper.ChangedProjectDetailsLookups(request, Saved, alsoKept: request));
         Assert.Equal(new[] { ("Originating Agency", 1003) }, ProjectHelper.ChangedProjectDetailsLookups(Saved with { Agency = 1003 }, Saved, alsoKept: request));
     }
+
+    // #482: Category keeps the documented OR rule, but only for a new or changed Category.
+    [Fact]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    public void Category_OnlyNewOrChangedIsChecked()
+    {
+        Assert.True(ProjectHelper.CategoryNeedsValidityCheck(16, null));
+        Assert.True(ProjectHelper.CategoryNeedsValidityCheck(16, 1));
+        Assert.False(ProjectHelper.CategoryNeedsValidityCheck(16, 16));
+    }
+
+    [Theory]
+    [Trait("Feature", "CodeTableRetiredValues")]
+    [InlineData(true, 2020, true)]   // expired but Active
+    [InlineData(false, 2030, true)]  // Inactive but still valid
+    [InlineData(false, 0, true)]     // Inactive, no expiry
+    [InlineData(false, 2020, false)] // Inactive AND expired: fully retired
+    public void Category_IsSelectable_WhenActiveOrValid(bool isActive, int validUntil, bool expected) =>
+        Assert.Equal(expected, ProjectHelper.CategoryIsSelectable(isActive, validUntil, 2026));
 }

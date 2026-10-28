@@ -74,7 +74,10 @@ const CategoryTable: React.FC = () => {
 
   const saveEdit = async () => {
     try {
-      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+      // Keep the row's Active state: the API reads a missing IsActive as false, so leaving it
+      // out would quietly deactivate the category on every edit (#482, the #397 bug class).
+      const original = rows.find(r => r.Id === editId);
+      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, IsActive: original?.IsActive !== false }));
       showToast({ type: 'success', message: 'Category updated successfully.' });
       await refetch();
     } catch {
@@ -85,7 +88,8 @@ const CategoryTable: React.FC = () => {
   const saveAdd = async () => {
     if (!addForm) return;
     try {
-      await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+      // A new Category starts Active: the API reads a missing IsActive as false (#482).
+      await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
       showToast({ type: 'success', message: 'Category added successfully.' });
       await refetch();
     } catch {
