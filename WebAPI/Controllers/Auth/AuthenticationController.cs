@@ -79,10 +79,20 @@ namespace WebAPI.Controllers.Auth
                     await transaction.CommitAsync();
                     return UnauthorizedUser($"{LoginLog.ValidationMessage}. Please contact your administrator. ");
                 }
-                bool bypassPIS = Appsetting.Environment == "Development" && Appsetting.PIS.BypassLogin;
+                // 2026-10-29: LocalLogin (the MonsterASP test site) checks the password against the
+                // hashes in that host's settings and never calls PIS, so it also wins over BypassLogin.
+                bool localLogin = Appsetting.LocalLogin.Enabled;
+                bool bypassPIS = !localLogin && Appsetting.Environment == "Development" && Appsetting.PIS.BypassLogin;
                 bool pisUnreachable = false;
                 string employee;
-                if (bypassPIS)
+                if (localLogin)
+                {
+                    employee = LocalPassword.Check(verifyAccount.UserId, dto.Password)
+                        ? "Valid Login - Local Password"
+                        : "Invalid Login - Local Password";
+                    LoginLog.ValidationMessage = employee;
+                }
+                else if (bypassPIS)
                 {
                     Console.WriteLine($"[WARN] PIS:BypassLogin is ON — signing in '{dto.UserName}' without a password check.");
                     employee = "Valid Login - Bypass Login";

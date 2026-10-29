@@ -36,6 +36,14 @@ namespace Helpers
 
         public static async Task<T> XML<T>(XMLRequest<T> request)
         {
+            // 2026-10-29: a service turned off on this host (PIS:Disabled on the MonsterASP test
+            // site) is never contacted -- callers see the same null as an empty PIS answer.
+            if (request.Disabled)
+            {
+                Logger?.LogWarning("APIRequest.XML: {Request} is turned off on this server; nothing was sent.", request.GetType().Name);
+                return default;
+            }
+
             var handler = new HttpClientHandler();
 
             if (Appsetting.Environment == "Development" || Appsetting.Environment == "Staging")

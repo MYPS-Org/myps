@@ -38,6 +38,10 @@ namespace WebAPI.Controllers.MockUps
                         }
                     );
                 }
+                if (Appsetting.PIS.Disabled)
+                {
+                    return PisTurnedOff();
+                }
                 var request = new GetUserInfoPIS(dto.EmployeeId);
                 var employee = await APIRequest.XML(request);
                 if (string.IsNullOrEmpty(employee.EmployeeId))
@@ -97,6 +101,10 @@ namespace WebAPI.Controllers.MockUps
                             Title = "User Not Found"
                         }
                     );
+                }
+                if (Appsetting.PIS.Disabled)
+                {
+                    return PisTurnedOff();
                 }
                 var request = new GetUserInfoPIS(dto.EmployeeId);
                 var employee = await APIRequest.XML(request);
@@ -189,5 +197,16 @@ namespace WebAPI.Controllers.MockUps
         //        return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
         //    }
         //}
+
+        // 2026-10-29: PIS:Disabled (the MonsterASP test site) -- say so, instead of a null-reference
+        // 500 from reading the empty answer APIRequest.XML gives when PIS is turned off.
+        [NonAction]
+        private static IActionResult PisTurnedOff() => new BadRequestObjectResult(
+            new
+            {
+                Message = "Employee lookup from PIS is turned off on this server.",
+                Title = "PIS Unavailable"
+            }
+        );
     }
 }

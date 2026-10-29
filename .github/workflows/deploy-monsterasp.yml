@@ -7,7 +7,7 @@
 #   Variables: WEBDEPLOY_SERVER          site102559.siteasp.net
 #              WEBDEPLOY_SITE            site102559
 #              WEBDEPLOY_USERNAME        site102559
-#              SITE_URL                  https://site102559.siteasp.net
+#              SITE_URL                  https://myps.tryasp.net (the site's own address, not the Web Deploy server)
 #              VITE_API_GIS_URL          optional: GIS API base URL baked into the front end
 
 name: Deploy to MonsterASP
@@ -165,6 +165,8 @@ jobs:
           -retryAttempts:3
           -retryInterval:5000
 
+      # Must be the MYPS page itself: a 200 alone also passes for the host's placeholder page,
+      # e.g. when SITE_URL is the Web Deploy server name instead of the site's own address.
       - name: Smoke test
         shell: pwsh
         env:
@@ -173,11 +175,11 @@ jobs:
           foreach ($i in 1..6) {
             try {
               $r = Invoke-WebRequest -Uri $env:SITE_URL -UseBasicParsing -TimeoutSec 60
-              "Site answered HTTP $($r.StatusCode)."
-              exit 0
+              if ($r.Content -match '<title>MYPS') { "Site answered HTTP $($r.StatusCode) with the MYPS page."; exit 0 }
+              "Attempt ${i}: HTTP $($r.StatusCode), but not the MYPS page."
             } catch {
               "Attempt ${i}: $($_.Exception.Message)"
-              Start-Sleep -Seconds 15
             }
+            Start-Sleep -Seconds 15
           }
-          throw "$env:SITE_URL did not answer after the deploy."
+          throw "$env:SITE_URL did not serve the MYPS page after the deploy. Check SITE_URL is the site's own address."

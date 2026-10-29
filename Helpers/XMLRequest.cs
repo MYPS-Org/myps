@@ -9,6 +9,12 @@ namespace Helpers
         internal abstract string RequestUri { get; }
 
         /// <summary>
+        /// True when this service is turned off on this host (e.g. "PIS:Disabled").
+        /// <see cref="APIRequest.XML{T}"/> then sends nothing and returns the default value.
+        /// </summary>
+        internal virtual bool Disabled => false;
+
+        /// <summary>
         /// The value of the <c>SOAPAction</c> HTTP header. Override to specify a custom action.
         /// Defaults to an empty string.
         /// </summary>

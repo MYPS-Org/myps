@@ -18,6 +18,7 @@ namespace Helpers.API
 
         protected override string SoapAction => "\"https://www.dpwh.gov.ph/pis_get_employee\"";
         internal override string RequestUri => Appsetting.PIS.Host;
+        internal override bool Disabled => Appsetting.PIS.Disabled;
 
         // 2026-09-04: values interpolated into a SOAP body must be XML-escaped -- a raw
         // '&'/'<'/'>' in any of these (e.g. a password) produces malformed XML, a SOAP fault, and
@@ -80,6 +81,7 @@ namespace Helpers.API
 
         protected override string SoapAction => "\"https://www.dpwh.gov.ph/ad_validate_login\"";
         internal override string RequestUri => Appsetting.PIS.Login;//Appsetting.PIS.Host;
+        internal override bool Disabled => Appsetting.PIS.Disabled;
 
         protected override string GetSoapHeader() => string.Empty;
         // 2026-09-04: XML-escape both values -- see GetUserInfoPIS's GetSoapHeader comment above.

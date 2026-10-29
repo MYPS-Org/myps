@@ -22,6 +22,21 @@ namespace Helpers
         /// so leaving it out of appsettings keeps the normal PIS round trip.
         /// </summary>
         public bool BypassLogin { get; set; } = false;
+        /// <summary>
+        /// Turns PIS off: no request is sent to it at all. For hosts that must never contact
+        /// DPWH's PIS, such as the MonsterASP test site; sign-in there uses <see cref="LocalLoginConfig"/>.
+        /// </summary>
+        public bool Disabled { get; set; } = false;
+    }
+    /// <summary>
+    /// Sign-in against password hashes kept in this host's settings instead of PIS. Off unless
+    /// "LocalLogin:Enabled" is true. Make each hash with <see cref="LocalPassword.Hash"/>.
+    /// </summary>
+    public class LocalLoginConfig
+    {
+        public bool Enabled { get; set; } = false;
+        /// <summary>User ID (as in vUsers) to password hash.</summary>
+        public Dictionary<string, string> Users { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
     public class MYPSToPCMA
     {
@@ -79,6 +94,7 @@ namespace Helpers
         public static string AppName { get; } = "MYPS";
         public static LDAPConfig LDAP { get; set; } = new LDAPConfig();
         public static PISConfig PIS { get; set; } = new PISConfig();
+        public static LocalLoginConfig LocalLogin { get; set; } = new LocalLoginConfig();
         public static MYPSToPCMA PCMA { get; set; } = new MYPSToPCMA();
         public static string WebRootPath { get; set; } = string.Empty;
         public static string RootPath { get; set; } = string.Empty;
@@ -91,6 +107,8 @@ namespace Helpers
             DbConnections = config.GetSection("ConnectionStrings").Get<DatabaseConnections>()!;
             LDAP = config.GetSection("LDAP").Get<LDAPConfig>()!;
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
+            LocalLogin = config.GetSection("LocalLogin").Get<LocalLoginConfig>() ?? new LocalLoginConfig();
+            LocalLogin.Users = new Dictionary<string, string>(LocalLogin.Users, StringComparer.OrdinalIgnoreCase);
             PCMA = config.GetSection("MYPSToPCMA").Get<MYPSToPCMA>()!;
             Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
             Resources.Internal = Path.Combine(Resources.Main, Resources.Internal);
