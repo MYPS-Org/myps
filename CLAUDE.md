@@ -27,7 +27,7 @@ Never put a real password in a tracked file, doc, plan or `.claude/settings.json
 
 ## Online test site (MonsterASP)
 
-`https://myps.tryasp.net`, deployed by `.github/workflows/deploy-monsterasp.yml` on every push to main. Its `appsettings.Local.json` comes from the `APPSETTINGS_LOCAL_JSON` secret in the `myps_environment` GitHub environment: database `db76600`, `PIS:Disabled: true` (it must never contact DPWH's PIS) and `LocalLogin` with PBKDF2 hashes (`Helpers/LocalPassword.cs`) for its test accounts. PDF reports don't work there (no Crystal report service).
+`https://myps.tryasp.net`, deployed by `.github/workflows/deploy-monsterasp.yml` on every push to main. Its `appsettings.Local.json` comes from the `APPSETTINGS_LOCAL_JSON` secret in the `myps_environment` GitHub environment: database `db76600`, `PIS:Disabled: true` (it must never contact DPWH's PIS) and `LocalLogin` with PBKDF2 hashes (`Helpers/LocalPassword.cs`) for its test accounts. PDF reports don't work there (no Crystal report service). If it answers "500.30 app failed to start", the page shows the startup error (the workflow sets `ASPNETCORE_DETAILEDERRORS`), and the console output is in `wwwroot\logs\stdout_*.log` (MonsterASP File Manager).
 
 See `FE/CLAUDE.md` for frontend-specific conventions (HTTP/error handling, date inputs, validation patterns).
 

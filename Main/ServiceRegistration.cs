@@ -171,10 +171,19 @@ namespace Main
         }
         public static IServiceCollection AddDinkToPdf(this IServiceCollection services)
         {
+            // 2026-10-29: libwkhtmltox.dll is 64-bit only, so a 32-bit worker (a shared host's app
+            // pool, e.g. MonsterASP) can't load it and the whole app failed to start. Nothing resolves
+            // IConverter today, so skip it there instead.
+            if (!Environment.Is64BitProcess)
+            {
+                Console.WriteLine("[WARN] 32-bit process: libwkhtmltox.dll (64-bit) not loaded; IConverter is not registered.");
+                return services;
+            }
+
             // Load the native library manually
             var context = new CustomAssemblyLoadContext();
             var wkHtmlToPdfPath = Path.Combine(AppContext.BaseDirectory, "libwkhtmltox.dll");
-            
+
             // Load the DLL if it exists
             if (File.Exists(wkHtmlToPdfPath))
             {

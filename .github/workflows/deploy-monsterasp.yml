@@ -115,12 +115,29 @@ jobs:
 
       # Uploaded documents belong to the server, not to git: never ship the repo's copies over them.
       # appsettings.Local.json comes from the secret below, or stays as it is on the server.
+      # web.config: the host shows only a bare "500.30 app failed to start", so write the app's
+      # console output to logs\stdout_*.log (MonsterASP File Manager; the app never serves that
+      # folder) and let the 500.30 page show the startup error itself.
       - name: Prepare package
         shell: pwsh
         env:
           APPSETTINGS_LOCAL_JSON: ${{ secrets.APPSETTINGS_LOCAL_JSON }}
         run: |
           Remove-Item publish/Resources/UploadedFiles -Recurse -Force -ErrorAction SilentlyContinue
+          $webConfig = Resolve-Path publish/web.config
+          [xml]$xml = Get-Content $webConfig
+          $module = $xml.SelectSingleNode('//aspNetCore')
+          if (-not $module) { throw 'publish/web.config has no aspNetCore element.' }
+          $module.SetAttribute('stdoutLogEnabled', 'true')
+          $module.SetAttribute('stdoutLogFile', '.\logs\stdout')
+          $vars = $module.SelectSingleNode('environmentVariables')
+          if (-not $vars) { $vars = $module.AppendChild($xml.CreateElement('environmentVariables')) }
+          $detailed = $xml.CreateElement('environmentVariable')
+          $detailed.SetAttribute('name', 'ASPNETCORE_DETAILEDERRORS')
+          $detailed.SetAttribute('value', 'true')
+          $null = $vars.AppendChild($detailed)
+          $xml.Save($webConfig)
+          'web.config: stdout log on (logs\stdout), detailed startup errors on.'
           if ([string]::IsNullOrWhiteSpace($env:APPSETTINGS_LOCAL_JSON)) {
             'No APPSETTINGS_LOCAL_JSON secret: the server keeps its own appsettings.Local.json.'
           } else {
