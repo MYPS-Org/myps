@@ -34,7 +34,7 @@ Click **Programs** in the left navigation menu. The program list page opens.
 | **Name** | Program name — click to expand stage history |
 | **Status** | Current workflow status (colored badge) |
 | **Type** | Program type (Regular, Special, TF, etc.) |
-| **No. of Projects** | Count of projects linked to this program |
+| **No. of Projects** | Count of projects linked to this program, not counting deleted ones |
 | **Start Year** | Program's starting fiscal year |
 | **Actions** | View (opens detail) and Delete buttons |
 
@@ -153,7 +153,7 @@ Click **View** on any program row to open the detail page.
 | Name | No | Read-only |
 | Start Year | No | Read-only |
 | Program Type | Yes | Select from dropdown |
-| Cost | No | Auto-calculated from linked projects |
+| Cost | No | Auto-calculated from the projects at the program's current stage; a deleted project does not count |
 | Status | Yes | Editable only when program is active |
 | User Groups | Yes | Checkbox list — search, select all, clear all |
 | Data Security Access | Yes | Grouped by organization type |
@@ -277,9 +277,17 @@ Click the **🏷 Batch Actions** dropdown to perform operations on multiple proj
 3. Click **Delete Projects**.
 4. A confirmation dialog appears — confirm to proceed.
 
+A delete is **permanent only for a project still at the BP or RBP stage** (its BP/P Project ID is then given to the next new project). At any other stage the project is deleted at that stage only and can be restored. Published projects, and projects of an Approved program, are not deleted (Lump Sum itemized projects are always deleted permanently). The success message names only what happened.
+
 ### Delete One Project
 
 Each row of the Projects table has a red trash icon in its **Actions** column. It deletes that one project with the same rules as Batch Delete: the **Delete Project** dialog shows whether the project will be deleted permanently, deleted at this stage only, or not deleted and why. Type **DELETE** and click **Yes, Delete Project**.
+
+### Deleted Projects (Restore)
+
+The **Deleted projects (N)** button next to **Batch Actions** lists the projects deleted at the program's current stage, with who deleted each one and when. Click **Restore** on a row, or tick rows and click **Restore selected**: the projects come back into the Projects table. A row that cannot be restored (published, or the program is Approved) says why. **Batch Actions → Batch Restore** still restores by typed Project IDs.
+
+A project deleted before the program moved to its current stage stays deleted. It is listed under **Deleted at an earlier stage**, with the stage it was deleted at and a note that the program has moved on. **Restore into &lt;stage&gt;** adds it to the current stage with the data it had when deleted; the stages in between are skipped, and a BP Project ID becomes P at a P stage. Lump Sum projects, and projects whose ID now belongs to another project, cannot be restored this way.
 
 ### Restrict Publishing
 

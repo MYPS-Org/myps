@@ -9,6 +9,8 @@ description: Add the release note for a change to docs/changelogs, which the app
 
 Every change to app behaviour gets an entry. Internal-only work gets a one-line entry too, so the list stays complete.
 
+A commit made by hand without a note gets one drafted by the git pre-commit hook (`.githooks/changelog-draft.mjs`, from the rules below). In a Claude Code session, write the note yourself: the hook skips any commit that already stages a changelog file.
+
 ## Pick the file
 
 1. Open the newest file (highest `vX.Y.Z`).

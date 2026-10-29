@@ -101,6 +101,8 @@ public sealed class RequiresDeletionObjectsTests
             "ProgramController.BatchDelete",
             "ProgramController.DeleteProgram",
             "ProgramController.PreviewBatchDelete",
+            "ProgramController.RestoreToCurrentStage",
+            "ProgramController.ShowDeletedProjects",
         }, guarded);
     }
 

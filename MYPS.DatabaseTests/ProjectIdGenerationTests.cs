@@ -393,6 +393,119 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
         Assert.False(collides);
     }
 
+    // ---------------------------------------------------------------------------------------
+    // ID reuse (2026-10-29, delete-rules-projects-programs-stages.md): a BP/P id freed by a
+    // permanent delete (dbo.tProjectIdReleased) is handed out again, lowest first, before the
+    // counter advances.
+    // ---------------------------------------------------------------------------------------
+
+    private static readonly ProjectHelper.GenerateProjectIDParams BpLz2026 = new()
+    {
+        CategoryId = 1,
+        StageName = "BP",
+        IslandCode = "LZ",
+        YearStart = 2026
+    };
+
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_HandsOutTheLowestReleasedIdFirst_AndTakesItOffTheList()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, ReleasedTableSql);
+        await ReserveBlockAsync(connection, count: 9); // the counter is at 9
+        await ExecuteNonQueryAsync(connection,
+            "INSERT dbo.tProjectIdReleased (CategoryId, Suffix, IslandCode, YearStart, Sequence, ProjectId) VALUES " +
+            "(1, N'BP', N'LZ', 2026, 7, N'BP01000007LZ'), (1, N'BP', N'LZ', 2026, 3, N'BP01000003LZ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        Assert.Equal("BP01000003LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
+        Assert.Equal("BP01000007LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
+        Assert.Equal("BP01000010LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None)); // list empty: the counter
+        Assert.Equal(0, await ScalarAsync(connection, "SELECT COUNT(*) FROM dbo.tProjectIdReleased;"));
+    }
+
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_SkipsAReleasedIdThatIsCarriedAgain_EvenBySoftDeletedRevision()
+    {
+        // A soft-deleted project keeps its id reserved, so a released id that a deleted revision
+        // carries again is dropped and the counter is used instead.
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, ReleasedTableSql);
+        await ExecuteNonQueryAsync(connection,
+            "INSERT dbo.tProjectIdReleased (CategoryId, Suffix, IslandCode, YearStart, Sequence, ProjectId) VALUES (1, N'BP', N'LZ', 2026, 5, N'BP01000005LZ');" +
+            "INSERT dbo.tProjectRevisions (ProjectFK, ProjectId, IsDeleted) VALUES (N'BP01000005LZ', N'BP01000005LZ', 1);");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        Assert.Equal("BP01000001LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
+        Assert.Equal(0, await ScalarAsync(connection, "SELECT COUNT(*) FROM dbo.tProjectIdReleased;"));
+    }
+
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_OnlyTakesFromItsOwnBucket_AndNeverForMyIds()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, ReleasedTableSql);
+        await ExecuteNonQueryAsync(connection,
+            "INSERT dbo.tProjectIdReleased (CategoryId, Suffix, IslandCode, YearStart, Sequence, ProjectId) VALUES " +
+            "(1, N'BP', N'VS', 2026, 2, N'BP01000002VS'), (1, N'P', N'LZ', 2026, 4, N'P01000004LZ'), (1, N'MY', N'LZ', 2026, 6, N'MY01000006LZ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        Assert.Equal("BP01000001LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None)); // other island / prefix untouched
+        Assert.Equal("MY01000001LZ", await db.GenerateProjectID(new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1, StageName = "RDIP", IslandCode = "LZ", YearStart = 2026
+        }, CancellationToken.None)); // MY ids are never reused
+        Assert.Equal("P01000004LZ", await db.GenerateProjectID(new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1, StageName = "NEP", IslandCode = "LZ", YearStart = 2026
+        }, CancellationToken.None));
+        Assert.Equal(2, await ScalarAsync(connection, "SELECT COUNT(*) FROM dbo.tProjectIdReleased;"));
+    }
+
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_WithoutTheReleasedTable_UsesTheCounterAsBefore()
+    {
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+        Assert.Equal("BP01000001LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
+    }
+
+    /// <summary>The table exactly as Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql creates it.</summary>
+    private static readonly string ReleasedTableSql = ExtractReleasedTableDdl();
+
+    private static string ExtractReleasedTableDdl()
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        {
+            string path = Path.Combine(dir.FullName, "Main", "Resources", "Internal", "SQLScripts", "Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql");
+            if (!File.Exists(path)) continue;
+            string script = File.ReadAllText(path);
+            int start = script.IndexOf("CREATE TABLE dbo.tProjectIdReleased", StringComparison.Ordinal);
+            int end = script.IndexOf(");", start, StringComparison.Ordinal) + 2;
+            return script[start..end];
+        }
+        throw new FileNotFoundException("Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql not found above the test output folder.");
+    }
+
+    private static async Task<int> ScalarAsync(SqlConnection connection, string sql)
+    {
+        await using var command = new SqlCommand(sql, connection);
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
+    }
+
     private static async Task<(int Start, int End)> ReserveBlockAsync(SqlConnection connection, int count, int categoryId = 1, string suffix = "BP", string islandCode = "LZ", int yearStart = 2026)
     {
         await using var command = new SqlCommand("dbo.pReserveProjectIdBlock", connection) { CommandType = CommandType.StoredProcedure };

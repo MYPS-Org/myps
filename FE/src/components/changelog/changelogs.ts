@@ -11,9 +11,8 @@ export interface Release {
   version: string;
   /** The file name's slug made readable, e.g. "Delete one project generate reports and more". */
   title: string;
-  /** The file's "# " line without its leading "MYPS ", e.g. "Changes since v2.0.8-…". */
+  /** The file's "# " line without its leading "MYPS " and any "(not yet released)" marker, e.g. "Changes since v2.0.8-…". */
   subtitle: string;
-  unreleased: boolean;
   /** Everything after the "# " line. */
   body: string;
   /** Changes whenever the file's text changes; drives the unread dot. */
@@ -41,7 +40,6 @@ const parse = (path: string, text: string): { release: Release; order: number[] 
       version,
       title: readable ? readable.charAt(0).toUpperCase() + readable.slice(1) : version,
       subtitle: heading.replace(/^MYPS\s+/i, '').replace(/\s*\(not yet released\)\s*$/i, '').replace(/^c/, 'C'),
-      unreleased: /\(not yet released\)/i.test(heading),
       body: lines.slice(headingIndex + 1).join('\n').trim(),
       key: `${version}:${hash(text)}`,
     },

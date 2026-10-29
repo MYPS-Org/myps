@@ -61,13 +61,33 @@
 
     Multi-year guard: the tProjects row itself is only removed when no OTHER program
     still has tProjectStages or tProjectRevisions history for this ProjectPK — a
-    multi-year project with history under a different ProgramFK keeps its row. */
+    multi-year project with history under a different ProgramFK keeps its row.
+
+    ID REUSE (2026-10-29, delete-rules-projects-programs-stages.md): once the project is
+    gone entirely (its tProjects row removed) and nothing else carries one of its BP/P
+    ids, that id is written to dbo.tProjectIdReleased, so ProjectHelper.GenerateProjectID
+    hands it out again before advancing the counter. That is a project deleted at its
+    first stage, BP or RBP (GetProjectDeletionTier.sql), or a leftover Delete Program
+    removes there. A soft-deleted project keeps its rows, so its id stays reserved; MY ids
+    are their own pool and are never released; a Lump Sum itemized project (@Kind 'LSChild')
+    is never reissued either. Skipped while dbo.tProjectIdReleased does not exist (before
+    Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql runs). */
 SET QUOTED_IDENTIFIER ON;
 
 DECLARE @RevisionIds TABLE (Id INT PRIMARY KEY);
 INSERT INTO @RevisionIds (Id)
 SELECT Id FROM dbo.tProjectRevisions
 WHERE ProjectFK = @ProjectFK AND ProgramFK = @ProgramFK;
+
+-- ID reuse: the ids this project carries and its category, read before the rows go.
+DECLARE @IdCandidates TABLE (ProjectId NVARCHAR(200) COLLATE DATABASE_DEFAULT PRIMARY KEY);
+INSERT INTO @IdCandidates (ProjectId)
+SELECT @ProjectFK
+UNION
+SELECT r.ProjectId FROM dbo.tProjectRevisions r
+WHERE r.Id IN (SELECT Id FROM @RevisionIds) AND r.ProjectId IS NOT NULL;
+DECLARE @IdCategory INT = (SELECT TOP (1) r.Category FROM dbo.tProjectRevisions r
+                           WHERE r.Id IN (SELECT Id FROM @RevisionIds) ORDER BY r.Id DESC);
 
 DECLARE @CostIds TABLE (Id INT PRIMARY KEY);
 INSERT INTO @CostIds (Id)
@@ -150,4 +170,29 @@ IF NOT EXISTS (SELECT 1 FROM dbo.tProjectStages WHERE ProjectFK = @ProjectFK AND
    AND NOT EXISTS (SELECT 1 FROM dbo.tProjectRevisions WHERE ProjectFK = @ProjectFK AND ProgramFK <> @ProgramFK)
 BEGIN
     DELETE FROM dbo.tProjects WHERE ProjectPK = @ProjectFK;
+END
+
+-- ID reuse: release the BP/P ids nothing carries any more ({prefix}{year offset:3}{sequence:5}{island:2}).
+IF OBJECT_ID(N'dbo.tProjectIdReleased', N'U') IS NOT NULL
+   AND @IdCategory IS NOT NULL
+   AND ISNULL(@Kind, N'') <> N'LSChild'   -- a Lump Sum itemized project is not reissued: itemize again for a new id
+   AND NOT EXISTS (SELECT 1 FROM dbo.tProjects WHERE ProjectPK = @ProjectFK)
+BEGIN
+    INSERT INTO dbo.tProjectIdReleased (CategoryId, Suffix, IslandCode, YearStart, Sequence, ProjectId, ReleasedBy, ReleasedDate)
+    SELECT @IdCategory, x.Suffix, x.IslandCode, 2016 + x.YearOffset, x.Sequence, c.ProjectId, @UserId, @CurrentDate
+    FROM @IdCandidates c
+    CROSS APPLY (SELECT CASE
+                     WHEN c.ProjectId LIKE N'BP[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][A-Z][A-Z]' THEN N'BP'
+                     WHEN c.ProjectId LIKE N'P[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][A-Z][A-Z]'  THEN N'P'
+                 END AS Suffix) s
+    CROSS APPLY (SELECT s.Suffix,
+                        CAST(SUBSTRING(c.ProjectId, LEN(s.Suffix) + 1, 3) AS INT) AS YearOffset,
+                        CAST(SUBSTRING(c.ProjectId, LEN(s.Suffix) + 4, 5) AS INT) AS Sequence,
+                        RIGHT(c.ProjectId, 2) AS IslandCode) x
+    WHERE s.Suffix IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM dbo.tProjects p WHERE p.ProjectPK = c.ProjectId)
+      AND NOT EXISTS (SELECT 1 FROM dbo.tProjectRevisions r WHERE r.ProjectId = c.ProjectId)
+      AND NOT EXISTS (SELECT 1 FROM dbo.tProjectIdReleased d
+                      WHERE d.CategoryId = @IdCategory AND d.Suffix = x.Suffix AND d.IslandCode = x.IslandCode
+                        AND d.YearStart = 2016 + x.YearOffset AND d.Sequence = x.Sequence);
 END

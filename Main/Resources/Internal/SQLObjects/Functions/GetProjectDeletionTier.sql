@@ -32,13 +32,20 @@
          "Approved" is the program's CURRENT status as dbo.vProgramLatest shows it; see
          GetProgramDeletionEligibility.sql's header for how that revision is resolved.
 
+      5. (2026-10-29, delete-rules-projects-programs-stages.md, user rule) A permanent delete
+         happens only at the BP stage, or at RBP (the BP of the RBP -> RDIP -> PIP track):
+         a project whose single stage entry is any other stage (added straight at NEP or
+         GAA, or a program created at NEP) is SOFT-deleted, restorable. Lump Sum itemized
+         children keep rule 3.
+
     TIER, first match wins:
       Blocked  tProjects.IsPublished = 1.
-      Hard     Kind = 'LSChild'                 (rule 3, exempt from rule 4).
+      Hard     Kind = 'LSChild'                 (rule 3, exempt from rules 4 and 5).
       Blocked  program is Approved              (rule 4).
-      Hard     StageCount = 1                   (rule 1).
+      Hard     StageCount = 1 AND that stage is BP (Id 1) or RBP (Id 8)   (rules 1 and 5).
       Soft     otherwise — including StageCount = 0: with no stage history there is
-               no evidence of a first stage entry, so nothing is destroyed on it.
+               no evidence of a first stage entry, so nothing is destroyed on it; and a
+               single stage entry outside BP/RBP (rule 5).
 
     StageCount = COUNT(DISTINCT StageId) over tProjectStages for (project, program).
     It ignores IsDeleted on purpose: a project soft-deleted at NEP has still
@@ -102,18 +109,19 @@ SELECT
     st.StageCount,
     CAST(CASE WHEN prog.Status = 1 THEN 1 ELSE 0 END AS BIT) AS ProgramApproved,
     CASE
-        WHEN p.IsPublished = 1     THEN N'Blocked'
-        WHEN k.Kind = N'LSChild'   THEN N'Hard'
-        WHEN prog.Status = 1       THEN N'Blocked'
-        WHEN st.StageCount = 1     THEN N'Hard'
+        WHEN p.IsPublished = 1                              THEN N'Blocked'
+        WHEN k.Kind = N'LSChild'                            THEN N'Hard'
+        WHEN prog.Status = 1                                THEN N'Blocked'
+        WHEN st.StageCount = 1 AND st.OnlyStageId IN (1, 8) THEN N'Hard'
         ELSE N'Soft'
     END                                                     AS Tier,
     CASE
-        WHEN p.IsPublished = 1     THEN N'published'
-        WHEN k.Kind = N'LSChild'   THEN N'Lump Sum itemized project'
-        WHEN prog.Status = 1       THEN N'program is approved'
-        WHEN st.StageCount = 1     THEN N'first stage entry'
-        WHEN st.StageCount = 0     THEN N'no stage history under this program'
+        WHEN p.IsPublished = 1                              THEN N'published'
+        WHEN k.Kind = N'LSChild'                            THEN N'Lump Sum itemized project'
+        WHEN prog.Status = 1                                THEN N'program is approved'
+        WHEN st.StageCount = 1 AND st.OnlyStageId IN (1, 8) THEN N'first stage entry'
+        WHEN st.StageCount = 1                              THEN N'only BP or RBP allows a permanent delete'
+        WHEN st.StageCount = 0                              THEN N'no stage history under this program'
         ELSE N'progressed past its first stage'
     END                                                     AS Reason
 FROM Chosen c
@@ -137,7 +145,8 @@ CROSS APPLY (
            END AS Kind
 ) k
 CROSS APPLY (
-    SELECT COUNT(DISTINCT s.StageId) AS StageCount
+    SELECT COUNT(DISTINCT s.StageId) AS StageCount,
+           MIN(s.StageId) AS OnlyStageId          -- meaningful when StageCount = 1
     FROM dbo.tProjectStages s
     WHERE s.ProjectFK = p.ProjectPK
       AND s.ProgramFK = @ProgramFK

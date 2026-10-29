@@ -10,9 +10,9 @@ namespace MYPS.DatabaseTests;
     drift apart unnoticed.
 
     THE RULE (section 11 of Migration.SchemaAndProgrammability.2026-09-10.sql):
-      - an ordinary project counts at the program's current stage, on its latest revision
-        there: one distinct Year of per-year rows counts whatever the year; several count only
-        the program year (tPrograms.StartYear);
+      - an ordinary project counts at the program's current stage (highest StageHierarchy),
+        on its latest LIVE revision there: one distinct Year of per-year rows counts whatever
+        the year; several count only the program year (tPrograms.StartYear);
       - at GAA-R only, an ordinary project with an effective approved Formal Revision (RO and CO
         approved, project published, no later stage) is read from that revision's tRevision*
         per-year rows instead of the base ones (RISK-108, rule of 2026-09-20);
@@ -237,6 +237,85 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
             """);
 
         await AssertCostAsync(100.00m);
+    }
+
+    // A project soft-deleted at the stage (Batch Delete flags that stage's revision) no longer
+    // counts there, in the cost or in the stage's project count. It used to count until it was
+    // hard-deleted (2026-10-29).
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task Rule_ProjectSoftDeletedAtTheStageNoLongerCounts()
+    {
+        await SeedProgramAsync();
+        await ExecuteAsync("""
+            INSERT dbo.tProjects(ProjectPK, ProgramFK, ProjectType, ParentProjectId) VALUES (N'PROJECT-SOFT', N'PROGRAM-1', N'LZ', NULL);
+            INSERT dbo.tProjectRevisions(Id, ProjectFK, IsDeleted) VALUES (114, N'PROJECT-SOFT', 1);
+            INSERT dbo.tProjectStages(ProjectFK, ProgramFK, RevisionId, StageId) VALUES (N'PROJECT-SOFT', N'PROGRAM-1', 114, 2);
+            INSERT dbo.tProjectComponentCost(Id, ProjectRevisionFK, ComponentId, Total, IsDeleted) VALUES (1016, 114, N'CW1', 40, 0);
+            INSERT dbo.tProjectComponentCostPerYear(ComponentCostFK, Amount, [Year], IsDeleted) VALUES (1016, 40, 2026, 0);
+            """);
+
+        // PROJECT-MULTI's 100 only, and PROJECT-MULTI is the stage's one project.
+        await AssertCostAsync(100.00m);
+        Assert.Equal(1, await ReadProjectCountAsync(2));
+    }
+
+    // Batch Delete flags a project's latest LIVE revision at the stage. When an older revision
+    // there is still live, the project is still at the stage, and that revision is what counts.
+    // The deleted revision's stage row is out of the stage's project count.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task Rule_OlderLiveRevisionCountsWhenTheLatestIsDeleted()
+    {
+        await SeedProgramAsync();
+        await ExecuteAsync("""
+            -- a later revision of PROJECT-MULTI at the same stage, worth 60, deleted
+            INSERT dbo.tProjectRevisions(Id, ProjectFK, IsDeleted) VALUES (120, N'PROJECT-MULTI', 1);
+            INSERT dbo.tProjectStages(ProjectFK, ProgramFK, RevisionId, StageId) VALUES (N'PROJECT-MULTI', N'PROGRAM-1', 120, 2);
+            INSERT dbo.tProjectComponentCost(Id, ProjectRevisionFK, ComponentId, Total, IsDeleted) VALUES (1020, 120, N'CW1', 60, 0);
+            INSERT dbo.tProjectComponentCostPerYear(ComponentCostFK, Amount, [Year], IsDeleted) VALUES
+                (1020, 60, 2026, 0), (1020, 10, 2027, 0);
+            """);
+
+        // The older live revision (100), not the deleted one (60).
+        await AssertCostAsync(100.00m);
+        Assert.Equal(1, await ReadProjectCountAsync(2));
+    }
+
+    // The current stage is the one vProgramLatest shows, the highest StageHierarchy, not the
+    // newest program revision: legacy imports inserted their stages out of order, and the
+    // recompute then wrote an earlier stage's figure into that stage's revision (2026-10-29).
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task Procedure_PicksTheCurrentStageByStageOrderNotInsertionOrder()
+    {
+        await ExecuteAsync("""
+            INSERT dbo.tPrograms(ProgramPK, StartYear, IsDeleted) VALUES (N'PROGRAM-1', 2026, 0);
+            -- GAA (revision 1) was inserted before NEP (revision 2); GAA is the current stage.
+            INSERT dbo.tProgramRevisions(Id, ProgramFK, Cost) VALUES (1, N'PROGRAM-1', 0), (2, N'PROGRAM-1', 0);
+            INSERT dbo.tProgramStages(ProgramFK, RevisionId, StageId, StageName) VALUES
+                (N'PROGRAM-1', 1, 6, N'GAA'),
+                (N'PROGRAM-1', 2, 2, N'NEP');
+            INSERT dbo.tProjects(ProjectPK, ProgramFK, ProjectType, ParentProjectId) VALUES
+                (N'PROJECT-AT-GAA', N'PROGRAM-1', N'LZ', NULL),
+                (N'PROJECT-AT-NEP', N'PROGRAM-1', N'LZ', NULL);
+            INSERT dbo.tProjectStages(ProjectFK, ProgramFK, RevisionId, StageId) VALUES
+                (N'PROJECT-AT-GAA', N'PROGRAM-1', 140, 6),
+                (N'PROJECT-AT-NEP', N'PROGRAM-1', 141, 2);
+            INSERT dbo.tProjectComponentCost(Id, ProjectRevisionFK, ComponentId, Total, IsDeleted) VALUES
+                (1040, 140, N'CW1', 70, 0),
+                (1041, 141, N'CW1', 30, 0);
+            INSERT dbo.tProjectComponentCostPerYear(ComponentCostFK, Amount, [Year], IsDeleted) VALUES
+                (1040, 70, 2026, 0),
+                (1041, 30, 2026, 0);
+            """);
+
+        // GAA's 70 written into GAA's revision (1); NEP's revision (2) is left alone.
+        await AssertCostAsync(70.00m, stageId: 6);
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand("SELECT Cost FROM dbo.tProgramRevisions WHERE Id = 2", connection);
+        Assert.Equal(0.00m, Convert.ToDecimal(await command.ExecuteScalarAsync()));
     }
 
     // ---------------------------------------------------------------------------------------
@@ -628,6 +707,17 @@ public sealed class RecomputeProgramCostTests : IAsyncLifetime
         object? value = await command.ExecuteScalarAsync();
         Assert.NotNull(value);
         return Convert.ToDecimal(value);
+    }
+
+    private async Task<int> ReadProjectCountAsync(int stageId)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand("SELECT ProjectCount FROM dbo.fProgramStages(N'PROGRAM-1') WHERE StageId = @StageId", connection);
+        command.Parameters.Add(new SqlParameter("@StageId", SqlDbType.Int) { Value = stageId });
+        object? value = await command.ExecuteScalarAsync();
+        Assert.NotNull(value);
+        return Convert.ToInt32(value);
     }
 
     private static async Task ExecuteNonQueryAsync(SqlConnection connection, string sql, SqlTransaction? transaction = null)

@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.19
+**Version:** 3.21
 **Date:** October 29, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -43,6 +43,8 @@
 | 3.17 | October 25, 2026 | RP | RP | Sections 5.2.5 and 5.2.6: batch action prompts name the program, never its internal Program ID. A batch action started from a stage the program has moved past now says so and names the current stage, instead of "Program not found" |
 | 3.18 | October 29, 2026 | RP | RP | Sections 5.2.3 and 5.2.6: each project row in Program Details has a **Delete** button (red trash icon) that deletes that one project, with the same rules, preview and `DELETE` confirmation as Batch Delete |
 | 3.19 | October 29, 2026 | RP | RP | Section 5.2.7: **Actions → Generate Reports** opens the Reports module (Section 5.6) with the program's year, stage and program already selected, instead of its own report dialog; it is shown only to users who can open Reports. Section 5.6 notes the shortcut |
+| 3.20 | October 29, 2026 | RP | RP | Delete rules: a permanent delete happens only at the **BP** or **RBP** stage. Section 5.2 (Deleting a Program): a program can be deleted only while it is at BP or RBP. Section 5.2.5: new **Deleted projects (N)** button and panel in Program Details, to restore a project deleted at the current stage without typing its ID. Section 5.2.6: Batch Delete and the row Delete permanently delete only a project still at BP or RBP; at any other stage they delete it at that stage only, and it can be restored; the success message names only what happened. A BP/P Project ID freed by a permanent delete is given to the next new project |
+| 3.21 | October 29, 2026 | RP | RP | Section 5.2.5: **Deleted projects** also lists projects deleted at an earlier stage, with an info note; **Restore into &lt;stage&gt;** adds such a project to the program's current stage with the data it had when deleted. A project deleted before the program moves on stays deleted. Program list and Program Details: a deleted project no longer counts in **No. of Projects** or **Cost** |
 
 ### Consultant
 
@@ -484,7 +486,7 @@ Every section follows the same rule, so the totals agree: the FY Infrastructure 
 | Name | Program name. Clickable — expands or collapses the row to show the program's stages. |
 | Status | Current working status of the program (e.g., Working, Approved). |
 | Program Type | Classification badge (e.g., Budget Proposal, TF). |
-| No. of Projects | Number of projects currently linked to this program. |
+| No. of Projects | Number of projects currently linked to this program. Deleted projects are not counted. |
 | Start Year | Fiscal year the program begins. |
 | Actions | **View** button and **Delete** button. |
 
@@ -610,6 +612,8 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **On Success (Delete):** The program is permanently removed and the list refreshes automatically.
 
+> **When a program can be deleted:** only while it is at the **BP** or **RBP** stage, is not Approved, and all its projects have been deleted. A program that has moved on to a later stage, or was created at a later stage (for example NEP), cannot be permanently deleted; the Delete button is greyed out and its tooltip says why.
+
 ---
 
 **On Success (Program List):** The Programs page loads and displays all programs. Search and filter results update the table without reloading the page. The pagination bar at the bottom shows the current page range and total count.
@@ -685,7 +689,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 | Name | Program name |
 | Start Year | Fiscal year of the program |
 | Program Type | Classification of the program |
-| Cost | Total cost (derived from Project Details) |
+| Cost | Total cost (derived from Project Details) of the projects at the program's current stage. A deleted project does not count. |
 | Status | Working or Approved |
 | User Groups | Groups with access to this program |
 | Data Security Access | Data visibility restriction |
@@ -744,7 +748,11 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Who uses this:** The same users who can use Batch Delete (DPC, RPC, PS Admin).
 
-**Prerequisites:** The projects were deleted from this program with **Batch Delete** at a stage after the one where they were first added. A project removed permanently (deleted at the stage where it was first added) no longer exists and cannot be restored. Nothing is restored in an **Approved** program, or for a project already published to PCMA. A Lump Sum project is restored like any other project; an itemized project is always removed permanently when deleted, so it cannot be restored.
+**Prerequisites:** The projects were deleted from this program at a stage where a delete is not permanent (any stage except a project's BP or RBP stage). A project removed permanently (deleted while still at BP or RBP) no longer exists and cannot be restored. Nothing is restored in an **Approved** program, or for a project already published to PCMA. A Lump Sum project is restored like any other project; an itemized project is always removed permanently when deleted, so it cannot be restored.
+
+**Deleted projects (N):** the easiest way to restore. In Program Details, the **Deleted projects (N)** button next to **Batch Actions** shows how many projects were deleted at the program's current stage. Click it to see them, with the Project ID, Description, Cost, who deleted each one and when. Click **Restore** on a row, or tick several rows and click **Restore selected**. The restored projects reappear in the Projects table and the count goes down. A row that cannot be restored (published, or the program is Approved) shows why and its Restore button is greyed out. Projects permanently deleted at BP or RBP are not listed: there is nothing to restore.
+
+**Deleted at an earlier stage:** a project deleted before the program moved on stays deleted; proceeding to the next stage does not bring it back. Such projects are listed in the panel's second section, **Deleted at an earlier stage**, with the stage each one was deleted at. A note explains that the program has moved on: restoring one adds it to the stage the program is at now, with the data it had when it was deleted (cost, funding, work items, documents and notes), and the stages in between are skipped. For example, a project deleted at HGAB, in a program now at GAA, is restored into GAA. Click **Restore into &lt;stage&gt;** on its row, or tick it and click **Restore selected**. A BP Project ID becomes P, as when a program proceeds from BP; the row shows the new ID. A Lump Sum project, or one whose Project ID is now used by another project, cannot be restored this way, and the row says why.
 
 **Field Reference:**
 
@@ -826,9 +834,17 @@ When a program row is expanded, a nested table lists all budget stages under tha
 3. Type `DELETE` in the confirmation field.
 4. Click **Yes, Delete Projects**.
 
-**On Success:** The selected projects are permanently deleted.
+**What a delete does:**
 
-> **Warning:** Batch Delete cannot be undone.
+| The project is… | The delete is… | Can it be restored? |
+|---|---|---|
+| Still at the **BP** or **RBP** stage (its only stage) | **Permanent**: the project is removed. Its BP/P Project ID is given to the next new project. | No |
+| At any other stage (it has moved on, or was added at a later stage) | **At this stage only**: the project is hidden at the current stage; its earlier stages are kept | Yes, from **Deleted projects** or Batch Restore |
+| Published to PCMA, or the program is Approved | Not deleted (Lump Sum itemized projects are the exception: always permanent) | — |
+
+**On Success:** The message names only what happened, for example *"1 project(s) permanently deleted (BP/RBP stage)."* or *"1 project(s) deleted at the current stage; they can be restored from Deleted projects."*
+
+> **Warning:** A permanent delete (BP or RBP stage) cannot be undone.
 
 ---
 
@@ -840,11 +856,11 @@ To delete a single project, use the **Delete** button (red trash icon) in the pr
 
 1. Find the project in the Projects table of Program Details.
 2. Click the red trash icon in its **Actions** column. The system checks the project first.
-3. The **Delete Project** dialog shows what will happen: permanently deleted (first stage entry), deleted at the current stage (can be restored with Batch Restore), or not deleted and why.
+3. The **Delete Project** dialog shows what will happen: permanently deleted (BP/RBP stage), deleted at the current stage (can be restored from **Deleted projects**), or not deleted and why.
 4. Type `DELETE` in the confirmation field.
 5. Click **Yes, Delete Project**, or **Cancel** to stop.
 
-**On Success:** The Batch Delete message is shown (e.g. *"0 project(s) permanently deleted (first stage entry), 1 project(s) deleted at the current stage."*) and the Projects table refreshes on page 1 without the project.
+**On Success:** The Batch Delete message is shown (e.g. *"1 project(s) deleted at the current stage; they can be restored from Deleted projects."*) and the Projects table refreshes on page 1 without the project. The **Deleted projects (N)** count goes up for a delete that can be restored.
 
 ---
 

@@ -141,9 +141,13 @@ GO
    THE RULE (2026-09-15 per-year basis; Lump Sum part decided 2026-09-18):
 
    - An ORDINARY project counts at the program's current stage, on the latest
-     revision it has at that stage, from dbo.tProjectComponentCostPerYear: when
-     it holds ONE distinct Year, that year's amount whatever the year is; when it
-     holds SEVERAL, only the program year (dbo.tPrograms.StartYear).
+     LIVE revision it has at that stage, from dbo.tProjectComponentCostPerYear:
+     when it holds ONE distinct Year, that year's amount whatever the year is;
+     when it holds SEVERAL, only the program year (dbo.tPrograms.StartYear).
+     2026-10-29: a soft-deleted revision is out. Batch Delete flags the current
+     stage's revision, so a project deleted at the stage stops counting there;
+     it used to keep counting until hard-deleted. The current stage is the one
+     vProgramLatest shows: the highest StageHierarchy, then the newest stage row.
 
    - AT GAA-R, AND ONLY THERE (2026-09-20, RISK-108): an ordinary project with an
      effective approved Formal Revision is read from that revision's
@@ -210,10 +214,17 @@ RETURN
         opt.[Name]              AS ProgramType,
         pg.StartYear            AS StartYear,
 
+        /*  The live stage rows, the rows fProgramProjects lists at this stage: a
+            project deleted here is out (2026-10-29; it stayed in until hard-deleted).
+            A stage row whose revision row is missing still counts, as it did.
+            COUNT(*), not COUNT(DISTINCT ProjectFK): the same figure as the Program
+            Details table, at a tenth of the cost on a 16,000-project stage. */
         (SELECT COUNT(*)
          FROM dbo.tProjectStages ps2
          WHERE ps2.ProgramFK = @ProgramPK
            AND ps2.StageId   = pgs.StageId
+           AND NOT EXISTS (SELECT 1 FROM dbo.tProjectRevisions dr
+                           WHERE dr.Id = ps2.RevisionId AND dr.IsDeleted = 1)
         )                       AS ProjectCount,
 
         /*  THE PROGRAM'S COST AT THIS STAGE, on the rule dbo.pRecomputeProgramCost
@@ -256,6 +267,8 @@ RETURN
                 FROM dbo.tProjectStages ps3
                 WHERE ps3.ProgramFK = @ProgramPK
                   AND ps3.StageId   = pgs.StageId
+                  AND NOT EXISTS (SELECT 1 FROM dbo.tProjectRevisions dr
+                                  WHERE dr.Id = ps3.RevisionId AND dr.IsDeleted = 1)
             ) sr
             JOIN dbo.tProjects prj
               ON prj.ProjectPK = sr.ProjectFK
@@ -365,11 +378,18 @@ BEGIN
     DECLARE @CurrentRevisionId INT, @CurrentStageId INT, @StartYear INT, @AtGaaR BIT,
             @OrdinaryCost DECIMAL(38,5), @LumpSumCost DECIMAL(38,5), @NewCost DECIMAL(18,2);
 
+    /*  THE CURRENT STAGE, picked the way vProgramLatest picks it (2026-10-29): the highest
+        StageHierarchy, then the newest stage row. It was the newest program revision by Id,
+        which is another stage on a program whose stages were inserted out of order (legacy
+        imports: 11 of 108 programs on myps_db_dev, all at GAA-R). There the recompute wrote
+        an earlier stage's figure into that stage's revision, and the stored Cost of the
+        current stage's revision, which Program Details shows there, was never recomputed. */
     SELECT TOP 1 @CurrentRevisionId = pgr.Id, @CurrentStageId = pgs.StageId
     FROM dbo.tProgramRevisions pgr
     JOIN dbo.tProgramStages pgs ON pgs.RevisionId = pgr.Id
+    JOIN dbo.tOptionProgramStage o ON o.Id = pgs.StageId
     WHERE pgr.ProgramFK = @ProgramPK
-    ORDER BY pgr.Id DESC;
+    ORDER BY o.StageHierarchy DESC, pgs.Id DESC;
 
     IF @CurrentRevisionId IS NULL
     BEGIN
@@ -399,8 +419,11 @@ BEGIN
 
     /*  1. THE ORDINARY PROJECTS AT THE CURRENT STAGE, materialised ONCE.
 
-        tProjectStages carries one row per revision, so the latest revision of each
-        project at the stage is what counts. Lump Sum PARENTS are not in this set:
+        tProjectStages carries one row per revision, so the latest LIVE revision of
+        each project at the stage is what counts: a revision Batch Delete flagged is
+        skipped (2026-10-29), the same test its liveAtStage and the stage advance use.
+        NOT EXISTS rather than a join, so a stage row whose revision row is missing
+        counts as it did. Lump Sum PARENTS are not in this set:
         they count program-wide in step 3, whatever stage their own row sits at.
         Itemized CHILDREN are not in it either (RISK-009). A NULL ProjectType is an
         ordinary project.
@@ -425,6 +448,8 @@ BEGIN
         FROM dbo.tProjectStages ps
         WHERE ps.ProgramFK = @ProgramPK
           AND ps.StageId   = @CurrentStageId
+          AND NOT EXISTS (SELECT 1 FROM dbo.tProjectRevisions dr
+                          WHERE dr.Id = ps.RevisionId AND dr.IsDeleted = 1)
     ) sr
     JOIN dbo.tProjects prj ON prj.ProjectPK = sr.ProjectFK
     WHERE sr.rn = 1

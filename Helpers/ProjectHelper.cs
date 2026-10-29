@@ -385,6 +385,52 @@ namespace Helpers
             await using var reservationConnection = new SqlConnection(_db.Database.GetConnectionString());
             await reservationConnection.OpenAsync(cancellationToken);
 
+            // RISK-072 fix (2026-09-19): check BOTH tables, not just tProjects.ProjectPK.
+            // ProgramController's stage-advance swap rewrites tProjectRevisions.ProjectId to
+            // the P-prefixed form but never updates tProjects.ProjectPK, so a swapped value is
+            // invisible to a tProjects-only check -- letting a later unrelated AddProject mint
+            // a real duplicate. Mirrors the two-table shape ProgramController's own swap
+            // collision check already uses.
+            // includeDeleted: a released id must not be carried even by a soft-deleted revision (a
+            // soft-deleted project keeps its id reserved); a fresh counter value keeps the old check.
+            async Task<bool> InUseAsync(string projectId, bool includeDeleted = false) =>
+                await _db.tProjects
+                    .AsNoTracking()
+                    .AnyAsync(x => x.ProjectPK == projectId, cancellationToken)
+                || await _db.tProjectRevisions
+                    .AsNoTracking()
+                    .AnyAsync(x => x.ProjectId == projectId && (includeDeleted || !x.IsDeleted), cancellationToken);
+
+            // 2026-10-29 (delete-rules-projects-programs-stages.md): a BP/P id freed by a permanent
+            // delete (dbo.tProjectIdReleased, filled by ExecuteProjectDeletion.sql and
+            // ExecuteProgramStageDeletion.sql) is handed out again, lowest first, before the counter
+            // advances. Claimed on the same dedicated connection as the counter, so the claim is just
+            // as durable: an operation that fails after it loses that id, as it would a counter value.
+            // A released id something has taken since is skipped (claimed and dropped). MY ids are
+            // never released, so never claimed.
+            if (FirstSegment is "BP" or "P")
+            {
+                const int maxReuseClaims = 5;
+                for (int claim = 1; claim <= maxReuseClaims; claim++)
+                {
+                    int? releasedSequence = await reservationConnection.ExecuteScalarAsync<int?>(new CommandDefinition(
+                        ClaimReleasedProjectIdSql,
+                        new { request.CategoryId, Suffix = FirstSegment, IslandCode = request.IslandCode ?? string.Empty, request.YearStart },
+                        commandTimeout: 120,
+                        cancellationToken: cancellationToken));
+                    if (releasedSequence is null)
+                    {
+                        break;
+                    }
+
+                    string reusedProjectId = $"{FirstSegment}{SecondSegment}{releasedSequence.Value:D5}{request.IslandCode}";
+                    if (!await InUseAsync(reusedProjectId, includeDeleted: true))
+                    {
+                        return reusedProjectId;
+                    }
+                }
+            }
+
             // RISK-072 fix (2026-09-19): retry past a collision instead of failing outright.
             // Each pReserveProjectIdBlock call durably advances the counter by exactly 1 (see the
             // dedicated-connection note above), so a retry always evaluates a genuinely new value
@@ -438,20 +484,7 @@ namespace Helpers
                 string ThirdSegment = rangeStart.ToString("D5");
                 string ProjectId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{request.IslandCode}";
 
-                // RISK-072 fix (2026-09-19): check BOTH tables, not just tProjects.ProjectPK.
-                // ProgramController's stage-advance swap rewrites tProjectRevisions.ProjectId to
-                // the P-prefixed form but never updates tProjects.ProjectPK, so a swapped value is
-                // invisible to a tProjects-only check -- letting a later unrelated AddProject mint
-                // a real duplicate. Mirrors the two-table shape ProgramController's own swap
-                // collision check already uses.
-                bool duplicateExists = await _db.tProjects
-                    .AsNoTracking()
-                    .AnyAsync(x => x.ProjectPK == ProjectId, cancellationToken)
-                    || await _db.tProjectRevisions
-                    .AsNoTracking()
-                    .AnyAsync(x => x.ProjectId == ProjectId && !x.IsDeleted, cancellationToken);
-
-                if (!duplicateExists)
+                if (!await InUseAsync(ProjectId))
                 {
                     return ProjectId;
                 }
@@ -463,6 +496,24 @@ namespace Helpers
                 collidedProjectId,
                 $"Project ID generation failed: still colliding after {maxAttempts} attempts (last tried '{collidedProjectId}'). The allocator counter is likely out of sync with existing data -- verify dbo.tProjectIdSequence against dbo.tProjects/dbo.tProjectRevisions for this category, suffix, island and year before retrying.");
         }
+        /// <summary>Takes the lowest released sequence of one counter bucket out of dbo.tProjectIdReleased
+        /// (READPAST: two concurrent generators never get the same one). NULL when there is none, or
+        /// while the table does not exist (before Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql).</summary>
+        private const string ClaimReleasedProjectIdSql = """
+            IF OBJECT_ID(N'dbo.tProjectIdReleased', N'U') IS NULL
+                SELECT CAST(NULL AS INT);
+            ELSE
+            BEGIN
+                WITH NextReleased AS (
+                    SELECT TOP (1) Sequence
+                    FROM dbo.tProjectIdReleased WITH (UPDLOCK, READPAST, ROWLOCK)
+                    WHERE CategoryId = @CategoryId AND Suffix = @Suffix AND IslandCode = @IslandCode AND YearStart = @YearStart
+                    ORDER BY Sequence)
+                DELETE FROM NextReleased
+                OUTPUT DELETED.Sequence;
+            END
+            """;
+
         public static string GenerateProjec1stSegment(this string StageName)
         {
             var stageGroups = new Dictionary<string, string[]>

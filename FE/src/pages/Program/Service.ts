@@ -2,7 +2,7 @@
 import { httpClient } from '../../services/httpClient';
 import type { ImportProjectDTO } from '../Project/Model';
 
-import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportDropdowns, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, BatchActionResponse, BatchDeletePreview, ImportJobStatus } from './Model';
+import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportDropdowns, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, BatchActionResponse, BatchDeletePreview, ImportJobStatus, DeletedProjectsResponse } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -186,6 +186,32 @@ export const batchRestrictPublishing = async (data: { ProgramId: string; Project
         return request;
     } catch (ErrorResponse) {
         console.error('Error restricting publishing of projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+
+/** Read-only: the projects deleted at the program's current stage, for the Deleted projects panel.
+ *  `silent` for the background count on Program Details: no preloader, no error toast. */
+export const fetchDeletedProjects = async (programId: string, options: { silent?: boolean } = {}) => {
+    try {
+        const request = await httpClient.post<DeletedProjectsResponse>('/Program/ShowDeletedProjects', { ProgramId: programId },
+            options.silent ? { silent: true } : { preloaderMessage: 'Loading deleted projects...' });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error loading deleted projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+
+/** Restores projects deleted at a stage the program has left INTO its current stage (copied forward; the old copy stays deleted). */
+export const restoreToCurrentStage = async (data: { ProgramId: string; ProjectFKs: string[] }) => {
+    try {
+        const request = await httpClient.post<BatchActionResponse>('/Program/RestoreToCurrentStage', data, {
+            preloaderMessage: 'Restoring projects into the current stage...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error restoring projects into the current stage:', ErrorResponse);
         throw ErrorResponse;
     }
 }

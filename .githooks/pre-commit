@@ -1,0 +1,4 @@
+#!/bin/sh
+# Drafts a release note when a commit changes app code without one (changelog-draft.mjs).
+# Enabled per clone with: git config core.hooksPath .githooks
+exec node "$(dirname "$0")/changelog-draft.mjs"

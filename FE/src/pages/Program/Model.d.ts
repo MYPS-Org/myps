@@ -245,6 +245,31 @@ export interface ProgramList {
 	IsPublishable: boolean;
 }
 
+/** One row of the Deleted projects panel (POST /Program/ShowDeletedProjects). */
+export interface DeletedProject {
+	RevisionId: number;
+	ProjectFK: string;
+	ProjectId?: string | null;
+	Description?: string | null;
+	Cost?: number | null;
+	/** The stage it was deleted at. */
+	DeletedStageName?: string | null;
+	/** False: deleted at a stage the program has left; Restore copies it into the current stage. */
+	DeletedAtCurrentStage: boolean;
+	/** The Project ID it gets in the current stage (a BP id becomes P at a P stage). */
+	RestoredProjectId?: string | null;
+	DeletedBy?: string | null;
+	DeletedByName?: string | null;
+	DeletedDate?: string | null;
+	CanRestore: boolean;
+	RestoreBlockedReason?: string | null;
+}
+
+export interface DeletedProjectsResponse {
+	StageName: string;
+	Projects: DeletedProject[];
+}
+
 /** Matches tOptionProjectCategory (same shape as CategoryEnum in Project model) */
 export interface AIPDropdownCategory {
   Id: number;

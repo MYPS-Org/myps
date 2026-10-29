@@ -65,8 +65,12 @@ const BatchRestoreDialog: React.FC<BatchRestoreDialogProps> = ({
               </DialogTitle>
 
               <div className="mt-3 text-sm text-gray-600">
-                <p className="mb-4">
+                <p className="mb-2">
                   Restore multiple deleted projects back to this program. Enter the project IDs below to restore them.
+                </p>
+                <p className="mb-4 text-xs text-gray-500">
+                  This restores projects deleted at the current stage. A project deleted at an earlier stage is restored into
+                  the current stage from <span className="font-medium">Deleted projects</span>.
                 </p>
 
                 <div className="bg-gray-50 rounded-md p-3 space-y-1 mb-4">

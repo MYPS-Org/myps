@@ -36,7 +36,7 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
       case 'delete':
         return {
           title: 'Batch Delete Projects',
-          description: 'Delete multiple projects at once. Projects still on their first stage are permanently deleted; projects that have moved on with the program are deleted at the current stage and can be restored. You will see which is which before you confirm.',
+          description: 'Delete multiple projects at once. Only projects still at the BP or RBP stage are permanently deleted; every other project is deleted at the current stage and can be restored from Deleted projects. You will see which is which before you confirm.',
           icon: TrashIcon,
           iconColor: 'text-red-600',
           iconBg: 'bg-red-100',

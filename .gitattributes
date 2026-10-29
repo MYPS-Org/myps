@@ -3,6 +3,9 @@
 ###############################################################################
 * text=auto
 
+# Git hooks run under sh: a CRLF line ending breaks the shebang and the exec line.
+.githooks/* text eol=lf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

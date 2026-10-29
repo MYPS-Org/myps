@@ -154,8 +154,8 @@ test.describe('Program Details — batch actions', () => {
       await page.getByRole('button', { name: 'Delete Projects', exact: true }).click();
 
       /*  2026-10-15: the confirm dialog shows the SERVER's preview before asking for DELETE.
-          A first-stage project is listed as permanently deleted, and the warning says so. */
-      await expect(page.getByText('Permanently deleted (first stage entry) (1)')).toBeVisible();
+          A first-stage project (BP/RBP) is listed as permanently deleted, and the warning says so. */
+      await expect(page.getByText('Permanently deleted (BP/RBP stage) (1)')).toBeVisible();
       await expect(page.getByText('You are about to permanently delete 1 project(s). This cannot be undone.')).toBeVisible();
 
       /*  The confirm dialog asks for the word, then repeats the action in its own

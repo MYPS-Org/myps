@@ -40,9 +40,6 @@ const ChangelogDialog: React.FC<ChangelogDialogProps> = ({ isOpen, onClose }) =>
               <DisclosureButton className="group flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
                 <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{release.version}</span>
                 <span className="flex-1 text-sm font-medium text-gray-900">{release.title}</span>
-                {release.unreleased && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Not yet released</span>
-                )}
                 <ChevronDownIcon className="h-4 w-4 text-gray-400 transition-transform group-data-[open]:rotate-180" />
               </DisclosureButton>
               <DisclosurePanel className="border-t border-gray-100 px-4 pb-4 pt-3">

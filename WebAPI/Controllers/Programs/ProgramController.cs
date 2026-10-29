@@ -572,6 +572,521 @@ namespace WebAPI.Controllers.Programs
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
         }
+
+        /*  The Deleted projects panel's rows, from each project's NEWEST deleted revision in this program:
+              - deleted at the CURRENT stage (DeletedAtCurrentStage = 1): Batch Restore
+                (BatchAddExistingProject) un-deletes exactly that revision, so the row reappears here;
+              - deleted at an EARLIER stage the program has since left, with nothing at the current
+                stage (2026-10-29): advancing never carries a deleted project forward, so it is back
+                only through RestoreToCurrentStage, which copies it into the current stage.
+            Who and when come from the soft-delete audit row (ProjectHelper.AddSoftDeleteAuditRows). */
+        private const string DeletedProjectsSql = """
+            WITH LatestDeleted AS (
+                SELECT r.ProjectFK, MAX(r.Id) AS RevisionId
+                FROM dbo.tProjectRevisions r
+                WHERE r.ProgramFK = @ProgramFK AND r.IsDeleted = 1
+                GROUP BY r.ProjectFK
+            )
+            SELECT r.Id AS RevisionId, r.ProjectFK, r.ProjectId, r.Description,
+                   (SELECT SUM(c.Total) FROM dbo.tProjectComponentCost c
+                    WHERE c.ProjectRevisionFK = r.Id AND c.IsDeleted = 0) AS Cost,
+                   s.StageName AS DeletedStageName,
+                   CAST(CASE WHEN s.StageId = @StageId THEN 1 ELSE 0 END AS BIT) AS DeletedAtCurrentStage,
+                   pj.ProjectType,
+                   del.CreatedBy AS DeletedBy, u.Name AS DeletedByName, del.CreatedDate AS DeletedDate
+            FROM LatestDeleted ld
+            JOIN dbo.tProjectRevisions r ON r.Id = ld.RevisionId
+            JOIN dbo.tProjectStages s ON s.RevisionId = r.Id AND s.ProgramFK = @ProgramFK
+            JOIN dbo.tProjects pj ON pj.ProjectPK = r.ProjectFK
+            OUTER APPLY (SELECT TOP (1) l.CreatedBy, l.CreatedDate
+                         FROM dbo.tTransactionLog l
+                         WHERE l.ReferenceId = r.ProjectFK
+                           AND l.AffectedTable = N'tProjectRevisions' AND l.AffectedColumn = N'IsDeleted' AND l.NewValue = N'true'
+                           AND ISJSON(l.OldValue) = 1 AND JSON_VALUE(l.OldValue, '$.RevisionId') = CAST(r.Id AS NVARCHAR(20))
+                         ORDER BY l.CreatedDate DESC, l.Id DESC) del
+            LEFT JOIN dbo.vUsers u ON u.UserId = del.CreatedBy
+            WHERE s.StageId = @StageId
+               OR NOT EXISTS (SELECT 1 FROM dbo.tProjectStages cs
+                              WHERE cs.ProgramFK = @ProgramFK AND cs.ProjectFK = r.ProjectFK AND cs.StageId = @StageId)
+            ORDER BY DeletedAtCurrentStage DESC, del.CreatedDate DESC, r.ProjectId;
+            """;
+
+        public sealed class DeletedProjectRow
+        {
+            public int RevisionId { get; set; }
+            public string ProjectFK { get; set; } = string.Empty;
+            public string? ProjectId { get; set; }
+            public string? Description { get; set; }
+            public decimal? Cost { get; set; }
+            /// <summary>The stage the project was deleted at.</summary>
+            public string? DeletedStageName { get; set; }
+            /// <summary>False: deleted at a stage the program has left; Restore copies it into the current stage.</summary>
+            public bool DeletedAtCurrentStage { get; set; }
+            public string? ProjectType { get; set; }
+            public string? DeletedBy { get; set; }
+            public string? DeletedByName { get; set; }
+            public DateTime? DeletedDate { get; set; }
+            public bool CanRestore { get; set; }
+            public string? RestoreBlockedReason { get; set; }
+            /// <summary>The Project ID the project gets in the current stage (a BP id becomes P at a P stage).</summary>
+            public string? RestoredProjectId { get; set; }
+        }
+
+        /// <summary>
+        /// 2026-10-29: the Deleted projects panel in Program Details -- the projects deleted at the
+        /// program's current stage, and those deleted at an earlier stage the program has left, with
+        /// who deleted them, when, and whether Restore can bring them back (a published project, or
+        /// any project of an Approved program, cannot be restored: BatchAddExistingProject's own rule;
+        /// a Lump Sum project, or one whose Project ID is now someone else's, cannot be copied into
+        /// the current stage). Read-only.
+        /// </summary>
+        [HttpPost]
+        [RequiresDeletionObjects]
+        public async Task<IActionResult> ShowDeletedProjects([FromBody] ShowDeletedProjectsDTO dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dto?.ProgramId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Program ID is required.", Title = "Invalid Program" });
+                }
+                var (error, program, stage) = await ResolveCurrentStageAsync(dto.ProgramId, cancellationToken);
+                if (error != null) return error;
+
+                var rows = await LoadDeletedProjectsAsync(program!.ProgramPK, stage!, cancellationToken);
+                return Ok(new
+                {
+                    stage!.StageName,
+                    Projects = rows
+                });
+            }
+            catch (Exception ex)
+            {
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+        }
+
+        /// <summary>The program's current stage, from the ProgramId the user is looking at; an error
+        /// result when that is not the program's current stage any more.</summary>
+        private async Task<(IActionResult? Error, DBHelper.Models.Table.Program.Programs? Program, DBHelper.Models.Table.Program.ProgramStages? Stage)>
+            ResolveCurrentStageAsync(string programId, CancellationToken cancellationToken)
+        {
+            var checkProgram = await _db.vProgramLatest.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == programId, cancellationToken);
+            if (checkProgram == null)
+            {
+                return (await ProgramNotCurrentResultAsync(programId, cancellationToken), null, null);
+            }
+            var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
+            {
+                ProgramId = programId,
+                StageName = checkProgram.StageName,
+                _Session = _Session
+            }, cancellationToken);
+            if (!ValidateProgramId.IsValid)
+            {
+                return (new BadRequestObjectResult(new { Data = ValidateProgramId.Message, Title = ValidateProgramId.Title, Message = ValidateProgramId.Message }), null, null);
+            }
+            return (null, ValidateProgramId.Data.Program, ValidateProgramId.Data.ProgramStage);
+        }
+
+        /// <summary>The panel's rows with CanRestore and the reason decided; also the candidates
+        /// RestoreToCurrentStage acts on, so the panel and the action never disagree.</summary>
+        private async Task<List<DeletedProjectRow>> LoadDeletedProjectsAsync(
+            string programPK, DBHelper.Models.Table.Program.ProgramStages stage, CancellationToken cancellationToken)
+        {
+            var rows = (await _sql.QueryAsync<DeletedProjectRow>(
+                DeletedProjectsSql,
+                new { ProgramFK = programPK, StageId = (int)stage.StageId },
+                ct: cancellationToken)).ToList();
+            if (rows.Count == 0) return rows;
+
+            var tiers = await _db.DetermineProjectDeletionTiersAsync(rows.Select(x => x.ProjectFK).ToArray(), programPK, cancellationToken);
+            foreach (var row in rows)
+            {
+                row.RestoredProjectId = row.DeletedAtCurrentStage ? row.ProjectId : ForwardProjectId(row.ProjectId, stage.StageName);
+            }
+            var takenIds = await ForwardIdsTakenAsync(rows.Where(x => !x.DeletedAtCurrentStage), cancellationToken);
+
+            foreach (var row in rows)
+            {
+                var tier = tiers.FirstOrDefault(x => string.Equals(x.ProjectFK, row.ProjectFK, StringComparison.OrdinalIgnoreCase));
+                string? reason = tier == null ? "not found in this program" : RestoreRefusal(tier);
+                if (reason == null && !row.DeletedAtCurrentStage)
+                {
+                    if (string.Equals(row.ProjectType, "LS", StringComparison.OrdinalIgnoreCase))
+                        reason = "a Lump Sum project cannot be restored into a later stage";
+                    else if (takenIds.Contains(row.ProjectFK))
+                        reason = $"its Project ID {row.RestoredProjectId} now belongs to another project";
+                }
+                row.CanRestore = reason == null;
+                row.RestoreBlockedReason = reason;
+            }
+            return rows;
+        }
+
+        /// <summary>The Project ID a project gets when copied into <paramref name="currentStageName"/>:
+        /// a BP id becomes P at a P stage (NEP to GAA-R), as UpdateProgramStage swaps it when a
+        /// program leaves BP; any other id is kept.</summary>
+        private static string ForwardProjectId(string? projectId, string currentStageName)
+        {
+            string id = projectId ?? string.Empty;
+            return id.StartsWith("BP", StringComparison.Ordinal) && currentStageName.GenerateProjec1stSegment() == "P"
+                ? id.ReplaceFirst("BP", "P")
+                : id;
+        }
+
+        /// <summary>ProjectFKs whose forward Project ID another project already holds (its PK, or a
+        /// revision of it), so copying it into the current stage would mint a duplicate.</summary>
+        private async Task<HashSet<string>> ForwardIdsTakenAsync(IEnumerable<DeletedProjectRow> rows, CancellationToken cancellationToken)
+        {
+            var wanted = rows.Where(x => !string.IsNullOrEmpty(x.RestoredProjectId)).ToList();
+            var ids = wanted.Select(x => x.RestoredProjectId!).Distinct().ToList();
+            var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (ids.Count == 0) return taken;
+
+            var byPK = await _db.tProjects.AsNoTracking().Where(p => ids.Contains(p.ProjectPK)).Select(p => p.ProjectPK).ToListAsync(cancellationToken);
+            var byRevision = await _db.tProjectRevisions.AsNoTracking().Where(r => ids.Contains(r.ProjectId))
+                .Select(r => new { r.ProjectId, r.ProjectFK }).Distinct().ToListAsync(cancellationToken);
+            foreach (var row in wanted)
+            {
+                bool otherPK = byPK.Any(pk => string.Equals(pk, row.RestoredProjectId, StringComparison.OrdinalIgnoreCase)
+                                           && !string.Equals(pk, row.ProjectFK, StringComparison.OrdinalIgnoreCase));
+                bool otherRevision = byRevision.Any(r => string.Equals(r.ProjectId, row.RestoredProjectId, StringComparison.OrdinalIgnoreCase)
+                                                      && !string.Equals(r.ProjectFK, row.ProjectFK, StringComparison.OrdinalIgnoreCase));
+                if (otherPK || otherRevision) taken.Add(row.ProjectFK);
+            }
+            return taken;
+        }
+
+        /// <summary>
+        /// Copies the live child rows of each old revision onto its new one, field for field as
+        /// UpdateProgramStage does when a program advances (funding, component costs with their years,
+        /// major work items and locations, supporting documents), plus the notes. Not through
+        /// dbo.pCopyProjectDetailChain: that procedure exists only in the database, and the copy on
+        /// myps_db_dev leaves out the NOT NULL ComponentId of the year, work item and location rows.
+        /// Notes go through SQL because the EF ProjectNotes model does not match tProjectNotes.
+        /// Runs inside the caller's transaction.
+        /// </summary>
+        private async Task CopyLiveChildRowsAsync(IReadOnlyDictionary<int, int> newRevisionByOld, CancellationToken cancellationToken)
+        {
+            var oldIds = newRevisionByOld.Keys.ToHashSet();
+
+            var funding = await _db.tProjectFundingProfile.AsNoTracking()
+                .Where(x => oldIds.Contains(x.ProjectRevisionFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+            await _db.tProjectFundingProfile.AddRangeAsync(funding.Select(f => new DBHelper.Models.Table.Project.ProjectFundingProfile
+            {
+                ProjectRevisionFK = newRevisionByOld[f.ProjectRevisionFK],
+                SourceOrg = f.SourceOrg,
+                AgreementCode = f.AgreementCode,
+                Amount = f.Amount,
+                Percentage = f.Percentage,
+                CreatedBy = f.CreatedBy,
+                CreatedDate = f.CreatedDate,
+                IsDeleted = false
+            }), cancellationToken);
+
+            var docs = await _db.tProjectSupportingDocs.AsNoTracking()
+                .Where(x => oldIds.Contains(x.ProjectRevisionFK)).ToListAsync(cancellationToken);
+            await _db.tProjectSupportingDocs.AddRangeAsync(docs.Select(d => new ProjectSupportingDocs
+            {
+                ProjectRevisionFK = newRevisionByOld[d.ProjectRevisionFK],
+                DocTypeFK = d.DocTypeFK,
+                FileName = d.FileName,
+                FileExtension = d.FileExtension,
+                FilePath = d.FilePath,
+                Description = d.Description,
+                CreatedBy = d.CreatedBy,
+                CreatedDate = d.CreatedDate
+            }), cancellationToken);
+
+            foreach (var (oldId, newId) in newRevisionByOld)
+            {
+                await _db.Database.ExecuteSqlInterpolatedAsync($@"
+                    INSERT dbo.tProjectNotes (ProjectRevisionFK, FileName, FileExtension, FilePath, Description, CreatedBy, CreatedDate)
+                    SELECT {newId}, FileName, FileExtension, FilePath, Description, CreatedBy, CreatedDate
+                    FROM dbo.tProjectNotes WHERE ProjectRevisionFK = {oldId}", cancellationToken);
+            }
+
+            // Components first: their new identities are what the year and work-item rows point at.
+            var components = await _db.tProjectComponentCost.AsNoTracking()
+                .Where(x => oldIds.Contains(x.ProjectRevisionFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+            var newComponents = components.Select(c => new DBHelper.Models.Table.Project.ProjectComponentCost
+            {
+                ProjectRevisionFK = newRevisionByOld[c.ProjectRevisionFK],
+                ComponentType = c.ComponentType,
+                ComponentId = c.ComponentId,
+                Description = c.Description,
+                Total = c.Total,
+                CreatedBy = c.CreatedBy,
+                CreatedDate = c.CreatedDate,
+                IsDeleted = false
+            }).ToList();
+            await _db.tProjectComponentCost.AddRangeAsync(newComponents, cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
+            if (components.Count == 0) return;
+
+            var newComponentByOld = new Dictionary<int, int>();
+            for (int i = 0; i < components.Count; i++) newComponentByOld[components[i].Id] = newComponents[i].Id;
+            var oldComponentIds = newComponentByOld.Keys.ToHashSet();
+
+            var years = await _db.tProjectComponentCostPerYear.AsNoTracking()
+                .Where(x => oldComponentIds.Contains(x.ComponentCostFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+            await _db.tProjectComponentCostPerYear.AddRangeAsync(years.Select(y => new DBHelper.Models.Table.Project.ProjectComponentCostPerYear
+            {
+                ComponentCostFK = newComponentByOld[y.ComponentCostFK],
+                ComponentId = y.ComponentId,
+                Amount = y.Amount,
+                Year = y.Year,
+                UACS = y.UACS,
+                StartDate = y.StartDate,
+                EndDate = y.EndDate,
+                CreatedBy = y.CreatedBy,
+                CreatedDate = y.CreatedDate,
+                IsDeleted = false
+            }), cancellationToken);
+
+            var workItems = await _db.tProjectMajorWorkItem.AsNoTracking()
+                .Where(x => oldComponentIds.Contains(x.ComponentCostFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+            var newWorkItems = workItems.Select(w => new DBHelper.Models.Table.Project.ProjectMajorWorkItem
+            {
+                ComponentCostFK = newComponentByOld[w.ComponentCostFK],
+                ComponentId = w.ComponentId,
+                YearOfWork = w.YearOfWork,
+                WorkTypeFK = w.WorkTypeFK,
+                InfraTypeFK = w.InfraTypeFK,
+                CreatedBy = w.CreatedBy,
+                CreatedDate = w.CreatedDate,
+                IsDeleted = false
+            }).ToList();
+            await _db.tProjectMajorWorkItem.AddRangeAsync(newWorkItems, cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
+            if (workItems.Count == 0) return;
+
+            var newWorkItemByOld = new Dictionary<int, int>();
+            for (int i = 0; i < workItems.Count; i++) newWorkItemByOld[workItems[i].Id] = newWorkItems[i].Id;
+            var oldWorkItemIds = newWorkItemByOld.Keys.ToHashSet();
+
+            var locations = await _db.tProjectMajorWorkLocations.AsNoTracking()
+                .Where(x => oldWorkItemIds.Contains(x.WorkItemFK) && !x.IsDeleted).ToListAsync(cancellationToken);
+            await _db.tProjectMajorWorkLocations.AddRangeAsync(locations.Select(loc => new DBHelper.Models.Table.Project.ProjectMajorWorkLocations
+            {
+                WorkItemFK = newWorkItemByOld[loc.WorkItemFK],
+                ComponentId = loc.ComponentId,
+                InfraId = loc.InfraId,
+                DetailedScope = loc.DetailedScope,
+                TargetUnitId = loc.TargetUnitId,
+                TargetUnit = loc.TargetUnit,
+                StartX = loc.StartX,
+                StartY = loc.StartY,
+                EndX = loc.EndX,
+                EndY = loc.EndY,
+                PhysicalTarget = loc.PhysicalTarget,
+                StartStationLimit = loc.StartStationLimit,
+                EndStationLimit = loc.EndStationLimit,
+                StartChainage = loc.StartChainage,
+                EndChainage = loc.EndChainage,
+                Length = loc.Length,
+                CreatedBy = loc.CreatedBy,
+                CreatedDate = loc.CreatedDate,
+                IsDeleted = false
+            }), cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// 2026-10-29 (restore-deleted-project-into-current-stage.md): brings back projects deleted at a
+        /// stage the program has since left, INTO the program's current stage (Alvin: projects of a
+        /// year may have different stage paths, all reaching GAA). Advancing never carries a deleted
+        /// project forward, so un-deleting its old revision (Batch Restore) would put it back at a
+        /// stage the program is no longer at. Instead a new revision is written at the current stage,
+        /// copied from the deleted one (the Project ID becomes P at a P stage), its live child rows
+        /// are copied as an advance copies them (CopyLiveChildRowsAsync), and the old revision stays
+        /// deleted as history.
+        /// One transaction under the per-program delete lock, decided again on locked rows, like Batch
+        /// Restore; the program cost is recomputed before the commit.
+        /// </summary>
+        [HttpPost]
+        [RequiresDeletionObjects]
+        public async Task<IActionResult> RestoreToCurrentStage([FromBody] RestoreToCurrentStageDTO dto, CancellationToken cancellationToken)
+        {
+            IDbContextTransaction? transaction = null;
+            try
+            {
+                if (dto == null || string.IsNullOrWhiteSpace(dto.ProgramId))
+                {
+                    return new BadRequestObjectResult(new { Message = "Program ID is required.", Title = "Invalid Program" });
+                }
+                var requested = (dto.ProjectFKs ?? Array.Empty<string>())
+                    .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                if (requested.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "At least one project is required.", Title = "No Projects Selected" });
+                }
+                var (error, program, stage) = await ResolveCurrentStageAsync(dto.ProgramId, cancellationToken);
+                if (error != null) return error;
+
+                var candidates = (await LoadDeletedProjectsAsync(program!.ProgramPK, stage!, cancellationToken))
+                    .Where(x => !x.DeletedAtCurrentStage && requested.Contains(x.ProjectFK, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+                var notListed = requested.Where(fk => !candidates.Any(c => string.Equals(c.ProjectFK, fk, StringComparison.OrdinalIgnoreCase))).ToArray();
+                var refused = candidates.Where(x => !x.CanRestore).Select(x => new BatchDeleteRefusal(x.ProjectId ?? x.ProjectFK, x.RestoreBlockedReason ?? "cannot be restored")).ToList();
+                var toRestore = candidates.Where(x => x.CanRestore).ToList();
+                if (toRestore.Count == 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"None of these projects can be restored into the {stage!.StageName} stage." +
+                                  (refused.Count > 0 ? " " + string.Join(" ", refused.Select(r => $"{r.ProjectId}: {r.Reason}.")) : string.Empty),
+                        Title = "Restore Not Possible",
+                        MissingProjectIds = notListed,
+                        RefusedProjects = refused
+                    });
+                }
+
+                transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+                await _db.AcquireProgramDeletionLockAsync(program.ProgramPK, cancellationToken);
+
+                // Decided again on locked rows: a publish or an approval that landed after the read
+                // above refuses the whole request instead of slipping by.
+                var projectFKs = toRestore.Select(x => x.ProjectFK).ToArray();
+                var decided = await _db.DecideProjectDeletionsUnderLockAsync(projectFKs, program.ProgramPK, cancellationToken);
+                foreach (var row in toRestore)
+                {
+                    var reason = RestoreRefusal(decided[row.ProjectFK]);
+                    if (reason != null)
+                    {
+                        throw new ProjectHelper.DeletionRefusedException($"Project {row.ProjectId} can no longer be restored here: {reason}.");
+                    }
+                }
+                var sourceIds = toRestore.Select(x => x.RevisionId).ToArray();
+                var sources = await _db.tProjectRevisions.AsNoTracking().Where(r => sourceIds.Contains(r.Id)).ToListAsync(cancellationToken);
+                bool alreadyAtStage = await _db.tProjectStages.AsNoTracking()
+                    .AnyAsync(s => s.ProgramFK == program.ProgramPK && s.StageId == stage!.StageId && projectFKs.Contains(s.ProjectFK), cancellationToken);
+                if (sources.Count != toRestore.Count || sources.Any(r => !r.IsDeleted) || alreadyAtStage)
+                {
+                    throw new ProjectHelper.DeletionRefusedException("These projects changed while the restore was running. Refresh the page and try again.");
+                }
+
+                DateTime currentDate = Functions.CurrentDate();
+                var newRevisions = sources.Select(src => new ProjectRevisions()
+                {
+                    ProjectFK = src.ProjectFK,
+                    ProgramFK = program.ProgramPK,
+                    ProgramId = stage!.ProgramId,
+                    ProjectId = ForwardProjectId(src.ProjectId, stage.StageName),
+                    MYCAApprovalDate = src.MYCAApprovalDate,
+                    Description = src.Description,
+                    AlternateId = src.AlternateId,
+                    Region = src.Region,
+                    Province = src.Province,
+                    City = src.City,
+                    LegislativeDistrict = src.LegislativeDistrict,
+                    DEO = src.DEO,
+                    OperatingUnit = src.OperatingUnit,
+                    ImplementingOffice = src.ImplementingOffice,
+                    IslandCode = src.IslandCode,
+                    Category = src.Category,
+                    Thrust = src.Thrust,
+                    Origin = src.Origin,
+                    Agency = src.Agency,
+                    ImplementationMode = src.ImplementationMode,
+                    EmergencyMode = src.EmergencyMode,
+                    RegionWide = src.RegionWide,
+                    Feasibility = src.Feasibility,
+                    FeasibilityDate = src.FeasibilityDate,
+                    DetailedDesign = src.DetailedDesign,
+                    DetailedDesignDate = src.DetailedDesignDate,
+                    RowAvailable = src.RowAvailable,
+                    Tier = src.Tier,
+                    Rank = src.Rank,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = currentDate,
+                    IsDeleted = false
+                }).ToList();
+                await _db.tProjectRevisions.AddRangeAsync(newRevisions, cancellationToken);
+                await _db.SaveChangesAsync(cancellationToken);
+
+                var oldByProject = sources.ToDictionary(x => x.ProjectFK, x => x, StringComparer.OrdinalIgnoreCase);
+                await _db.tProjectStages.AddRangeAsync(newRevisions.Select(nr => new DBHelper.Models.Table.Project.ProjectStages
+                {
+                    ProjectFK = nr.ProjectFK,
+                    ProgramFK = nr.ProgramFK,
+                    ProgramId = stage!.ProgramId,
+                    RevisionId = nr.Id,
+                    StageId = stage.StageId,
+                    StageName = stage.StageName,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = currentDate
+                }), cancellationToken);
+                foreach (var nr in newRevisions)
+                {
+                    var old = oldByProject[nr.ProjectFK];
+                    var from = toRestore.First(x => string.Equals(x.ProjectFK, nr.ProjectFK, StringComparison.OrdinalIgnoreCase));
+                    _db.tTransactionLog.Add(new TransactionLog
+                    {
+                        ReferenceId = nr.ProjectFK,
+                        TransactionType = EnumTransactionType.Create.ToString(),
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "RestoredIntoStage",
+                        OldValue = System.Text.Json.JsonSerializer.Serialize(new { RevisionId = old.Id, StageName = from.DeletedStageName, old.ProjectId }),
+                        NewValue = System.Text.Json.JsonSerializer.Serialize(new { RevisionId = nr.Id, stage!.StageName, nr.ProjectId }),
+                        CreatedBy = _Session.UserId,
+                        Hostname = Environment.MachineName,
+                        CreatedDate = currentDate
+                    });
+                }
+                await _db.SaveChangesAsync(cancellationToken);
+
+                await CopyLiveChildRowsAsync(newRevisions.ToDictionary(nr => oldByProject[nr.ProjectFK].Id, nr => nr.Id), cancellationToken);
+
+                await _db.RecomputeProgramCostAsync(program.ProgramPK, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                bool partial = notListed.Length > 0 || refused.Count > 0;
+                return Ok(new
+                {
+                    Message = $"{newRevisions.Count} project(s) restored into the {stage!.StageName} stage, with the data they had when deleted." +
+                              (partial ? " Some projects were not restored." : string.Empty),
+                    Title = partial ? "Restore Projects Partially Successful" : "Restore Projects Successful",
+                    RestoredProjectIds = newRevisions.Select(x => x.ProjectId).ToArray(),
+                    MissingProjectIds = notListed,
+                    RefusedProjects = refused
+                });
+            }
+            catch (ProjectHelper.DeletionRefusedException ex)
+            {
+                if (transaction != null)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                }
+                return new BadRequestObjectResult(new { Message = ex.Reason, Title = "Restore Not Possible" });
+            }
+            catch (Exception ex) when (ProgramHelper.IsDeadlock(ex))
+            {
+                if (transaction != null)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                }
+                return new ConflictObjectResult(new { Message = "This program was being changed at the same time. Try again.", Title = "Try Again" });
+            }
+            catch (Exception ex)
+            {
+                if (transaction != null)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                }
+                return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+            finally
+            {
+                if (transaction != null)
+                {
+                    await transaction.DisposeAsync();
+                }
+            }
+        }
+
         [HttpPost]
         public async Task<IActionResult> UpdateProgramDetails([FromBody] UpdateProgramDTO dto, CancellationToken cancellationToken)
         {
@@ -2521,9 +3036,12 @@ namespace WebAPI.Controllers.Programs
 
                 return Ok(new
                 {
-                    Message =
-                        $"{plan!.Hard.Count} project(s) would be permanently deleted, " +
-                        $"{plan.Soft.Count} deleted at the current stage.",
+                    Message = (plan!.Hard.Count, plan.Soft.Count) switch
+                    {
+                        ( > 0, > 0) => $"{plan.Hard.Count} project(s) would be permanently deleted, {plan.Soft.Count} deleted at the current stage.",
+                        ( > 0, _) => $"{plan.Hard.Count} project(s) would be permanently deleted.",
+                        _ => $"{plan.Soft.Count} project(s) would be deleted at the current stage (restorable)."
+                    },
                     Title = "Batch Delete Preview",
                     HardProjectIds = plan.Hard.Select(x => x.Ref).ToArray(),
                     SoftProjectIds = plan.Soft.Select(x => x.Ref).ToArray(),
@@ -2535,6 +3053,23 @@ namespace WebAPI.Controllers.Programs
             {
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
+        }
+
+        /// <summary>
+        /// 2026-10-29: the Batch Delete toast names only what happened. It used to read "0 project(s)
+        /// permanently deleted (first stage entry), 1 project(s) deleted at the current stage." for a
+        /// plain soft delete, which read as if something had been permanently deleted.
+        /// </summary>
+        private static string DescribeDeleted(int hardCount, int softCount)
+        {
+            string permanent = $"{hardCount} project(s) permanently deleted (BP/RBP stage).";
+            string soft = $"{softCount} project(s) deleted at the current stage; they can be restored from Deleted projects.";
+            return (hardCount, softCount) switch
+            {
+                ( > 0, > 0) => $"{permanent} {soft}",
+                ( > 0, _) => permanent,
+                _ => soft
+            };
         }
 
         [HttpPost]
@@ -2620,8 +3155,7 @@ namespace WebAPI.Controllers.Programs
                 return Ok(new
                 {
                     Message =
-                        $"{plan.Hard.Count} project(s) permanently deleted (first stage entry), " +
-                        $"{softCount} project(s) deleted at the current stage." +
+                        DescribeDeleted(plan.Hard.Count, softCount) +
                         (partial ? " Some project IDs were not found or cannot be deleted here." : string.Empty),
                     Title = partial ? "Project Deletion Partially Successful" : "Project Deletion Successful",
                     UpdatedCount = updatedCount,

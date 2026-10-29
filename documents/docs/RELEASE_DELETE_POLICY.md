@@ -35,6 +35,21 @@ Run `Migration.PreviewBatchDeletePermission.2026-10-15.sql` against the target d
 
 Without it, the Batch Delete dialog stops at "Could not check these projects": its preview step is refused with 403.
 
+**Also run (2026-10-29)** `Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql` (documents/plans/delete-rules-projects-programs-stages.md):
+
+- It creates `dbo.tProjectIdReleased` (BP/P ids freed by a permanent delete, handed out again by `GenerateProjectID`) and indexes `tProjectRevisions.ProjectId`.
+- It registers `ProgramController.ShowDeletedProjects` (the Deleted projects panel) and `RestoreToCurrentStage` (restore a project deleted at an earlier stage into the current stage), and grants both to the groups holding `BatchAddExistingProject`.
+- Its last query must return **0 rows**. It is safe to re-run.
+- Without it, deletes and new Project IDs work as before (no reuse), the Deleted projects button stays hidden (403), and Restore into &lt;stage&gt; is refused (403).
+
+**And (2026-10-29)** `Migration.ProgramCostExcludesDeleted.2026-10-29.sql`:
+
+- It changes `dbo.fProgramStages` and `dbo.pRecomputeProgramCost` so a deleted project no longer counts toward the program Cost, and so the recompute updates the current stage (picked by StageHierarchy, as `vProgramLatest` does) and not the newest revision.
+- It patches `vProgramLatest.NumberOfProjects` in place so it leaves deleted projects out. It adds the small filtered index `IX_tProjectRevisions_Deleted_ProgramFK` that keeps that view fast.
+- It then recomputes the Cost of the programs this changes and lists the old and new figures. Capture the three definitions first (the script's header gives the queries).
+- Every result set under "want 0 rows" must be empty. It is safe to re-run. Run it with `-I`.
+- Without it, a soft-deleted project keeps counting in the program Cost and in No. of Projects. A program whose stages were recorded out of order also keeps a Cost in Program Details that differs from the Program list.
+
 ### 2. Check the app login's rights and the compatibility level
 
 The deletion scripts now run as ordinary queries under the **app's own login**. There is no stored procedure whose ownership chain covers them. Run this **as the app's login** (for example `EXECUTE AS LOGIN = '<app login>'` first, then `REVERT`). Every row must say `1`:
@@ -120,7 +135,8 @@ Resources\Internal\SQLObjects\Stored Procedures\ExecuteProgramDeletion.sql
 
 ## Behaviour users will notice
 
-- Batch Delete **permanently** deletes a project on its first stage entry. Later stages are still a restorable delete. The confirm dialog says which, before the user types DELETE.
+- Batch Delete **permanently** deletes a project only while it is still at the **BP or RBP** stage (2026-10-29; before, any first stage entry). Every other delete is restorable, from the **Deleted projects** panel or Batch Restore. The confirm dialog says which, before the user types DELETE, and the success message names only what happened.
+- Delete Program works only while the program is at BP or RBP.
 - Nothing in an **Approved** program can be deleted, except Lump Sum itemized projects. Delete Program is disabled on an Approved program.
 - Published projects are never deleted.
 - **Delete Program no longer deletes projects.** A program can be deleted only once all its projects have been deleted: Batch Delete in Program Details, or the Lump Sum module for Lump Sum projects. The Delete button is disabled with the reason until then. Projects that were already deleted (soft-deleted) do not block it; what is left of them goes with the program, and only within that program.

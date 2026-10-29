@@ -34,7 +34,7 @@ const describeDelete = (preview: BatchDeletePreview) => {
   }
   if (soft > 0) {
     return {
-      message: `You are about to delete ${soft} project(s) at the current stage. They can be restored with Batch Restore.`,
+      message: `You are about to delete ${soft} project(s) at the current stage. Nothing is permanently deleted: they can be restored from Deleted projects.`,
       warningLevel: 'warning' as const,
     };
   }
@@ -199,7 +199,7 @@ const ConfirmDialogBatch: React.FC<ConfirmDialogBatchProps> = ({
                   /* Server preview: what will happen to each id. */
                   <div className="border border-gray-200 rounded-md p-3 max-h-60 overflow-y-auto bg-gray-50 space-y-3">
                     <PreviewGroup
-                      title="Permanently deleted (first stage entry)"
+                      title="Permanently deleted (BP/RBP stage)"
                       ids={deletePreview.HardProjectIds}
                       chipClass="bg-red-100 text-red-800"
                     />

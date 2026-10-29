@@ -6,7 +6,7 @@ namespace Helpers
     /// <summary>
     /// The one way the application asks the database to recompute a program's Cost:
     /// dbo.pRecomputeProgramCost, which writes tProgramRevisions.Cost for the
-    /// program's latest revision (what Program Details shows).
+    /// revision of the program's current stage (what Program Details shows).
     /// </summary>
     /// <remarks>
     /// Five callers used to inline the same EXEC. The rule it applies lives in the

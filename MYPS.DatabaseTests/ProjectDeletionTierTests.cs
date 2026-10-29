@@ -22,7 +22,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
 {
     private const string Program = "PROGRAM-1";
     private const string OtherProgram = "PROGRAM-2";
-    private const int BP = 1, NEP = 2, GAAR = 7;
+    private const int BP = 1, NEP = 2, GAAR = 7, RBP = 8;
 
     private readonly string _databaseName = LocalDbSafety.RequiredPrefix + Guid.NewGuid().ToString("N");
     private string ConnectionString => LocalDbSafety.BuildConnectionString(_databaseName);
@@ -62,10 +62,20 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task FirstStageEntryBornAtNEP_WithPPrefix_IsHard()
+    public async Task FirstStageEntryBornAtNEP_IsSoft_PermanentDeleteOnlyAtBpOrRbp()
     {
+        // 2026-10-29 (user rule): a permanent delete happens only at BP or RBP. A project whose
+        // single stage entry is NEP (added there, or a program created at NEP) is soft-deleted.
         await SeedProjectAsync("P01000002LZ", (NEP, "P01000002LZ"));
-        Assert.Equal("Hard", Assert.Single(await TierAsync("P01000002LZ")).Tier);
+        var row = Assert.Single(await TierAsync("P01000002LZ"));
+        Assert.Equal(("Soft", 1, "only BP or RBP allows a permanent delete"), (row.Tier, row.StageCount, row.Reason));
+    }
+
+    [Fact]
+    public async Task FirstStageEntryAtRBP_IsHard()
+    {
+        await SeedProjectAsync("BP01000017LZ", (RBP, "BP01000017LZ"));
+        Assert.Equal(("Hard", "first stage entry"), (Assert.Single(await TierAsync("BP01000017LZ")).Tier, Assert.Single(await TierAsync("BP01000017LZ")).Reason));
     }
 
     [Fact]
@@ -100,9 +110,13 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     [Fact]
     public async Task LumpSumParent_FollowsTheStageRule()
     {
+        // Only at BP or RBP is a single stage entry permanent; a Lump Sum parent at GAA-R is soft (2026-10-29).
         await SeedProjectAsync("P01000006LS", projectType: "LS", stages: new[] { (GAAR, "P01000006LS") });
-        var row = Assert.Single(await TierAsync("P01000006LS"));
-        Assert.Equal(("Hard", "LSParent"), (row.Tier, row.Kind));
+        await SeedProjectAsync("BP01000018LS", projectType: "LS", stages: new[] { (BP, "BP01000018LS") });
+        var atGaar = Assert.Single(await TierAsync("P01000006LS"));
+        var atBp = Assert.Single(await TierAsync("BP01000018LS"));
+        Assert.Equal(("Soft", "LSParent"), (atGaar.Tier, atGaar.Kind));
+        Assert.Equal(("Hard", "LSParent"), (atBp.Tier, atBp.Kind));
     }
 
     [Fact]
@@ -129,7 +143,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         // BP and P numbers come from separate counters and the BP->P swap reuses the BP digits, so the
         // same string can be one project's PK and another project's revision id. Never a silent pick:
         // both come back (a user-facing caller refuses), while a caller holding the PK gets that project.
-        await SeedProjectAsync("P01100001LZ", (NEP, "P01100001LZ"));
+        await SeedProjectAsync("P01100001LZ", (BP, "P01100001LZ")); // at BP, so it may be hard-deleted below
         await SeedProjectAsync("BP01100001LZ", (BP, "BP01100001LZ"), (NEP, "P01100001LZ"));
 
         var rows = (await TierAsync("P01100001LZ")).OrderBy(x => x.ProjectFK).ToList();
@@ -204,8 +218,9 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         // ProjectId (BP/P digits are shared) and, on one stage, rates Hard. Once the first delete has
         // removed P01100002LZ, a second delete of the same PK used to fall back to BP01100002LZ -- a
         // project nobody asked for, whose rows were never locked -- and hard-delete it.
-        await SeedProjectAsync("P01100002LZ", (NEP, "P01100002LZ"));
-        await SeedProjectAsync("BP01100002LZ", (NEP, "P01100002LZ"));
+        // At BP: since 2026-10-29 a single stage entry is Hard only at BP or RBP.
+        await SeedProjectAsync("P01100002LZ", (BP, "P01100002LZ"));
+        await SeedProjectAsync("BP01100002LZ", (BP, "P01100002LZ"));
         Assert.Equal("Hard", (await TierAsync("P01100002LZ")).Single(x => x.ProjectFK == "BP01100002LZ").Tier);
 
         await ExecSql("P01100002LZ");
@@ -304,6 +319,76 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
 
         await SetProgramStageAsync(GAAR, status: Approved);
         Assert.Equal(("Blocked", "program is approved"), await EligibilityAsync()); // approval wins
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // ID reuse (2026-10-29): a permanently deleted project's BP/P id is released for reuse;
+    // MY ids, and ids something still carries, are not.
+    // ---------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task HardDelete_ReleasesItsBpId_ButNotAnMyId()
+    {
+        await ExecuteAsync(ReleasedTableSql);
+        await SeedProjectAsync("BP01300060LZ", new[] { (BP, "BP01300060LZ") }, category: 2);
+        await SeedProjectAsync("MY01300061LZ", new[] { (BP, "MY01300061LZ") }, category: 2);
+
+        await ExecSql("BP01300060LZ");
+        await ExecSql("MY01300061LZ");
+
+        Assert.Equal(0, await CountAsync("dbo.tProjects", "ProjectPK IN ('BP01300060LZ', 'MY01300061LZ')"));
+        Assert.Equal(1, await CountAsync("dbo.tProjectIdReleased", "1 = 1"));
+        Assert.Equal(1, await CountAsync("dbo.tProjectIdReleased",
+            "CategoryId = 2 AND Suffix = 'BP' AND IslandCode = 'LZ' AND YearStart = 2029 AND Sequence = 60 AND ProjectId = 'BP01300060LZ' AND ReleasedBy = 'test'"));
+    }
+
+    [Fact]
+    public async Task HardDelete_OfALumpSumItemizedProject_DoesNotReleaseItsId()
+    {
+        await ExecuteAsync(ReleasedTableSql);
+        await SeedProjectAsync("P01300065LZ", new[] { (GAAR, "P01300065LZ") }, parentProjectId: "P01300099LS", category: 2);
+        await ExecSql("P01300065LZ");
+        Assert.Equal(0, await CountAsync("dbo.tProjects", "ProjectPK = 'P01300065LZ'"));
+        Assert.Equal(0, await CountAsync("dbo.tProjectIdReleased", "1 = 1")); // itemize again for a new id
+    }
+
+    [Fact]
+    public async Task ProgramDeletion_OnlyAtBpOrRbp()
+    {
+        // 2026-10-29 (user rule): a program created straight at a later stage is never permanently deleted.
+        await SetProgramStageAsync(NEP, status: Working);
+        Assert.Equal(("Blocked", "it is at the S2 stage; a program can be permanently deleted only at BP or RBP"), await EligibilityAsync());
+        var ex = await Assert.ThrowsAsync<ProjectHelper.DeletionRefusedException>(() => ExecuteProgramDeletionAsync());
+        Assert.Equal("This program cannot be deleted: it is at the S2 stage; a program can be permanently deleted only at BP or RBP.", ex.Reason);
+        Assert.Equal(1, await CountAsync("dbo.tPrograms", $"ProgramPK = '{Program}'"));
+    }
+
+    [Fact]
+    public async Task ProgramDeletion_AtRbp_IsAllowed()
+    {
+        await SetProgramStageAsync(RBP, status: Working);
+        Assert.Equal(("Eligible", ""), await EligibilityAsync());
+    }
+
+    [Fact]
+    public async Task HardDelete_KeepsAnIdThatAnotherRowStillCarries()
+    {
+        await ExecuteAsync(ReleasedTableSql);
+        await SeedProjectAsync("BP01300062LZ", new[] { (BP, "BP01300062LZ") }, category: 2);
+        // Another project's revision carries the same string (the BP/P digit sharing the tier rule describes).
+        await SeedProjectAsync("BP01300063LZ", new[] { (BP, "BP01300062LZ") }, program: OtherProgram, category: 2);
+
+        await ExecSql("BP01300062LZ");
+
+        Assert.Equal(0, await CountAsync("dbo.tProjectIdReleased", "1 = 1"));
+    }
+
+    [Fact]
+    public async Task HardDelete_WithoutTheReleasedTable_DeletesAsBefore()
+    {
+        await SeedProjectAsync("BP01300064LZ", new[] { (BP, "BP01300064LZ") }, category: 2);
+        await ExecSql("BP01300064LZ");
+        Assert.Equal(0, await CountAsync("dbo.tProjects", "ProjectPK = 'BP01300064LZ'"));
     }
 
     [Fact]
@@ -514,8 +599,9 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     public async Task ProgramDeletion_RemovesADeletedItemizedChildWithNoStageRow()
     {
         // Round-2 fix 4 (criterion 3): an itemized child is Hard whatever its stage history, so a
-        // deleted one with no stage row is a removable leftover, not "stuck".
-        await SetProgramStageAsync(GAAR, status: Working);
+        // deleted one with no stage row is a removable leftover, not "stuck". (The program is at BP:
+        // since 2026-10-29 a program is permanently deleted only at BP or RBP.)
+        await SetProgramStageAsync(BP, status: Working);
         await SeedProjectAsync("P01000045LZ", Array.Empty<(int, string)>(), parentProjectId: "P01000099LS");
         await ExecuteAsync($"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, IsDeleted) VALUES ('P01000045LZ', '{Program}', 'P01000045LZ', 1);");
 
@@ -743,12 +829,24 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
     private Task<IEnumerable<string>> ExecuteProgramDeletionAsync() =>
         new SqlExecutor(ConnectionString).ExecuteProgramDeletionAsync(Program, "test", new DateTime(2026, 10, 15));
 
+    /// <summary>dbo.tProjectIdReleased exactly as Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql creates it.</summary>
+    private static readonly string ReleasedTableSql = ExtractReleasedTableDdl();
+
+    private static string ExtractReleasedTableDdl()
+    {
+        string script = File.ReadAllText(Path.Combine(
+            FindRepositoryDirectory("Main/Resources/Internal/SQLScripts"), "Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql"));
+        int start = script.IndexOf("CREATE TABLE dbo.tProjectIdReleased", StringComparison.Ordinal);
+        int end = script.IndexOf(");", start, StringComparison.Ordinal) + 2;
+        return script[start..end];
+    }
+
     private Task<List<int>> SeedProjectAsync(string projectPK, params (int StageId, string ProjectId)[] stages) =>
         SeedProjectAsync(projectPK, stages, Program); // three positional args: the params overload cannot match itself
 
     /// <summary>One tProjects row, and one tProjectRevisions + tProjectStages pair per stage, in order. Returns the revision ids.</summary>
     private async Task<List<int>> SeedProjectAsync(string projectPK, (int StageId, string ProjectId)[] stages, string program = Program,
-        bool isPublished = false, bool isRevised = false, string projectType = "", string? parentProjectId = null)
+        bool isPublished = false, bool isRevised = false, string projectType = "", string? parentProjectId = null, int? category = null)
     {
         await ExecuteAsync(
             "INSERT dbo.tProjects (ProjectPK, ProgramFK, IsPublished, IsRevised, ProjectType, ParentProjectId) " +
@@ -758,7 +856,7 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
         foreach (var (stageId, projectId) in stages)
         {
             int revisionId = await ScalarAsync(
-                $"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, IsDeleted) VALUES ('{projectPK}', '{program}', '{projectId}', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);");
+                $"INSERT dbo.tProjectRevisions (ProjectFK, ProgramFK, ProjectId, Category, IsDeleted) VALUES ('{projectPK}', '{program}', '{projectId}', {(category?.ToString() ?? "NULL")}, 0); SELECT CAST(SCOPE_IDENTITY() AS INT);");
             await ExecuteAsync($"INSERT dbo.tProjectStages (ProjectFK, ProgramFK, RevisionId, StageId) VALUES ('{projectPK}', '{program}', {revisionId}, {stageId});");
             revisionIds.Add(revisionId);
         }
@@ -820,18 +918,18 @@ public sealed class ProjectDeletionTierTests : IAsyncLifetime
 
     /// <summary>The columns the objects touch, with the live database's real foreign keys.</summary>
     private const string SchemaSql = """
-        CREATE TABLE dbo.tPrograms (ProgramPK NVARCHAR(200) PRIMARY KEY, StartYear INT NULL);
+        CREATE TABLE dbo.tPrograms (ProgramPK NVARCHAR(200) PRIMARY KEY, StartYear INT NULL, IsPublished BIT NOT NULL DEFAULT 0);
         CREATE TABLE dbo.tOptionProgramStage (Id INT PRIMARY KEY, StageHierarchy INT NOT NULL);
-        INSERT dbo.tOptionProgramStage (Id, StageHierarchy) VALUES (1, 1), (2, 2), (7, 7);
+        INSERT dbo.tOptionProgramStage (Id, StageHierarchy) VALUES (1, 1), (2, 2), (7, 7), (8, 0);
         CREATE TABLE dbo.tProgramRevisions (Id INT IDENTITY PRIMARY KEY, ProgramFK NVARCHAR(200), Name NVARCHAR(200) NULL, Status INT NULL);
-        CREATE TABLE dbo.tProgramStages (Id INT IDENTITY PRIMARY KEY, ProgramFK NVARCHAR(200), StageId INT NULL, StageName NVARCHAR(20) NULL, RevisionId INT NULL);
+        CREATE TABLE dbo.tProgramStages (Id INT IDENTITY PRIMARY KEY, ProgramFK NVARCHAR(200), ProgramId NVARCHAR(200) NULL, StageId INT NULL, StageName NVARCHAR(20) NULL, RevisionId INT NULL);
         CREATE TABLE dbo.tTransactionLog (Id INT IDENTITY PRIMARY KEY, ReferenceId NVARCHAR(200) NOT NULL, TransactionType NVARCHAR(50) NOT NULL,
             AffectedTable NVARCHAR(100) NOT NULL, AffectedColumn NVARCHAR(100) NOT NULL, OldValue NVARCHAR(MAX) NOT NULL, NewValue NVARCHAR(MAX) NOT NULL,
             CreatedBy NVARCHAR(100) NOT NULL, Hostname NVARCHAR(100) NOT NULL, CreatedDate DATETIME NOT NULL);
         CREATE TABLE dbo.tProjects (ProjectPK NVARCHAR(200) PRIMARY KEY, ProgramFK NVARCHAR(200) NOT NULL, IsPublished BIT NOT NULL, IsRevised BIT NOT NULL,
             ProjectType NVARCHAR(10) NOT NULL, ParentProjectId NVARCHAR(200) NULL);
         CREATE TABLE dbo.tProjectRevisions (Id INT IDENTITY PRIMARY KEY, ProjectFK NVARCHAR(200) NOT NULL CONSTRAINT FK_tProjectRevisions_Project REFERENCES dbo.tProjects(ProjectPK),
-            ProgramFK NVARCHAR(200) NOT NULL, ProjectId NVARCHAR(200) NULL, IsDeleted BIT NOT NULL);
+            ProgramFK NVARCHAR(200) NOT NULL, ProgramId NVARCHAR(200) NULL, ProjectId NVARCHAR(200) NULL, Category INT NULL, IsDeleted BIT NOT NULL);
         CREATE TABLE dbo.tProjectStages (Id INT IDENTITY PRIMARY KEY, ProjectFK NVARCHAR(200) NOT NULL CONSTRAINT FK_tProjectStages_Project REFERENCES dbo.tProjects(ProjectPK),
             ProgramFK NVARCHAR(200) NOT NULL, RevisionId INT NOT NULL CONSTRAINT FK_tProjectStages_Revision REFERENCES dbo.tProjectRevisions(Id), StageId INT NOT NULL,
             StageName NVARCHAR(20) NULL);

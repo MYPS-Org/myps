@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, ProgramProjectFilter, ProgramProjects } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects, ShowProjectsInProgram } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects, ShowProjectsInProgram, fetchDeletedProjects, restoreToCurrentStage } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
@@ -14,6 +14,7 @@ import PublishProgramDialog from '../dialogs/PublishProgramDialog';
 import ActionsDropdown from '../components/programDetail/ActionsDropdown';
 import BatchActionsDropdown from '../components/programDetail/BatchActionsDropdown';
 import DeleteProjectButton from '../components/programDetail/DeleteProjectButton';
+import DeletedProjectsPanel from '../components/programDetail/DeletedProjectsPanel';
 import AddExistingProjectDialog from '../dialogs/AddExistingProjectDialog';
 import BatchRestoreDialog from '../dialogs/BatchRestoreDialog';
 import CheckboxList from '../../../components/ui/CheckboxList';
@@ -148,6 +149,10 @@ const ProgramDetail: React.FC = () => {
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isAddExistingProjectDialogOpen, setIsAddExistingProjectDialogOpen] = useState(false);
   const [isBatchRestoreDialogOpen, setIsBatchRestoreDialogOpen] = useState(false);
+  const [isDeletedPanelOpen, setIsDeletedPanelOpen] = useState(false);
+  // How many projects are deleted at this stage, for the "Deleted projects (N)" button. Null hides
+  // the button: not loaded yet, or the user may not list them (ShowDeletedProjects not granted).
+  const [deletedCount, setDeletedCount] = useState<number | null>(null);
 
   useEffect(() => {
     const loadProgramDetail = async () => {
@@ -256,11 +261,34 @@ const ProgramDetail: React.FC = () => {
     pagination.refresh();
   };
 
-  const handleBatchRestoreSubmit = async (programId: string, projectIds: string) => {
+  const currentProgramId = programEnums?.Details.ProgramId;
+  const loadDeletedCount = useCallback(async () => {
+    if (!currentProgramId) return;
+    try {
+      const response = await fetchDeletedProjects(currentProgramId, { silent: true });
+      setDeletedCount(response.Data.Projects?.length ?? 0);
+    } catch {
+      setDeletedCount(null);
+    }
+  }, [currentProgramId]);
+
+  useEffect(() => {
+    loadDeletedCount();
+  }, [loadDeletedCount]);
+
+  /** True when the restore went through (the Deleted projects panel reloads its list then). */
+  const handleBatchRestoreSubmit = (programId: string, projectIds: string): Promise<boolean> =>
+    runRestore(() => batchRestoreProjects({ ProgramId: programId, ProjectIds: projectIds }));
+
+  /** Deleted at a stage the program has left: copied into the current stage. */
+  const handleRestoreToCurrentStage = (projectFKs: string[]): Promise<boolean> =>
+    runRestore(() => restoreToCurrentStage({ ProgramId: currentProgramId ?? '', ProjectFKs: projectFKs }));
+
+  const runRestore = async (restore: () => ReturnType<typeof batchRestoreProjects>): Promise<boolean> => {
     setIsLoading(true);
     let restored = false;
     try {
-      const response = await batchRestoreProjects({ ProgramId: programId, ProjectIds: projectIds });
+      const response = await restore();
       // The API's message says how many came back and names the ids that did not, and why. A
       // partial restore is a warning, so refused or missing ids are not read past as "done".
       const data = response.Data;
@@ -285,12 +313,14 @@ const ProgramDetail: React.FC = () => {
       try {
         refreshProjects(true);
         await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
+        await loadDeletedCount();
       } catch (error) {
         console.error('Error refreshing after batch restore:', error);
         showToast({ type: 'warning', message: 'The action completed, but the page failed to refresh. Please reload to see the latest data.' });
       }
     }
     setIsLoading(false);
+    return restored;
   };
 
   const handleAddExistingProjectSubmit = async (projectIds: string[]) => {
@@ -712,10 +742,18 @@ const ProgramDetail: React.FC = () => {
                 // runs first so a failed header refetch can't leave it stale.
                 refreshProjects(action === 'delete');
                 await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
+                if (action === 'delete') await loadDeletedCount();
               }}
               onLoadingChange={setIsLoading}
               onBatchRestore={() => setIsBatchRestoreDialogOpen(true)}
             />
+            {/* Projects soft-deleted at this stage, with Restore (a project deleted at its first
+                stage is permanently deleted and is not listed). */}
+            {deletedCount !== null && (
+              <Button outline onClick={() => setIsDeletedPanelOpen(true)}>
+                Deleted projects ({deletedCount})
+              </Button>
+            )}
             <ActionsDropdown
               programId={programEnums?.Details.ProgramPK ?? ''}
               programName={programEnums?.Details.Name ?? ''}
@@ -809,6 +847,7 @@ const ProgramDetail: React.FC = () => {
                         // Same refresh as Batch Delete: the row is gone, so back to page 1.
                         refreshProjects(true);
                         await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
+                        await loadDeletedCount();
                       }}
                       onLoadingChange={setIsLoading}
                     />
@@ -879,6 +918,18 @@ const ProgramDetail: React.FC = () => {
           onSubmit={handleAddExistingProjectSubmit}
           programId={programEnums?.Details.ProgramPK}
           programName={programEnums?.Details.Name}
+        />
+      )}
+
+      {isDeletedPanelOpen && (
+        <DeletedProjectsPanel
+          isOpen={isDeletedPanelOpen}
+          onClose={() => setIsDeletedPanelOpen(false)}
+          programId={programEnums?.Details.ProgramId ?? ''}
+          programName={programEnums?.Details.Name ?? ''}
+          stageName={programEnums?.Details.StageName ?? ''}
+          onRestore={(projectIds) => handleBatchRestoreSubmit(programEnums?.Details.ProgramId ?? '', projectIds)}
+          onRestoreToCurrentStage={handleRestoreToCurrentStage}
         />
       )}
 

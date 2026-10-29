@@ -24,6 +24,12 @@
                 (2026-10-15: an Approved program refuses every delete)
       Blocked   StageCount(ProgramFK) > 1                     'progressed beyond its initial stage'
                 (genuinely advanced at least once, by any path)
+      Blocked   its one stage is not BP or RBP                'it is at the <Stage> stage; a program can be
+                                                              permanently deleted only at BP or RBP'
+                (2026-10-29, delete-rules-projects-programs-stages.md, user rule: a permanent delete
+                happens only at BP, or RBP -- the BP of the RBP -> RDIP -> PIP track -- the same rule
+                GetProjectDeletionTier.sql applies to projects. A program created straight at NEP or
+                later is never permanently deleted.)
       Blocked   LiveProjects > 0                              'it still has N project(s) that have not been deleted'
                 (2026-10-16: NO CASCADE. A program is deleted only after every one of its
                 projects has been deleted by a user allowed to -- Batch Delete in Program
@@ -32,7 +38,7 @@
                                                               automatically (e.g. X); an administrator must clean them up'
       Eligible  otherwise.
 
-    BlockedBy names the rule that refused ('Approved', 'Progressed', 'LiveProjects',
+    BlockedBy names the rule that refused ('Approved', 'Progressed', 'NotBP', 'LiveProjects',
     'StuckLeftovers'; NULL when Eligible), so callers branch on a code rather than on wording.
     The project counts are computed only when the first two rules pass (else 0).
     LIVE PROJECT (2026-10-16) = what Batch Delete can act on: an IsDeleted = 0 revision reached
@@ -62,12 +68,13 @@ DECLARE @Programs TABLE (
     StageCount      INT NOT NULL,
     CurrentStatus   INT NULL,
     CurrentStageId  INT NULL,
+    CurrentStageName NVARCHAR(50) COLLATE DATABASE_DEFAULT NULL,
     LiveProjects    INT NOT NULL DEFAULT 0,
     StuckLeftovers  INT NOT NULL DEFAULT 0,
     StuckExample    NVARCHAR(200) COLLATE DATABASE_DEFAULT NULL);
 
-INSERT @Programs (ProgramFK, StageCount, CurrentStatus, CurrentStageId)
-SELECT pr.ProgramPK, ISNULL(st.StageCount, 0), cur.Status, cur.StageId
+INSERT @Programs (ProgramFK, StageCount, CurrentStatus, CurrentStageId, CurrentStageName)
+SELECT pr.ProgramPK, ISNULL(st.StageCount, 0), cur.Status, cur.StageId, cur.StageName
 FROM dbo.tPrograms pr
 OUTER APPLY (
     SELECT COUNT(*) AS StageCount
@@ -75,7 +82,7 @@ OUTER APPLY (
     WHERE s.ProgramFK = pr.ProgramPK
 ) st
 OUTER APPLY (
-    SELECT TOP (1) rv.Status, ps.StageId
+    SELECT TOP (1) rv.Status, ps.StageId, ps.StageName
     FROM dbo.tProgramStages ps
     JOIN dbo.tOptionProgramStage o ON o.Id = ps.StageId
     LEFT JOIN dbo.tProgramRevisions rv ON rv.Id = ps.RevisionId
@@ -162,6 +169,7 @@ SELECT
     CASE
         WHEN p.CurrentStatus = 1   THEN N'Approved'
         WHEN p.StageCount > 1      THEN N'Progressed'
+        WHEN p.StageCount = 1 AND p.CurrentStageId NOT IN (1, 8) THEN N'NotBP'
         WHEN p.LiveProjects > 0    THEN N'LiveProjects'
         WHEN p.StuckLeftovers > 0  THEN N'StuckLeftovers'
         ELSE NULL
@@ -169,6 +177,7 @@ SELECT
     CASE
         WHEN p.CurrentStatus = 1   THEN N'Blocked'
         WHEN p.StageCount > 1      THEN N'Blocked'
+        WHEN p.StageCount = 1 AND p.CurrentStageId NOT IN (1, 8) THEN N'Blocked'
         WHEN p.LiveProjects > 0    THEN N'Blocked'
         WHEN p.StuckLeftovers > 0  THEN N'Blocked'
         ELSE N'Eligible'
@@ -176,6 +185,9 @@ SELECT
     CASE
         WHEN p.CurrentStatus = 1   THEN N'program is approved'
         WHEN p.StageCount > 1      THEN N'progressed beyond its initial stage'
+        WHEN p.StageCount = 1 AND p.CurrentStageId NOT IN (1, 8)
+                                   THEN N'it is at the ' + ISNULL(p.CurrentStageName, N'current')
+                                        + N' stage; a program can be permanently deleted only at BP or RBP'
         WHEN p.LiveProjects > 0    THEN N'it still has ' + CAST(p.LiveProjects AS NVARCHAR(10))
                                         + N' project(s) that have not been deleted'
         WHEN p.StuckLeftovers > 0  THEN N'it has ' + CAST(p.StuckLeftovers AS NVARCHAR(10))

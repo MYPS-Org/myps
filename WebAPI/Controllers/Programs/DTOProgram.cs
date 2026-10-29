@@ -173,4 +173,16 @@ namespace WebAPI.Controllers.Programs
     public class BatchPublishTaggingDTO : BatchUnpublishTaggingDTO { }
     public class BatchDeleteTaggingDTO : BatchUnpublishTaggingDTO { }
     public class BatchAddExistingProjectDTO : BatchUnpublishTaggingDTO { }
+    /// <summary>Projects deleted at an earlier stage, by ProjectPK (as the Deleted projects panel lists them).</summary>
+    public class RestoreToCurrentStageDTO
+    {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
+        public string[] ProjectFKs { get; set; } = Array.Empty<string>();
+    }
+    public class ShowDeletedProjectsDTO
+    {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
+    }
 }

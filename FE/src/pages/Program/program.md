@@ -128,6 +128,8 @@ navigate(`/programs/programdetails/${program.ProgramId}:${program.StageName}`);
 | `batchDeleteProjects({ ProgramId, ProjectIds })` | `POST /Program/BatchDelete` | comma/newline-separated IDs string |
 | `batchAllowPublishing({ ProgramId, ProjectIds })` | `POST /Program/BatchAllowPublish` | comma/newline-separated IDs string |
 | `batchRestrictPublishing({ ProgramId, ProjectIds })` | `POST /Program/BatchRestrictPublish` | comma/newline-separated IDs string |
+| `fetchDeletedProjects(ProgramId, { silent? })` | `POST /Program/ShowDeletedProjects` | Read-only list for the Deleted projects panel (projects deleted at the current stage, and at an earlier stage the program has left; who/when, `CanRestore`); `silent` for the background count |
+| `restoreToCurrentStage({ ProgramId, ProjectFKs })` | `POST /Program/RestoreToCurrentStage` | Copies projects deleted at an earlier stage INTO the current stage; returns the `BatchActionResponse` shape (`RestoredProjectIds`, `MissingProjectIds`, `RefusedProjects`) |
 | `batchRestoreProjects({ ProgramId, ProjectIds })` | `POST /Program/BatchAddExistingProject` | Batch Restore; `ProgramId` is the CURRENT `Details.ProgramId`, not `ProgramPK`. Returns `RestoredProjectIds`, `MissingProjectIds`, `RefusedProjects` (published, program approved, ambiguous ids); live ids are reported in `MissingProjectIds` |
 
 ### Report Type → Endpoint Mapping
@@ -347,6 +349,22 @@ IsActive && !isTerminalStage
 - Click → `previewBatchDelete` → `ConfirmDialogBatch` (`action="delete"`, title **Delete Project**, type `DELETE`) → `batchDeleteProjects`, with the `ProgramId` (not the PK) as Batch Delete takes it
 - Shown on every row, like Batch Delete: no client-side rule for which rows can be deleted; the preview names any refusal and why
 - `ProgramDetail.tsx` refreshes with `refreshProjects(true)` + `fetchProgramDetail`; a failed reload after a delete shows a warning, never "Failed to delete"
+
+### `DeletedProjectsPanel` (Deleted projects (N))
+
+- Button next to Batch Actions in ProgramDetail; the count comes from a silent `fetchDeletedProjects(ProgramId, { silent: true })` on load and after every delete or restore. A failed or 403 count hides the button (`deletedCount === null`)
+- `POST /Program/ShowDeletedProjects { ProgramId }` (read-only; `ProgramId` is the CURRENT `Details.ProgramId`) returns `{ StageName, Projects: DeletedProject[] }`, one row per project from its newest deleted revision in the program, with `DeletedBy`/`DeletedByName`/`DeletedDate` from the soft-delete audit row (`tTransactionLog`) and `CanRestore`/`RestoreBlockedReason` from the deletion tier (published, program approved):
+  - `DeletedAtCurrentStage = true`: deleted at the current stage (exactly what Batch Restore would bring back);
+  - `false`: deleted at an earlier stage (`DeletedStageName`) and the project has no stage row at the current stage. Advancing never carries a deleted project, so it stays deleted (Alvin, 2026-10-29). `RestoredProjectId` is the id it gets in the current stage (BP → P at a P stage); also refused for a Lump Sum project or an id another project holds
+- Two sections. "Deleted at the &lt;stage&gt; stage" restores through `handleBatchRestoreSubmit` (Batch Restore). "Deleted at an earlier stage" shows the info note and restores through `handleRestoreToCurrentStage` (`RestoreToCurrentStage`). Both share `runRestore` (toast, refresh), which returns `true` when it went through; the panel then reloads its list. Restore selected splits the ticked rows by section
+- `POST /Program/RestoreToCurrentStage { ProgramId, ProjectFKs }` (`[RequiresDeletionObjects]`): one transaction under the per-program delete lock, rule re-decided on locked rows; writes a new revision copied from the deleted one plus a `tProjectStages` row at the current stage, copies the live child rows as `UpdateProgramStage` does (`CopyLiveChildRowsAsync`: funding, component costs and years, work items and locations, supporting docs, plus notes), writes one `tTransactionLog` row per project (`AffectedColumn = RestoredIntoStage`), recomputes the program cost. The deleted revision stays deleted as history. It does not use `dbo.pCopyProjectDetailChain`: that procedure is database-only, and the copy on myps_db_dev leaves out the NOT NULL `ComponentId` of the year, work item and location rows
+- Permanent deletes (BP/RBP stage) are never listed: there is nothing left to restore
+
+### Delete rules (server, 2026-10-29)
+
+- `GetProjectDeletionTier.sql`: Hard only when the project's single stage entry is BP (Id 1) or RBP (Id 8); every other single stage entry is Soft. Lump Sum itemized children stay Hard. `GetProgramDeletionEligibility.sql`: Delete Program is refused (`NotBP`) for a program whose one stage is not BP or RBP
+- Batch Delete's message names only what happened (`DescribeDeleted`): no "0 project(s) permanently deleted" for a soft delete
+- ID reuse: a hard delete releases the project's BP/P ids into `dbo.tProjectIdReleased` (not MY, not itemized); `ProjectHelper.GenerateProjectID` takes the lowest released id of the bucket before the counter. Table and grants: `Main/Resources/Internal/SQLScripts/Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql`
 
 ---
 

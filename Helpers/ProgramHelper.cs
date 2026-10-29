@@ -213,7 +213,8 @@ namespace Helpers
         // GetProgramDeletionEligibility.sql; this only runs it and maps the result.
         //
         // POLICY (see the script's own header for the full rationale): Blocked when the program
-        // is Approved, has progressed past its first stage, or (2026-10-16, NO CASCADE) still has
+        // is Approved, has progressed past its first stage, sits at a stage other than BP or RBP
+        // (2026-10-29: permanent deletes happen only there), or (2026-10-16, NO CASCADE) still has
         // a live project -- its projects must be deleted first, by a user allowed to (Batch
         // Delete, or the Lump Sum module). There is no soft-delete at the program level.
         public class ProgramDeletionEligibilityResult
@@ -230,7 +231,8 @@ namespace Helpers
             public int StuckLeftovers { get; set; }
             /// <summary>One of the stuck leftovers, for the message.</summary>
             public string? StuckExample { get; set; }
-            /// <summary>Which rule refused: "Approved", "Progressed", "LiveProjects" or "StuckLeftovers"; null when Eligible.</summary>
+            /// <summary>Which rule refused: "Approved", "Progressed", "NotBP" (its one stage is not BP or RBP,
+            /// 2026-10-29), "LiveProjects" or "StuckLeftovers"; null when Eligible.</summary>
             public string? BlockedBy { get; set; }
             public string Eligibility { get; set; } = string.Empty;
             /// <summary>Why it is Blocked, in the user's words; empty when Eligible.</summary>

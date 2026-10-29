@@ -13,7 +13,7 @@ Skip step 1-2 for trivial changes (typo fixes, single-line tweaks) — go straig
 
 ## Changelogs
 
-Every change to app behaviour gets a release note in `docs/changelogs/` (newest `v*.md` marked `(not yet released)`, or the next version file). The top bar's **Changelogs** button shows these files to every user, so write them in their plain, user-facing style. Follow `.claude/skills/update-changelogs/SKILL.md`. A Stop hook (`.claude/hooks/changelog-reminder.mjs`) will not let a session finish with app code changed and no release note, and the deploy workflow warns about pushes without one.
+Every change to app behaviour gets a release note in `docs/changelogs/` (newest `v*.md` marked `(not yet released)`, or the next version file). The top bar's **Changelogs** button shows these files to every user, so write them in their plain, user-facing style. Follow `.claude/skills/update-changelogs/SKILL.md`. A Stop hook (`.claude/hooks/changelog-reminder.mjs`) will not let a session finish with app code changed and no release note, and the deploy workflow warns about pushes without one. For commits made by hand, the git pre-commit hook `.githooks/pre-commit` (`changelog-draft.mjs`) has Claude Code draft the section from the staged diff and adds it to the commit. It skips when a changelog file is already staged, and never blocks a commit. Enable it once per clone with `git config core.hooksPath .githooks`; skip it for one commit with `MYPS_SKIP_CHANGELOG=1`.
 
 ## Local secrets
 
