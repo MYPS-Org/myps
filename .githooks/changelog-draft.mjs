@@ -2,9 +2,9 @@
 //
 // When the staged changes touch app code but no file under docs/changelogs/, Claude Code (headless,
 // no tools) drafts the section from the staged diff in the style of
-// .claude/skills/update-changelogs/SKILL.md. The hook adds it to the newest docs/changelogs/v*.md
-// marked "(not yet released)", or starts the next version file, and stages it, so the note is part
-// of this commit. Fix it before pushing: edit, `git add`, `git commit --amend --no-edit`.
+// .claude/skills/update-changelogs/SKILL.md. The hook adds it at the top of the newest
+// docs/changelogs/v*.md marked "(not yet released)", or starts the next version file, and stages
+// it, so the note is part of this commit. Fix it before pushing: edit, `git add`, `git commit --amend --no-edit`.
 //
 // It never blocks a commit: when Claude Code is missing or fails, it says so and the commit goes on
 // (the deploy workflow still warns about a push without a note).
@@ -161,12 +161,12 @@ if (!/^## \S/.test(section) || !/\n- \S/.test(section)) giveUp(`the draft was no
 let target = newestPath;
 if (newestOpen) {
   const eol = newestText.includes('\r\n') ? '\r\n' : '\n';
-  const text = newestText.replace(/\r\n/g, '\n');
-  const marker = text.indexOf('\n## Test cases by module');
-  const updated =
-    marker >= 0
-      ? `${text.slice(0, marker).trimEnd()}\n\n${section}\n\n${text.slice(marker + 1)}`
-      : `${text.trimEnd()}\n\n${section}\n`;
+  // Newest first: right below the "# MYPS changes since ..." line, as the panel shows file order.
+  const lines = newestText.replace(/\r\n/g, '\n').split('\n');
+  const heading = lines.findIndex((line) => line.startsWith('# '));
+  const before = lines.slice(0, heading + 1).join('\n').trimEnd();
+  const after = lines.slice(heading + 1).join('\n').trim();
+  const updated = `${before}\n\n${section}\n${after ? `\n${after}\n` : ''}`;
   fs.writeFileSync(newestPath, updated.replace(/\n/g, eol));
 } else {
   const [major, minor, patch] = newest.order;

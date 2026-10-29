@@ -1,18 +1,26 @@
 import React from 'react';
 
 // Renders the small Markdown subset the docs/changelogs files use: "## " and "### " headings,
-// "- " bullets, "|" tables, plain paragraphs, and **bold** / `code` inline. Built as React
-// elements (no HTML string), so the text is always escaped.
+// "- " bullets, "|" tables, plain paragraphs, and **bold** / *italic* / `code` inline. Built as
+// React elements (no HTML string), so the text is always escaped.
+
+// The files may write < > & " as entities (&lt;stage&gt;), which GitHub renders; React escapes
+// text itself, so they are decoded here or they show literally. Not inside `code`, as in Markdown.
+const ENTITIES: Record<string, string> = { '&lt;': '<', '&gt;': '>', '&quot;': '"', '&amp;': '&' };
+const decode = (text: string) => text.replace(/&(?:lt|gt|quot|amp);/g, (entity) => ENTITIES[entity]);
 
 const inline = (text: string): React.ReactNode[] =>
-  text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean).map((part, i) => {
+  text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s](?:[^*]*[^*\s])?\*)/g).filter(Boolean).map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-semibold text-gray-900">{decode(part.slice(2, -2))}</strong>;
     }
     if (part.startsWith('`') && part.endsWith('`')) {
       return <code key={i} className="rounded bg-gray-100 px-1 py-0.5 text-[0.85em]">{part.slice(1, -1)}</code>;
     }
-    return part;
+    if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
+      return <em key={i}>{decode(part.slice(1, -1))}</em>;
+    }
+    return decode(part);
   });
 
 const cells = (row: string) => row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());

@@ -25,7 +25,7 @@ A commit made by hand without a note gets one drafted by the git pre-commit hook
 
 ## Write the section
 
-One `##` section per change, above the `## Test cases by module` block:
+One `##` section per change, **newest first**: put yours at the top, right below the file's `# MYPS changes since …` line. The Changelogs panel shows the sections in file order, so a note added at the bottom sits under every older one. `## Test cases by module` stays last.
 
 ```markdown
 ## <What changed, in plain words> (#<PR number>)
