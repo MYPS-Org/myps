@@ -275,7 +275,7 @@ Each user sees only the modules and actions permitted for their assigned user gr
 |---|---|---|
 | *"Username is required"* | The Sign In button was clicked while the USERNAME field was empty. | Enter your username before clicking Sign In. |
 | *"Password is required"* | The Sign In button was clicked while the PASSWORD field was empty. | Enter your password before clicking Sign In. |
-| *"Invalid credentials. Please check your user ID and password and try again."* | The username or password entered is incorrect. | Re-enter the correct username and password. |
+| *"Unable to sign in. Please verify your User ID and password and try again."* | The User ID is unknown or the password is incorrect (the message is the same for both). | Re-enter the correct username and password. |
 | *"Your session has expired. Please sign in to continue."* | The account is not active or the current session has expired. | Contact your PS Admin to verify the account is active, then log in again. |
 | Sign In button has no response | Session or connectivity issue. | Refresh the page and try again; contact support if persistent. |
 
@@ -3825,7 +3825,7 @@ Whenever a revision comes back **For Correction** — from either the RPC or PS 
 
 | Error / Condition | Module | Cause | User Action |
 |-------------------|--------|-------|-------------|
-| "Invalid credentials. Please check your user ID and password and try again." | Login | The username or password entered is incorrect | Re-enter the correct username and password |
+| "Unable to sign in. Please verify your User ID and password and try again." | Login | The username or password entered is incorrect | Re-enter the correct username and password |
 | "Your session has expired. Please sign in to continue." | Login | The account is not active or the current session has expired | Contact your PS Admin to verify the account is active, then log in again |
 | "(Field Name) is required." | Add Project | Required field left blank | Complete all fields marked with a red asterisk |
 | "Total funding percentage must equal 100%. Current total: 0.0%." | Funding Profile | No amount entered | Enter valid funding amounts |
@@ -3897,7 +3897,7 @@ When reporting an issue to support, include the following information:
 |------|----------------------|-------------|
 | Login | Username is required | Enter your username before clicking Sign In |
 | Login | Password is required | Enter your password before clicking Sign In |
-| Login | Invalid credentials. Please check your user ID and password and try again. | Re-enter the correct username and password |
+| Login | Unable to sign in. Please verify your User ID and password and try again. | Re-enter the correct username and password |
 | Login | Your session has expired. Please sign in to continue. | Contact your PS Admin to verify the account is active, then log in again |
 | Add Program | Name: The Name field is required | Enter a program name in the Sub Name field before clicking Submit |
 | Add Program | Program Type is required. | Select a Program Type from the dropdown before clicking Submit |
