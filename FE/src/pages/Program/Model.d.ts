@@ -245,8 +245,6 @@ export interface ProgramList {
 	IsPublishable: boolean;
 }
 
-export type AIPReportType = 'AIP' | 'AIP02' | 'RBP' | 'RBPComponents' | 'RBPTier' | 'RDIP';
-
 /** Matches tOptionProjectCategory (same shape as CategoryEnum in Project model) */
 export interface AIPDropdownCategory {
   Id: number;
@@ -313,19 +311,6 @@ export interface AIPReportDropdowns {
   DEOs: AIPDropdownDEO[];
   ImplementingOffices: AIPDropdownImplementingOffice[];
   LegislativeDistricts: AIPDropdownLegislativeDistrict[];
-}
-
-export interface AIPReportParams {
-  ReportType: AIPReportType;
-  ProgramId: string;
-  ProgramName?: string;
-  StageName?: string;
-  CategoryName?: string;
-  RegionName?: string;
-  OperatingUnitName?: string;
-  DistrictEngineeringOffice?: string;
-  ImplementingOfficeName?: string;
-  LegislativeDistrictName?: string;
 }
 
 export type ImportJobStatusValue = 'Queued' | 'Processing' | 'Completed' | 'CompletedWithErrors' | 'Failed' | 'Cancelled';

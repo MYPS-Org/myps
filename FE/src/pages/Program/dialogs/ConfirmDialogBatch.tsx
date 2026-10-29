@@ -16,6 +16,9 @@ interface ConfirmDialogBatchProps {
   projectCount: number;
   /** Delete only: what the server says the delete will do. Without it the dialog falls back to the typed list. */
   deletePreview?: BatchDeletePreview;
+  /** Replace the action's default title and confirm-button text, e.g. for a single-project delete from its row. */
+  title?: string;
+  buttonText?: string;
 }
 
 /** The delete wording follows the preview: permanent only when something will really be removed. */
@@ -50,6 +53,8 @@ const ConfirmDialogBatch: React.FC<ConfirmDialogBatchProps> = ({
   projectIds,
   projectCount,
   deletePreview,
+  title,
+  buttonText,
 }) => {
   const [confirmText, setConfirmText] = useState('');
   const [error, setError] = useState('');
@@ -128,7 +133,7 @@ const ConfirmDialogBatch: React.FC<ConfirmDialogBatchProps> = ({
     }
   };
 
-  const config = getActionConfig();
+  const config = { ...getActionConfig(), ...(title && { title }), ...(buttonText && { buttonText }) };
 
   // With a preview, only projects the server will actually delete count, and nothing to
   // delete means nothing to confirm.

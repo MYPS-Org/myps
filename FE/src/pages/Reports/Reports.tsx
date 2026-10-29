@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { HubConnectionBuilder } from '@microsoft/signalr';
 import {
   DocumentChartBarIcon,
@@ -76,8 +77,14 @@ const Reports: React.FC = () => {
   // expected to be added to ReportCatalog later.
   const [activeFormatTab, setActiveFormatTab] = useState<'pdf' | 'xlsx'>('pdf');
   const [reportType, setReportType] = useState('');
-  const [yearStart, setYearStart] = useState<number | ''>('');
-  const [programStage, setProgramStage] = useState('');
+  // Opened from Program Details → Actions → Generate Reports (S01-TC015-P001) as
+  // /reports?year=&stage=&program=: start on that program's year and stage, and tick the
+  // program once the list for them has loaded.
+  const [searchParams] = useSearchParams();
+  const linkedYear = Number(searchParams.get('year'));
+  const [yearStart, setYearStart] = useState<number | ''>(linkedYear > 0 ? linkedYear : '');
+  const [programStage, setProgramStage] = useState(searchParams.get('stage') ?? '');
+  const linkedProgramIdRef = useRef(searchParams.get('program'));
   const [regionCode, setRegionCode] = useState('');
   const [planningEngineer, setPlanningEngineer] = useState('');
   const [approvedBy, setApprovedBy] = useState('');
@@ -92,8 +99,7 @@ const Reports: React.FC = () => {
   const [aipReportTypeTitle, setAipReportTypeTitle] = useState('');
 
   // Extract PCMIOW / Extract PC families only — both reuse the same dropdown
-  // data source and Region→DEO→Implementing Office cascade AIPReportDialog.tsx
-  // already uses.
+  // data source and Region→DEO→Implementing Office cascade (GetAIPReportDropdowns).
   const [categoryId, setCategoryId] = useState('');
   const [deoCode, setDeoCode] = useState('');
   const [ioCode, setIoCode] = useState('');
@@ -125,7 +131,14 @@ const Reports: React.FC = () => {
     setIsLoadingPrograms(true);
     fetchFilterPrograms({ YearStart: yearStart, ProgramStage: programStage })
       .then((result) => {
-        if (!cancelled) setPrograms(result);
+        if (cancelled) return;
+        setPrograms(result);
+        // Only the first list: a year or stage the user picks afterwards starts with nothing ticked.
+        const linkedProgramId = linkedProgramIdRef.current;
+        linkedProgramIdRef.current = null;
+        if (linkedProgramId && result.some((program) => program.Id === linkedProgramId)) {
+          setSelectedProgramIds([linkedProgramId]);
+        }
       })
       .catch(() => {
         if (!cancelled) setPrograms([]);

@@ -26,7 +26,6 @@ pages/Program/
 │   ├── ImportProjectsJobDialog.tsx ← Live: upload → async job → poll → download reports
 │   ├── ImportProjectsDialog.tsx ← Unused: old client-side parse + preview (kept for later reuse)
 │   ├── ExportConfirmDialog.tsx  ← Confirm export to Excel
-│   ├── AIPReportDialog.tsx      ← Configure and download AIP/RBP/RDIP reports
 │   ├── BatchTagDialog.tsx       ← Batch operation input (IDs + action type)
 │   └── ConfirmDialogBatch.tsx   ← Inner confirmation for batch operations
 ├── utils/
@@ -34,7 +33,6 @@ pages/Program/
 │   └── transformImportedProjects.ts ← ImportedProject[] → server ImportProjectDTO
 ├── Service.ts                   ← All API calls for the Program domain
 ├── Model.d.ts                   ← TypeScript interfaces
-├── AIP_REPORT_DIALOG_GUIDE.md   ← Developer notes on AIP report dialog
 └── IMPORT_PROJECTS_GUIDE.md     ← Developer notes on import workflow
 ```
 
@@ -235,7 +233,7 @@ IsActive && defaultProgramEnums.Details.Status === 3 && !isTerminalStage
 IsActive && !isTerminalStage
 ```
 
-**Projects table columns:** Project ID | Description | Category | SubProgram | Implementing Office | Operating Unit | Publishable | Published
+**Projects table columns:** Project ID | Description | Category | SubProgram | Implementing Office | Operating Unit | Publishable | Published | Actions (`DeleteProjectButton`)
 
 ---
 
@@ -305,20 +303,6 @@ IsActive && !isTerminalStage
 - 8-tab preview: Summary | Projects | Funding | Components | Cost/Year | Major Items | Locations | Errors
 - Its `onSubmit` path called `parseImportFile` → `transformImportedProjects` → `importProjects()`, which POSTed a full parsed JSON payload to `/Importing/ImportProject/` — that JSON-body contract no longer exists on the backend (see `IMPORT_PROJECTS_GUIDE.md`), so this dialog cannot currently complete an import even if reopened
 
-### `AIPReportDialog`
-
-- **Available report types by stageId:**
-
-  | Report Types | Condition |
-  |-------------|-----------|
-  | AIP, AIP02 | stageId ≤ 4 OR stageId ≥ 10 |
-  | RBP, RBPComponents, RBPTier | stageId === 3 |
-  | RDIP | stageId ≤ 2 |
-
-- **Filter cascade (AIP/AIP02 only):** Region → DEO (by `RegionParticipantId`) → Implementing Office (by DEO region + UPMO) → Operating Unit (by IO)
-- **RBP/RDIP:** Region filter only
-- **On generate:** calls `downloadAIPReport()` → PDF blob download
-
 ### `BatchTagDialog`
 
 - Actions: `delete`, `unpublish` (restrict), `publish` (allow)
@@ -347,14 +331,22 @@ IsActive && !isTerminalStage
 ### `ActionsDropdown` (per program)
 
 - Gear icon (`Cog6ToothIcon`) button in ProgramDetail header
-- Menu items: Download Template (TODO), Import Projects, Export Projects, Generate Report
-- Opens `ImportProjectsJobDialog`, `ExportConfirmDialog`, `AIPReportDialog`
+- Menu items: Download Template, Import Projects, Update Projects, Export Projects, Generate Reports
+- Opens `ImportProjectsJobDialog` and `ExportConfirmDialog`
+- **Generate Reports** (S01-TC015-P001) navigates to `/reports?year=&stage=&program=` (`StartYear`, the viewed `StageName`, `vProgramLatest.ProgramId` via the `reportProgramId` prop); `Reports.tsx` pre-selects them, ticking the program once if `/reports/filter-programs` lists it. Hidden unless `ViewAccess` includes `Reports`. The old in-page `AIPReportDialog` and `downloadAIPReport` (`/Reporting/RequestReport*`) were removed; reports are generated only in the Reports module
 
 ### `BatchActionsDropdown` (per program)
 
 - Tag icon (`TagIcon`) button in ProgramDetail header
 - Menu items: Batch Delete (always), Restrict Publishing + Allow Publishing (only when `IsActive && StageId=10 && defaultStatus=1`)
 - Opens `BatchTagDialog` with the chosen action type
+
+### `DeleteProjectButton` (per project row)
+
+- Red trash icon in the Projects table's Actions column (S01-TC004-P002): Batch Delete for one Project ID, so the server rules stay in one place
+- Click → `previewBatchDelete` → `ConfirmDialogBatch` (`action="delete"`, title **Delete Project**, type `DELETE`) → `batchDeleteProjects`, with the `ProgramId` (not the PK) as Batch Delete takes it
+- Shown on every row, like Batch Delete: no client-side rule for which rows can be deleted; the preview names any refusal and why
+- `ProgramDetail.tsx` refreshes with `refreshProjects(true)` + `fetchProgramDetail`; a failed reload after a delete shows a warning, never "Failed to delete"
 
 ---
 

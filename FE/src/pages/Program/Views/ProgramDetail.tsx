@@ -13,6 +13,7 @@ import { getStageProgression } from '../utils/stageProgression';
 import PublishProgramDialog from '../dialogs/PublishProgramDialog';
 import ActionsDropdown from '../components/programDetail/ActionsDropdown';
 import BatchActionsDropdown from '../components/programDetail/BatchActionsDropdown';
+import DeleteProjectButton from '../components/programDetail/DeleteProjectButton';
 import AddExistingProjectDialog from '../dialogs/AddExistingProjectDialog';
 import BatchRestoreDialog from '../dialogs/BatchRestoreDialog';
 import CheckboxList from '../../../components/ui/CheckboxList';
@@ -719,8 +720,8 @@ const ProgramDetail: React.FC = () => {
               programId={programEnums?.Details.ProgramPK ?? ''}
               programName={programEnums?.Details.Name ?? ''}
               stageName={programEnums?.Details.StageName ?? ''}
-              stageId={programEnums?.Details.StageId ?? 0}
-              stages={programEnums?.Dropdowns.Stages || []}
+              reportProgramId={programEnums?.Details.ProgramId ?? ''}
+              startYear={programEnums?.Details.StartYear ?? 0}
               onLoadingChange={setIsLoading}
             />
           </div>
@@ -756,6 +757,9 @@ const ProgramDetail: React.FC = () => {
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Published
+                </TableHeader>
+                <TableHeader className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
                 </TableHeader>
                 {/* { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && (
                 <TableHeader className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
@@ -794,6 +798,21 @@ const ProgramDetail: React.FC = () => {
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.IsPublished ? 'Yes' : 'No'}
                   </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-center">
+                    {/* No client-side rule for which rows can be deleted: the server preview the
+                        button opens says whether this project would be deleted, and why not. */}
+                    <DeleteProjectButton
+                      programId={programEnums?.Details.ProgramId ?? ''}
+                      programName={programEnums?.Details.Name ?? ''}
+                      projectId={project.ProjectId}
+                      onDeleted={async () => {
+                        // Same refresh as Batch Delete: the row is gone, so back to page 1.
+                        refreshProjects(true);
+                        await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);
+                      }}
+                      onLoadingChange={setIsLoading}
+                    />
+                  </TableCell>
                   {/* { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && programEnums?.Details?.IsPublished && (
                   <TableCell className='px-6 py-4 whitespace-nowrap text-sm font-medium text-center'>
                     <Button className="w-24 items-center" onClick={() => handleModifyProject(project.ProjectId, project.StageName)}>
@@ -805,7 +824,7 @@ const ProgramDetail: React.FC = () => {
               ))
             : (
               <TableRow>
-                <TableCell colSpan={8} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                <TableCell colSpan={9} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                   No projects available for this program.
                 </TableCell>
               </TableRow>

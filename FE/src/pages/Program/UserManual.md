@@ -229,7 +229,7 @@ Click the **⚙ Actions** dropdown in the Projects section header for these tool
 | **Download Template** | Downloads the Excel import template |
 | **Import Projects** | Opens the import dialog to bulk-add projects from an Excel file |
 | **Export Projects** | Exports all projects in this program to an Excel file |
-| **Generate Report** | Opens the report dialog to download AIP, RBP, or RDIP PDF reports |
+| **Generate Reports** | Opens the **Reports** page with this program's year, stage and program already selected (shown only if you can open Reports) |
 
 ### Importing Projects from Excel
 
@@ -258,28 +258,9 @@ Click the **⚙ Actions** dropdown in the Projects section header for these tool
 
 ### Generating Reports
 
-1. Click **Actions → Generate Report**.
-2. The **Generate Report** dialog opens.
-3. Select a **Report Type** (only types available for the current stage are shown):
-
-| Report | Availability |
-|--------|-------------|
-| AIP-Exec-01 | BP or earlier, GAA stage |
-| AIP-Exec-02 | BP or earlier, GAA stage |
-| RBP | BP stage only |
-| RBP Components | BP stage only |
-| RBP Tier | BP stage only |
-| RDIP | Pre-BP stages |
-
-4. For AIP/AIP02 reports, you can optionally filter by:
-   - Category
-   - Region
-   - District Engineering Office (filtered by Region)
-   - Implementing Office (filtered by Region + DEO)
-   - Operating Unit (filtered by Implementing Office)
-   - Legislative District
-
-5. Click **Generate** to download the PDF report.
+1. Click **Actions → Generate Reports**.
+2. The **Reports** page opens with **Year**, **Program Stage** and this program already selected. A program is listed only at its current stage, so opened from an earlier stage it is not ticked.
+3. Choose the **Report Type** and the remaining fields, then click **Generate Report**.
 
 ---
 
@@ -295,6 +276,10 @@ Click the **🏷 Batch Actions** dropdown to perform operations on multiple proj
 2. Enter the Project IDs to delete (comma, semicolon, space, or line-break separated).
 3. Click **Delete Projects**.
 4. A confirmation dialog appears — confirm to proceed.
+
+### Delete One Project
+
+Each row of the Projects table has a red trash icon in its **Actions** column. It deletes that one project with the same rules as Batch Delete: the **Delete Project** dialog shows whether the project will be deleted permanently, deleted at this stage only, or not deleted and why. Type **DELETE** and click **Yes, Delete Project**.
 
 ### Restrict Publishing
 
@@ -326,6 +311,6 @@ In the Projects table, click on a **Project ID** to go to that project's detail 
 |-----|--------|
 | Expand rows before clicking View | Expanding shows all stages; View Details in the sub-table opens the correct stage |
 | Filters persist while paginating | Page through results without losing your filter settings |
-| Stage affects available actions | Report types, Add Project, and Publish buttons only appear at the right stage |
+| Stage affects available actions | Add Project and Publish buttons only appear at the right stage |
 | Name is auto-generated | Program names follow a system convention — use Sub Name for custom labels |
 | Update only enables when changes exist | If nothing changed, the Update button remains disabled |

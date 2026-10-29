@@ -1,0 +1,183 @@
+# Builds the React front end and the .NET 8 API, runs the unit tests, and syncs the published site
+# to the MonsterASP host with Web Deploy. Runs on every push to main, or by hand from the Actions tab.
+#
+# Settings (repo Settings -> Environments -> myps_environment):
+#   Secrets:   WEBDEPLOY_PASSWORD        Web Deploy password from the MonsterASP control panel
+#              APPSETTINGS_LOCAL_JSON    optional: full contents of the server's appsettings.Local.json
+#   Variables: WEBDEPLOY_SERVER          site102559.siteasp.net
+#              WEBDEPLOY_SITE            site102559
+#              WEBDEPLOY_USERNAME        site102559
+#              SITE_URL                  https://site102559.siteasp.net
+#              VITE_API_GIS_URL          optional: GIS API base URL baked into the front end
+
+name: Deploy to MonsterASP
+
+on:
+  push:
+    branches: [main]
+    # Docs-only pushes don't deploy, except docs/changelogs: the top bar's Changelogs button
+    # bundles those files at build time. Later patterns win, so the last line re-includes them.
+    paths:
+      - '**'
+      - '!**.md'
+      - '!docs/**'
+      - '!documents/**'
+      - '!e2e/**'
+      - '!.claude/**'
+      - 'docs/changelogs/**'
+  workflow_dispatch:
+
+# One deploy at a time. A newer push waits for the running sync instead of cancelling it half way.
+concurrency:
+  group: deploy-monsterasp
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    environment:
+      name: myps_environment
+      url: ${{ vars.SITE_URL }}
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - name: Check deploy settings
+        shell: pwsh
+        env:
+          WEBDEPLOY_SERVER: ${{ vars.WEBDEPLOY_SERVER }}
+          WEBDEPLOY_SITE: ${{ vars.WEBDEPLOY_SITE }}
+          WEBDEPLOY_USERNAME: ${{ vars.WEBDEPLOY_USERNAME }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          WEBDEPLOY_PASSWORD: ${{ secrets.WEBDEPLOY_PASSWORD }}
+        run: |
+          $missing = 'WEBDEPLOY_SERVER', 'WEBDEPLOY_SITE', 'WEBDEPLOY_USERNAME', 'SITE_URL', 'WEBDEPLOY_PASSWORD' |
+            Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }
+          if ($missing) { throw "Missing in the 'myps_environment' environment: $($missing -join ', ')" }
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Every app change gets a release note in docs/changelogs (.claude/skills/update-changelogs).
+      # Warns, never blocks: a hotfix still deploys, and the run summary shows what to add.
+      - name: Check release notes
+        if: github.event_name == 'push'
+        shell: pwsh
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if ($env:BEFORE -match '^0+$') { 'New branch: nothing to compare.'; exit 0 }
+          $changed = git diff --name-only $env:BEFORE $env:GITHUB_SHA
+          $app = $changed | Where-Object {
+            $_ -match '^(FE/src|WebAPI|Helpers|DBHelper|Hangfire|Main|CrystalReportService|ReportGeneration)/' -and
+            $_ -notmatch '\.md$' -and $_ -notmatch '^Main/appsettings[^/]*\.json$'
+          }
+          $notes = $changed | Where-Object { $_ -match '^docs/changelogs/[^/]+\.md$' }
+          if ($app -and -not $notes) {
+            "::warning title=No release note::This push changes app code but no docs/changelogs file. Add an entry to the newest docs/changelogs/v*.md (see .claude/skills/update-changelogs/SKILL.md)."
+          } else {
+            'Release notes: OK.'
+          }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: FE/package-lock.json
+
+      # vite build, not npm run build: that script runs tsc -b first, which stops on the known type
+      # errors under src/pages/Rbac. The bundle lands in Main/wwwroot (vite.config.ts outDir).
+      - name: Build front end
+        working-directory: FE
+        env:
+          VITE_API_BASE_URL: ${{ vars.SITE_URL }}
+          VITE_API_GIS_URL: ${{ vars.VITE_API_GIS_URL }}
+        run: |
+          npm ci
+          npx vite build --mode production
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Unit tests
+        run: dotnet test MYPS.UnitTests/MYPS.UnitTests.csproj -c Release
+
+      # SkipFrontendBuild: Main.csproj's Release pre-build would run npm run build again (and fail on tsc).
+      - name: Publish API
+        run: dotnet publish Main/Main.csproj -c Release -o publish -p:SkipFrontendBuild=true
+
+      # Uploaded documents belong to the server, not to git: never ship the repo's copies over them.
+      # appsettings.Local.json comes from the secret below, or stays as it is on the server.
+      - name: Prepare package
+        shell: pwsh
+        env:
+          APPSETTINGS_LOCAL_JSON: ${{ secrets.APPSETTINGS_LOCAL_JSON }}
+        run: |
+          Remove-Item publish/Resources/UploadedFiles -Recurse -Force -ErrorAction SilentlyContinue
+          if ([string]::IsNullOrWhiteSpace($env:APPSETTINGS_LOCAL_JSON)) {
+            'No APPSETTINGS_LOCAL_JSON secret: the server keeps its own appsettings.Local.json.'
+          } else {
+            $null = $env:APPSETTINGS_LOCAL_JSON | ConvertFrom-Json
+            Set-Content -Path publish/appsettings.Local.json -Value $env:APPSETTINGS_LOCAL_JSON -Encoding utf8NoBOM
+            'appsettings.Local.json added from the APPSETTINGS_LOCAL_JSON secret.'
+          }
+
+      - name: Find Web Deploy
+        shell: pwsh
+        run: |
+          $paths = "$env:ProgramFiles\IIS\Microsoft Web Deploy V3\msdeploy.exe",
+                   "${env:ProgramFiles(x86)}\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          $msdeploy = $paths | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $msdeploy) {
+            choco install webdeploy -y --no-progress
+            $msdeploy = $paths | Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+          if (-not $msdeploy) { throw 'msdeploy.exe not found after installing Web Deploy.' }
+          "MSDEPLOY=$msdeploy" >> $env:GITHUB_ENV
+
+      # MonsterASP's documented msdeploy call, plus: AppOffline (the in-process app locks its DLLs),
+      # DoNotDeleteRule (files on the server that are not in the package stay, e.g. uploads and
+      # appsettings.Local.json) and a skip for Resources\UploadedFiles.
+      - name: Deploy with Web Deploy
+        shell: cmd
+        env:
+          WEBDEPLOY_SERVER: ${{ vars.WEBDEPLOY_SERVER }}
+          WEBDEPLOY_SITE: ${{ vars.WEBDEPLOY_SITE }}
+          WEBDEPLOY_USERNAME: ${{ vars.WEBDEPLOY_USERNAME }}
+          WEBDEPLOY_PASSWORD: ${{ secrets.WEBDEPLOY_PASSWORD }}
+        run: >-
+          "%MSDEPLOY%" -verb:sync
+          -source:contentPath="%GITHUB_WORKSPACE%\publish"
+          -dest:contentPath="%WEBDEPLOY_SITE%",computerName="https://%WEBDEPLOY_SERVER%:8172/msdeploy.axd?site=%WEBDEPLOY_SITE%",userName="%WEBDEPLOY_USERNAME%",password="%WEBDEPLOY_PASSWORD%",authType="Basic",includeAcls="False"
+          -enableRule:AppOffline
+          -enableRule:DoNotDeleteRule
+          -skip:objectName=dirPath,absolutePath=Resources\\UploadedFiles
+          -disableLink:AppPoolExtension
+          -disableLink:ContentExtension
+          -disableLink:CertificateExtension
+          -retryAttempts:3
+          -retryInterval:5000
+
+      - name: Smoke test
+        shell: pwsh
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          foreach ($i in 1..6) {
+            try {
+              $r = Invoke-WebRequest -Uri $env:SITE_URL -UseBasicParsing -TimeoutSec 60
+              "Site answered HTTP $($r.StatusCode)."
+              exit 0
+            } catch {
+              "Attempt ${i}: $($_.Exception.Message)"
+              Start-Sleep -Seconds 15
+            }
+          }
+          throw "$env:SITE_URL did not answer after the deploy."

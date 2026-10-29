@@ -32,9 +32,8 @@ const ExtractPcmiowFields: React.FC<ExtractPcmiowFieldsProps> = ({
   ioCode,
   onIoChange,
 }) => {
-  // Region → DEO → Implementing Office cascade, same filtering rule
-  // AIPReportDialog.tsx uses (ParticipantId-keyed, not name-keyed, since this
-  // pipeline's SQL params want codes, not display names).
+  // Region → DEO → Implementing Office cascade, ParticipantId-keyed (not
+  // name-keyed), since this pipeline's SQL params want codes, not display names.
   const selectedDeo = deoCode ? dropdowns?.DEOs.find((d) => d.ParticipantId === deoCode) ?? null : null;
 
   const filteredDEOs = regionCode

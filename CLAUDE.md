@@ -11,6 +11,10 @@ This repo uses a 4-step pipeline for non-trivial work. Run them in order:
 
 Skip step 1-2 for trivial changes (typo fixes, single-line tweaks) — go straight to editing, `/code-review` and `/create-pr-issue`.
 
+## Changelogs
+
+Every change to app behaviour gets a release note in `docs/changelogs/` (newest `v*.md` marked `(not yet released)`, or the next version file). The top bar's **Changelogs** button shows these files to every user, so write them in their plain, user-facing style. Follow `.claude/skills/update-changelogs/SKILL.md`. A Stop hook (`.claude/hooks/changelog-reminder.mjs`) will not let a session finish with app code changed and no release note, and the deploy workflow warns about pushes without one.
+
 ## Local secrets
 
 The repo is public, so no password is committed. Tracked config holds `***REMOVED***` placeholders; the real values live in gitignored files on each machine:

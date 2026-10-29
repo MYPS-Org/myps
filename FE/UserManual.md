@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.17
-**Date:** October 25, 2026
+**Version:** 3.19
+**Date:** October 29, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -41,6 +41,8 @@
 | 3.15 | October 24, 2026 | RP | RP | Section 5.2.5 Batch Restore Projects updated: opened from **Batch Actions → Batch Restore** (the Add Existing Project button is gone); same users as Batch Delete; projects come back at the stage they were deleted from and the program Total Cost is updated; nothing is restored in an Approved program or for a published project; permanently deleted (incl. itemized) projects cannot be restored; messages now name each ID not restored and why |
 | 3.16 | October 25, 2026 | RP | RP | Section 5.5.3 Project Group Details updated: **Add Projects** now takes a pasted list of Project IDs (up to 500) and reports each one as Added, Already in this group, In another group (not moved) or Not found, with **Add more** to continue; projects are removed by ticking rows (or select-all) and **Remove selected (N)**, or by the row's trash icon, with one confirmation and no typing of DELETE; removing does not delete the project; project table column list corrected; Field Reference and validation messages added |
 | 3.17 | October 25, 2026 | RP | RP | Sections 5.2.5 and 5.2.6: batch action prompts name the program, never its internal Program ID. A batch action started from a stage the program has moved past now says so and names the current stage, instead of "Program not found" |
+| 3.18 | October 29, 2026 | RP | RP | Sections 5.2.3 and 5.2.6: each project row in Program Details has a **Delete** button (red trash icon) that deletes that one project, with the same rules, preview and `DELETE` confirmation as Batch Delete |
+| 3.19 | October 29, 2026 | RP | RP | Section 5.2.7: **Actions → Generate Reports** opens the Reports module (Section 5.6) with the program's year, stage and program already selected, instead of its own report dialog; it is shown only to users who can open Reports. Section 5.6 notes the shortcut |
 
 ### Consultant
 
@@ -698,6 +700,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 | Add Project | Open the project creation form |
 | Add Existing Project | Link an existing project to this program |
 | Batch Actions | Batch delete or manage publishing for multiple projects |
+| Delete (red trash icon on a project row) | Delete that one project — see **Delete One Project** in Section 5.2.6 |
 | Actions | Download template, import projects, update projects, export projects, generate reports |
 
 [Insert Screenshot: Program Details Screen]
@@ -829,9 +832,25 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 ---
 
+**Delete One Project**
+
+To delete a single project, use the **Delete** button (red trash icon) in the project's row of the Projects table instead of typing its Project ID into Batch Delete. The same users, rules and messages apply as for Batch Delete.
+
+**Step-by-Step:**
+
+1. Find the project in the Projects table of Program Details.
+2. Click the red trash icon in its **Actions** column. The system checks the project first.
+3. The **Delete Project** dialog shows what will happen: permanently deleted (first stage entry), deleted at the current stage (can be restored with Batch Restore), or not deleted and why.
+4. Type `DELETE` in the confirmation field.
+5. Click **Yes, Delete Project**, or **Cancel** to stop.
+
+**On Success:** The Batch Delete message is shown (e.g. *"0 project(s) permanently deleted (first stage entry), 1 project(s) deleted at the current stage."*) and the Projects table refreshes on page 1 without the project.
+
+---
+
 #### 5.2.7 Program Actions Menu
 
-**Purpose:** Access program-level operations: template download, bulk import/export, and AIP report generation.
+**Purpose:** Access program-level operations: template download, bulk import/export, and a shortcut to the Reports module.
 
 **Who uses this:** DPC, RPC, PS Admin
 
@@ -916,30 +935,16 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 **Generate Reports**
 
-**Field Reference:**
-
-| Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
-|---|---|---|---|
-| AIP-F01 | Report Type | Type of report | Dropdown; required |
-| AIP-F02 | Stage Name | Program stage for the report | Dropdown; required |
-| AIP-F03 | Category | Project expenditure category | Dropdown; required |
-| AIP-F04 | Region | Target region | Dropdown; required |
-| AIP-F05 | District Engineering Office | Target DEO | Dropdown; optional |
-| AIP-F06 | Implementing Office | Target implementing office | Dropdown; optional |
-| AIP-F07 | Operating Unit | Target operating unit | Dropdown; optional |
-| AIP-F08 | Legislative District | Target legislative district | Dropdown; optional |
-| AIP-A01 | Generate Report | Generate and download the report as a PDF | Button |
+Reports are generated in the **Reports** module (Section 5.6). **Generate Reports** opens it for the program you are viewing, so you do not have to look the program up again. It appears only to users who can open the Reports module.
 
 **Step-by-Step:**
 
 1. Open a program.
 2. Click **Actions** → **Generate Reports**.
-3. Fill in the required and optional report parameters.
-4. Click **Generate Report**.
+3. The **Reports** page opens with **Year** set to the program's start year, **Program Stage** set to the stage you were viewing, and the program ticked in the **Programs** panel. A program is listed only at its current stage: opened from an earlier stage, the program is not ticked, so select its current stage.
+4. Select the **Report Type** and the other report fields, then click **Generate Report** (see Sections 5.6.1 and 5.6.2).
 
-[Insert Screenshot: Generate Reports Dialog]
-
-**On Success:** The report is automatically downloaded as a PDF file.
+**On Success:** The Reports page shows the report as queued, then downloads the PDF when it is ready.
 
 ---
 
@@ -2232,6 +2237,8 @@ A project can belong to only one project group at a time.
 **Who uses this:** RPC, PS Admin
 
 **Prerequisites:** Successful login (see Section 3.1); at least one program encoded at the selected Program Stage for the selected Year (see Sections 5.2.1 and 5.2.4); a PDF viewer installed on the workstation (see Section 2).
+
+> **Tip:** From a program's details, **Actions → Generate Reports** opens this page with that program's Year, Program Stage and program already selected (see Section 5.2.7).
 
 **Access by Role:**
 

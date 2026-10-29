@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useSetAtom } from 'jotai';
+import { useNavigate } from 'react-router-dom';
 import { ChevronDownIcon, Cog6ToothIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { pendingImportJobsAtom } from '../../../../atoms/importJobs.atom';
-import { downloadAIPReport, downloadImportTemplate, startExportProjectsJob } from '../../Service';
-import type { AIPReportParams, TableEnum } from '../../Model';
-import AIPReportDialog from '../../dialogs/AIPReportDialog';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { downloadImportTemplate, startExportProjectsJob } from '../../Service';
 import ExportConfirmDialog from '../../dialogs/ExportConfirmDialog';
 import ImportProjectsJobDialog from '../../dialogs/ImportProjectsJobDialog';
 
@@ -13,8 +13,9 @@ interface ActionsDropdownProps {
   programId: string;
   programName: string;
   stageName: string;
-  stageId: number;
-  stages?: TableEnum[];
+  /** The Reports page lists programs by vProgramLatest.ProgramId and start year, not by ProgramPK. */
+  reportProgramId: string;
+  startYear: number;
   onLoadingChange: (loading: boolean) => void;
 }
 
@@ -22,16 +23,17 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
   programId,
   programName,
   stageName,
-  stageId,
-  stages = [],
+  reportProgramId,
+  startYear,
   onLoadingChange,
 }) => {
   const { showToast } = useToast();
+  const navigate = useNavigate();
+  const { ViewAccess } = useAuth();
   const setPendingJobs = useSetAtom(pendingImportJobsAtom);
   const [isOpen, setIsOpen] = useState(false);
   const [importDialogMode, setImportDialogMode] = useState<'import' | 'update' | null>(null);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [isAIPDialogOpen, setIsAIPDialogOpen] = useState(false);
 
   const handleDownloadTemplate = async () => {
     setIsOpen(false);
@@ -93,37 +95,15 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
     }
   };
 
-  const handleViewAIP = () => {
-    setIsAIPDialogOpen(true);
-    setIsOpen(false);
-  };
+  // S01-TC015-P001: reports are generated in the Reports module only (queued, with the Reports
+  // page's own report types and signatories), so this opens it for this program's year, stage and
+  // program instead of the old in-page AIP/RBP/RDIP dialog. Hidden from anyone who cannot open Reports.
+  const canOpenReports = ViewAccess.includes('Reports');
 
-  const handleGenerateAIPReport = async (params: AIPReportParams) => {
-    try {
-      onLoadingChange(true);
-      const { blob, filename } = await downloadAIPReport(params);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      showToast({
-        type: 'success',
-        message: `${params.ReportType} Report PDF downloaded successfully.`,
-      });
-      setIsAIPDialogOpen(false);
-    } catch (error) {
-      console.error('Error downloading report:', error);
-      showToast({
-        type: 'error',
-        message: 'Failed to download report. Please try again.',
-      });
-    } finally {
-      onLoadingChange(false);
-    }
+  const handleGenerateReports = () => {
+    setIsOpen(false);
+    const query = new URLSearchParams({ year: String(startYear), stage: stageName, program: reportProgramId });
+    navigate(`/reports?${query}`);
   };
 
   return (
@@ -181,8 +161,9 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
                   </svg>
                   Export Projects
                 </button>
+                {canOpenReports && (
                 <button
-                  onClick={handleViewAIP}
+                  onClick={handleGenerateReports}
                   className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
                 >
                   <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
@@ -190,6 +171,7 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
                   </svg>
                   Generate Reports
                 </button>
+                )}
               </div>
             </div>
           </>
@@ -214,19 +196,6 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
           onConfirm={handleConfirmExportProjects}
           programName={programName}
           stageName={stageName}
-        />
-      )}
-
-      {isAIPDialogOpen && (
-        <AIPReportDialog
-          isOpen={isAIPDialogOpen}
-          onClose={() => setIsAIPDialogOpen(false)}
-          onGenerate={handleGenerateAIPReport}
-          programId={programId}
-          programName={programName}
-          stageName={stageName}
-          stageId={stageId}
-          stages={stages}
         />
       )}
     </>

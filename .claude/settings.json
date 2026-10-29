@@ -34,5 +34,19 @@
       "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -Q \"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'tRevision%' ORDER BY TABLE_NAME\" -h -1)",
       "Bash(sqlcmd -S 192.168.50.200 -U sa -P '***REMOVED***' -d myps_db -C -s \"|\" -W -h -1 -i \"C:\\\\Users\\\\khen\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-khen-source-repos-mf1027-project-myps\\\\935f0d86-674e-4428-9ca4-7528db6bd5ff\\\\scratchpad\\\\field_gap_check.sql\")"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/changelog-reminder.mjs\"",
+            "timeout": 30,
+            "statusMessage": "Checking docs/changelogs for a release note..."
+          }
+        ]
+      }
+    ]
   }
 }

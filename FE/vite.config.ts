@@ -40,6 +40,8 @@ export default defineConfig(({ mode }) => {
         allow: [
           path.resolve(__dirname),
           path.resolve(__dirname, "../Main/Resources/Internal"),
+          // Release notes shown by the top bar's Changelogs button (components/changelog/changelogs.ts).
+          path.resolve(__dirname, "../docs/changelogs"),
         ],
       },
       proxy: {

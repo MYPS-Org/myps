@@ -2,7 +2,7 @@
 import { httpClient } from '../../services/httpClient';
 import type { ImportProjectDTO } from '../Project/Model';
 
-import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, BatchActionResponse, BatchDeletePreview, ImportJobStatus } from './Model';
+import type {TableEnum, ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportDropdowns, ShowProjectsInProgramRequest, ProgramProjectsPaginationResponse, BatchActionResponse, BatchDeletePreview, ImportJobStatus } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -143,51 +143,6 @@ export const publishToPCMA = async (programId: string) => {
         throw error;
     }
 }
-
-export const downloadAIPReport = async (params: AIPReportParams) => {
-    const endpoints: Record<AIPReportType, string> = {
-        AIP: '/Reporting/RequestReportAIP',
-        AIP02: '/Reporting/RequestReportAIP02',
-        RBP: '/Reporting/RequestReportRBP',
-        RBPComponents: '/Reporting/RequestReportRBPComponents',
-        RBPTier: '/Reporting/RequestReportRBPTier',
-        RDIP: '/Reporting/RequestReportRDIP',
-    };
-
-    const endpoint = endpoints[params.ReportType];
-    const isAIPType = params.ReportType === 'AIP' || params.ReportType === 'AIP02';
-
-    const payload = isAIPType
-        ? {
-            ProgramId: params.ProgramId,
-            StageName: params.StageName?.trim() || undefined,
-            CategoryName: params.CategoryName?.trim() || undefined,
-            RegionName: params.RegionName?.trim() || undefined,
-            OperatingUnitName: params.OperatingUnitName?.trim() || undefined,
-            DistrictEngineeringOffice: params.DistrictEngineeringOffice?.trim() || undefined,
-            ImplementingOfficeName: params.ImplementingOfficeName?.trim() || undefined,
-            LegislativeDistrictName: params.LegislativeDistrictName?.trim() || undefined,
-        }
-        : {
-            ProgramId: params.ProgramId,
-            RegionName: params.RegionName?.trim() || undefined,
-        };
-
-    try {
-        const response = await httpClient.post<Blob>(endpoint, payload, {
-            preloaderMessage: `Downloading ${params.ReportType} report...`,
-            responseType: 'blob'
-        });
-
-        const blob = response.Data as Blob;
-        const filename = `${params.ReportType}_Report_${params.ProgramId}_${new Date().getTime()}.pdf`;
-
-        return { blob, filename };
-    } catch (error) {
-        console.error(`Error downloading ${params.ReportType} report:`, error);
-        throw error;
-    }
-};
 
 /** Read-only: what Batch Delete would do with these ids (permanent / at this stage / refused / not found). */
 export const previewBatchDelete = async (data: { ProgramId: string; ProjectIds: string }) => {
