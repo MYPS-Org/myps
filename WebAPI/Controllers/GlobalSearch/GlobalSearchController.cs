@@ -40,6 +40,52 @@ namespace WebAPI.Controllers.GlobalSearch
                 .ToDictionaryAsync(r => r.ParticipantId, r => r.Name, cancellationToken);
         }
 
+        /// <summary>A matched project stage, as fProjectDetails reads it (serialized into @Filters).</summary>
+        private sealed record ProjectStageKey(string ProjectPK, EnumProgramStage StageId);
+
+        // 2026-10-30: the project categories returned every matching stage, so an Apply Filter (or DPC/RPC)
+        // user could read other regions' projects here. Keeps only the stages the user may open -- the
+        // per-stage project view gate ShowProjectDetails applies -- before fProjectDetails reads them.
+        private async Task<List<ProjectStageKey>> KeepViewableStagesAsync(
+            List<(string ProjectPK, EnumProgramStage StageId, int RevisionId)> matches, CancellationToken cancellationToken)
+        {
+            var viewable = await _db.GetViewableStagesByProjectAsync(
+                _Session, matches.Select(x => x.ProjectPK).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), cancellationToken);
+            return matches
+                .Where(x => viewable == null || viewable[x.ProjectPK].Any(s => s.RevisionId == x.RevisionId))
+                .Select(x => new ProjectStageKey(x.ProjectPK, x.StageId))
+                .Distinct()
+                .ToList();
+        }
+
+        // 2026-10-30: the same gate for the UACS rows, which carry ProjectId and StageName instead of the
+        // ProjectPK and stage revision the gate keys on.
+        private async Task<List<DBHelper.Models.Views.Project.Projects>> KeepViewableProjectRowsAsync(
+            List<DBHelper.Models.Views.Project.Projects> rows, CancellationToken cancellationToken)
+        {
+            if (rows.Count == 0)
+            {
+                return rows;
+            }
+            var projectIds = rows.Select(x => x.ProjectId).Distinct().ToList();
+            var projectPKsById = (await _db.tProjectRevisions.AsNoTracking()
+                    .Where(x => projectIds.Contains(x.ProjectId))
+                    .Select(x => new { x.ProjectId, x.ProjectFK })
+                    .Distinct()
+                    .ToListAsync(cancellationToken))
+                .ToLookup(x => x.ProjectId, x => x.ProjectFK, StringComparer.OrdinalIgnoreCase);
+            var viewable = await _db.GetViewableStagesByProjectAsync(
+                _Session, projectPKsById.SelectMany(x => x).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), cancellationToken);
+            if (viewable == null)
+            {
+                return rows;
+            }
+            return rows
+                .Where(row => projectPKsById[row.ProjectId].Any(pk =>
+                    viewable[pk].Any(s => string.Equals(s.StageName, row.StageName, StringComparison.OrdinalIgnoreCase))))
+                .ToList();
+        }
+
         [HttpPost]
         public async Task<IActionResult> GetSearchCategory(CancellationToken cancellationToken)
         {
@@ -94,7 +140,7 @@ namespace WebAPI.Controllers.GlobalSearch
                             Title = "Invalid Search"
                         });
                     }
-                    var filters = await (
+                    var matches = await (
                         from revision in _db.tProjectRevisions.AsNoTracking()
                         join stage in _db.tProjectStages.AsNoTracking()
                             on revision.Id equals stage.RevisionId
@@ -103,10 +149,13 @@ namespace WebAPI.Controllers.GlobalSearch
                         select new
                         {
                             ProjectPK = revision.ProjectFK,
-                            stage.StageId
+                            stage.StageId,
+                            stage.RevisionId
                         })
                         .Distinct()
                         .ToListAsync(cancellationToken);
+                    var filters = await KeepViewableStagesAsync(
+                        matches.Select(x => (x.ProjectPK, x.StageId, x.RevisionId)).ToList(), cancellationToken);
 
                     if (filters.Count == 0)
                     {
@@ -194,7 +243,7 @@ namespace WebAPI.Controllers.GlobalSearch
                             Title = "Invalid Search"
                         });
                     }
-                    var filters = await (
+                    var matches = await (
                         from revision in _db.tProjectRevisions.AsNoTracking()
                         join stage in _db.tProjectStages.AsNoTracking()
                             on revision.Id equals stage.RevisionId
@@ -203,10 +252,13 @@ namespace WebAPI.Controllers.GlobalSearch
                         select new
                         {
                             ProjectPK = revision.ProjectFK,
-                            stage.StageId
+                            stage.StageId,
+                            stage.RevisionId
                         })
                         .Distinct()
                         .ToListAsync(cancellationToken);
+                    var filters = await KeepViewableStagesAsync(
+                        matches.Select(x => (x.ProjectPK, x.StageId, x.RevisionId)).ToList(), cancellationToken);
 
                     if (filters.Count == 0)
                     {
@@ -293,7 +345,7 @@ namespace WebAPI.Controllers.GlobalSearch
                             Title = "Invalid Search"
                         });
                     }
-                    var filters = await (
+                    var matches = await (
                         from revision in _db.tProgramRevisions.AsNoTracking()
                         join stage in _db.tProgramStages.AsNoTracking()
                             on revision.Id equals stage.RevisionId
@@ -306,6 +358,13 @@ namespace WebAPI.Controllers.GlobalSearch
                         })
                         .Distinct()
                         .ToListAsync(cancellationToken);
+                    // 2026-10-30: an Apply Filter user finds only their region's programs, by the Data
+                    // Security Group rule ValidateProgramId applies when ProgramDetails opens the result.
+                    var accessiblePrograms = await _db.GetAccessibleProgramPKsAsync(
+                        _Session, matches.Select(x => x.ProgramPK).Distinct().ToList(), cancellationToken);
+                    var filters = accessiblePrograms == null
+                        ? matches
+                        : matches.Where(x => accessiblePrograms.Contains(x.ProgramPK)).ToList();
 
                     if (filters.Count == 0)
                     {
@@ -386,7 +445,7 @@ namespace WebAPI.Controllers.GlobalSearch
                             Title = "Invalid Search"
                         });
                     }
-                    var filters = await (
+                    var matches = await (
                         from revision in _db.tProjectRevisions.AsNoTracking()
                         join stage in _db.tProjectStages.AsNoTracking()
                             on revision.Id equals stage.RevisionId
@@ -395,10 +454,13 @@ namespace WebAPI.Controllers.GlobalSearch
                         select new
                         {
                             ProjectPK = revision.ProjectFK,
-                            stage.StageId
+                            stage.StageId,
+                            stage.RevisionId
                         })
                         .Distinct()
                         .ToListAsync(cancellationToken);
+                    var filters = await KeepViewableStagesAsync(
+                        matches.Select(x => (x.ProjectPK, x.StageId, x.RevisionId)).ToList(), cancellationToken);
 
                     if (filters.Count == 0)
                     {
@@ -488,9 +550,11 @@ namespace WebAPI.Controllers.GlobalSearch
                     // vProjects already carries ProjectId/Description/ProgramName/StageName/Region/UACS
                     // in one row, unlike the tProjectRevisions+tProjectStages join the other project
                     // categories use -- no cross-apply to fProjectDetails needed here.
-                    var Projects = await _db.vProjects.AsNoTracking()
-                        .Where(x => x.UACS != null && x.UACS.Contains(dto.SearchFor))
-                        .ToListAsync(cancellationToken);
+                    var Projects = await KeepViewableProjectRowsAsync(
+                        await _db.vProjects.AsNoTracking()
+                            .Where(x => x.UACS != null && x.UACS.Contains(dto.SearchFor))
+                            .ToListAsync(cancellationToken),
+                        cancellationToken);
                     var regionNames = await GetRegionNamesAsync(cancellationToken);
                     var Result = Projects.Select(x => new
                     {

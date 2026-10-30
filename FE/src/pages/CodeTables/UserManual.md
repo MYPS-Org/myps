@@ -69,13 +69,13 @@ Manages the dropdown values shown in the Project Details form.
 | Reasons | Revision reasons with group and category associations |
 | Statuses | Revision status codes |
 | Rules | Field-level permission rules per revision reason (toggle UI) |
-| Validation Dates | Revision submission window start/end dates per funding year |
+| Validation Dates | Per funding year, the dates between which a new revision request can be made (saved; enforced on new requests) |
 
 ### Programs
 
 | Tab | What it controls |
 |-----|-----------------|
-| Program Stage | Pipeline stage options (e.g. BP, NEP, GAA) |
+| Program Stage | Pipeline stage options (e.g. BP, NEP, GAA). Fixed by the system: edit the Description or set Inactive; no Add |
 | Program Type | Program type classifications |
 | Program Status | Program status values |
 
@@ -225,5 +225,7 @@ The **Cities**, **Legislative Districts**, and **DEOs** tables include a **Provi
 - **Loading state.** A "Loading…" placeholder appears in the table while data is being fetched. Wait for it to complete before interacting.
 - **Error banners.** If the initial data load fails, an error banner appears with a **Retry** link. Click Retry to attempt the fetch again.
 - **Toast notifications.** A small notification appears at the corner of the screen after every save or delete confirming success or reporting an error.
-- **Validation Dates** (under Revisions → Validation Dates) currently uses local sample data. API integration is pending; changes made here are not persisted to the server.
+- **Validation Dates** (under Revisions → Validation Dates) are saved. A new revision request for a project whose program year has an active range is accepted only between its Start and End dates; a year with no range has no limit, and a request returned For Correction can still be resubmitted.
+- **Editing never switches a row off.** A save that does not include the Active switch keeps the row's Active status, and a new row is created Active.
+- **Rows in use are protected.** A Revision Header, Category, Reason or Rule, a Cost Type, an Infrastructure Type (also when a Type of Work lists it), or a Funding Agreement's code or source organization cannot be deleted or changed while projects, revisions or other code tables use them; the message names the reason. Set the row Inactive instead.
 - **Legacy tables** (Implementation Mode, Emergency Mode, Row Available, Feasibility, Detailed Design, Region-Wide) exist in the codebase but are not exposed in the current navigation. They may appear in a future update.

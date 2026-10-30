@@ -63,7 +63,9 @@ const OriginTable: React.FC = () => {
 
   const saveEdit = async () => {
     try {
-      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+      // IsActive is not on the form: send the row's current value, or the edit would retire it.
+      const original = rows.find(r => r.Id === editId);
+      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, IsActive: original?.IsActive !== false }));
       showToast({ type: 'success', message: 'Origin updated successfully.' });
       await refetch();
     } catch {
@@ -74,7 +76,8 @@ const OriginTable: React.FC = () => {
   const saveAdd = async () => {
     if (!addForm) return;
     try {
-      await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+      // Created active, so it is offered in Add Project straight away.
+      await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
       showToast({ type: 'success', message: 'Origin added successfully.' });
       await refetch();
     } catch {

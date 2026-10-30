@@ -205,6 +205,8 @@ namespace DBHelper.Data
         public DbSet<OptionRevisionReasons> tOptionRevisionReasons { get; set; }
         public DbSet<OptionRevisionStatus> tOptionRevisionStatus { get; set; }
         public DbSet<OptionRevisionDocuments> tOptionRevisionDocuments { get; set; }
+        // Created by Migration.RevisionValidationDates.2026-10-30.sql (S04-TC016).
+        public DbSet<OptionRevisionValidationDate> tOptionRevisionValidationDate { get; set; }
         #endregion
         #region Functions
         public DbSet<RevisionQueue> fRevisionQueue { get; set; }

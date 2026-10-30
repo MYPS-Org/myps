@@ -632,12 +632,26 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region Export Raw Projects
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestRawProjects([FromBody] RequestRawProjectsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
+                // 2026-10-30, S04 User Management: was [AllowAnonymous] with no program check, so anyone could
+                // download any program's raw projects workbook. Now signed in, and region-checked
+                // through the session like every program action (any stage: it is a read-only export).
+                var validateProgram = await _db.ValidateProgramId(new ProgramHelperParams
+                {
+                    ProgramId = dto.ProgramId,
+                    StageName = dto.StageName,
+                    _Session = _Session,
+                    ViewOldStage = true
+                }, cancellationToken);
+                if (!validateProgram.IsValid)
+                {
+                    return new BadRequestObjectResult(new { Title = validateProgram.Title, Message = validateProgram.Message });
+                }
+
                 var stageName = dto.StageName.Replace("-", "");
 
                 if (!Enum.TryParse<EnumProgramStage>(

@@ -10,6 +10,8 @@ namespace DBHelper.Models.Dtos
     public class SearchUserDTO
     {
         public string EmployeeId { get; set; } = string.Empty;
+        /// <summary>tUsers.Id of the user being edited: that user holding this Employee ID is not a duplicate. Null when adding.</summary>
+        public int? ExcludeUserRowId { get; set; }
     }
 
     public class AuthenticateUserDTO

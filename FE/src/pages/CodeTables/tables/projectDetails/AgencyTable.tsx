@@ -224,13 +224,11 @@ const AgencyTable: React.FC = () => {
                         <TableCell>
                           <span className="font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{item.Id}</span>
                         </TableCell>
+                        {/* 2026-10-29: read-only on edit. The API never saves a changed NameId (projects
+                            refer to it), so the field showed a change that was not kept. */}
+                        <TableCell className="font-mono text-sm text-gray-600">{editForm.NameId}</TableCell>
                         <TableCell>
-                          <input autoFocus type="number" value={editForm.NameId || ''}
-                            onChange={e => setEditForm(f => ({ ...f, NameId: parseInt(e.target.value) || 0 }))}
-                            className={inputClass('edit')} />
-                        </TableCell>
-                        <TableCell>
-                          <input type="text" value={editForm.Name} maxLength={200}
+                          <input autoFocus type="text" value={editForm.Name} maxLength={200}
                             onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))}
                             className={inputClass('edit')} />
                         </TableCell>

@@ -747,6 +747,13 @@ namespace WebAPI.Controllers.Projects
                     && x.StageName != EnumProgramStage.GAAR.ToString()
                     && (x.Name.Contains(dto.Filter) || x.ProgramId.Contains(dto.Filter) || x.Type.Contains(dto.Filter)))
                 .ToListAsync(cancellationToken);
+                // 2026-10-30: an Apply Filter user finds only their region's programs, by the Data Security
+                // Group rule ValidateProgramId applies when the program is then opened or added to.
+                var accessiblePrograms = await _db.GetAccessibleProgramPKsAsync(_Session, SearchedProgram.Select(x => x.ProgramPK).ToList(), cancellationToken);
+                if (accessiblePrograms != null)
+                {
+                    SearchedProgram = SearchedProgram.Where(x => accessiblePrograms.Contains(x.ProgramPK)).ToList();
+                }
                 return Ok(new
                 {
                     Programs = SearchedProgram

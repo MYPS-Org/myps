@@ -91,6 +91,16 @@ export interface RevisionRules {
     Field: string;
 }
 
+/** Code Tables → Revisions → Validation Dates (S04-TC016): when a revision of a funding year's projects can be requested. */
+export interface RevisionValidationDate {
+    Id: number;
+    FundingYear: number;
+    /** ISO date-time from the API, e.g. "2025-01-01T00:00:00". */
+    StartDate: string;
+    EndDate: string;
+    IsActive: boolean;
+}
+
 export interface CodeTableData {
     CodeTable: CodeTable[];
     ProgramStages: ProgramEnums[];
@@ -111,6 +121,8 @@ export interface CodeTableData {
     Reasons: unknown[];
     RevisionStatuses: unknown[];
     RevisionRules: RevisionRules[];
+    /** Empty until the server has run Migration.RevisionValidationDates.2026-10-30.sql. */
+    RevisionValidationDates?: RevisionValidationDate[];
 }
 
 export interface CodeTable {

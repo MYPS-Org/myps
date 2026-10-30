@@ -160,13 +160,6 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
               </div>
             )}
 
-            {/* Error Message */}
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">
-                {error}
-              </div>
-            )}
-
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
               <Button color="zinc" onClick={handleClose} disabled={isDeleting}>
                 Cancel

@@ -92,6 +92,7 @@ export interface UserGroupPagination extends PaginationParams {
 }
 export interface UserGroupFilter {
     GroupName?: string;
+    PermissionNames?: string;
     PermissionActionIds?: number[];
     PermissionViewIds?: number[];
 }
@@ -117,6 +118,8 @@ export interface UpdateUserGroupPayload {
 
 export interface Pis {
  EmployeeId?: string;
+ /** The user being edited (tUsers.Id): their own Employee ID is not a duplicate. */
+ ExcludeUserRowId?: number;
 }
 
 // Mirrors UserGroups.cs backend models

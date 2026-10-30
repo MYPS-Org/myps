@@ -3554,10 +3554,9 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var exceptions = await _db.pProjectImplementationPlanExceptions
-                    .FromSqlRaw($"""
-                    EXEC dbo.pProjectImplementationPlanExceptions
-                        @ProgramId = {programId}
-                    """)
+                    // 2026-10-29: was FromSqlRaw with programId pasted in unquoted: SQL injection from
+                    // the query string, and a real Program ID (with letters and "-") was a syntax error.
+                    .FromSqlInterpolated($"EXEC dbo.pProjectImplementationPlanExceptions @ProgramId = {programId}")
                     .AsNoTracking()
                     .ToListAsync(cancellationToken);
 
@@ -3585,10 +3584,9 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var exceptions = await _db.pProjectLocationExceptions
-                    .FromSqlRaw($"""
-                    EXEC dbo.pProjectLocationExceptions
-                        @ProgramId = {programId}
-                    """)
+                    // 2026-10-29: was FromSqlRaw with programId pasted in unquoted: SQL injection from
+                    // the query string, and a real Program ID (with letters and "-") was a syntax error.
+                    .FromSqlInterpolated($"EXEC dbo.pProjectLocationExceptions @ProgramId = {programId}")
                     .AsNoTracking()
                     .ToListAsync(cancellationToken);
 

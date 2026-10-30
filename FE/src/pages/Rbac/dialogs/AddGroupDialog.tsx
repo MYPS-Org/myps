@@ -98,6 +98,10 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
                 Apply Filter
               </label>
             </div>
+            {/* 2026-10-30: vUsers.ApplyFilter is on only when EVERY group of the user has it on. */}
+            <p className="text-xs text-gray-400 -mt-2">
+              A user in several groups is region-filtered only when all their groups have Apply Filter.
+            </p>
 
             <p className="text-xs text-gray-400">
               Permissions can be assigned after the group is created via the Edit action.

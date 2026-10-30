@@ -270,7 +270,9 @@ const ThrustTable: React.FC = () => {
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                     {editId === item.Id ? (
                       <>
-                        <TableCell><input autoFocus type="number" value={editForm.PAPKey} onChange={e => setEditForm(f => ({ ...f, PAPKey: +e.target.value }))} className={inp('edit', 'w-16')} /></TableCell>
+                        {/* 2026-10-29: read-only on edit. The API never saves a changed PAP Key (projects
+                            refer to it), yet checked it for duplicates, so a typed key could only mislead. */}
+                        <TableCell className="font-mono text-sm text-gray-600">{editForm.PAPKey}</TableCell>
                         <TableCell><input type="text" value={editForm.ProgramName} maxLength={200} onChange={e => setEditForm(f => ({ ...f, ProgramName: e.target.value }))} placeholder="Program..." className={inp('edit')} /></TableCell>
                         <TableCell><input type="text" value={editForm.SubProgramName} maxLength={200} onChange={e => setEditForm(f => ({ ...f, SubProgramName: e.target.value }))} placeholder="Sub-program..." className={inp('edit')} /></TableCell>
                         <TableCell><input type="text" value={editForm.ActivityName} maxLength={400} onChange={e => setEditForm(f => ({ ...f, ActivityName: e.target.value }))} placeholder="Activity..." className={inp('edit')} /></TableCell>

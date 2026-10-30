@@ -967,6 +967,21 @@ namespace WebAPI.Controllers.Revision
                 var ProgramRevision = ValidateProgram.Data.ProgramRevision;
                 var ProgramStage = ValidateProgram.Data.ProgramStage;
 
+                // S04-TC016 (2026-10-30): Code Tables → Revisions → Validation Dates sets, per funding year
+                // (the program's year), the dates a revision can be requested. A year with no active row has
+                // no window. Only a NEW request is held to it: a request returned For Correction can still
+                // be resubmitted after the window closes.
+                var ValidationWindow = await _db.FindActiveValidationWindowAsync(ProgramParent.StartYear, cancellationToken);
+                if (ValidationWindow != null && !RevisionValidationWindow.IsOpen(CurrentDate, ValidationWindow.StartDate, ValidationWindow.EndDate))
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Revision Period Closed",
+                        Message = $"Revisions of FY {ProgramParent.StartYear} projects can be requested from {ValidationWindow.StartDate:MMMM d, yyyy} to {ValidationWindow.EndDate:MMMM d, yyyy}."
+                    });
+                }
+
                 var RevisionReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.IsActive, cancellationToken);
                 if (RevisionReason == null)
                 {
@@ -1237,7 +1252,9 @@ namespace WebAPI.Controllers.Revision
                 // #480: an inactive Funding Source / Agreement is refused on new or changed lines only;
                 // lines the project already holds keep theirs.
                 var ValidateFundingLookups = await _db.ValidateFundingLookupsAsync(
-                    dto.FundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode)),
+                    // A line posted as deleted skips the check only when the rule lets it be deleted: otherwise
+                    // the save below keeps it live, with whatever it was changed to (2026-10-29).
+                    dto.FundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted && jsonRules.FundingProfileRules.CRUD.CanDelete, x.SourceOrg, x.AgreementCode)),
                     FundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode)),
                     cancellationToken);
                 if (!ValidateFundingLookups.IsValid)
@@ -1509,7 +1526,8 @@ namespace WebAPI.Controllers.Revision
                 // #479: a retired Work Type / Infra Type is refused on new or changed rows only; rows the
                 // project already holds keep theirs.
                 var ValidateMajorItemLookups = await _db.ValidateMajorItemLookupsAsync(
-                    dto.MajorItemOfWorks.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
+                    // Posted as deleted skips the check only when the rule lets it be deleted (see Funding).
+                    dto.MajorItemOfWorks.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted && jsonRules.MajorItemOfWorkRules.CRUD.CanDelete, x.WorkTypeFK, x.InfraTypeFK)),
                     MajorWorkItem.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
                     cancellationToken);
                 if (!ValidateMajorItemLookups.IsValid)
@@ -2697,17 +2715,6 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Item not found" });
                 }
-                // #479: a retired Work Type / Infra Type is refused on new or changed rows only; rows the
-                // revision already holds keep theirs.
-                var ValidateMajorItemLookups = await _db.ValidateMajorItemLookupsAsync(
-                    dto.MajorItemOfWorks.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
-                    ExistingMajorWorkItem.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
-                    cancellationToken);
-                if (!ValidateMajorItemLookups.IsValid)
-                {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return new BadRequestObjectResult(new { Message = ValidateMajorItemLookups.Message, Title = ValidateMajorItemLookups.Title });
-                }
                 var ExistingMajorWorkItemIds = ExistingMajorWorkItem.Select(x => x.Id).ToList();
                 var ExistingMajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => ExistingMajorWorkItemIds.Contains(x.RevisionWorkItemFK)).ToListAsync(cancellationToken);
                 if (ExistingMajorWorkLocations.Count == 0)
@@ -2818,6 +2825,18 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionReason.Reason}. Please contact Administrator.", Title = "No Rules Exists" });
                 }
+                // #479 (moved below jsonRules, 2026-10-29): a retired Work Type / Infra Type is refused on new or changed rows only; rows the
+                // revision already holds keep theirs.
+                var ValidateMajorItemLookups = await _db.ValidateMajorItemLookupsAsync(
+                    // Posted as deleted skips the check only when the rule lets it be deleted (see Funding).
+                    dto.MajorItemOfWorks.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted && jsonRules.MajorItemOfWorkRules.CRUD.CanDelete, x.WorkTypeFK, x.InfraTypeFK)),
+                    ExistingMajorWorkItem.Select(x => new MajorItemLookupRow(x.Id, x.IsDeleted, x.WorkTypeFK, x.InfraTypeFK)),
+                    cancellationToken);
+                if (!ValidateMajorItemLookups.IsValid)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return new BadRequestObjectResult(new { Message = ValidateMajorItemLookups.Message, Title = ValidateMajorItemLookups.Title });
+                }
                 string RevisionTransactionId = $"{dto.ProjectDetails.ProjectId}-{DocumentNaming.SecondSegmentName}";
 
                 var BlankFunding = dto.FundingProfile.Where(x => x.Amount <= 0).ToList();
@@ -2838,7 +2857,9 @@ namespace WebAPI.Controllers.Revision
                 // #480: an inactive Funding Source / Agreement is refused on new or changed lines only;
                 // lines the revision already holds keep theirs.
                 var ValidateFundingLookups = await _db.ValidateFundingLookupsAsync(
-                    dto.FundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode)),
+                    // A line posted as deleted skips the check only when the rule lets it be deleted: otherwise
+                    // the save below keeps it live, with whatever it was changed to (2026-10-29).
+                    dto.FundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted && jsonRules.FundingProfileRules.CRUD.CanDelete, x.SourceOrg, x.AgreementCode)),
                     ExistingFundingProfile.Select(x => new FundingLookupRow(x.Id, x.IsDeleted, x.SourceOrg, x.AgreementCode)),
                     cancellationToken);
                 if (!ValidateFundingLookups.IsValid)
@@ -2917,6 +2938,7 @@ namespace WebAPI.Controllers.Revision
                     // Taken before UpdateRevisionData, which changes ProjectRevisions in place (#481).
                     var StoredLookups = new ProjectDetailsLookupValues(ProjectRevisions.Tier, ProjectRevisions.Origin, ProjectRevisions.Agency, ProjectRevisions.ImplementationMode, ProjectRevisions.EmergencyMode, ProjectRevisions.RowAvailable, ProjectRevisions.Feasibility, ProjectRevisions.DetailedDesign);
                     int StoredCategory = ProjectRevisions.Category;
+                    int? StoredThrust = ProjectRevisions.Thrust;
                     var UpdateAndGenerateLogs = ProjectDetailsRules.UpdateRevisionData(User, dto.TransactionId, "tRevisionProjects", CurrentDate, NewProjectRevision, ProjectRevisions);
                     Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
                     var RevisionProject = UpdateAndGenerateLogs.Data;
@@ -3017,14 +3039,14 @@ namespace WebAPI.Controllers.Revision
                         // ProjectHelper.ValidateThrustForCategoryAsync -- it had been duplicated
                         // verbatim here and in ValidateProjectDetailsLookups, while the Lump Sum
                         // save carried a third, weaker variant with no mapping check at all.
-                        // No previous values on purpose: this branch already runs only when the
-                        // Thrust differs from the stored one (the enclosing diff guard), so the
-                        // pair is a new choice and gets full validation. Note this guard is
-                        // Sub-Category-only, unlike the two-field gate Project and Lump Sum use
-                        // since 2026-09-12 -- recorded as a follow-up, not widened here.
+                        // 2026-10-29: the project's own Category / Sub-Category are passed as the
+                        // previous pair, as RequestRevision does and as Category above does (#482).
+                        // The diff guard compares with the REQUEST's value, so a resubmission that
+                        // goes back to the project's own, since-retired Sub-Category reached here as
+                        // a "new" choice and was refused, while the same revert of Category saved.
                         var ValidateNewThrustPair = await _db.ValidateThrustForCategoryAsync(
                             RevisionProject.Category, RevisionProject.Thrust,
-                            previousCategory: null, previousThrust: null, ValidateProgram.Data.Program.StartYear, cancellationToken);
+                            previousCategory: StoredCategory, previousThrust: StoredThrust, ValidateProgram.Data.Program.StartYear, cancellationToken);
                         // 2026-09-12: the Option A rebase had nested the OLD inline block inside
                         // this failure branch, so a refusal from the shared validator was thrown
                         // away and the branch re-ran the retired checks instead -- including a
@@ -3032,6 +3054,7 @@ namespace WebAPI.Controllers.Revision
                         // database. The shared verdict is the verdict; return it.
                         if (!ValidateNewThrustPair.IsValid)
                         {
+                            await transaction.RollbackAsync(cancellationToken);
                             return new BadRequestObjectResult(new { Message = ValidateNewThrustPair.Message, Title = ValidateNewThrustPair.Title });
                         }
                         Logs.Add(new RevisionTransactionLog

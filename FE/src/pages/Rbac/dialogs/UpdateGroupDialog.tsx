@@ -393,6 +393,10 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
                 Apply Filter
               </label>
             </div>
+            {/* 2026-10-30: vUsers.ApplyFilter is on only when EVERY group of the user has it on. */}
+            <p className="text-xs text-gray-400 -mt-2">
+              A user in several groups is region-filtered only when all their groups have Apply Filter.
+            </p>
 
             {/* Selection summary */}
             <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg text-xs text-gray-500">

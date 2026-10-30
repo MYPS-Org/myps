@@ -99,7 +99,7 @@ const FilterUserGroupDialog: React.FC<FilterUserGroupDialogProps> = ({ isOpen, o
             <div className='flex justify-between items-center mt-4 border-t border-gray-200'>
               <div className='flex items-center space-x-2'>
                 <Button type="button" onClick={handleClear} color="zinc" className="mt-2"
-                disabled={formData.GroupName === ''}>
+                disabled={formData.GroupName === '' && formData.PermissionNames === ''}>
                   Clear Filters
                 </Button>
               </div>

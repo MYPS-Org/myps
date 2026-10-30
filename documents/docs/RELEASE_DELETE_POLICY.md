@@ -50,6 +50,21 @@ Without it, the Batch Delete dialog stops at "Could not check these projects": i
 - Every result set under "want 0 rows" must be empty. It is safe to re-run. Run it with `-I`.
 - Without it, a soft-deleted project keeps counting in the program Cost and in No. of Projects. A program whose stages were recorded out of order also keeps a Cost in Program Details that differs from the Program list.
 
+**And (2026-10-30, S04)** `Migration.RevisionValidationDates.2026-10-30.sql`:
+
+- It creates `dbo.tOptionRevisionValidationDate`, the table behind Code Tables → Revisions → Validation Dates (S04-TC016). It starts empty, so nothing is refused until PS Admin enters a range.
+- Its last query must return 1 row. It is safe to re-run, and can run before or after the deployment: until it runs, the screen shows no ranges and nothing is enforced.
+
+**Check (2026-10-30, S04):** before this build, editing a rule on Code Tables → Revisions → **Rules** switched it off (it then vanished from the screen, and revisions under it found no rules). The screen has no Active switch for rules, so an inactive rule was almost certainly switched off this way. List them and review with the team before turning any back on:
+
+```sql
+SELECT r.Id, r.ReasonId, rr.Reason, r.PCMA_Status, r.Package_Status
+FROM dbo.tRevisionRules r
+LEFT JOIN dbo.tOptionRevisionReasons rr ON rr.ReasonId = r.ReasonId
+WHERE r.IsActive = 0;
+-- after review, per rule: UPDATE dbo.tRevisionRules SET IsActive = 1 WHERE Id = <id>;
+```
+
 ### 2. Check the app login's rights and the compatibility level
 
 The deletion scripts now run as ordinary queries under the **app's own login**. There is no stored procedure whose ownership chain covers them. Run this **as the app's login** (for example `EXECUTE AS LOGIN = '<app login>'` first, then `REVERT`). Every row must say `1`:

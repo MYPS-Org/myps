@@ -75,7 +75,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 
   // The lists include retired (inactive) values so saved rows can still show them (#479). New
   // picks see only active values; a saved row keeps its own values even if retired since -- its
-  // Type of Work only while its Infra Type is unchanged, as the API checks a changed row in full.
+  // Type of Work only while its Infra Type is unchanged (a new Infra Type needs a new Type of Work).
   const keptInfraTypeFK = mode === 'edit' && isSavedRow ? initialData?.InfraTypeFK : undefined;
   const keptWorkTypeFK = keptInfraTypeFK && formData.InfraTypeFK === keptInfraTypeFK ? initialData?.WorkTypeFK : undefined;
 

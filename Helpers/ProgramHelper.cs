@@ -103,6 +103,33 @@ namespace Helpers
                 $"{Capitalize(label)} has moved on to the {latest.StageName} stage. Batch actions only work on a program's current stage: open it at {latest.StageName} and try again.");
         }
 
+        /// <summary>
+        /// 2026-10-30: the program data-security rule, in one place. An Apply Filter user may use a program
+        /// only when their region (RegCode) is in its Data Security Group; everyone else may use any.
+        /// ValidateProgramId checks one program with it, <see cref="GetAccessibleProgramPKsAsync"/> a batch.
+        /// </summary>
+        public static bool CanAccessProgram(this DBHelper.Models.Views.Users session, string[] dataSecurityGroup) =>
+            !session.ApplyFilter || dataSecurityGroup.Contains(session.RegCode);
+
+        /// <summary>
+        /// 2026-10-30: ValidateProgramId's data-security check for many programs at once, for the searches
+        /// that list programs (Global Search, Project > SearchProgram). Null: no restriction for this user.
+        /// Otherwise the ProgramPKs of <paramref name="programPKs"/> the user may use.
+        /// </summary>
+        public static async Task<HashSet<string>?> GetAccessibleProgramPKsAsync(this MYPSDbContext _db, DBHelper.Models.Views.Users session, IReadOnlyCollection<string> programPKs, CancellationToken cancellationToken)
+        {
+            if (!session.ApplyFilter)
+                return null;
+            var programs = await _db.tPrograms.AsNoTracking()
+                .Where(x => programPKs.Contains(x.ProgramPK))
+                .Select(x => new { x.ProgramPK, x.DataSecurityGroup })
+                .ToListAsync(cancellationToken);
+            return programs
+                .Where(x => session.CanAccessProgram(x.DataSecurityGroup))
+                .Select(x => x.ProgramPK)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
         public static async Task<ProgramHelperResponse> ValidateProgramId(this MYPSDbContext _db, ProgramHelperParams dto, CancellationToken cancellationToken)
         {
             var response = new ProgramHelperResponse();
@@ -173,14 +200,11 @@ namespace Helpers
                 response.Message = ProgramNotFoundMessage;
                 return response;
             }
-            if (dto._Session.ApplyFilter)
+            if (!dto._Session.CanAccessProgram(ProgramParent.DataSecurityGroup))
             {
-                if (!ProgramParent.DataSecurityGroup.Contains(dto._Session.RegCode))
-                {
-                    response.Title = "Access Denied";
-                    response.Message = $"You do not have permission to update {await _db.CurrentProgramLabelAsync(GetProgramPK.ProgramFK, GetProgramPK.Name, cancellationToken)}. Please contact your administrator.";
-                    return response;
-                }
+                response.Title = "Access Denied";
+                response.Message = $"You do not have permission to update {await _db.CurrentProgramLabelAsync(GetProgramPK.ProgramFK, GetProgramPK.Name, cancellationToken)}. Please contact your administrator.";
+                return response;
             }
             response.IsValid = true;
             response.Data.Program = ProgramParent;

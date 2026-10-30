@@ -24,6 +24,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
     {
         public UserManagementController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
+        // The group names Helpers/ProjectHelper.cs's project view gate matches (ScopeGroupDPC/RPC,
+        // ScopeSeeAllGroups). Keep in step with it; UpdateUserGroup refuses renaming them.
+        private static readonly string[] ProjectScopeGroupNames = { "DPC", "RPC", "AUC", "DPD Admin" };
+
         #region MODULE TAB
         [HttpPost]
         public async Task<IActionResult> ShowAppModules([FromBody] ModulePaginationDto dto, CancellationToken cancellationToken)
@@ -428,8 +432,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (!string.IsNullOrEmpty(dto.Filters.Email))
                     filters.Add(("v.[Email] LIKE @Email", "@Email", $"%{dto.Filters.Email}%"));
 
+                // 2026-10-30, S04 User Management: UserGroupNames is a JSON array of group names. LIKE '%X%'
+                // on its text also matched users of every group whose name merely contains X. Exact match.
                 if (!string.IsNullOrEmpty(dto.Filters.UserGroup))
-                    filters.Add(("v.[UserGroupNames] LIKE @UserGroup", "@UserGroup", $"%{dto.Filters.UserGroup}%"));
+                    filters.Add(("EXISTS (SELECT 1 FROM OPENJSON(v.[UserGroupNames]) g WHERE g.[value] = @UserGroup)", "@UserGroup", dto.Filters.UserGroup));
 
                 if (dto.Filters.IsActive != null)
                     filters.Add(("v.[IsActive] = @IsActive", "@IsActive", dto.Filters.IsActive.Value));
@@ -476,6 +482,17 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (getUser == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exist in the System.", Title = "User not found" });
+                }
+                // 2026-10-30, S04 User Management: the row is found by Id, so a list holding a made-up Id (the
+                // page used to give a newly added user Id = list length + 1) deleted someone else.
+                // The posted login must be the row's own.
+                if (!string.Equals(getUser.UserId, dto.UserId?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"The user list is out of date: '{dto.UserId}' is not the user on record. Reload the list and try again.",
+                        Title = "User Mismatch"
+                    });
                 }
                 if (string.Equals(getUser.UserId, _Session.UserId, StringComparison.OrdinalIgnoreCase))
                 {
@@ -530,15 +547,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                if (string.IsNullOrWhiteSpace(dto.RegCode))
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = "Region code is required and cannot be empty.",
-                        Title = "Invalid Region Code"
-                    });
-                }
-
                 // 2. Check if User exists in tUsers
                 var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id, cancellationToken);
                 if (getUser == null)
@@ -547,6 +555,23 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     {
                         Message = $"The user '{dto.UserId}' could not be found. Please ensure the user exists.",
                         Title = "User Not Found"
+                    });
+                }
+
+                // 2026-10-30 (S04-TC028): the Users list (vUsers) maps a user's stored code to its region and
+                // returns no RegCode when there is no region row for it (111 users on myps_db_dev, code OI10).
+                // Edit User sends the list row back, so every edit of those users -- even a deactivation --
+                // was refused here. A blank RegCode now keeps the stored one.
+                if (string.IsNullOrWhiteSpace(dto.RegCode))
+                {
+                    dto.RegCode = getUser.RegCode;
+                }
+                if (string.IsNullOrWhiteSpace(dto.RegCode))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Region code is required and cannot be empty.",
+                        Title = "Invalid Region Code"
                     });
                 }
 
@@ -562,6 +587,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         Title = "User ID Already Exists"
                     });
                 }
+
+                // 2026-10-30, S04-TC028: blank is allowed here (344 users have none); a given Employee ID
+                // belongs to one user only.
+                var employeeId = dto.EmployeeId?.Trim() ?? string.Empty;
+                var duplicateEmployeeId = await EmployeeIdOwnerAsync(employeeId, dto.Id, cancellationToken);
+                if (duplicateEmployeeId != null) return duplicateEmployeeId;
 
                 // 4. Validate UserGroupIds exist in tGroups
                 if (dto.UserGroupIds.Length > 0)
@@ -590,8 +621,32 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 var getUserGroup = await _db.tUserGroups
                     .FirstOrDefaultAsync(x => x.UserId == oldUserId, cancellationToken);
 
+                // 2026-10-30: an administrator could deactivate their own account or take away their
+                // own groups, and be locked out of User Management on the next request. Mirrors
+                // DeleteUser's self-deletion refusal.
+                if (string.Equals(oldUserId, _Session.UserId, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (dto.IsActive != getUser.IsActive)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = "You cannot change the status of the account used by the current session.",
+                            Title = "Self-deactivation Not Allowed"
+                        });
+                    }
+                    var currentGroupIds = (getUserGroup?.GroupIds ?? Array.Empty<int>()).Distinct().OrderBy(x => x);
+                    if (!currentGroupIds.SequenceEqual(normalizedGroupIds))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = "You cannot change the user groups of the account used by the current session. Ask another administrator to change them.",
+                            Title = "Own Groups Not Editable"
+                        });
+                    }
+                }
+
                 // 5. Update User details
-                getUser.EmployeeId = dto.EmployeeId?.Trim();
+                getUser.EmployeeId = employeeId;
                 getUser.UserId = dto.UserId.Trim();
                 getUser.Name = dto.Name.Trim();
                 getUser.Email = dto.Email?.Trim();
@@ -684,6 +739,20 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
+                // 2026-10-30: required here (it left the model so Edit/Delete accept a blank one), and
+                // one Employee ID belongs to one user -- PIS's own lookup check is not enough on its own.
+                var employeeId = dto.EmployeeId?.Trim() ?? string.Empty;
+                if (employeeId.Length == 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Employee ID is required. Search the employee in PIS first.",
+                        Title = "Invalid Employee ID"
+                    });
+                }
+                var duplicateEmployeeId = await EmployeeIdOwnerAsync(employeeId, null, cancellationToken);
+                if (duplicateEmployeeId != null) return duplicateEmployeeId;
+
                 // 3. Validate UserGroupIds exist in tGroups
                 if (dto.UserGroupIds.Length > 0)
                 {
@@ -711,7 +780,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 // 4. Create new User
                 var newUser = new DBHelper.Models.Table.User.Users
                 {
-                    EmployeeId = dto.EmployeeId?.Trim(),
+                    EmployeeId = employeeId,
                     UserId = dto.UserId.Trim(),
                     Name = dto.Name.Trim(),
                     Email = dto.Email?.Trim(),
@@ -752,6 +821,21 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
             }
+        }
+
+        /// <summary>A refusal when another user (not row <paramref name="exceptRowId"/>) already has this non-blank Employee ID; otherwise null.</summary>
+        private async Task<IActionResult?> EmployeeIdOwnerAsync(string employeeId, int? exceptRowId, CancellationToken cancellationToken)
+        {
+            if (employeeId.Length == 0) return null;
+            var owner = await _db.tUsers.AsNoTracking()
+                .Where(x => x.EmployeeId == employeeId && (exceptRowId == null || x.Id != exceptRowId))
+                .Select(x => x.UserId)
+                .FirstOrDefaultAsync(cancellationToken);
+            return owner == null ? null : new BadRequestObjectResult(new
+            {
+                Message = $"Employee ID '{employeeId}' already belongs to user '{owner}'.",
+                Title = "Employee ID Already Exists"
+            });
         }
         #endregion
         #region VIEW PERMISSIONS TAB
@@ -1263,6 +1347,26 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (!string.IsNullOrEmpty(dto.Filters.GroupName))
                     filters.Add(("v.[GroupName] LIKE @GroupName", "@GroupName", $"%{dto.Filters.GroupName}%"));
 
+                // 2026-10-30 (S04-TC029): the Filter User Group dialog's Permission Name was never applied,
+                // so the list came back unfiltered. It matches a GRANTED permission by the names the group
+                // dialogs show: controller, action, page (route) or module.
+                if (!string.IsNullOrWhiteSpace(dto.Filters.PermissionNames))
+                    filters.Add(("""
+                        EXISTS (
+                            SELECT 1 FROM dbo.tGroupRoles gr
+                            WHERE gr.GroupId = v.[Id] AND (
+                                EXISTS (
+                                    SELECT 1 FROM OPENJSON(gr.ActionIds) WITH (ActionId INT '$') aid
+                                    INNER JOIN dbo.tApiActions pa ON pa.Id = aid.ActionId
+                                    LEFT JOIN dbo.tApiControllers pc ON pc.ControllerName = pa.ControllerName
+                                    WHERE pa.ActionName LIKE @PermissionName OR pa.ControllerName LIKE @PermissionName
+                                       OR pc.ModuleName LIKE @PermissionName)
+                                OR EXISTS (
+                                    SELECT 1 FROM OPENJSON(gr.ViewIds) WITH (ViewId INT '$') vid
+                                    INNER JOIN dbo.tAppViews av ON av.Id = vid.ViewId
+                                    WHERE av.RouteName LIKE @PermissionName OR av.ModuleName LIKE @PermissionName)))
+                        """, "@PermissionName", $"%{dto.Filters.PermissionNames.Trim()}%"));
+
                 FilterDataResult<DBHelper.Models.Views.UserGroups> result =
                     await _db.FilterDataCursor<
                         DBHelper.Models.Views.UserGroups,
@@ -1382,6 +1486,19 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
+                // 2026-10-30: the project view gate (Helpers/ProjectHelper.cs) recognises these groups by
+                // NAME, exactly as spelled. A rename silently changed which projects their members see.
+                var currentGroupName = getGroup.GroupName ?? string.Empty;
+                if (ProjectScopeGroupNames.Contains(currentGroupName, StringComparer.Ordinal)
+                    && !string.Equals(currentGroupName, dto.GroupName.Trim(), StringComparison.Ordinal))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"'{currentGroupName}' cannot be renamed: project visibility is matched by this group name. Its description, Apply Filter and permissions can still be changed.",
+                        Title = "Group Name Locked"
+                    });
+                }
+
                 // 3. Check if GroupName is already taken by another group
                 var groupNameExists = await _db.tGroups
                     .AnyAsync(x => x.GroupName.ToLower() == dto.GroupName.ToLower() && x.Id != dto.Id, cancellationToken);
@@ -1434,6 +1551,40 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         {
                             Message = $"The following View IDs do not exist: {string.Join(", ", invalidViewIds)}. Please sync permissions and try again.",
                             Title = "Invalid View IDs"
+                        });
+                    }
+                }
+
+                // 2026-10-30: editing one's own group could take away the User Management actions
+                // needed to put them back. Refuse when the editor would lose one they hold through this
+                // group and through none of their other groups.
+                if (_Session.UserGroupIds.Contains(dto.Id))
+                {
+                    var userManagementActions = await _db.tApiActions.AsNoTracking()
+                        .Where(x => x.ControllerName == nameof(UserManagementController))
+                        .Select(x => new { x.Id, x.ActionName })
+                        .ToListAsync(cancellationToken);
+                    var heldHere = (await _db.tGroupRoles.AsNoTracking()
+                        .Where(x => x.GroupId == dto.Id)
+                        .Select(x => x.ActionIds)
+                        .FirstOrDefaultAsync(cancellationToken)) ?? Array.Empty<int>();
+                    var otherGroupIds = _Session.UserGroupIds.Where(x => x != dto.Id).ToArray();
+                    var heldElsewhere = (await _db.tGroupRoles.AsNoTracking()
+                        .Where(x => otherGroupIds.Contains(x.GroupId))
+                        .Select(x => x.ActionIds)
+                        .ToListAsync(cancellationToken))
+                        .SelectMany(x => x)
+                        .ToHashSet();
+                    var lost = userManagementActions
+                        .Where(a => heldHere.Contains(a.Id) && !dto.PermissionActionIds.Contains(a.Id) && !heldElsewhere.Contains(a.Id))
+                        .Select(a => a.ActionName)
+                        .ToList();
+                    if (lost.Count > 0)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = $"You are a member of '{getGroup.GroupName}'. Saving would remove your own User Management access ({string.Join(", ", lost)}). Ask another administrator to make this change.",
+                            Title = "Own Access Not Removable"
                         });
                     }
                 }

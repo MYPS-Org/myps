@@ -7,6 +7,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
     public class UserGroupFilterDTO
     {
         public string? GroupName { get; set; }
+        public string? PermissionNames { get; set; }
         public int[]? PermissionActionIds { get; set; }
         public int[]? PermissionViewIds { get; set; }
     }

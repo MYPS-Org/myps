@@ -20,6 +20,9 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  // The Employee ID whose PIS region/office are in the form, and the name PIS gave for it.
+  const [pisEmployeeId, setPisEmployeeId] = useState<string | null>(null);
+  const [pisName, setPisName] = useState('');
   
   const [formData, setFormData] = useState({
     id: user.Id || 0,
@@ -50,6 +53,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       plantillaOfficeName: user.PlantillaOfficeName || '',
       isActive: user.IsActive ? 'active' : 'inactive',
     });
+    setPisEmployeeId(null);
+    setPisName('');
   }, [user]);
 
   // Fetch available user groups when dialog opens
@@ -60,21 +65,28 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
   }, [isOpen]);
 
   const handleSearch = async (value: string) => {
+    const employeeId = value.trim();
+    if (!employeeId) {
+      setError('Enter an Employee ID to search.');
+      return;
+    }
     setIsLoading(true);
     setError('');
     try {
-      const userData = await fetchUserData({ EmployeeId: value });
+      // 2026-10-30, S04-TC028: ExcludeUserRowId lets the user's own Employee ID be looked up (the
+      // search refused any Employee ID already in tUsers). Only the region and office come from PIS:
+      // it used to overwrite the login (PIS network ID) and blank the email too.
+      const userData = await fetchUserData({ EmployeeId: employeeId, ExcludeUserRowId: user.Id });
       if (userData) {
         setFormData(prev => ({
           ...prev,
-          name: userData.Data.Name || '',
-          userId: userData.Data.UserId || '',
-          email: userData.Data.Email || '',
           regCode: userData.Data.RegCode || '',
           regName: userData.Data.RegName || '',
           plantillaOffice: userData.Data.PlantillaOffice || '',
           plantillaOfficeName: userData.Data.PlantillaOfficeName || '',
         }));
+        setPisEmployeeId(employeeId);
+        setPisName(userData.Data.Name || '');
       } else {
         setError('Employee ID not found');
       }
@@ -111,6 +123,17 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
   // Handle form submission
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
+
+    // Same check as Add User: a PIS region/office MYPS does not know comes back as "<code> (Not Exists)"
+    // with no name, and must not be saved.
+    if (pisEmployeeId !== null && !formData.regName) {
+      showToast({ type: 'error', message: 'Region is required.' });
+      return;
+    }
+    if (pisEmployeeId !== null && !formData.plantillaOfficeName) {
+      showToast({ type: 'error', message: 'Plantilla Office is required.' });
+      return;
+    }
     
     const selectedGroupNames = availableGroups
       .filter(g => formData.userGroupIds.includes(g.Id))
@@ -119,7 +142,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       Id: user.Id,
       UserGroupIds: formData.userGroupIds,
       UserGroupNames: selectedGroupNames,
-      EmployeeId: formData.employeeId,
+      EmployeeId: formData.employeeId.trim(),
       UserId: formData.userId,
       Name: formData.name,
       Email: formData.email,
@@ -156,6 +179,25 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // A different Employee ID than the one searched: put the user's own region/office back, so another
+  // employee's office is never saved under it.
+  const handleEmployeeIdChange = (value: string) => {
+    if (pisEmployeeId !== null && value.trim() !== pisEmployeeId) {
+      setFormData(prev => ({
+        ...prev,
+        employeeId: value,
+        regCode: user.RegCode || '',
+        regName: user.RegName || '',
+        plantillaOffice: user.PlantillaOffice || '',
+        plantillaOfficeName: user.PlantillaOfficeName || '',
+      }));
+      setPisEmployeeId(null);
+      setPisName('');
+      return;
+    }
+    handleChange('employeeId', value);
   };
 
   const handleUserGroupChange = (groupId: number, isChecked: boolean) => {
@@ -202,9 +244,10 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                   <input
                     type="text"
                     value={formData.employeeId}
-                    onChange={(e) => handleChange('employeeId', e.target.value)}
+                    onChange={(e) => handleEmployeeIdChange(e.target.value)}
                     className="w-full px-3 py-2"
                     placeholder="Enter employee ID"
+                    maxLength={50}
                   />
                   <button
                     type="button"
@@ -216,6 +259,14 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                 </div>
                 {isLoading && (
                   <p className="text-sm text-blue-600 mt-1">Loading user data...</p>
+                )}
+                {!isLoading && pisEmployeeId !== null && pisName && (
+                  <p className="text-xs text-gray-500 mt-1">Found in PIS: {pisName}</p>
+                )}
+                {!user.EmployeeId?.trim() && pisEmployeeId === null && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    No Employee ID is on record. Enter it and click search to fill in the region and office from PIS; the login and email are kept.
+                  </p>
                 )}
               </div>
               <div>

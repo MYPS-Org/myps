@@ -18,22 +18,34 @@ namespace WebAPI.Controllers.MockUps
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
+    // 2026-10-30, S04 User Management: SearchUser was [AllowAnonymous] -- anyone, signed in or not, could read
+    // a PIS employee's name, network ID, region and office by Employee ID. The lookups only serve the
+    // User Management Add/Edit User dialogs, so they take that page's grant (as DashboardController
+    // reuses ShowProjects) instead of a PISController grant no group was ever given.
+    [PermissionFilter("UserManagementController", "ShowUsers")]
     public class PISController : CoreController
     {
         public PISController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto, CancellationToken cancellationToken)
         {
             try
             {
-                var checifExists = await _db.tUsers.FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId);
+                dto.EmployeeId = dto.EmployeeId?.Trim() ?? string.Empty;
+                if (dto.EmployeeId.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "Enter an Employee ID to search.", Title = "Employee ID Required" });
+                }
+                // 2026-10-30, S04-TC028: Edit User sends the row it edits, so a user's own Employee ID
+                // (or one being added to a user who has none) can be looked up; any OTHER user holding
+                // it is still refused -- one Employee ID, one user.
+                var checifExists = await _db.tUsers.FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId && (dto.ExcludeUserRowId == null || x.Id != dto.ExcludeUserRowId), cancellationToken);
                 if (checifExists != null)
                 {
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' already exists.",
+                            Message = $"Employee ID '{dto.EmployeeId}' already belongs to user '{checifExists.UserId}'.",
                             Title = "User Exists"
                         }
                     );

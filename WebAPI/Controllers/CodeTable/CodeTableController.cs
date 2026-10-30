@@ -81,6 +81,8 @@ namespace WebAPI.Controllers.CodeTable
                     .ToListAsync(cancellationToken);
                 var revisionDocuments = await _db.tOptionRevisionDocuments.AsNoTracking().ToListAsync(cancellationToken);
                 var revisionStatuses = await _db.tOptionRevisionStatus.AsNoTracking().ToListAsync(cancellationToken);
+                // S04-TC016 (2026-10-30): empty until the migration creates the table.
+                var revisionValidationDates = await _db.ListValidationWindowsAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -102,7 +104,8 @@ namespace WebAPI.Controllers.CodeTable
                     RevisionHeaders = revisionHeaders,
                     Reasons = reasons,
                     RevisionStatuses = revisionStatuses,
-                    RevisionRules = revisionRules
+                    RevisionRules = revisionRules,
+                    RevisionValidationDates = revisionValidationDates
                 });
             }
             catch (Exception ex)
@@ -200,6 +203,9 @@ namespace WebAPI.Controllers.CodeTable
                     case "RevisionStatus":
                         AffectedTable = "tOptionRevisionStatus";
                         break;
+                    case "RevisionValidationDates":
+                        AffectedTable = "tOptionRevisionValidationDate";
+                        break;
                     case "AdminAreaRegion":
                         AffectedTable = "tOptionAdminAreaRegion";
                         break;
@@ -241,7 +247,7 @@ namespace WebAPI.Controllers.CodeTable
             try
             {
                 //Program
-                CodeTableTransactionLog transactionLog = new CodeTableTransactionLog();
+                CodeTableChangeLog transactionLog = new CodeTableChangeLog();
                 string tablename = "";
                 DateTime CurrentDate = Functions.CurrentDate();
 
@@ -252,6 +258,33 @@ namespace WebAPI.Controllers.CodeTable
                 transactionLog.TypeOfTransaction = dto.TransactionType.ToString();
                 transactionLog.CreatedDate = CurrentDate;
                 transactionLog.CreatedBy = _Session.UserId!;
+
+                // 2026-10-29 (S04): IsActive is a bool, so a request without it read as false, and every
+                // branch below copied it: an edit form without the Active switch (Origin's) silently
+                // retired the row, and an add created it Inactive. Now an update changes IsActive only
+                // when the request sends it, and a new row without it is created Active, as the Code
+                // Tables screens promise.
+                bool sentIsActive = false;
+                if (!string.IsNullOrWhiteSpace(dto.Json) && Newtonsoft.Json.Linq.JToken.Parse(dto.Json) is Newtonsoft.Json.Linq.JObject payload)
+                {
+                    sentIsActive = payload.Properties().Any(p => string.Equals(p.Name, "IsActive", StringComparison.OrdinalIgnoreCase));
+                    if (!sentIsActive && dto.TransactionType == CodeTransactionType.Create)
+                    {
+                        payload["IsActive"] = true;
+                        dto.Json = payload.ToString(Newtonsoft.Json.Formatting.None);
+                    }
+                }
+
+                // 2026-10-29: new ids (CategoryId, NameId, Enum, ReasonId, ...) are MAX + 1, read under
+                // READ COMMITTED: two admins adding to one table at the same moment got the same id, or a
+                // unique-key error. One add per table at a time; released with this transaction.
+                if (dto.TransactionType == CodeTransactionType.Create)
+                {
+                    string LockResource = $"CodeTable:{dto.Code}";
+                    await _db.Database.ExecuteSqlInterpolatedAsync(
+                        $"EXEC sp_getapplock @Resource = {LockResource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 15000",
+                        cancellationToken);
+                }
 
                 if (dto.Code == "ProgramStage")
                 {
@@ -265,6 +298,18 @@ namespace WebAPI.Controllers.CodeTable
                         {
                             Title = "No Program Selected",
                             Message = "No Program has been selected, please select a program."
+                        });
+                    }
+                    // 2026-10-29: the program stages are fixed by the system (EnumProgramStage, the stage
+                    // order, the BP/P Project ID rules). A stage added here got StageHierarchy 0 and a name
+                    // the app does not know, so a program at it could not be opened ("not a valid program
+                    // stage"). Stages can be described, set Inactive, or deleted when unused; not added.
+                    if (dto.TransactionType == CodeTransactionType.Create)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Program Stages Are Fixed",
+                            Message = "Program stages are defined by the system and cannot be added. You can edit a stage's description or set it Inactive."
                         });
                     }
                     var CheckIfAlreadyUse = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.StageName == data.Name);
@@ -341,7 +386,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description ?? string.Empty;
                             CheckUpdate.Description = data.Description;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -435,7 +480,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description ?? string.Empty;
                             CheckUpdate.Description = data.Description;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -528,7 +573,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description ?? string.Empty;
                             CheckUpdate.Description = data.Description;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -557,6 +602,23 @@ namespace WebAPI.Controllers.CodeTable
                             Title = "No Project Category Selected",
                             Message = "No Project Category has been selected, please select a project category."
                         });
+                    }
+                    // 2026-10-29: a blank name, or a range whose minimum is above its maximum, was saved.
+                    if (dto.TransactionType != CodeTransactionType.Delete)
+                    {
+                        if (string.IsNullOrWhiteSpace(data.CategoryName))
+                        {
+                            return new BadRequestObjectResult(new { Title = "Name Required", Message = "Enter the Category name." });
+                        }
+                        data.CategoryName = data.CategoryName.Trim();
+                        if (data.Minimum > data.Maximum)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Invalid Amount Range",
+                                Message = $"Min Amount ({data.Minimum:N0}) is greater than Max Amount ({data.Maximum:N0})."
+                            });
+                        }
                     }
                     var CheckNameIfExists = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
@@ -673,7 +735,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.ValidUntil}";
                             CheckUpdate.ValidUntil = data.ValidUntil;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -686,13 +748,20 @@ namespace WebAPI.Controllers.CodeTable
                     {
                         transactionLog.NewValue = string.Empty;
                         transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate);
+                        // 2026-10-29: its Sub-Category mappings go with it. They were left behind, and the
+                        // next Category, given the freed CategoryId, inherited them.
+                        long DeletedCategoryId = CheckUpdate.CategoryId;
+                        _db.tOptionProjectCategoryToPAPMap.RemoveRange(
+                            await _db.tOptionProjectCategoryToPAPMap.Where(x => x.CategoryId == DeletedCategoryId).ToListAsync(cancellationToken));
                         _db.tOptionProjectCategory.Remove(CheckUpdate);
                     }
                 }
                 else if (dto.Code == "ProjectThrust")
                 {
                     tablename = "Project Thrust";
-                    transactionLog.AffectedTable = "tOptionProjectCategory";
+                    // 2026-10-29: was "tOptionProjectCategory", so Thrust history was always empty and
+                    // Category history showed Thrust edits.
+                    transactionLog.AffectedTable = "tOptionProjectThrustList";
                     var data = JsonConvert.DeserializeObject<OptionProjectThrustList>(dto.Json);
                     #region Validation
                     if (data == null)
@@ -703,6 +772,36 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Thrust has been selected, please select a project thrust."
                         });
                     }
+                    // 2026-10-29: PAP Key 0 means "no Sub-Category" on projects, so a Thrust saved with it
+                    // counted every such project as its user and could never be deleted or renamed.
+                    if (dto.TransactionType == CodeTransactionType.Create && data.PAPKey <= 0)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Invalid PAP Key",
+                            Message = "Enter the PAP Key of the Sub-Category (Thrust); it must be greater than 0."
+                        });
+                    }
+                    if (dto.TransactionType != CodeTransactionType.Delete && string.IsNullOrWhiteSpace(data.ThrustDescription))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Description Required",
+                            Message = "Enter the Sub-Category (Thrust) description."
+                        });
+                    }
+                    // Valid From / Valid To are years; 0 leaves that side open. A window that ends before
+                    // it starts is never selectable, while the Code Tables filter showed it as valid.
+                    if (dto.TransactionType != CodeTransactionType.Delete
+                        && data.ValidFromDate > 0 && data.ValidToDate > 0 && data.ValidFromDate > data.ValidToDate)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Invalid Validity",
+                            Message = $"Valid From ({data.ValidFromDate}) is after Valid To ({data.ValidToDate})."
+                        });
+                    }
+                    if (data.ThrustDescription != null) data.ThrustDescription = data.ThrustDescription.Trim();
                     var CheckDescriptionIfExists = await _db.tOptionProjectThrustList.AsNoTracking().FirstOrDefaultAsync(x => x.ThrustDescription == data.ThrustDescription);
                     if (CheckDescriptionIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckDescriptionIfExists.Id != data.Id)))
                     {
@@ -812,7 +911,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.ThrustDescription}";
                             CheckUpdate.ThrustDescription = data.ThrustDescription;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -910,7 +1009,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description!;
                             CheckUpdate.Description = data.Description;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -939,6 +1038,15 @@ namespace WebAPI.Controllers.CodeTable
                             Title = "No Project Origin Selected",
                             Message = "No Project Origin has been selected, please select a project origin."
                         });
+                    }
+                    // 2026-10-29: a blank name was saved (the screen has no check either).
+                    if (dto.TransactionType != CodeTransactionType.Delete)
+                    {
+                        if (string.IsNullOrWhiteSpace(data.Name))
+                        {
+                            return new BadRequestObjectResult(new { Title = "Name Required", Message = "Enter the Origin name." });
+                        }
+                        data.Name = data.Name.Trim();
                     }
                     var CheckNameIfExists = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
@@ -1001,7 +1109,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description!;
                             CheckUpdate.Description = data.Description;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1061,14 +1169,17 @@ namespace WebAPI.Controllers.CodeTable
                     // Funding profiles reference the Code (FK_tProjectFundingProfile_Agreement and
                     // FK_tRevFunding_Agreement), so only a delete or a code change can break them. This
                     // used to test the incoming Code and block every edit, even a name fix or a toggle.
-                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.Code != data.Code)
+                    // 2026-10-29: a Source Org change counts too: the Funding Profile lists an agreement
+                    // under its Source Org only, so the lines that use it showed a blank Agreement.
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.Code != data.Code
+                            || !string.Equals((CheckUpdate.SourceOrg ?? string.Empty).Trim(), (data.SourceOrg ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase))
                         && (await _db.tProjectFundingProfile.AsNoTracking().AnyAsync(x => x.AgreementCode == CheckUpdate.Code, cancellationToken)
                             || await _db.tRevisionProjectFundingProfile.AsNoTracking().AnyAsync(x => x.AgreementCode == CheckUpdate.Code, cancellationToken)))
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Funding Agreement In Use",
-                            Message = "The selected funding agreement is currently in use, so it cannot be deleted or have its code changed."
+                            Message = "The selected funding agreement is currently in use, so it cannot be deleted or have its code or source organization changed."
                         });
                     }
                     if (dto.TransactionType == CodeTransactionType.Create
@@ -1130,7 +1241,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.FinancingSourceSegmentCode ?? string.Empty;
                             CheckUpdate.FinancingSourceSegmentCode = data.FinancingSourceSegmentCode;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1234,7 +1345,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Nature ?? string.Empty;
                             CheckUpdate.Nature = data.Nature;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1287,6 +1398,17 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     if (dto.TransactionType != CodeTransactionType.Delete)
                     {
+                        // 2026-10-29: Code Tables added Types of Work with Measure "0" and, for a blank Max,
+                        // MaxAmount 0, which the Major Item form enforces as a real limit.
+                        if (dto.TransactionType == CodeTransactionType.Create
+                            && (string.IsNullOrWhiteSpace(data.Measure) || decimal.TryParse(data.Measure, out _)))
+                        {
+                            return new BadRequestObjectResult(new { Title = "Target Unit Required", Message = "Choose the Target Unit of the Type of Work." });
+                        }
+                        if (data.MaxAmount <= 0)
+                        {
+                            return new BadRequestObjectResult(new { Title = "Max Required", Message = "Enter the Max quantity; it must be greater than 0." });
+                        }
                         if (data.MinAmount > data.MaxAmount)
                         {
                             return new BadRequestObjectResult(new
@@ -1321,15 +1443,23 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
                     {
-                        if (CheckUpdate.InfraType != data.InfraType)
+                        // 2026-10-29: the arrays were compared by reference (always "changed"), so every save
+                        // re-checked every code, and a scope that still listed a since-deleted infra code
+                        // could no longer be saved or toggled at all. Now: compared as sets; only codes being
+                        // ADDED must exist; a code may not be REMOVED while Major Items use it with this
+                        // Type of Work (their Type of Work list is filtered by it and would show blank).
+                        var StoredInfra = (CheckUpdate.InfraType ?? Array.Empty<string>()).Select(x => x.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                        var PostedInfra = (data.InfraType ?? Array.Empty<string>()).Select(x => x.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                        if (!StoredInfra.SetEquals(PostedInfra))
                         {
-                            var validInfraCodes = await _db.tOptionInfraType
-                            .Select(x => x.InfraCode)
-                            .ToListAsync(cancellationToken);
-                            var nonExistingInfraTypes = data.InfraType
+                            var validInfraCodes = (await _db.tOptionInfraType.AsNoTracking()
+                                .Select(x => x.InfraCode)
+                                .ToListAsync(cancellationToken))
+                                .Select(x => x.Trim())
+                                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                            var nonExistingInfraTypes = PostedInfra.Except(StoredInfra, StringComparer.OrdinalIgnoreCase)
                                 .Where(infra => !validInfraCodes.Contains(infra))
                                 .ToList();
-
                             if (nonExistingInfraTypes.Any())
                             {
                                 return new BadRequestObjectResult(new
@@ -1338,10 +1468,37 @@ namespace WebAPI.Controllers.CodeTable
                                     Message = $"The following InfraType values are invalid: {string.Join(", ", nonExistingInfraTypes)}. Please provide valid InfraType values."
                                 });
                             }
+                            var RemovedInfra = StoredInfra.Except(PostedInfra, StringComparer.OrdinalIgnoreCase).ToList();
+                            if (RemovedInfra.Count > 0)
+                            {
+                                int WorkTypeEnum = CheckUpdate.Enum;
+                                var UsedInfra = (await _db.tProjectMajorWorkItem.AsNoTracking()
+                                        .Where(x => x.WorkTypeFK == WorkTypeEnum && !x.IsDeleted)
+                                        .Select(x => x.InfraTypeFK)
+                                        .Distinct()
+                                        .ToListAsync(cancellationToken))
+                                    .Concat(await _db.tRevisionProjectMajorWorkItem.AsNoTracking()
+                                        .Where(x => x.WorkTypeFK == WorkTypeEnum && !x.IsDeleted)
+                                        .Select(x => x.InfraTypeFK)
+                                        .Distinct()
+                                        .ToListAsync(cancellationToken))
+                                    .Where(x => x != null)
+                                    .Select(x => x!.Trim())
+                                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                                var RemovedInUse = RemovedInfra.Where(UsedInfra.Contains).ToList();
+                                if (RemovedInUse.Count > 0)
+                                {
+                                    return new BadRequestObjectResult(new
+                                    {
+                                        Title = "Scope Of Work In Use",
+                                        Message = $"Major Items use this Type of Work with {string.Join(", ", RemovedInUse)}, so that Infra Type cannot be removed from it. You can set the Type of Work Inactive instead."
+                                    });
+                                }
+                            }
                             transactionLog.AffectedColumn = "InfraType";
-                            transactionLog.NewValue = $"{data.InfraType}";
-                            transactionLog.OldValue = $"{CheckUpdate.InfraType}";
-                            CheckUpdate.InfraType = data.InfraType;
+                            transactionLog.NewValue = JsonConvert.SerializeObject(data.InfraType);
+                            transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate.InfraType);
+                            CheckUpdate.InfraType = data.InfraType ?? Array.Empty<string>();
                         }
                         if (CheckUpdate.WorkCategory != data.WorkCategory)
                         {
@@ -1378,7 +1535,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.MaxAmount}";
                             CheckUpdate.MaxAmount = data.MaxAmount;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1447,6 +1604,25 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected infra type is currently in use, so it cannot be deleted or have its code changed."
                         });
                     }
+                    // 2026-10-29: Types of Work (Scope of Work) list infra codes as text, not by FK. Deleting
+                    // or re-coding one they list left them pointing at a code that no longer exists, and
+                    // those Types of Work could no longer be saved or toggled.
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.InfraCode != data.InfraCode))
+                    {
+                        string StoredCode = (CheckUpdate.InfraCode ?? string.Empty).Trim();
+                        var ListedBy = (await _db.tOptionScopeOfWork.AsNoTracking().ToListAsync(cancellationToken))
+                            .Where(s => (s.InfraType ?? Array.Empty<string>()).Any(c => string.Equals(c?.Trim(), StoredCode, StringComparison.OrdinalIgnoreCase)))
+                            .Select(s => s.Description)
+                            .ToList();
+                        if (ListedBy.Count > 0)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Infra Type In Use",
+                                Message = $"{ListedBy.Count} Type(s) of Work list this infra type (for example \"{ListedBy[0]}\"), so it cannot be deleted or have its code changed. Remove it from them first, or set it Inactive."
+                            });
+                        }
+                    }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
                     {
@@ -1489,7 +1665,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.InfraName!;
                             CheckUpdate.InfraName = data.InfraName;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1520,15 +1696,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Component has been selected, please select a project component."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectComponentCost.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentType == data.ComponentName);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Project Component In Use",
-                            Message = "The selected project component is currently in use and cannot be updated or deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionProjectComponentType.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentName == data.ComponentName);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -1555,6 +1722,24 @@ namespace WebAPI.Controllers.CodeTable
                             Title = "Project Component Not Found",
                             Message = $"The project component with id {data.Id} is not found, please select another project component."
                         });
+                    }
+                    // 2026-10-29: component costs store the Component ID (FK to ComponentId), but this
+                    // check compared them with the posted NAME, so it never matched: a used type's
+                    // delete or ID change failed with a generic foreign-key error, and revision rows were
+                    // not checked at all. Now the stored Component ID, in projects and in revisions; a
+                    // name fix, the PCMA flag and Active stay editable while in use.
+                    if (CheckUpdate != null && (dto.TransactionType == CodeTransactionType.Delete || CheckUpdate.ComponentId != data.ComponentId))
+                    {
+                        string StoredComponentId = CheckUpdate.ComponentId;
+                        if (await _db.tProjectComponentCost.AsNoTracking().AnyAsync(x => x.ComponentType == StoredComponentId, cancellationToken)
+                            || await _db.tRevisionProjectComponentCost.AsNoTracking().AnyAsync(x => x.ComponentType == StoredComponentId, cancellationToken))
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Project Component In Use",
+                                Message = $"Cost type {StoredComponentId} is used by projects, so it cannot be deleted or have its Component ID changed. You can still rename it or set it Inactive."
+                            });
+                        }
                     }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
@@ -1587,7 +1772,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.ExportToPCMA ? "True" : "False";
                             CheckUpdate.ExportToPCMA = data.ExportToPCMA;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1617,15 +1802,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Header has been selected, please select a revision header."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Revision Header In Use",
-                            Message = "The selected revision header is currently in use and cannot be deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionName == data.RevisionName);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -1643,6 +1819,24 @@ namespace WebAPI.Controllers.CodeTable
                             Title = "Revision Header Not Found",
                             Message = $"The revision header with id {data.Id} is not found, please select another revision header."
                         });
+                    }
+                    // 2026-10-29: judged by the STORED header, and also refused while Reasons, Categories
+                    // or Documents still point at it: the delete used to fail with a generic database
+                    // error, or leave them pointing at nothing.
+                    if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
+                    {
+                        int GroupId = CheckUpdate.RevisionGroupId;
+                        if (await _db.tRevisionDetails.AsNoTracking().AnyAsync(x => x.RevisionGroupId == GroupId, cancellationToken)
+                            || await _db.tOptionRevisionReasons.AsNoTracking().AnyAsync(x => x.RevisionGroupId == GroupId, cancellationToken)
+                            || await _db.tOptionRevisionCategory.AsNoTracking().AnyAsync(x => x.RevisionGroupId == GroupId, cancellationToken)
+                            || await _db.tOptionRevisionDocuments.AsNoTracking().AnyAsync(x => x.RevisionGroupId == GroupId, cancellationToken))
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Revision Header In Use",
+                                Message = "The selected revision header is used by revision requests, reasons, categories or documents, so it cannot be deleted. You can set it Inactive."
+                            });
+                        }
                     }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
@@ -1663,7 +1857,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.RevisionName!;
                             CheckUpdate.RevisionName = data.RevisionName;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1693,15 +1887,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Category has been selected, please select a revision category."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == data.CategoryId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Revision Category In Use",
-                            Message = "The selected revision category is currently in use and cannot be deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -1719,6 +1904,24 @@ namespace WebAPI.Controllers.CodeTable
                             Title = "Revision Category Not Found",
                             Message = $"The revision category with id {data.Id} is not found, please select another revision category."
                         });
+                    }
+                    // 2026-10-29: judged by the STORED category, and also refused while Reasons or
+                    // Documents list it (they were left pointing at a deleted category).
+                    if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
+                    {
+                        int StoredCategoryId = CheckUpdate.CategoryId;
+                        bool UsedByReason = (await _db.tOptionRevisionReasons.AsNoTracking().ToListAsync(cancellationToken))
+                            .Any(r => r.CategoryId.Contains(StoredCategoryId));
+                        if (UsedByReason
+                            || await _db.tRevisionDetails.AsNoTracking().AnyAsync(x => x.CategoryId == StoredCategoryId, cancellationToken)
+                            || await _db.tOptionRevisionDocuments.AsNoTracking().AnyAsync(x => x.CategoryId == StoredCategoryId, cancellationToken))
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Revision Category In Use",
+                                Message = "The selected revision category is used by revision requests, reasons or documents, so it cannot be deleted. You can set it Inactive."
+                            });
+                        }
                     }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
@@ -1739,7 +1942,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.CategoryName!;
                             CheckUpdate.CategoryName = data.CategoryName;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1769,15 +1972,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Reason has been selected, please select a revision reason."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Revision Reason In Use",
-                            Message = "The selected revision reason is currently in use and cannot be deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.Reason == data.Reason);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -1795,6 +1989,33 @@ namespace WebAPI.Controllers.CodeTable
                             Title = "Revision Reason Not Found",
                             Message = $"The revision reason with id {data.Id} is not found, please select another revision reason."
                         });
+                    }
+                    // 2026-10-29: judged by the STORED reason. A delete is also refused while Rules use it
+                    // (they vanished from the Rules screen, and the next new reason took the freed ReasonId
+                    // and inherited them). Moving it to another Revision Header is refused while requests
+                    // use it: they find their reason by ReasonId AND RevisionGroupId, and failed with
+                    // "Revision Reason not found".
+                    if (CheckUpdate != null)
+                    {
+                        int StoredReasonId = CheckUpdate.ReasonId;
+                        bool UsedByRequests = await _db.tRevisionDetails.AsNoTracking().AnyAsync(x => x.ReasonId == StoredReasonId, cancellationToken);
+                        if (dto.TransactionType == CodeTransactionType.Delete
+                            && (UsedByRequests || await _db.tRevisionRules.AsNoTracking().AnyAsync(x => x.ReasonId == StoredReasonId, cancellationToken)))
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Revision Reason In Use",
+                                Message = "The selected revision reason is used by revision requests or rules, so it cannot be deleted. You can set it Inactive."
+                            });
+                        }
+                        if (dto.TransactionType == CodeTransactionType.Update && UsedByRequests && CheckUpdate.RevisionGroupId != data.RevisionGroupId)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Revision Reason In Use",
+                                Message = "The selected revision reason is used by revision requests, so it cannot be moved to another revision header."
+                            });
+                        }
                     }
                     // FK -> tOptionRevisionHeader(RevisionGroupId): a missing group was a raw SQL error.
                     if (dto.TransactionType != CodeTransactionType.Delete
@@ -1855,7 +2076,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate.CategoryId);
                             CheckUpdate.CategoryId = data.CategoryId;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -1885,15 +2106,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Rule has been selected, please select a revision rule."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Delete))
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Revision Rule In Use",
-                            Message = "The selected revision rule is currently in use and cannot be deleted."
-                        });
-                    }
                     var CheckNameIfExists = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId && x.PCMA_Status == data.PCMA_Status && x.Package_Status == data.Package_Status);
                     if (CheckNameIfExists != null && (dto.TransactionType == CodeTransactionType.Create || (dto.TransactionType == CodeTransactionType.Update && CheckNameIfExists.Id != data.Id)))
                     {
@@ -1911,6 +2123,20 @@ namespace WebAPI.Controllers.CodeTable
                             Title = "Revision Rule Not Found",
                             Message = $"The revision rule with id {data.Id} is not found, please select another revision rule."
                         });
+                    }
+                    // 2026-10-29: judged by the STORED rule. The Rules screen deletes with { Id } only, so
+                    // the check on the posted ReasonId never matched and an in-use rule was deleted.
+                    if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
+                    {
+                        int RuleReasonId = CheckUpdate.ReasonId;
+                        if (await _db.tRevisionDetails.AsNoTracking().AnyAsync(x => x.ReasonId == RuleReasonId, cancellationToken))
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Revision Rule In Use",
+                                Message = "The selected revision rule is currently in use and cannot be deleted."
+                            });
+                        }
                     }
                     #endregion
                     if (dto.TransactionType == CodeTransactionType.Create)
@@ -1959,7 +2185,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Field!;
                             CheckUpdate.Field = data.Field;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -2079,7 +2305,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.CategoryId}";
                             CheckUpdate.CategoryId = data.CategoryId;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -2093,6 +2319,114 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.NewValue = string.Empty;
                         transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate);
                         _db.tOptionRevisionDocuments.Remove(CheckUpdate);
+                    }
+                }
+                else if (dto.Code == "RevisionValidationDates")
+                {
+                    // S04-TC016 (2026-10-30): the Validation Dates screen used to change only the page (built-in
+                    // sample rows, nothing saved). One row per funding year; RequestRevision enforces it
+                    // (Helpers/RevisionValidationWindow.cs).
+                    tablename = "Validation Date";
+                    transactionLog.AffectedTable = "tOptionRevisionValidationDate";
+                    var data = JsonConvert.DeserializeObject<DBHelper.Models.Table.Revision.OptionRevisionValidationDate>(dto.Json);
+                    #region Validation
+                    if (data == null)
+                    {
+                        return new BadRequestObjectResult(new { Title = "No Validation Date Selected", Message = "No validation date has been selected." });
+                    }
+                    bool TableExists = await _db.Database
+                        .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM sys.tables WHERE name = N'tOptionRevisionValidationDate'")
+                        .SingleAsync(cancellationToken) > 0;
+                    if (!TableExists)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Validation Dates Not Set Up",
+                            Message = "Validation Dates are not set up on this server yet. Ask the administrator to run Migration.RevisionValidationDates.2026-10-30.sql."
+                        });
+                    }
+                    var CheckUpdate = await _db.tOptionRevisionValidationDate.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id, cancellationToken);
+                    if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
+                    {
+                        return new BadRequestObjectResult(new { Title = "Validation Date Not Found", Message = $"The validation date with id {data.Id} is not found." });
+                    }
+                    if (dto.TransactionType != CodeTransactionType.Delete)
+                    {
+                        if (data.FundingYear < 2000 || data.FundingYear > 2100)
+                        {
+                            return new BadRequestObjectResult(new { Title = "Invalid Funding Year", Message = "Enter a Funding Year between 2000 and 2100." });
+                        }
+                        if (data.StartDate.Year < 2000 || data.EndDate.Year < 2000)
+                        {
+                            return new BadRequestObjectResult(new { Title = "Dates Required", Message = "Enter both the Start Date and the End Date." });
+                        }
+                        data.StartDate = data.StartDate.Date;
+                        data.EndDate = data.EndDate.Date;
+                        if (data.StartDate > data.EndDate)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Invalid Dates",
+                                Message = $"The Start Date ({data.StartDate:MMMM d, yyyy}) is after the End Date ({data.EndDate:MMMM d, yyyy})."
+                            });
+                        }
+                        if (await _db.tOptionRevisionValidationDate.AsNoTracking().AnyAsync(x => x.FundingYear == data.FundingYear && x.Id != data.Id, cancellationToken))
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Title = "Validation Date Already Exists",
+                                Message = $"Funding Year {data.FundingYear} already has a validation date range. Edit that row instead."
+                            });
+                        }
+                    }
+                    #endregion
+                    if (dto.TransactionType == CodeTransactionType.Create)
+                    {
+                        transactionLog.AffectedColumn = string.Empty;
+                        transactionLog.NewValue = dto.Json;
+                        transactionLog.OldValue = string.Empty;
+                        data.Id = 0;
+                        data.CreatedBy = _Session.UserId ?? string.Empty;
+                        data.CreatedDate = CurrentDate;
+                        await _db.tOptionRevisionValidationDate.AddAsync(data, cancellationToken);
+                    }
+                    else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
+                    {
+                        if (CheckUpdate.FundingYear != data.FundingYear)
+                        {
+                            transactionLog.AffectedColumn = "FundingYear";
+                            transactionLog.NewValue = $"{data.FundingYear}";
+                            transactionLog.OldValue = $"{CheckUpdate.FundingYear}";
+                            CheckUpdate.FundingYear = data.FundingYear;
+                        }
+                        if (CheckUpdate.StartDate != data.StartDate)
+                        {
+                            transactionLog.AffectedColumn = "StartDate";
+                            transactionLog.NewValue = data.StartDate.ToString("yyyy-MM-dd");
+                            transactionLog.OldValue = CheckUpdate.StartDate.ToString("yyyy-MM-dd");
+                            CheckUpdate.StartDate = data.StartDate;
+                        }
+                        if (CheckUpdate.EndDate != data.EndDate)
+                        {
+                            transactionLog.AffectedColumn = "EndDate";
+                            transactionLog.NewValue = data.EndDate.ToString("yyyy-MM-dd");
+                            transactionLog.OldValue = CheckUpdate.EndDate.ToString("yyyy-MM-dd");
+                            CheckUpdate.EndDate = data.EndDate;
+                        }
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
+                        _db.tOptionRevisionValidationDate.Update(CheckUpdate);
+                    }
+                    else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
+                    {
+                        transactionLog.NewValue = string.Empty;
+                        transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate);
+                        _db.tOptionRevisionValidationDate.Remove(CheckUpdate);
                     }
                 }
                 else if (dto.Code == "RevisionStatus")
@@ -2165,7 +2499,7 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description ?? string.Empty;
                             CheckUpdate.Description = data.Description;
                         }
-                        if (CheckUpdate.IsActive != data.IsActive)
+                        if (sentIsActive && CheckUpdate.IsActive != data.IsActive)
                         {
                             transactionLog.AffectedColumn = "IsActive";
                             transactionLog.NewValue = data.IsActive ? "True" : "False";
@@ -2317,7 +2651,7 @@ namespace WebAPI.Controllers.CodeTable
                         Message = $"The code {dto.Code} is not valid."
                     });
                 }
-                _db.tCodeTableTransactionLog.Add(transactionLog);
+                _db.tCodeTableTransactionLog.AddRange(transactionLog.Rows());
                 await _db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync();
                 return Ok(new
@@ -2330,6 +2664,57 @@ namespace WebAPI.Controllers.CodeTable
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString());
+            }
+        }
+
+        /// <summary>
+        /// The audit rows of one Code Tables save: one row per changed column. The branches of
+        /// UpdateCodeTable set AffectedColumn, NewValue and OldValue once per changed field; on a single
+        /// CodeTableTransactionLog each field overwrote the previous one, so an edit that changed the
+        /// name and the description logged only the description (2026-10-29). Setting AffectedColumn
+        /// starts a new row; NewValue / OldValue fill the current one (a delete sets only those).
+        /// </summary>
+        private sealed class CodeTableChangeLog
+        {
+            private readonly List<CodeTableTransactionLog> _rows = new();
+            private CodeTableTransactionLog? _current;
+
+            public string TransactionId { get; set; } = string.Empty;
+            public string TypeOfTransaction { get; set; } = string.Empty;
+            public string AffectedTable { get; set; } = string.Empty;
+            public string CreatedBy { get; set; } = string.Empty;
+            public DateTime CreatedDate { get; set; }
+
+            public string AffectedColumn
+            {
+                get => Current.AffectedColumn;
+                set { _current = new CodeTableTransactionLog { AffectedColumn = value ?? string.Empty }; _rows.Add(_current); }
+            }
+            public string NewValue { get => Current.NewValue; set => Current.NewValue = value ?? string.Empty; }
+            public string OldValue { get => Current.OldValue; set => Current.OldValue = value ?? string.Empty; }
+
+            private CodeTableTransactionLog Current
+            {
+                get
+                {
+                    if (_current == null) { _current = new CodeTableTransactionLog(); _rows.Add(_current); }
+                    return _current;
+                }
+            }
+
+            /// <summary>The rows to save; one blank row when nothing changed, as before.</summary>
+            public IEnumerable<CodeTableTransactionLog> Rows()
+            {
+                var rows = _rows.Count > 0 ? _rows : new List<CodeTableTransactionLog> { new() };
+                foreach (var row in rows)
+                {
+                    row.TransactionId = TransactionId;
+                    row.TypeOfTransaction = TypeOfTransaction;
+                    row.AffectedTable = AffectedTable;
+                    row.CreatedBy = CreatedBy;
+                    row.CreatedDate = CreatedDate;
+                }
+                return rows;
             }
         }
     }

@@ -68,7 +68,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
     setError('');
 
     try {
-      const userData = await fetchUserData({ EmployeeId: value });
+      const userData = await fetchUserData({ EmployeeId: value.trim() });
       if (userData) {
         console.log('User data fetched:', userData);
         setFormData(prev => ({
@@ -123,7 +123,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         .map(g => g.Id);
       const userData = {
         Id: 0, // Will be set by the backend
-        EmployeeId: formData.employeeId,
+        EmployeeId: formData.employeeId.trim(),
         UserId: formData.userId,
         Name: formData.name,
         Email: formData.email,
@@ -136,17 +136,11 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         UserGroupNames: selectedGroupNames,
       };
       
-      const response = await addUser(userData);
-      console.log('Add user response:', response);
-      
-      // Pass the newly created user data to parent
-      const newUserData = {
-        ...userData,
-        Id: response?.Data?.Id || Date.now(), // Use response ID or fallback to timestamp
-        CreatedDate: new Date().toISOString()
-      };
-      
-      onSubmit(newUserData);
+      await addUser(userData);
+
+      // 2026-10-30: the parent re-reads the list for the new row's real Id; this used to hand it a
+      // Date.now() stand-in (the API's answer carries the row one level deeper, under Data.Data).
+      onSubmit(userData);
       showToast({ message: 'User added successfully.', type: 'success' });
       resetForm();
       onClose();
@@ -175,6 +169,27 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // 2026-10-30: editing the Employee ID after a search kept the found employee's login, name and
+  // office, so the user was added under an Employee ID that is not theirs. Any change needs a new search.
+  const handleEmployeeIdChange = (value: string) => {
+    if (isDataLoaded) {
+      setFormData(prev => ({
+        ...prev,
+        employeeId: value,
+        name: '',
+        userId: '',
+        email: '',
+        regCode: '',
+        regName: '',
+        plantillaOffice: '',
+        plantillaOfficeName: '',
+      }));
+      setIsDataLoaded(false);
+      return;
+    }
+    handleChange('employeeId', value);
   };
 
   const handleUserGroupChange = (group: string, checked: boolean) => {
@@ -223,9 +238,10 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                   <input
                     type="text"
                     value={formData.employeeId}
-                    onChange={(e) => handleChange('employeeId', e.target.value)}
+                    onChange={(e) => handleEmployeeIdChange(e.target.value)}
                     className="w-full px-3 py-2"
                     placeholder='Enter employee ID'
+                    maxLength={50}
                   />
                   <button
                     type="button"

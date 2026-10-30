@@ -3,14 +3,9 @@ import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/16/solid';
 import { CheckIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { Button } from '../../../components/tailwindui/button';
-import {
-	Pagination,
-	PaginationList,
-	PaginationNext,
-	PaginationPage,
-	PaginationPrevious,
-} from '../../../components/tailwindui/pagination';
-import type { AppModules } from '../Model.d';
+import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
+import type { AppModules, AppModuleFilter } from '../Model.d';
+import type { ListPager } from '../useRbac';
 import { addAppModule, updateAppModule, deleteAppModule, callSyncPermissions, callSyncViewPermissions } from '../service';
 import protectedRoutes from '../../../components/Routes';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -122,13 +117,11 @@ interface EditForm {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface AppModuleTableProps {
-	data: PaginationResponse<AppModules>;
-	isLoading: boolean;
-	onPaginate: (page: number) => void;
-	onDataChange: (updater: (prev: PaginationResponse<AppModules>) => PaginationResponse<AppModules>) => void;
+	pager: ListPager<AppModuleFilter, AppModules>;
 }
 
-export const AppModuleTable: React.FC<AppModuleTableProps> = ({ data, isLoading, onPaginate, onDataChange }) => {
+export const AppModuleTable: React.FC<AppModuleTableProps> = ({ pager }) => {
+	const { data, isLoading } = pager;
 	// null = none editing, 0 = adding a new row
 	const [editId, setEditId] = useState<number | null>(null);
 	const [editForm, setEditForm] = useState<EditForm>({ ModuleName: '', Description: '', controllers: [], views: [] });
@@ -221,13 +214,15 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ data, isLoading,
 				ViewCount: editForm.views.filter(v => v.Linked).length,
 			};
 			if (editId === 0) {
-				const res = await addAppModule(payload);
-				const newItem: AppModules = { ...payload, Id: res?.Data?.Id ?? Date.now() };
-				onDataChange(prev => ({ ...prev, lists: [newItem, ...prev.lists], total: prev.total + 1 }));
+				// 2026-10-30: AddAppModule answers with a message, not the new row, so the row used to get
+				// Id = Date.now() and its Edit/Delete then named a module that does not exist. Re-read
+				// page 1 (the new module has the highest Id) to get the real one.
+				await addAppModule(payload);
+				pager.applyFilters(pager.currentFilters ?? { ModuleName: '' });
 				showToast({ message: 'Module added successfully.', type: 'success' });
 			} else {
 				await updateAppModule(payload);
-				onDataChange(prev => ({ ...prev, lists: prev.lists.map(m => m.Id === payload.Id ? payload : m) }));
+				pager.refresh();
 				showToast({ message: 'Module updated successfully.', type: 'success' });
 			}
 			setEditId(null);
@@ -242,11 +237,8 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ data, isLoading,
 		setIsSaving(true);
 		try {
 			await deleteAppModule(item);
-			onDataChange(prev => ({
-				...prev,
-				lists: prev.lists.filter(m => m.Id !== item.Id),
-				total: Math.max(0, prev.total - 1),
-			}));
+			if (data.lists.length <= 1 && data.page > 1) pager.goPrevious();
+			else pager.refresh();
 			setDeleteConfirmId(null);
 			showToast({ message: 'Module deleted successfully.', type: 'success' });
 		} catch (err: any) {
@@ -481,32 +473,18 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ data, isLoading,
 				</Table>
 			)}
 
-			<Pagination className="my-6">
-				{data.totalPages > 1 && (
-					<>
-						<PaginationPrevious onClick={() => onPaginate(1)} disabled={data.page <= 1}>
-							First
-						</PaginationPrevious>
-						<PaginationList>
-							{Array.from({ length: Math.min(7, data.totalPages) }, (_, i) => {
-								const pageNum = Math.max(1, data.page - 3) + i;
-								if (pageNum > data.totalPages) return null;
-								if (pageNum === data.page) {
-									return <PaginationPage key={pageNum} current>{pageNum}</PaginationPage>;
-								}
-								return (
-									<PaginationPage key={pageNum} onClick={() => onPaginate(pageNum)}>
-										{pageNum}
-									</PaginationPage>
-								);
-							})}
-						</PaginationList>
-						<PaginationNext onClick={() => onPaginate(data.totalPages)} disabled={data.page >= data.totalPages}>
-							Last
-						</PaginationNext>
-					</>
-				)}
-			</Pagination>
+			<PaginationBar
+				currentPage={data.page}
+				totalPages={data.totalPages}
+				hasPrevious={pager.hasPrevious}
+				hasNext={pager.hasNext}
+				onGoToPage={pager.goToPage}
+				onNext={pager.goNext}
+				onPrevious={pager.goPrevious}
+				onFirst={pager.goFirst}
+				onLast={pager.goLast}
+				isLoading={pager.isLoading}
+			/>
 
 			<div className="mb-3.5 text-center">
 				{data.lists.length > 0 ? (

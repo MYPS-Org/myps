@@ -26,6 +26,8 @@ interface FormState {
   infraTypes: string[];
   workCategory: string;
   description: string;
+  /** Target Unit (tOptionScopeOfWork.Measure); asked on Add only. */
+  measure: string;
   minAmount: string;
   maxAmount: string;
 }
@@ -34,6 +36,7 @@ const EMPTY_FORM: FormState = {
   infraTypes: [],
   workCategory: '',
   description: '',
+  measure: '',
   minAmount: '',
   maxAmount: '',
 };
@@ -119,6 +122,16 @@ const ScopeOfWorkTable: React.FC = () => {
     [codeTableData],
   );
 
+  // 2026-10-29: the units in use, for the Target Unit of a new Type of Work. Add used to send
+  // Measure 0, so the Major Item form showed "Physical Target (0)" and the importer could not match it.
+  const units = useMemo<string[]>(
+    () => Array.from(new Set((codeTableData?.ScopeOfWorks ?? [])
+      .map(s => String(s.Measure ?? '').trim())
+      .filter(m => m !== '' && Number.isNaN(Number(m)))))
+      .sort((a, b) => a.localeCompare(b)),
+    [codeTableData],
+  );
+
   const allData = useMemo<ScopeOfWorkRow[]>(() =>
     (codeTableData?.ScopeOfWorks ?? []).map(s => ({
       id: s.Id,
@@ -163,6 +176,7 @@ const ScopeOfWorkTable: React.FC = () => {
       infraTypes: [...item.infraTypes],
       workCategory: item.workCategory,
       description: item.description,
+      measure: String(item.measure ?? ''),
       minAmount: item.minAmount !== null ? String(item.minAmount) : '',
       maxAmount: item.maxAmount !== null ? String(item.maxAmount) : '',
     });
@@ -210,6 +224,7 @@ const ScopeOfWorkTable: React.FC = () => {
         { label: 'Infra Types',   value: addForm.infraTypes.join(', ') || '—' },
         { label: 'Work Category', value: addForm.workCategory },
         { label: 'Description',   value: addForm.description },
+        { label: 'Target Unit',   value: addForm.measure },
         { label: 'Min Amount',    value: addForm.minAmount || '—' },
         { label: 'Max Amount',    value: addForm.maxAmount || '—' },
       ],
@@ -219,7 +234,7 @@ const ScopeOfWorkTable: React.FC = () => {
             InfraType: addForm.infraTypes,
             WorkCategory: addForm.workCategory,
             Description: addForm.description,
-            Measure: 0,
+            Measure: addForm.measure,
             // Min/Max are non-nullable ints on the server: a blank sent as null failed to deserialize.
             MinAmount: Number(addForm.minAmount || 0),
             MaxAmount: Number(addForm.maxAmount || 0),
@@ -283,8 +298,11 @@ const ScopeOfWorkTable: React.FC = () => {
     setDeleteConfirmId(null);
   };
 
+  // 2026-10-29: Target Unit and Max are required. A blank Max was saved as 0, which the Major Item
+  // form enforces as a real limit ("must be less than or equal to 0").
   const addValid = addForm
     ? addForm.workCategory.trim() !== '' && addForm.description.trim() !== ''
+      && addForm.measure !== '' && Number(addForm.maxAmount) > 0
     : false;
   const editValid = editForm.workCategory.trim() !== '' && editForm.description.trim() !== '';
 
@@ -377,6 +395,15 @@ const ScopeOfWorkTable: React.FC = () => {
                           rows={2}
                           className={inp('add')}
                         />
+                        <select
+                          value={addForm.measure}
+                          onChange={e => setAddForm(f => f ? { ...f, measure: e.target.value } : f)}
+                          className={`${inp('add')} mt-1`}
+                          aria-label="Target Unit"
+                        >
+                          <option value="">Target Unit *</option>
+                          {units.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
                       </TableCell>
                       <TableCell>
                         <input
@@ -392,7 +419,7 @@ const ScopeOfWorkTable: React.FC = () => {
                           type="number"
                           value={addForm.maxAmount}
                           onChange={e => setAddForm(f => f ? { ...f, maxAmount: e.target.value } : f)}
-                          placeholder="Max..."
+                          placeholder="Max *"
                           className={numInp('add')}
                         />
                       </TableCell>

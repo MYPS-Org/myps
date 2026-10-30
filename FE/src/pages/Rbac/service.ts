@@ -1,6 +1,6 @@
 // Service functions for RBAC operations
 import type { ShowAppModulesPagination, PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, AddUserGroups, UpdateUserGroupPayload, UserGroupPagination, Pis, InitialDataResponse, UserGroupDropdowns, vUserGroups, PermissionViews, RoutePermissionPagination, AppModules } from './Model.d';
-import { httpClient, type ErrorResponse } from '../../services/httpClient';
+import { httpClient } from '../../services/httpClient';
 // import type { ErrorResponse } from '';
 
 // Helper function to format permissions as CSV string
@@ -173,13 +173,10 @@ export const fetchUserData = async (data: Pis) => {
     try {
         const request = await httpClient.post<Users>('/PIS/SearchUser', data);
         return request;
-	} catch (error : any) {
-		const errorResponse: ErrorResponse = {
-			Message: error.response.Message,
-			Status: error.response.Status,
-			Title: error.response.Title,
-		};
-		throw errorResponse;
+	} catch (error) {
+		// 2026-10-30: httpClient already throws an ErrorResponse (Message/Title at the top). Re-reading
+		// error.response.Message threw a TypeError here, so the dialogs only ever said "Failed to fetch".
+		throw error;
 	}
 }
 //#endregion

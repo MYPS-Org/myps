@@ -56,6 +56,19 @@ namespace WebAPI.Controllers.ProjectGroup
                 if (!string.IsNullOrWhiteSpace(dto.Filters.ProjectId))
                 {
                     var projectKey = dto.Filters.ProjectId.Trim();
+                    // 2026-10-30: a project the user may not view (another region under Apply Filter, outside a
+                    // DPC/RPC office) must not lead them to the group holding it -- SearchProject answers it
+                    // "not found", so this filter finds nothing for it.
+                    var keyPKs = await _db.vProjectLatest.AsNoTracking()
+                        .Where(x => x.ProjectPK == projectKey || x.ProjectId == projectKey)
+                        .Select(x => x.ProjectPK)
+                        .Distinct()
+                        .ToListAsync(cancellationToken);
+                    var viewableKeys = await _db.GetViewableStagesByProjectAsync(_Session, keyPKs, cancellationToken);
+                    if (viewableKeys != null && !keyPKs.Any(pk => viewableKeys.Contains(pk)))
+                    {
+                        filters.Add(("@projectViewable = 1", "@projectViewable", 0));
+                    }
                     filters.Add((
                         """
                         EXISTS (
@@ -98,12 +111,19 @@ namespace WebAPI.Controllers.ProjectGroup
 
                 var userGroups = await _db.tGroups.AsNoTracking().ToListAsync(cancellationToken);
                 var pageGroupIds = result.Data.lists.Select(x => x.Id).ToArray();
-                var projectCounts = await _db.tProjects
+                // 2026-10-30: a region-limited user counts only the members they may view, as ProjectGroupDetails
+                // lists them; everyone else keeps the plain count.
+                var pageMembers = await _db.tProjects
                     .AsNoTracking()
                     .Where(x => x.ProjectGroupFK != null && pageGroupIds.Contains(x.ProjectGroupFK.Value))
-                    .GroupBy(x => x.ProjectGroupFK!.Value)
-                    .Select(x => new { GroupId = x.Key, Count = x.Count() })
-                    .ToDictionaryAsync(x => x.GroupId, x => x.Count, cancellationToken);
+                    .Select(x => new { GroupId = x.ProjectGroupFK!.Value, x.ProjectPK })
+                    .ToListAsync(cancellationToken);
+                var viewableMembers = await _db.GetViewableStagesByProjectAsync(
+                    _Session, pageMembers.Select(x => x.ProjectPK).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), cancellationToken);
+                var projectCounts = pageMembers
+                    .Where(x => viewableMembers == null || viewableMembers.Contains(x.ProjectPK))
+                    .GroupBy(x => x.GroupId)
+                    .ToDictionary(x => x.Key, x => x.Count());
 
                 var lists = result.Data.lists.Select(group =>
                 {
@@ -276,7 +296,10 @@ namespace WebAPI.Controllers.ProjectGroup
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x => x.ProjectId == projectId || x.ProjectPK == projectId, cancellationToken);
 
-                if (project == null)
+                // 2026-10-30: a project the user may not view (another region under Apply Filter, outside a
+                // DPC/RPC office) is not found, the same words ShowProjectDetails answers with.
+                var viewableStages = project == null ? null : await _db.GetViewableStagesAsync(_Session, project.ProjectPK, cancellationToken);
+                if (project == null || (viewableStages != null && viewableStages.Count == 0))
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Not Found" });
                 }
@@ -564,6 +587,13 @@ namespace WebAPI.Controllers.ProjectGroup
                     .Where(x => x.ProjectGroupFK == groupId)
                     .Select(x => new { x.ProjectPK, IsLumpSum = x.ProjectType == "LS" && x.ParentProjectId == null })
                     .ToListAsync(cancellationToken);
+                // 2026-10-30: only the members the user may view, as the Project List shows them (a group can
+                // hold other regions' projects); NumberOfProjects counts the same rows.
+                var viewable = await _db.GetViewableStagesByProjectAsync(_Session, members.Select(x => x.ProjectPK).ToList(), cancellationToken);
+                if (viewable != null)
+                {
+                    members = members.Where(x => viewable.Contains(x.ProjectPK)).ToList();
+                }
                 var projectKeys = members.Select(x => x.ProjectPK).ToList();
 
                 var projectList = await _db.vProjectLatest
@@ -758,6 +788,16 @@ namespace WebAPI.Controllers.ProjectGroup
                 .Where(x => requestedProjectIds.Contains(x.ProjectId) || requestedProjectIds.Contains(x.ProjectPK))
                 .Select(x => new { x.ProjectPK, x.ProjectId })
                 .ToListAsync(cancellationToken);
+
+            // 2026-10-30: a project the user may not view (another region under Apply Filter, outside a
+            // DPC/RPC office) is not found, as ShowProjectDetails answers it, so AddProject and DeleteProject
+            // can neither group nor ungroup it, nor confirm that it exists.
+            var viewable = await _db.GetViewableStagesByProjectAsync(
+                _Session, matches.Select(x => x.ProjectPK).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), cancellationToken);
+            if (viewable != null)
+            {
+                matches = matches.Where(x => viewable.Contains(x.ProjectPK)).ToList();
+            }
 
             var typed = requestedProjectIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
             var projectIdByPk = matches

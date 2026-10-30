@@ -55,12 +55,44 @@ namespace WebAPI.Controllers.Importing
             _backgroundJobs = backgroundJobs;
         }
 
+        // 2026-10-30: Import, Update and Export checked the program only with IsValidProgramId (in the job for
+        // Import/Update, here for Export), which takes no session, so an Apply Filter user could import into
+        // or export another region's program by its Id. This is the check every other program action makes:
+        // ValidateProgramId with the session. Its only session-dependent step is the Apply Filter one, so
+        // other users skip it and keep today's flow (a bad program is still reported by the job).
+        // viewOldStage: Export has already checked the stage with IsValidProgramId, so it skips that step here.
+        private async Task<IActionResult?> RefuseProgramOutsideScopeAsync(string programId, string stageName, CancellationToken cancellationToken, bool viewOldStage = false)
+        {
+            // A missing program or stage is left to the existing checks, which already report it.
+            if (!_Session.ApplyFilter || string.IsNullOrWhiteSpace(programId) || string.IsNullOrWhiteSpace(stageName))
+            {
+                return null;
+            }
+            var validateProgram = await _db.ValidateProgramId(new ProgramHelperParams
+            {
+                ProgramId = programId,
+                StageName = stageName,
+                ViewOldStage = viewOldStage,
+                _Session = _Session
+            }, cancellationToken);
+            return validateProgram.IsValid
+                ? null
+                : new BadRequestObjectResult(new { Data = validateProgram.Message, Title = validateProgram.Title, Message = validateProgram.Message });
+        }
+
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> ImportProject([FromForm] ImportProgramDetailsWithFile programDetails, CancellationToken cancellationToken)
         {
             try
             {
+                // Before the import lock, so a refused request never holds it.
+                var refusal = await RefuseProgramOutsideScopeAsync(programDetails.ProgramId, programDetails.StageName, cancellationToken);
+                if (refusal != null)
+                {
+                    return refusal;
+                }
+
                 string User = _Session.UserId;
 
                 var rows = await _db.Database.ExecuteSqlInterpolatedAsync($@"
@@ -180,6 +212,13 @@ namespace WebAPI.Controllers.Importing
         {
             try
             {
+                // Before the import lock, so a refused request never holds it.
+                var refusal = await RefuseProgramOutsideScopeAsync(programDetails.ProgramId, programDetails.StageName, cancellationToken);
+                if (refusal != null)
+                {
+                    return refusal;
+                }
+
                 string User = _Session.UserId;
 
                 var rows = await _db.Database.ExecuteSqlInterpolatedAsync($@"
@@ -373,6 +412,11 @@ namespace WebAPI.Controllers.Importing
                     Title = "Invalid Program or Stage",
                     Message = IsValidProgram.Message
                 });
+            }
+            var refusal = await RefuseProgramOutsideScopeAsync(dto.ProgramId, dto.StageName, cancellationToken, viewOldStage: true);
+            if (refusal != null)
+            {
+                return refusal;
             }
 
             var stageName = dto.StageName.Replace("-", "");

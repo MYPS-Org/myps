@@ -57,7 +57,8 @@ const FundingSourceTable: React.FC = () => {
       ],
       onConfirm: async () => {
         try {
-          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, Organization: item.Organization, Name: item.Name, Nature: item.Nature ?? 'Local', IsActive: nextActive }));
+          // The stored Nature as it is: `?? 'Local'` turned a blank Nature into Local on every toggle.
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, Organization: item.Organization, Name: item.Name, Nature: item.Nature ?? null, IsActive: nextActive }));
           showToast({ type: 'success', message: `Funding source ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
         } catch {

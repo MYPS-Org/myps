@@ -7,7 +7,7 @@ import { Badge } from '../../components/tailwindui/badge';
 import { CogIcon } from '@heroicons/react/24/outline';
 
 // State hook
-import { useRbac, type DefaultModelKey } from './useRbac';
+import { useRbac, EMPTY_USER_FILTER, EMPTY_GROUP_FILTER, type DefaultModelKey, type ListPager } from './useRbac';
 
 // Tab components
 import { AppModuleTable } from './components/AppModuleTab';
@@ -15,9 +15,6 @@ import { UsersTab } from './components/UsersTab';
 import { UserGroupsTab } from './components/UserGroupsTab';
 
 // import { useToast } from '../../components/toaster/ToasterContext';
-
-// Interfaces
-import type { vUserGroups, UserPagination, UserGroupPagination } from './Model.d';
 
 // Dialog imports
 import {
@@ -27,12 +24,22 @@ import {
 	FilterUserDialog, FilterUserGroupDialog,
 } from './dialogs';
 
+// 2026-10-30: after a change the list is fetched again instead of patched locally. A local patch
+// gave a newly added user Id = list length + 1 -- another user's Id -- so its Delete deleted them.
+// A new row has the highest Id, so it is on page 1 of the newest-first list.
+const reloadFirstPage = <F, T>(pager: ListPager<F, T>, empty: F) => pager.applyFilters(pager.currentFilters ?? empty);
+// The page the row was deleted from may no longer exist once its last row is gone.
+const reloadAfterDelete = <F, T>(pager: ListPager<F, T>) => {
+	if (pager.data.lists.length <= 1 && pager.data.page > 1) pager.goPrevious();
+	else pager.refresh();
+};
+
 const Rbac: React.FC = () => {
 	const {
 		selectedTab,
-		UsersData, setUsersData,
-		ModulesData, setModulesData,
-		UserGroupsData, setUserGroups,
+		usersPager,
+		userGroupsPager,
+		modulesPager,
 		isAddUserDialogOpen, setIsAddUserDialogOpen,
 		isAddGroupDialogOpen, setIsAddGroupDialogOpen,
 		isViewUserDialogOpen, setIsViewUserDialogOpen,
@@ -46,19 +53,12 @@ const Rbac: React.FC = () => {
 		isFilterUserDialogOpen, setIsFilterUserDialogOpen,
 		isUserGroupFilterDialogOpen, setIsUserGroupFilterDialogOpen,
 		expandedUserGroups,
-		UserFilter, setUserFilter,
-		UserGroupFilter, setUserGroupFilter,
-		isLoadingModules,
 		userGroupDropdowns,
 		userGroupList,
 		tabNumbers,
-		sortDirection,
 		handleClear,
 		handleExpand,
-		handleAutoRefresh,
-		handleSort,
 		getTableData,
-		Paginate,
 	} = useRbac();
 
 	// const { showToast } = useToast();
@@ -101,7 +101,7 @@ const Rbac: React.FC = () => {
 
 			{/* Tab Navigation */}
 			<div className="flex space-x-2 p-1 bg-white shadow-md rounded-lg">
-				<TabButton label="App Modules" value="modules"    icon={CogIcon}       count={tabNumbers.modules} />
+				<TabButton label="App Modules" value="modules"    icon={CogIcon}       count={modulesPager.data.total} />
 				<TabButton label="Users"       value="users"      icon={UsersIcon}     count={tabNumbers.users} />
 				<TabButton label="User Groups" value="userGroups" icon={UserGroupIcon} count={tabNumbers.userGroups} />
 			</div>
@@ -110,22 +110,15 @@ const Rbac: React.FC = () => {
 			<div className="bg-white rounded-lg shadow-sm border border-gray-200">
 {selectedTab === 'modules' && (
 				<AppModuleTable
-					data={ModulesData}
-					isLoading={isLoadingModules}
-					onPaginate={Paginate}
-					onDataChange={setModulesData}
+					pager={modulesPager}
 				/>
 			)}
 
 				{selectedTab === 'users' && (
 					<UsersTab
-						data={UsersData}
-						filter={UserFilter}
-						sortDirection={sortDirection}
+						pager={usersPager}
 						expandedUserGroups={expandedUserGroups}
-						onSort={handleSort}
 						onClear={handleClear}
-						onPaginate={Paginate}
 						onExpand={handleExpand}
 						onOpenFilter={() => setIsFilterUserDialogOpen(true)}
 						onAddUser={() => setIsAddUserDialogOpen(true)}
@@ -136,12 +129,8 @@ const Rbac: React.FC = () => {
 
 				{selectedTab === 'userGroups' && (
 					<UserGroupsTab
-						data={UserGroupsData}
-						filter={UserGroupFilter}
-						sortDirection={sortDirection}
-						onSort={handleSort}
+						pager={userGroupsPager}
 						onClear={handleClear}
-						onPaginate={Paginate}
 						onOpenFilter={() => setIsUserGroupFilterDialogOpen(true)}
 						onAddGroup={() => setIsAddGroupDialogOpen(true)}
 						onEdit={(id) => { setSelectedGroupId(id); setIsUpdateGroupDialogOpen(true); }}
@@ -156,46 +145,20 @@ const Rbac: React.FC = () => {
 			<AddUserDialog
 				isOpen={isAddUserDialogOpen}
 				onClose={() => setIsAddUserDialogOpen(false)}
-				onSubmit={(newUser: any) => {
-					const newUserWithId = {
-						...newUser,
-						Id: (UsersData.lists?.length || 0) + 1,
-						CreatedDate: new Date().toLocaleDateString(),
-					};
-					setUsersData(prev => ({
-						...prev,
-						lists: [newUserWithId, ...(prev.lists || [])],
-						total: (prev.total || 0) + 1,
-					}));
-				}}
+				onSubmit={() => reloadFirstPage(usersPager, EMPTY_USER_FILTER)}
 			/>
 
 			<AddGroupDialog
 				isOpen={isAddGroupDialogOpen}
 				onClose={() => setIsAddGroupDialogOpen(false)}
-				onSubmit={async (newGroup: any) => {
-					try {
-						await handleAutoRefresh(UserGroupFilter);
-					} catch (error) {
-						console.error('Error refreshing user groups:', error);
-						const newGroupWithId: vUserGroups = {
-							Id: (UserGroupsData.lists?.length || 0) + 1,
-							GroupName: newGroup.GroupName,
-							Description: newGroup.Description,						ApplyFilter: false,							ModulePermissions: [],
-							NumberOfUsers: 0,
-							CreatedBy: '',
-							CreatedDate: new Date().toISOString(),
-						};
-						setUserGroups(prev => ({ ...prev, lists: [...prev.lists, newGroupWithId], total: prev.total + 1 }));
-					}
-				}}
+				onSubmit={() => reloadFirstPage(userGroupsPager, EMPTY_GROUP_FILTER)}
 			/>
 
 			{isViewUserDialogOpen && selectedUserId && (
 				<ViewUserDialog
 					isOpen={isViewUserDialogOpen}
 					onClose={() => { setIsViewUserDialogOpen(false); setSelectedUserId(null); }}
-					user={UsersData.lists.find(u => u.Id === selectedUserId)!}
+					user={usersPager.data.lists.find(u => u.Id === selectedUserId)!}
 				/>
 			)}
 
@@ -203,13 +166,8 @@ const Rbac: React.FC = () => {
 				<UpdateUserDialog
 					isOpen={isUpdateUserDialogOpen}
 					onClose={() => { setIsUpdateUserDialogOpen(false); setSelectedUserId(null); }}
-					user={UsersData.lists.find(u => u.Id === selectedUserId)!}
-					onSubmit={(updatedUser: any) => {
-						setUsersData(prev => ({
-							...prev,
-							lists: prev.lists?.map(u => u.Id === updatedUser.Id ? updatedUser : u) || [],
-						}));
-					}}
+					user={usersPager.data.lists.find(u => u.Id === selectedUserId)!}
+					onSubmit={() => usersPager.refresh()}
 				/>
 			)}
 
@@ -217,14 +175,8 @@ const Rbac: React.FC = () => {
 				<DeleteUserDialog
 					isOpen={isDeleteUserDialogOpen}
 					onClose={() => { setIsDeleteUserDialogOpen(false); setSelectedUserId(null); }}
-					user={UsersData.lists.find(u => u.Id === selectedUserId)!}
-					onSubmit={(deletedUserId: number) => {
-						setUsersData(prev => ({
-							...prev,
-							lists: prev.lists?.filter(u => u.Id !== deletedUserId) || [],
-							total: Math.max(0, (prev.total || 1) - 1),
-						}));
-					}}
+					user={usersPager.data.lists.find(u => u.Id === selectedUserId)!}
+					onSubmit={() => reloadAfterDelete(usersPager)}
 				/>
 			)}
 
@@ -232,7 +184,7 @@ const Rbac: React.FC = () => {
 				<ViewGroupDialog
 					isOpen={isViewGroupDialogOpen}
 					onClose={() => { setIsViewGroupDialogOpen(false); setSelectedGroupId(null); }}
-					group={UserGroupsData.lists.find(g => g.Id === selectedGroupId)!}
+					group={userGroupsPager.data.lists.find(g => g.Id === selectedGroupId)!}
 				/>
 			)}
 
@@ -240,26 +192,7 @@ const Rbac: React.FC = () => {
 				<UpdateGroupDialog
 					isOpen={isUpdateGroupDialogOpen}
 					onClose={() => { setIsUpdateGroupDialogOpen(false); setSelectedGroupId(null); }}
-					group={UserGroupsData.lists.find(g => g.Id === selectedGroupId)!}				dropdowns={userGroupDropdowns}					onSubmit={async (updatedGroup: any) => {
-						try {
-							await handleAutoRefresh(UserGroupFilter);
-						} catch (error) {
-							console.error('Error refreshing user groups:', error);
-							const existing = UserGroupsData.lists.find(g => g.Id === updatedGroup.id);
-							const updatedGroupData: vUserGroups = {
-								Id: updatedGroup.id,
-								GroupName: updatedGroup.groupName,
-								Description: updatedGroup.description,							ApplyFilter: existing?.ApplyFilter ?? false,								ModulePermissions: existing?.ModulePermissions || [],
-								NumberOfUsers: existing?.NumberOfUsers || 0,
-								CreatedBy: existing?.CreatedBy || '',
-								CreatedDate: existing?.CreatedDate || new Date().toISOString(),
-							};
-							setUserGroups(prev => ({
-								...prev,
-								lists: prev.lists?.map(g => g.Id === updatedGroup.id ? updatedGroupData : g) || [],
-							}));
-						}
-					}}
+					group={userGroupsPager.data.lists.find(g => g.Id === selectedGroupId)!}				dropdowns={userGroupDropdowns}					onSubmit={() => userGroupsPager.refresh()}
 				/>
 			)}
 
@@ -267,47 +200,17 @@ const Rbac: React.FC = () => {
 				<DeleteGroupDialog
 					isOpen={isDeleteGroupDialogOpen}
 					onClose={() => { setIsDeleteGroupDialogOpen(false); setSelectedGroupId(null); }}
-					group={UserGroupsData.lists.find(g => g.Id === selectedGroupId)!}
-					onSubmit={(deletedGroupId: number) => {
-						setUserGroups(prev => ({
-							...prev,
-							lists: prev.lists?.filter(g => g.Id !== deletedGroupId) || [],
-							total: Math.max(0, (prev.total || 1) - 1),
-						}));
-					}}
+					group={userGroupsPager.data.lists.find(g => g.Id === selectedGroupId)!}
+					onSubmit={() => reloadAfterDelete(userGroupsPager)}
 				/>
 			)}
 
 			{isFilterUserDialogOpen && (
 				<FilterUserDialog
 					isOpen={isFilterUserDialogOpen}
-					onClose={() => setIsFilterUserDialogOpen(false)}				userGroupOptions={userGroupList}					onSubmit={async (filterData) => {
-						console.log('User filter data received:', filterData);
-						const newFilter: UserPagination = { ...UserFilter, filters: filterData, page: 1 };
-						setUserFilter(newFilter);
-						try {
-							await handleAutoRefresh(newFilter);
-						} catch (error) {
-							console.error('Error fetching users:', error);
-							alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
-						}
-					}}
-					onClear={async () => {
-						console.log('Clearing user filters');
-						const newFilter: UserPagination = {
-							...UserFilter,
-							filters: { Name: '', UserGroup: '', IsActive: undefined },
-							page: 1,
-						};
-						setUserFilter(newFilter);
-						try {
-							await handleAutoRefresh(newFilter);
-						} catch (error) {
-							console.error('Error fetching users:', error);
-							alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
-						}
-					}}
-					initialData={UserFilter.filters}
+					onClose={() => setIsFilterUserDialogOpen(false)}				userGroupOptions={userGroupList}					onSubmit={(filterData) => usersPager.applyFilters(filterData)}
+					onClear={() => usersPager.applyFilters(EMPTY_USER_FILTER)}
+					initialData={usersPager.currentFilters}
 				/>
 			)}
 
@@ -315,32 +218,11 @@ const Rbac: React.FC = () => {
 				<FilterUserGroupDialog
 					isOpen={isUserGroupFilterDialogOpen}
 					onClose={() => setIsUserGroupFilterDialogOpen(false)}
-					onSubmit={async (filterData) => {
-						console.log('Filter data received:', filterData);
-						const newFilter: UserGroupPagination = { ...UserGroupFilter, filters: filterData, page: 1 };
-						setUserGroupFilter(newFilter);
-						try {
-							await handleAutoRefresh(newFilter);
-						} catch (error) {
-							console.error('Error fetching user groups:', error);
-							alert('Failed to fetch user groups: ' + (error instanceof Error ? error.message : 'Unknown error'));
-						}
-					}}
-					onClear={async () => {
-						console.log('Clearing user group filters');
-						const newFilter: UserGroupPagination = {
-							...UserGroupFilter,
-							filters: { GroupName: '', PermissionNames: '' },
-							page: 1,
-						};
-						try {
-							await handleAutoRefresh(newFilter);
-						} catch (error) {
-							console.error('Error fetching user groups:', error);
-							alert('Failed to fetch user groups: ' + (error instanceof Error ? error.message : 'Unknown error'));
-						}
-					}}
-					initialData={UserGroupFilter.filters}
+					onSubmit={(filterData) => userGroupsPager.applyFilters(filterData)}
+					// 2026-10-30: Clear used to refetch without clearing the stored filter, so the next
+					// page or refresh brought the old filter back.
+					onClear={() => userGroupsPager.applyFilters(EMPTY_GROUP_FILTER)}
+					initialData={userGroupsPager.currentFilters}
 				/>
 			)}
 

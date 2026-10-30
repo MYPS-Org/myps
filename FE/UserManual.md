@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.21
-**Date:** October 29, 2026
+**Version:** 3.22
+**Date:** October 30, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -45,6 +45,7 @@
 | 3.19 | October 29, 2026 | RP | RP | Section 5.2.7: **Actions → Generate Reports** opens the Reports module (Section 5.6) with the program's year, stage and program already selected, instead of its own report dialog; it is shown only to users who can open Reports. Section 5.6 notes the shortcut |
 | 3.20 | October 29, 2026 | RP | RP | Delete rules: a permanent delete happens only at the **BP** or **RBP** stage. Section 5.2 (Deleting a Program): a program can be deleted only while it is at BP or RBP. Section 5.2.5: new **Deleted projects (N)** button and panel in Program Details, to restore a project deleted at the current stage without typing its ID. Section 5.2.6: Batch Delete and the row Delete permanently delete only a project still at BP or RBP; at any other stage they delete it at that stage only, and it can be restored; the success message names only what happened. A BP/P Project ID freed by a permanent delete is given to the next new project |
 | 3.21 | October 29, 2026 | RP | RP | Section 5.2.5: **Deleted projects** also lists projects deleted at an earlier stage, with an info note; **Restore into &lt;stage&gt;** adds such a project to the program's current stage with the data it had when deleted. A project deleted before the program moves on stays deleted. Program list and Program Details: a deleted project no longer counts in **No. of Projects** or **Cost** |
+| 3.22 | October 30, 2026 | RP | RP | Section 5.7 Code Tables (S04): **Validation Dates** are saved and limit when a new revision request can be made for a funding year (5.7.7); Program Stages are fixed and cannot be added, Program Type and Program Status ask only for the Name (5.7.5); adding a Type of Work on **Scope of Work** needs a Target Unit and a Max, and an Infrastructure Type in use cannot be removed from a Type of Work (5.7.4). Section 5.7 User Management, User Groups: what **Permission Name** in Filter Group matches, and how **Apply Filter** works for a user in several groups |
 
 ### Consultant
 
@@ -2445,10 +2446,13 @@ To toggle a record's status:
 
 **Step-by-Step: Adding a Type of Work**
 
-1. Select **Code Tables** → **Major Item** → **Type of Work** sub-tab.
+1. Select **Code Tables** → **Major Item** → **Scope of Work** sub-tab.
 2. Click **Add**.
-3. Enter **Infrastructure Type** and **Work Category**.
-4. Click **Check** to save.
+3. Enter the **Work Category** and **Description**, choose the **Target Unit** (required; the unit its physical targets are measured in), and enter the **Min** and **Max** quantities (**Max** is required and must be greater than 0: the Major Item form does not accept a target above it).
+4. In the panel below the row, switch on the **Infrastructure Types** the Type of Work applies to.
+5. Click **Check**, review the values and click **Confirm Add**.
+
+An Infrastructure Type cannot be removed from a Type of Work while Major Items use the two together; set the Type of Work Inactive instead.
 
 **On Success:** New entries appear under the respective Major Item sub-category.
 
@@ -2463,18 +2467,13 @@ To toggle a record's status:
 
 **Purpose:** Manage program stage and program type codes used in the Add Program form.
 
-**Step-by-Step: Adding a Program Stage**
+**Program Stages are fixed.** The stages (BP, NEP, NEP-E, HGAB, HGAB-I, GAA, GAA-R, RBP and the others) are defined by the system: their order and the Project ID rules depend on them, so a stage cannot be added. On the **Program Stage** sub-tab you can edit a stage's **Description** or set it Inactive. A stage that programs use cannot be renamed or deleted.
 
-1. Select **Code Tables** → **Program** → **Program Stage** sub-tab.
+**Step-by-Step: Adding a Program Type or Program Status**
+
+1. Select **Code Tables** → **Program** → **Program Type** (or **Program Status**) sub-tab.
 2. Click **Add**.
-3. Enter **Name ID**, **Name**, and **Description**.
-4. Click **Check** to save.
-
-**Step-by-Step: Adding a Program Type**
-
-1. Select **Code Tables** → **Program** → **Program Type** sub-tab.
-2. Click **Add**.
-3. Enter **Name ID**, **Name**, and **Description**.
+3. Enter the **Name** (and, for a Program Status, an optional **Description**). The Id is assigned by the system.
 4. Click **Check** to save.
 
 ---
@@ -2566,12 +2565,16 @@ The **Category** and **Thrust** sub-tabs each have two filters beside the Search
 3. Enter **Reason ID** and **Reason**.
 4. Click **Check** to save.
 
+**What Validation Dates do:** each row gives a funding year (the program year of the projects) the dates between which a revision of those projects can be requested. A new revision request outside that window is refused with *"Revisions of FY \<year\> projects can be requested from \<start\> to \<end\>."* A year with no row, or an Inactive row, has no limit. A request already returned **For Correction** can still be resubmitted after the window closes. The **Window** column shows whether each range is **Open**, **Not open yet** or **Closed** today.
+
 **Step-by-Step: Adding a Validation Date**
 
 1. Select **Code Tables** → **Revision** → **Validation Dates** sub-tab.
-2. Click **Add**.
-3. Enter **Funding Year**, **Start Date**, and **End Date**.
-4. Click **Check** to save.
+2. Click **Add Date Range**.
+3. Enter the **Funding Year** and pick the **Start Date** and **End Date**. A year can have only one range, and the Start Date cannot be after the End Date.
+4. Click **Check**, review the values and click **Confirm Add**. The range is saved and applies to new revision requests straight away.
+
+To change a range, click its pencil icon; to stop it applying without deleting it, click **Active** to set it Inactive.
 
 **Step-by-Step: Editing or Deleting Categories, Documents, Headers, or Statuses**
 
@@ -2915,8 +2918,8 @@ Click anywhere on a group row (not on the action buttons) to expand a permission
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | UI-UX-0120-F10 | GROUP NAME | Search by group name (partial match) | Text input |
-| UI-UX-0120-F11 | PERMISSION NAME | Search by a permission name associated with the group | Text input |
-| UI-UX-0120-A10 | Clear Filters | Clears all fields; disabled if fields are already empty | Button |
+| UI-UX-0120-F11 | PERMISSION NAME | Lists the groups granted a permission whose module, controller, action or page name contains the text (partial match), for example `CodeTable` | Text input |
+| UI-UX-0120-A10 | Clear Filters | Clears all fields; disabled if both fields are empty | Button |
 | UI-UX-0120-A11 | Cancel | Closes without applying | Button |
 | UI-UX-0120-A12 | Filter Group | Applies the filter and reloads the list | Button (orange) |
 
@@ -2943,7 +2946,7 @@ Click anywhere on a group row (not on the action buttons) to expand a permission
 1. Click **Add Group**. The Add New Group dialog opens.
 2. Enter the **Group Name** (required).
 3. Optionally enter a **Description** to describe the group's purpose.
-4. Tick **Apply Filter** if this group's members should only see records from their own regional office. Leave unchecked for groups that need system-wide data access.
+4. Tick **Apply Filter** if this group's members should only see records from their own regional office. Leave unchecked for groups that need system-wide data access. A user in several groups is limited to their region only when **all** of their groups have Apply Filter.
 5. Click **Create Group**.
 
 > Permissions are not configured during group creation. After the group is created, use the **Edit** action to assign module permissions.

@@ -30,7 +30,8 @@ namespace Helpers
             lists (ShowProjects, ShowProjectsInProgram) and the project-details reads. Saves, revisions,
             programs, Lump Sum, Dashboard and Reports keep their current behaviour; a later change takes
             those on. Self-contained on purpose -- it changes neither tGroups.ApplyFilter nor any SQL object
-            (v1 did, and the side effects reached every module).
+            (v1 did, and the side effects reached every module). 2026-10-30: Project Groups and Global
+            Search use it too (GetViewableStagesByProjectAsync), so they cannot list other regions' projects.
 
             The rule, per STAGE: a stage is visible when its DEO is in the user's scope, where a stage's DEO
             is that stage revision's latest fully approved modification snapshot DEO, else the stage
@@ -203,6 +204,58 @@ namespace Helpers
                 .Select(x => new { x.RevisionId, x.StageName })
                 .ToListAsync(cancellationToken);
             return stages.Select(x => (x.RevisionId, x.StageName)).ToList();
+        }
+
+        /// <summary>
+        /// 2026-10-30: <see cref="GetViewableStagesAsync"/> for many projects in one query, for the endpoints
+        /// that read or change a batch of projects by Id (Project Groups, Global Search) -- same rule, so an
+        /// Apply Filter or DPC/RPC user cannot reach other regions' projects through them. Null: no
+        /// restriction for this user. Otherwise each project's stages the user may view (RevisionId =
+        /// tProjectStages.RevisionId); a project with none is missing from the lookup -- answer it as not found.
+        /// </summary>
+        public static async Task<ILookup<string, (int RevisionId, string StageName)>?> GetViewableStagesByProjectAsync(
+            this MYPSDbContext _db,
+            DBHelper.Models.Views.Users session,
+            IReadOnlyCollection<string> projectPKs,
+            CancellationToken cancellationToken)
+        {
+            static ILookup<string, (int RevisionId, string StageName)> AsLookup(IEnumerable<(string ProjectFK, int RevisionId, string StageName)> rows) =>
+                rows.ToLookup(x => x.ProjectFK, x => (x.RevisionId, x.StageName), StringComparer.OrdinalIgnoreCase);
+
+            var scope = await ResolveProjectViewScopeAsync(_db, session, cancellationToken);
+            switch (scope.Kind)
+            {
+                case ProjectViewScopeKind.Legacy:
+                    if (!session.ApplyFilter)
+                        return null;
+                    if (projectPKs.Count == 0)
+                        return AsLookup(Array.Empty<(string, int, string)>());
+                    // Today's per-project check (fUserVisibleProjects): a visible project shows every stage.
+                    var visibleProjects = _db.fUserVisibleProjects
+                        .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisibleProjects({session.UserId})");
+                    var legacyStages = await _db.tProjectStages.AsNoTracking()
+                        .Where(ps => projectPKs.Contains(ps.ProjectFK) && visibleProjects.Any(v => v.ProjectPK == ps.ProjectFK))
+                        .Select(ps => new { ps.ProjectFK, ps.RevisionId, ps.StageName })
+                        .ToListAsync(cancellationToken);
+                    return AsLookup(legacyStages.Select(x => (x.ProjectFK, x.RevisionId, x.StageName)));
+                case ProjectViewScopeKind.All:
+                    return null;
+            }
+            if (scope.Deos.Count == 0 || projectPKs.Count == 0)
+                return AsLookup(Array.Empty<(string, int, string)>());
+
+            var stages = await _db.tProjectStages
+                .FromSqlRaw(
+                    "SELECT ps.* FROM dbo.tProjectStages ps" +
+                    " WHERE ps.ProjectFK IN (SELECT [value] FROM OPENJSON(@projectPKs) WITH ([value] nvarchar(200) '$'))" +
+                    $" AND NOT {string.Format(IsLumpSumParentSql, "ps.ProjectFK")}" +
+                    $" AND {StageDeoSql("ps.RevisionId")} IN (SELECT [value] FROM OPENJSON(@scopeDeos))",
+                    new SqlParameter("@projectPKs", System.Text.Json.JsonSerializer.Serialize(projectPKs)),
+                    new SqlParameter("@scopeDeos", System.Text.Json.JsonSerializer.Serialize(scope.Deos)))
+                .AsNoTracking()
+                .Select(x => new { x.ProjectFK, x.RevisionId, x.StageName })
+                .ToListAsync(cancellationToken);
+            return AsLookup(stages.Select(x => (x.ProjectFK, x.RevisionId, x.StageName)));
         }
         #endregion
 
@@ -884,13 +937,23 @@ namespace Helpers
         public static async Task<ProjectHelperResponse<string>> ValidateMajorItemLookupsAsync(this MYPSDbContext _db, IEnumerable<MajorItemLookupRow> posted, IEnumerable<MajorItemLookupRow> stored, CancellationToken cancellationToken)
         {
             var response = new ProjectHelperResponse<string>();
+            // Each field is checked on its own (as #480 does for funding lines): a row is checked for
+            // the Work Type it changed, and for the Infra Type it changed. With one key for both, a
+            // revision that picked another Type of Work under the row's own, since-retired Infra Type
+            // (the Modification form allows that when the revision rule opens Type of Work) was
+            // refused with "Invalid Infrastructure Type", a field the user never touched (2026-10-29).
             // Infra codes compared the way SQL Server does (case-insensitive, trailing blanks ignored).
-            static (int, string) Key(MajorItemLookupRow x) => (x.WorkTypeFK, (x.InfraTypeFK ?? string.Empty).Trim().ToUpperInvariant());
-            var rows = RetiredLookupRule.RowsRequiringActiveCheck(
-                posted, x => x.Id, x => x.IsDeleted, Key,
-                stored.DistinctBy(x => x.Id).ToDictionary(x => x.Id, Key));
+            static string InfraKey(MajorItemLookupRow x) => (x.InfraTypeFK ?? string.Empty).Trim().ToUpperInvariant();
+            var storedRows = stored.DistinctBy(x => x.Id).ToList();
+            var postedRows = posted.ToList();
+            var workTypeRows = RetiredLookupRule.RowsRequiringActiveCheck(
+                postedRows, x => x.Id, x => x.IsDeleted, x => x.WorkTypeFK,
+                storedRows.ToDictionary(x => x.Id, x => x.WorkTypeFK));
+            var infraTypeRows = RetiredLookupRule.RowsRequiringActiveCheck(
+                postedRows, x => x.Id, x => x.IsDeleted, InfraKey,
+                storedRows.ToDictionary(x => x.Id, InfraKey));
 
-            var workTypeIds = rows.Select(x => x.WorkTypeFK).Distinct().ToList();
+            var workTypeIds = workTypeRows.Select(x => x.WorkTypeFK).Distinct().ToList();
             if (workTypeIds.Count > 0)
             {
                 var validWorkTypes = await _db.tOptionScopeOfWork.AsNoTracking()
@@ -906,7 +969,7 @@ namespace Helpers
                 }
             }
 
-            var infraTypeCodes = rows.Select(x => x.InfraTypeFK).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var infraTypeCodes = infraTypeRows.Select(x => x.InfraTypeFK).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (infraTypeCodes.Count > 0)
             {
                 var validInfraTypes = (await _db.tOptionInfraType.AsNoTracking()

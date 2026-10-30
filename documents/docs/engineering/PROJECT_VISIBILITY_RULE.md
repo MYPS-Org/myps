@@ -15,6 +15,8 @@ Code Tables.
 | `ProjectController.ShowProjectDetails` | 400 "Project Not Found" unless the requested stage is visible |
 | `ProjectController.ShowProjectStages` | Returns only the visible stages; 400 when none are |
 | `ShowProjectTargetComponents` / `ShowProjectStageTargets` | Rows from visible stages only; 400 when none are |
+| `ProjectGroupController.SearchProject` / `AddProject` / `DeleteProject` / `ProjectGroupDetails` / `ShowProjectGroups` (2026-10-30) | A project the user may not view is "not found"; the details and the list's member counts cover only visible members, and the list's ProjectId filter finds nothing for a hidden project. Batch form: `GetViewableStagesByProjectAsync` |
+| `GlobalSearchController.Search`, project categories (2026-10-30) | Only the stages the user may open, as `ShowProjectDetails` decides |
 
 ## The rule
 
@@ -49,6 +51,7 @@ changed, so there is no deploy step.
 | `StageDeoSql` | private | The one SQL definition of a stage's DEO. |
 | `AddProjectListVisibilityAsync` | public | The list filter. Returns `false` for "no office scope", and the caller answers 403. |
 | `GetViewableStagesAsync` | public | The URL check. `null` means unrestricted; otherwise it returns the visible stages. |
+| `GetViewableStagesByProjectAsync` | public | The same check for many projects in one query (Project Groups, Global Search). `null` means unrestricted; a project missing from the lookup is not visible. |
 | `ValidateProjectIdParams.SkipVisibilityCheck` | opt-in flag | Set only by `ShowProjectDetails`, so a DPD Admin with `ApplyFilter = 1` isn't stopped by the old check. Every update and revision caller keeps that check. |
 
 The **frontend** mirrors the group set in `FE/src/contexts/AuthContext.tsx`. For DPC/RPC users it drops the Lump Sum

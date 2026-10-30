@@ -368,9 +368,9 @@ const RevisionFieldPermissionTable: React.FC = () => {
 
                       {isEditing ? (
                         <>
-                          <TableCell>
-                            <textarea autoFocus value={editForm.Reason} onChange={e => setEditForm(f => ({ ...f, Reason: e.target.value }))} rows={2} className={inp()} />
-                          </TableCell>
+                          {/* 2026-10-29: read-only. A rule has no Reason text of its own (it is the Reason's,
+                              edited under Reasons), so a change here was never saved. */}
+                          <TableCell className="text-sm text-gray-700">{editForm.Reason}</TableCell>
                           <TableCell>
                             <input value={editForm.PCMA_Status} onChange={e => setEditForm(f => ({ ...f, PCMA_Status: e.target.value }))} className={inp()} />
                           </TableCell>

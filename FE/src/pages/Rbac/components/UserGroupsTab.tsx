@@ -5,22 +5,13 @@ import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { Button } from '../../../components/tailwindui/button';
 import { Badge } from '../../../components/tailwindui/badge';
-import {
-	Pagination,
-	PaginationList,
-	PaginationNext,
-	PaginationPage,
-	PaginationPrevious,
-} from '../../../components/tailwindui/pagination';
-import type { vUserGroups, UserGroupPagination } from '../Model.d';
+import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
+import type { vUserGroups, UserGroupFilter } from '../Model.d';
+import type { ListPager } from '../useRbac';
 
 interface UserGroupsTabProps {
-	data: PaginationResponse<vUserGroups>;
-	filter: UserGroupPagination;
-	sortDirection: 0 | 1 | null;
-	onSort: (field: number, direction: 0 | 1 | null) => void;
+	pager: ListPager<UserGroupFilter, vUserGroups>;
 	onClear: () => void;
-	onPaginate: (page: number) => void;
 	onOpenFilter: () => void;
 	onAddGroup: () => void;
 	onEdit: (id: number) => void;
@@ -28,17 +19,14 @@ interface UserGroupsTabProps {
 }
 
 export const UserGroupsTab: React.FC<UserGroupsTabProps> = ({
-	data,
-	filter,
-	sortDirection,
-	onSort,
+	pager,
 	onClear,
-	onPaginate,
 	onOpenFilter,
 	onAddGroup,
 	onEdit,
 	onDelete,
 }) => {
+	const data = pager.data;
 	const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
 	const toggleRow = (id: number) =>
@@ -48,9 +36,9 @@ export const UserGroupsTab: React.FC<UserGroupsTabProps> = ({
 			return next;
 		});
 
-	const hasActiveFilter = !!(filter.filters?.GroupName || filter.filters?.PermissionNames);
+	const hasActiveFilter = !!(pager.currentFilters?.GroupName || pager.currentFilters?.PermissionNames);
 
-	const activeFilterCount = [filter.filters?.GroupName, filter.filters?.PermissionNames].filter(Boolean).length;
+	const activeFilterCount = [pager.currentFilters?.GroupName, pager.currentFilters?.PermissionNames].filter(Boolean).length;
 
 	return (
 		<div className="overflow-hidden">
@@ -86,22 +74,14 @@ export const UserGroupsTab: React.FC<UserGroupsTabProps> = ({
 
 			<Table className="px-5">
 				<TableHead className="text-[20px]">
+					{/* 2026-10-30: no sort arrows -- ShowUserGroups always lists newest first (keyset on Id),
+					    so a header click re-fetched the same order. */}
 					<TableRow className="text-center">
-						<TableHeader sortable sortDirection={sortDirection} onSort={(dir) => onSort(0, dir)} className="text-gray-700">
-							Group Name
-						</TableHeader>
-						<TableHeader sortable sortDirection={sortDirection} onSort={(dir) => onSort(1, dir)} className="text-gray-700">
-							Members
-						</TableHeader>
-						<TableHeader sortable sortDirection={sortDirection} onSort={(dir) => onSort(2, dir)} className="text-gray-700">
-							Permissions
-						</TableHeader>
-						<TableHeader sortable sortDirection={sortDirection} onSort={(dir) => onSort(3, dir)} className="text-gray-700">
-							Description
-						</TableHeader>
-						<TableHeader sortable sortDirection={sortDirection} onSort={(dir) => onSort(4, dir)} className="text-gray-700">
-							Created
-						</TableHeader>
+						<TableHeader className="text-gray-700">Group Name</TableHeader>
+						<TableHeader className="text-gray-700">Members</TableHeader>
+						<TableHeader className="text-gray-700">Permissions</TableHeader>
+						<TableHeader className="text-gray-700">Description</TableHeader>
+						<TableHeader className="text-gray-700">Created</TableHeader>
 						<TableHeader className="text-gray-700">Actions</TableHeader>
 					</TableRow>
 				</TableHead>
@@ -246,32 +226,18 @@ export const UserGroupsTab: React.FC<UserGroupsTabProps> = ({
 				</TableBody>
 			</Table>
 
-			<Pagination className="my-6">
-				{data.totalPages > 1 && (
-					<>
-						<PaginationPrevious onClick={() => onPaginate(1)} disabled={data.page <= 1}>
-							First
-						</PaginationPrevious>
-						<PaginationList>
-							{Array.from({ length: Math.min(7, data.totalPages) }, (_, index) => {
-								const pageNum = Math.max(1, data.page - 3) + index;
-								if (pageNum > data.totalPages) return null;
-								if (pageNum === data.page) {
-									return <PaginationPage key={pageNum} current>{pageNum}</PaginationPage>;
-								}
-								return (
-									<PaginationPage key={pageNum} onClick={() => onPaginate(pageNum)}>
-										{pageNum}
-									</PaginationPage>
-								);
-							})}
-						</PaginationList>
-						<PaginationNext onClick={() => onPaginate(data.totalPages)} disabled={data.page >= data.totalPages}>
-							Last
-						</PaginationNext>
-					</>
-				)}
-			</Pagination>
+			<PaginationBar
+				currentPage={data.page}
+				totalPages={data.totalPages}
+				hasPrevious={pager.hasPrevious}
+				hasNext={pager.hasNext}
+				onGoToPage={pager.goToPage}
+				onNext={pager.goNext}
+				onPrevious={pager.goPrevious}
+				onFirst={pager.goFirst}
+				onLast={pager.goLast}
+				isLoading={pager.isLoading}
+			/>
 
 			<div className="mb-3.5 text-center">
 				{data.lists.length > 0 ? (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/tailwindui/table';
 import { Button } from '../../../../components/tailwindui/button';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { ProgramEnums } from '../../Model.d';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { updateCodeTable } from '../../Service';
@@ -135,10 +135,8 @@ const ProgramStageTable: React.FC = () => {
               onChange={e => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-52" />
           </div>
-          <Button color="indigo" className="flex items-center gap-1 text-sm"
-            onClick={() => setAddForm(EMPTY_FORM)} disabled={!!addForm}>
-            <PlusIcon className="h-4 w-4" /> Add
-          </Button>
+          {/* 2026-10-29: no Add. The stages are fixed by the system (stage order, Project ID
+              prefixes); a stage added here could not be used, and the API now refuses it. */}
         </div>
       </div>
 
