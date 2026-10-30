@@ -69,8 +69,9 @@ const ValidationDatesTable: React.FC = () => {
       showToast({ type: 'success', message: success });
       await refetch();
       return true;
-    } catch {
-      showToast({ type: 'error', message: failure });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: failure });
       return false;
     }
   };
@@ -135,8 +136,9 @@ const ValidationDatesTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify({ Id: item.Id }));
       showToast({ type: 'success', message: 'Validation date range deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete the validation date range.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete the validation date range.' });
     }
     setDeleteConfirmId(null);
   };

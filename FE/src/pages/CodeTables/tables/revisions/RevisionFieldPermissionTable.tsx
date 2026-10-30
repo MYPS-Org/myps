@@ -268,8 +268,9 @@ const RevisionFieldPermissionTable: React.FC = () => {
       }));
       showToast({ type: 'success', message: 'Field permission updated.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to update field permission.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update field permission.' });
     }
     cancelEdit();
   };
@@ -279,8 +280,9 @@ const RevisionFieldPermissionTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
       showToast({ type: 'success', message: 'Field permission deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete field permission.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete field permission.' });
     }
     setDeleteConfirmId(null);
   };

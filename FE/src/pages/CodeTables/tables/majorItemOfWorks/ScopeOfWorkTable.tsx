@@ -207,8 +207,9 @@ const ScopeOfWorkTable: React.FC = () => {
           }));
           showToast({ type: 'success', message: `Scope of work ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -243,8 +244,9 @@ const ScopeOfWorkTable: React.FC = () => {
           }));
           showToast({ type: 'success', message: 'Scope of work added successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to add scope of work.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add scope of work.' });
         }
         confirm.close();
         setAddForm(null);
@@ -278,8 +280,9 @@ const ScopeOfWorkTable: React.FC = () => {
           }));
           showToast({ type: 'success', message: 'Scope of work updated successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update scope of work.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update scope of work.' });
         }
         confirm.close();
         cancelEdit();
@@ -292,8 +295,9 @@ const ScopeOfWorkTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify({ Id: item.id }));
       showToast({ type: 'success', message: 'Scope of work deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete scope of work.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete scope of work.' });
     }
     setDeleteConfirmId(null);
   };

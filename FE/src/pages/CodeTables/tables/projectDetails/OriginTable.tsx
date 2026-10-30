@@ -53,8 +53,9 @@ const OriginTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, Name: item.Name, Description: item.Description, IsActive: nextActive }));
           showToast({ type: 'success', message: `Origin ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -68,8 +69,9 @@ const OriginTable: React.FC = () => {
       await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, IsActive: original?.IsActive !== false }));
       showToast({ type: 'success', message: 'Origin updated successfully.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to update origin.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update origin.' });
     }
     cancelEdit();
   };
@@ -80,8 +82,9 @@ const OriginTable: React.FC = () => {
       await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
       showToast({ type: 'success', message: 'Origin added successfully.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to add origin.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add origin.' });
     }
     setAddForm(null);
   };
@@ -90,8 +93,9 @@ const OriginTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Origin deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete origin.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete origin.' });
     }
     setDeleteConfirmId(null);
   };

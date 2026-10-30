@@ -931,7 +931,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         {category && reasonId && (
           <div className="text-sm text-gray-600">
             <span className="font-semibold">Modification Category:</span> {category} &nbsp; | &nbsp; 
-            <span className="font-semibold">Modification Reason:</span> {reasonId}
+            <span className="font-semibold">Modification Reason:</span> {modificationReason || reasonId}
           </div>
         )}
       </div>

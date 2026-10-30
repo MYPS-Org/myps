@@ -49,8 +49,9 @@ const ProgramStageTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, NameId: item.NameId, Name: item.Name, Description: item.Description, IsActive: nextActive }));
           showToast({ type: 'success', message: `Program stage ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -72,8 +73,9 @@ const ProgramStageTable: React.FC = () => {
           await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, NameId: 0, IsActive: true }));
           showToast({ type: 'success', message: 'Program stage added.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to add program stage.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add program stage.' });
         }
         confirm.close();
         setAddForm(null);
@@ -96,8 +98,9 @@ const ProgramStageTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, IsActive: original?.IsActive !== false }));
           showToast({ type: 'success', message: 'Program stage updated.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update program stage.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update program stage.' });
         }
         confirm.close();
         cancelEdit();
@@ -110,8 +113,9 @@ const ProgramStageTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Program stage deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete program stage.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete program stage.' });
     }
     setDeleteConfirmId(null);
   };

@@ -63,8 +63,9 @@ const FundingAgreementTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, SourceOrg: item.SourceOrg, Code: item.Code, Name: item.Name, FinancingSourceSegmentCode: item.FinancingSourceSegmentCode, IsActive: nextActive }));
           showToast({ type: 'success', message: `Funding agreement ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -88,8 +89,9 @@ const FundingAgreementTable: React.FC = () => {
           await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
           showToast({ type: 'success', message: 'Funding agreement added successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to add funding agreement.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add funding agreement.' });
         }
         confirm.close();
         setAddForm(null);
@@ -118,8 +120,9 @@ const FundingAgreementTable: React.FC = () => {
           }));
           showToast({ type: 'success', message: 'Funding agreement updated successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update funding agreement.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update funding agreement.' });
         }
         confirm.close();
         cancelEdit();
@@ -132,8 +135,9 @@ const FundingAgreementTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Funding agreement deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete funding agreement.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete funding agreement.' });
     }
     setDeleteConfirmId(null);
   };

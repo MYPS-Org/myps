@@ -136,8 +136,9 @@ const TypeOfWorkTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.id, InfraType: [item.infraType], WorkCategory: item.majorWorkCategory, Description: item.typeOfWork, Measure: item.measure, MinAmount: item.minAmount, MaxAmount: item.maxAmount, IsActive: nextActive }));
           showToast({ type: 'success', message: `Type of work ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -169,8 +170,9 @@ const TypeOfWorkTable: React.FC = () => {
           }));
           showToast({ type: 'success', message: 'Type of work added successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to add type of work.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add type of work.' });
         }
         confirm.close();
         setAddForm(null);
@@ -203,8 +205,9 @@ const TypeOfWorkTable: React.FC = () => {
           }));
           showToast({ type: 'success', message: 'Type of work updated successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update type of work.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update type of work.' });
         }
         confirm.close();
         cancelEdit();
@@ -217,8 +220,9 @@ const TypeOfWorkTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Type of work deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete type of work.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete type of work.' });
     }
     setDeleteConfirmId(null);
   };

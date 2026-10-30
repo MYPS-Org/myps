@@ -55,8 +55,9 @@ const InfraTypeTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, InfraId: item.InfraId, InfraCode: item.InfraCode, InfraName: item.InfraName, IsActive: nextActive }));
           showToast({ type: 'success', message: `Infrastructure type ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -79,8 +80,9 @@ const InfraTypeTable: React.FC = () => {
           await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, InfraId: 0, IsActive: true }));
           showToast({ type: 'success', message: 'Infrastructure type added successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to add infrastructure type.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add infrastructure type.' });
         }
         confirm.close();
         setAddForm(null);
@@ -103,8 +105,9 @@ const InfraTypeTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, IsActive: original?.IsActive !== false }));
           showToast({ type: 'success', message: 'Infrastructure type updated successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update infrastructure type.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update infrastructure type.' });
         }
         confirm.close();
         cancelEdit();
@@ -117,8 +120,9 @@ const InfraTypeTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Infrastructure type deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete infrastructure type.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete infrastructure type.' });
     }
     setDeleteConfirmId(null);
   };

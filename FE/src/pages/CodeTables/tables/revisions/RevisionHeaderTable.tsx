@@ -61,8 +61,9 @@ const RevisionHeaderTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ ...item, IsActive: nextActive }));
           showToast({ type: 'success', message: `Revision header ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -75,8 +76,9 @@ const RevisionHeaderTable: React.FC = () => {
       await updateCodeTable(CODE, 1, JSON.stringify({ ...original, ...editRow, Id: editId }));
       showToast({ type: 'success', message: 'Revision Header updated.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to update revision header.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update revision header.' });
     }
     cancelEdit();
   };
@@ -86,8 +88,9 @@ const RevisionHeaderTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Revision Header deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete revision header.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete revision header.' });
     }
     setDeleteConfirmId(null);
   };

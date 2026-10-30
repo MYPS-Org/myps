@@ -87,8 +87,9 @@ function AdminAreaTable<T extends { Id: number; Deprecated?: boolean }>({
           await updateCodeTable(code, 1, JSON.stringify({ ...row, [link.field]: linkValue }));
           showToast({ type: 'success', message: `${label} updated.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: `Failed to update ${label.toLowerCase()}.` });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: `Failed to update ${label.toLowerCase()}.` });
         }
         confirm.close();
         setEditId(null);

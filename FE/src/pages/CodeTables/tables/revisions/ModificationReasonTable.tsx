@@ -96,8 +96,9 @@ const ModificationReasonTable: React.FC = () => {
           await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
           showToast({ type: 'success', message: 'Revision reason added.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to add revision reason.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add revision reason.' });
         }
         confirm.close();
         setAddForm(null);
@@ -127,8 +128,9 @@ const ModificationReasonTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ ...item, IsActive: nextActive }));
           showToast({ type: 'success', message: `Modification reason ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -143,8 +145,9 @@ const ModificationReasonTable: React.FC = () => {
       await updateCodeTable(CODE, 1, JSON.stringify({ ...original, ...editForm, Id: editId }));
       showToast({ type: 'success', message: 'Modification reason updated.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to update modification reason.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update modification reason.' });
     }
     cancelEdit();
   };
@@ -153,8 +156,9 @@ const ModificationReasonTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Modification reason deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete modification reason.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete modification reason.' });
     }
     setDeleteConfirmId(null);
   };

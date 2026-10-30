@@ -56,8 +56,9 @@ const CostTypeTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, ComponentId: item.ComponentId, ComponentName: item.ComponentName, ExportToPCMA: item.ExportToPCMA, IsActive: nextActive }));
           showToast({ type: 'success', message: `Cost type ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -79,8 +80,9 @@ const CostTypeTable: React.FC = () => {
           await updateCodeTable(CODE, 0, JSON.stringify(addForm));
           showToast({ type: 'success', message: 'Cost type added successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to add cost type.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add cost type.' });
         }
         confirm.close();
         setAddForm(null);
@@ -102,8 +104,9 @@ const CostTypeTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
           showToast({ type: 'success', message: 'Cost type updated successfully.' });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update cost type.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update cost type.' });
         }
         confirm.close();
         cancelEdit();
@@ -116,8 +119,9 @@ const CostTypeTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Cost type deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete cost type.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete cost type.' });
     }
     setDeleteConfirmId(null);
   };

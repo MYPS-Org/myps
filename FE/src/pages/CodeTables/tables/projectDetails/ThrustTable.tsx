@@ -93,8 +93,9 @@ const ThrustTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, PAPKey: item.PAPKey, ProgramName: item.ProgramName, SubProgramName: item.SubProgramName, ActivityName: item.ActivityName, SequenceNumber: item.SequenceNumber, ThrustDescription: item.ThrustDescription, InfrastructureType: item.InfrastructureType || undefined, ValidFromDate: item.ValidFromDate, ValidToDate: item.ValidToDate, IsActive: nextActive }));
           showToast({ type: 'success', message: `Thrust ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -109,8 +110,9 @@ const ThrustTable: React.FC = () => {
       await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, InfrastructureType: editForm.InfrastructureType || undefined, IsActive: original?.IsActive !== false }));
       showToast({ type: 'success', message: 'Thrust updated successfully.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to update thrust.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update thrust.' });
     }
     cancelEdit();
   };
@@ -121,8 +123,9 @@ const ThrustTable: React.FC = () => {
       await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, InfrastructureType: addForm.InfrastructureType || undefined, IsActive: true }));
       showToast({ type: 'success', message: 'Thrust added successfully.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to add thrust.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add thrust.' });
     }
     setAddForm(null);
   };
@@ -131,8 +134,9 @@ const ThrustTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Thrust deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete thrust.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete thrust.' });
     }
     setDeleteConfirmId(null);
   };

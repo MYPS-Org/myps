@@ -64,8 +64,9 @@ const CategoryTable: React.FC = () => {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, CategoryName: item.CategoryName, Minimum: item.Minimum, Maximum: item.Maximum, ValidUntil: item.ValidUntil, IsActive: nextActive }));
           showToast({ type: 'success', message: `Category ${nextActive ? 'activated' : 'deactivated'}.` });
           await refetch();
-        } catch {
-          showToast({ type: 'error', message: 'Failed to update active status.' });
+        } catch (error) {
+          // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+          if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update active status.' });
         }
         confirm.close();
       },
@@ -80,8 +81,9 @@ const CategoryTable: React.FC = () => {
       await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, IsActive: original?.IsActive !== false }));
       showToast({ type: 'success', message: 'Category updated successfully.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to update category.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to update category.' });
     }
     cancelEdit();
   };
@@ -92,8 +94,9 @@ const CategoryTable: React.FC = () => {
       await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, IsActive: true }));
       showToast({ type: 'success', message: 'Category added successfully.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to add category.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to add category.' });
     }
     setAddForm(null);
   };
@@ -102,8 +105,9 @@ const CategoryTable: React.FC = () => {
       await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Category deleted.' });
       await refetch();
-    } catch {
-      showToast({ type: 'error', message: 'Failed to delete category.' });
+    } catch (error) {
+      // The httpClient interceptor already toasted the API's reason; toast only when it stayed silent.
+      if (!(error as { Message?: string } | undefined)?.Message) showToast({ type: 'error', message: 'Failed to delete category.' });
     }
     setDeleteConfirmId(null);
   };
