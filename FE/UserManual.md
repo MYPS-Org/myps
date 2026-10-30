@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.27
+**Version:** 3.28
 **Date:** October 31, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -51,6 +51,7 @@
 | 3.25 | October 30, 2026 | RP | RP | Section 5.9 Infra Management (S06): generated Road, Section Road and Bridge IDs take the **lowest** free 5-digit number, so the numbers left unused by the IDs migrated from RBIA are filled and the number of a deleted road, section or bridge is used again (a number a project refers to is never reused); a bridge's **From Chainage** is in meters and must lie within its road section (0 up to the section's Length), and a section's Length cannot be shortened below its bridges' From Chainage; the bridge dialog's From Chainage was labelled in kilometres although it is meters |
 | 3.26 | October 31, 2026 | RP | RP | Section 5.10 Lump Sum Projects (S07): **Sub-Category** on Add Lump Sum Project stays locked, showing *Select a Category first*, until a Category is chosen, and then lists only the Sub-Categories that Category permits for the program's year (an empty box used to show "PROGRAM OF WORKS/BUDGET COST" as if it were chosen); two Sub-Categories that share a description show their Infrastructure Type after it, e.g. *… Coastal Communities (Roads)* / *(Bridges)*, on the Lump Sum, Project and Modification forms; pointing at a dropdown shows a long name in full; the Lump Sum list gained the **Category** filter row and the **Clear** button in Section 5.10.1, and a search that matches nothing says *No Lump Sum Projects match your filters.* with **Clear filters**; Section 5.10.4: an import into a program whose projects have moved past BP no longer fails with *"Project ID generation failed: still colliding after 3 attempts"*, because a new Project ID skips every number a project carries as BP, P or MY |
 | 3.27 | October 31, 2026 | RP | RP | Section 5.6 Reports (S08): **RBP Summary Report** and **RBP Summary Report with Tier** now cover the program ticked in the Programs panel at the stage chosen, as the RBP report does, so a program at BP (or one that skipped RBP) no longer gives an empty summary, and the three reports tally; the AIP reports (Official, Executive, Official without LD) show a Major Item that has no work location with its Type of Work and Target Unit and a Physical Target of 0 (before, all three were blank); Regional Office corrected to **required** for the PDF reports (optional only for the Excel extracts, with Category, District Engineering Office and Implementing Office); a failed report now shows the reason alone, not the raw response; new Common Outcomes rows for the empty summary and the "Report-level parameter(s) not supplied" message |
+| 3.28 | October 31, 2026 | RP | RP | Section 5.4 Revisions (S03, ATA remark of 30 October 2026): new **PCMA status rules** in Section 5.4.4: a **Modification** is not allowed when the project's components are Completed or Terminated ("Modification is not allowed because the Project Component has been Completed/Terminated."), and **Change in Authority to Implement** only while they are Not Yet Started and Not Packaged; the revision page then shows a **Revision Not Allowed** notice with **Back to Project Details**; a reason with no Revision Field Permission for the project's status is refused in plain words; Section 5.4.3 notes that the fields are edited on the revision page reached through **Revise Project**, not on Project Details, which stays read-only at GAA-R; new Common Outcomes rows |
 
 ### Consultant
 
@@ -1804,6 +1805,10 @@ The map panel appears at the top of the project form. Click the **Project Locati
 | *"Please select a category."* | The Category dropdown is visible but no category was selected before clicking Submit. | Select a category from the dropdown. |
 | *"Please select a reason."* | The Reason dropdown was left blank. | Select a reason before clicking Submit. |
 | Yellow **Revise Project** button not visible | The project has not been published to PCMA or is not at GAA-R stage. | Use Allow Publishing in a GAA-R program to publish the project first (see Section 5.2.6). |
+| The fields of **Project Details** stay greyed out | Project Details is read-only at GAA-R. A revision is edited on its own page. | Click **Revise Project**, choose the revision type and reason, and click **Submit**. The revision page opens, and the fields its Revision Field Permission allows are editable there (for Change of Implementing Office while Not Yet Started and Not Packaged: Implementing Office). |
+| **Revision Not Allowed** — *"Modification is not allowed because the Project Component has been Completed/Terminated."* | The project's components are Completed or Terminated. | A Modification cannot be made. See the PCMA status rules in Section 5.4.4. |
+| **Revision Not Allowed** — *"Change in Authority to Implement is allowed only while the project's components are Not Yet Started and Not Packaged. …"* | A component has started, or is packaged, in PCMA. | This revision type cannot be used for the project. |
+| **Revision Not Allowed** — *"This revision reason is not allowed while the project's components are … and …."* | No active Revision Field Permission covers the chosen reason at the project's PCMA and package status. | Choose another reason, or ask PS Admin whether a rule should exist for that status (Code Tables → Revision → Rules). |
 
 ---
 
@@ -1829,6 +1834,15 @@ Each revision type has one or more associated **Reasons**, selected in the Revis
 | 12 | Termination | |
 
 > **Termination note:** If the Funding Profile total does not match the Component Cost total on submission, the system will prompt that an excess Component Cost will be created automatically.
+
+**PCMA status rules.** A revision is judged by the project's PCMA status, taken from its components: **On-Going** if any component is On-Going; **Terminated** if all are Terminated; **Not Yet Started** if any is Not Yet Started; otherwise **Completed**. It is **Packaged** only when every component is packaged. The status is read by the server when the revision is opened, submitted and resubmitted. Besides the fields each reason's Revision Field Permission allows, the URD sets these limits, which Code Tables cannot lift:
+
+| Revision Type | Allowed only when the components are | Otherwise |
+|---|---|---|
+| Modification | Not Yet Started (Packaged or not) or On-Going | *"Modification is not allowed because the Project Component has been Completed/Terminated."* |
+| Change in Authority to Implement | Not Yet Started **and** Not Packaged | *"Change in Authority to Implement is allowed only while the project's components are Not Yet Started and Not Packaged. This project's are … and …."* |
+
+> The other revision types are limited by their Revision Field Permission rows only. The URD's full list of allowed statuses per revision type is still to be applied to them.
 
 ---
 

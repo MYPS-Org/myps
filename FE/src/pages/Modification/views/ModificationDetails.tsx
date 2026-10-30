@@ -17,6 +17,9 @@ const BLOCKING_ERROR_TITLES = new Set([
     'Revision Type Temporarily Blocked',
     'Revision Reason Requires Confirmation',
     'Pending Modification Request',
+    // S03 (2026-10-31): the URD's status rules -- e.g. Modification of a Completed/Terminated
+    // project, or Change in Authority to Implement once a component started or was packaged.
+    'Revision Not Allowed',
 ]);
 
 const ModificationDetails: React.FC = () => {

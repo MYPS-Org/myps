@@ -360,38 +360,10 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
                 }
-                #region Project Construction Status Validation
-                var UniqueComponentStatus = ComponentCost.Select(x => x.ConstructionStatusName).Distinct().ToList();
-                string ConStatus = UniqueComponentStatus switch
-                {
-                    // Rule 0: If there are no components at all
-                    { Count: 0 } => "No Components",
-
-                    // Rule 1: "On-Going" ALWAYS wins if it exists anywhere in the list
-                    _ when UniqueComponentStatus.Contains("On-Going")
-                        => "On-Going",
-
-                    // Rule 2: If the ONLY status in the list is "Terminated"
-                    _ when UniqueComponentStatus.Count == 1 && UniqueComponentStatus.Contains("Terminated")
-                        => "Terminated",
-
-                    // Rule 3: If there is "Not Yet Started" mixed with anything else (except On-Going)
-                    _ when UniqueComponentStatus.Contains("Not Yet Started")
-                        => "Not Yet Started",
-
-                    // Rule 4: If everything left is "Completed" (ignoring any Terminated components)
-                    _ when UniqueComponentStatus.Contains("Completed")
-                        => "Completed",
-
-                    // Fallback default case
-                    _ => string.Empty
-                };
-                #endregion
-                #region Project Packaged Status Validation
-                string PackedStatus =
-                    ComponentCost.Any(x => x.IsPackaged != true) ?
-                    "Not Packaged" :
-                    "Packaged";
+                #region Project Construction / Packaged Status
+                // One rule for every caller: RevisionStatusEligibility.ProjectStatus.
+                var (ConStatus, PackedStatus) = RevisionStatusEligibility.ProjectStatus(
+                    ComponentCost.Select(x => (x.ConstructionStatusName, x.IsPackaged)));
                 #endregion
                 DBHelper.Models.Table.Revision.RevisionRules? SelectedRules = null;
                 if (RevisionDetails.RevisionCreatedBy == _Session.Name && (ApprovalStatus.ROStatus == 3 || ApprovalStatus.COStatus == 3))
@@ -578,6 +550,14 @@ namespace WebAPI.Controllers.Revision
 
 
         /// <summary>
+        /// No active Revision Field Permission row covers this reason at the project's status. Said
+        /// as a refusal, in plain words (S03, 2026-10-31); it used to read "Revision rule does not
+        /// exist for PCMA_Status: … Package_Status: …".
+        /// </summary>
+        private static string NoRevisionRuleMessage(string pcmaStatus, string packageStatus) =>
+            $"This revision reason is not allowed while the project's components are {pcmaStatus} and {packageStatus}.";
+
+        /// <summary>
         /// Loads the tProjects row for a ProjectPK and reports whether it is a Lump
         /// Sum PARENT. ReviseProject works from a revision rather than a validated
         /// project, so it has no entity to hand to LumpSumGuard directly.
@@ -665,46 +645,24 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
                 }
-                #region Project Construction Status Validation
-                var UniqueComponentStatus = ComponentCost.Select(x => x.ConstructionStatusName).Distinct().ToList();
-                string ConStatus = UniqueComponentStatus switch
+                #region Project Construction / Packaged Status
+                // One rule for every caller: RevisionStatusEligibility.ProjectStatus.
+                var (ConStatus, PackedStatus) = RevisionStatusEligibility.ProjectStatus(
+                    ComponentCost.Select(x => (x.ConstructionStatusName, x.IsPackaged)));
+                #endregion
+
+                // The URD's own status rules first (S03, 2026-10-31): they hold whatever Code Tables say.
+                var StatusRefusal = RevisionStatusEligibility.Refusal(dto.RevisionHeader, ConStatus, PackedStatus);
+                if (StatusRefusal != null)
                 {
-                    // Rule 0: If there are no components at all
-                    { Count: 0 } => "No Components",
-
-                    // Rule 1: "On-Going" ALWAYS wins if it exists anywhere in the list
-                    _ when UniqueComponentStatus.Contains("On-Going")
-                        => "On-Going",
-
-                    // Rule 2: If the ONLY status in the list is "Terminated"
-                    _ when UniqueComponentStatus.Count == 1 && UniqueComponentStatus.Contains("Terminated")
-                        => "Terminated",
-
-                    // Rule 3: If there is "Not Yet Started" mixed with anything else (except On-Going)
-                    _ when UniqueComponentStatus.Contains("Not Yet Started")
-                        => "Not Yet Started",
-
-                    // Rule 4: If everything left is "Completed" (ignoring any Terminated components)
-                    _ when UniqueComponentStatus.Contains("Completed")
-                        => "Completed",
-
-                    // Fallback default case
-                    _ => string.Empty
-                };
-                #endregion
-                #region Project Packaged Status Validation
-                string PackedStatus =
-                    ComponentCost.Any(x => x.IsPackaged != true) ?
-                    "Not Packaged" :
-                    "Packaged";
-                #endregion
-
+                    return new BadRequestObjectResult(new { Message = StatusRefusal, Title = "Revision Not Allowed" });
+                }
                 var MatchingRules = await _db.tRevisionRules.AsNoTracking()
                     .Where(x => x.IsActive && x.ReasonId == dto.RevisionReason && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus)
                     .ToListAsync(cancellationToken);
                 if (MatchingRules.Count != 1)
                 {
-                    return new BadRequestObjectResult(new { Message = MatchingRules.Count == 0 ? $"Revision rule does not exist for PCMA_Status: {ConStatus} Package_Status: {PackedStatus}." : $"Multiple active revision rules exist for PCMA_Status: {ConStatus} Package_Status: {PackedStatus}. Please contact Administrator.", Title = "Invalid Revision Rule" });
+                    return new BadRequestObjectResult(new { Message = MatchingRules.Count == 0 ? NoRevisionRuleMessage(ConStatus, PackedStatus) : $"Multiple active revision rules exist for PCMA_Status: {ConStatus} Package_Status: {PackedStatus}. Please contact Administrator.", Title = MatchingRules.Count == 0 ? "Revision Not Allowed" : "Invalid Revision Rule" });
                 }
                 var SelectedRules = MatchingRules.Single();
                 #endregion
@@ -987,17 +945,28 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Revision reason does not exist or is inactive.", Title = "Invalid Revision Reason" });
                 }
+                // THE SERVER'S STATUS, NOT THE REQUEST'S (S03, 2026-10-31). The PCMA and package status
+                // choose the field rule -- what this revision may change -- and the request used to
+                // carry them, so a stale page or an edited request could pick another rule.
+                var StatusComponents = await _db.fProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({ProjectFK}, {EnumProgramStage.GAAR})").AsNoTracking().ToListAsync(cancellationToken);
+                var (ConStatus, PackedStatus) = RevisionStatusEligibility.ProjectStatus(
+                    StatusComponents.Select(x => (x.ConstructionStatusName, x.IsPackaged)));
+                var StatusRefusal = RevisionStatusEligibility.Refusal(RevisionReason.RevisionGroupId, ConStatus, PackedStatus);
+                if (StatusRefusal != null)
+                {
+                    return new BadRequestObjectResult(new { Message = StatusRefusal, Title = "Revision Not Allowed" });
+                }
                 var MatchingRevisionRules = await _db.tRevisionRules.AsNoTracking()
-                    .Where(x => x.IsActive && x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus)
+                    .Where(x => x.IsActive && x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus)
                     .ToListAsync(cancellationToken);
                 if (MatchingRevisionRules.Count != 1)
                 {
                     return new BadRequestObjectResult(new
                     {
                         Message = MatchingRevisionRules.Count == 0
-                            ? $"Revision rule does not exist for PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}."
-                            : $"Multiple active revision rules exist for PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}. Please contact Administrator.",
-                        Title = "Invalid Revision Rule"
+                            ? NoRevisionRuleMessage(ConStatus, PackedStatus)
+                            : $"Multiple active revision rules exist for PCMA_Status: {ConStatus} Package_Status: {PackedStatus}. Please contact Administrator.",
+                        Title = MatchingRevisionRules.Count == 0 ? "Revision Not Allowed" : "Invalid Revision Rule"
                     });
                 }
                 var RevisionRules = MatchingRevisionRules.Single();
@@ -2778,17 +2747,28 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Revision reason does not exist or is inactive.", Title = "Invalid Revision Reason" });
                 }
+                // THE SERVER'S STATUS, NOT THE REQUEST'S (S03, 2026-10-31). The PCMA and package status
+                // choose the field rule -- what this revision may change -- and the request used to
+                // carry them, so a stale page or an edited request could pick another rule.
+                var StatusComponents = await _db.fRevisionComponentCost.FromSqlInterpolated($"SELECT * FROM fRevisionComponentCost({dto.TransactionId})").AsNoTracking().ToListAsync(cancellationToken);
+                var (ConStatus, PackedStatus) = RevisionStatusEligibility.ProjectStatus(
+                    StatusComponents.Select(x => (x.ConstructionStatusName, x.IsPackaged)));
+                var StatusRefusal = RevisionStatusEligibility.Refusal(RevisionReason.RevisionGroupId, ConStatus, PackedStatus);
+                if (StatusRefusal != null)
+                {
+                    return new BadRequestObjectResult(new { Message = StatusRefusal, Title = "Revision Not Allowed" });
+                }
                 var MatchingRevisionRules = await _db.tRevisionRules.AsNoTracking()
-                    .Where(x => x.IsActive && x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus)
+                    .Where(x => x.IsActive && x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus)
                     .ToListAsync(cancellationToken);
                 if (MatchingRevisionRules.Count != 1)
                 {
                     return new BadRequestObjectResult(new
                     {
                         Message = MatchingRevisionRules.Count == 0
-                            ? $"Revision rule does not exist for PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}."
-                            : $"Multiple active revision rules exist for PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}. Please contact Administrator.",
-                        Title = "Invalid Revision Rule"
+                            ? NoRevisionRuleMessage(ConStatus, PackedStatus)
+                            : $"Multiple active revision rules exist for PCMA_Status: {ConStatus} Package_Status: {PackedStatus}. Please contact Administrator.",
+                        Title = MatchingRevisionRules.Count == 0 ? "Revision Not Allowed" : "Invalid Revision Rule"
                     });
                 }
                 var RevisionRules = MatchingRevisionRules.Single();
