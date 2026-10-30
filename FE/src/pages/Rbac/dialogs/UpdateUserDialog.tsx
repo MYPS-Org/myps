@@ -6,6 +6,7 @@ import { MagnifyingGlassIcon } from '@heroicons/react/16/solid';
 import type { Users, vUserGroups } from '../Model.d';
 import { fetchUserGroups, editUser, fetchUserData } from '../service';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface UpdateUserDialogProps {
   isOpen: boolean;
@@ -16,6 +17,11 @@ interface UpdateUserDialogProps {
 
 const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, onSubmit, user }) => {
   const { showToast } = useToast();
+  // 2026-10-31: the server refuses a change to your own status, groups or Employee ID (they decide
+  // your access and project scope), so the dialog locks them up front instead of failing on save.
+  const { user: sessionUser } = useAuth();
+  const isOwnAccount = !!sessionUser?.UserId && sessionUser.UserId.toLowerCase() === (user.UserId || '').toLowerCase();
+  const [isSaving, setIsSaving] = useState(false);
   const [availableGroups, setAvailableGroups] = useState<vUserGroups[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -102,16 +108,18 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
   const fetchAvailableGroups = async () => {
     try {
       setIsLoadingGroups(true);
+      // 200 is the server's page cap (it was 100, the newest groups only); sorted by name here because
+      // the list is ordered by Id.
       const response = await fetchUserGroups({
         page: 1,
-        limit: 100, // Get all groups
+        limit: 200,
         filters: {
           GroupName: ''
         }
       });
       
       if (response.Data && response.Data.lists) {
-        setAvailableGroups(response.Data.lists);
+        setAvailableGroups([...response.Data.lists].sort((a, b) => (a.GroupName || '').localeCompare(b.GroupName || '')));
       }
     } catch (error) {
       console.error('Error fetching user groups:', error);
@@ -123,6 +131,23 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
   // Handle form submission
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+
+    // 2026-10-31: a changed Employee ID must be the one searched in PIS -- the server saves the region
+    // and office this form holds, and without a search those are still the old employee's. A recorded
+    // Employee ID cannot be cleared.
+    const employeeId = formData.employeeId.trim();
+    const storedEmployeeId = (user.EmployeeId || '').trim();
+    if (employeeId !== storedEmployeeId) {
+      if (!employeeId) {
+        setError(`The Employee ID ${storedEmployeeId} cannot be cleared. Search another employee to change it.`);
+        return;
+      }
+      if (pisEmployeeId !== employeeId) {
+        setError('Click the search button to look up the new Employee ID in PIS before saving.');
+        return;
+      }
+    }
 
     // Same check as Add User: a PIS region/office MYPS does not know comes back as "<code> (Not Exists)"
     // with no name, and must not be saved.
@@ -154,6 +179,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
     };
     
     try {
+      setIsSaving(true);
       await editUser(submissionData);
       onSubmit(submissionData);
       showToast({ message: 'User updated successfully.', type: 'success' });
@@ -174,6 +200,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       onClose();
     } catch (error) {
       console.error('Error updating user:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -245,12 +273,14 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                     type="text"
                     value={formData.employeeId}
                     onChange={(e) => handleEmployeeIdChange(e.target.value)}
-                    className="w-full px-3 py-2"
+                    className="w-full px-3 py-2 disabled:bg-gray-100"
                     placeholder="Enter employee ID"
                     maxLength={50}
+                    disabled={isOwnAccount}
                   />
                   <button
                     type="button"
+                    disabled={isOwnAccount}
                     onClick={() => handleSearch(formData.employeeId)}
                     className="px-3 py-2.5 bg-gray-500 text-gray-400 hover:text-gray-700 focus:outline-none"
                   >
@@ -332,13 +362,18 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
               </label>
               <input
                 type="text"
-                value={formData.plantillaOffice}
+                value={formData.plantillaOfficeName || formData.plantillaOffice}
                 onChange={(e) => handleChange('plantillaOffice', e.target.value)}
                 placeholder="Enter department"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 disabled
               />
             </div>
+            {isOwnAccount && (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                This is your own account. Its Employee ID, user groups and status can only be changed by another administrator.
+              </p>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 User Group
@@ -353,6 +388,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                         <input
                           type="checkbox"
                           checked={formData.userGroupIds.includes(group.Id)}
+                          disabled={isOwnAccount}
                           onChange={(e) => handleUserGroupChange(group.Id, e.target.checked)}
                           className="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
@@ -376,7 +412,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
               <select
                 value={formData.isActive}
                 onChange={(e) => handleChange('isActive', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                disabled={isOwnAccount}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -387,8 +424,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
               <Button type="button" onClick={onClose} color="zinc">
                 Cancel
               </Button>
-              <Button type="submit" color="orange">
-                Update User
+              <Button type="submit" color="orange" disabled={isSaving}>
+                {isSaving ? 'Updating...' : 'Update User'}
               </Button>
             </div>
           </form>

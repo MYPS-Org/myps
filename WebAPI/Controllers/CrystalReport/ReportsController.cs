@@ -25,6 +25,8 @@ namespace WebAPI.Controllers.CrystalReport
     [ApiController]
     [Route("api/reports")]
     [Authorize]
+    // 2026-10-31: [Authorize] checks only the cookie; a deactivated user kept generating reports.
+    [ActiveUserFilter]
     public class ReportsController : ControllerBase
     {
         private readonly IHttpClientFactory _httpClientFactory;

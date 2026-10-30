@@ -16,14 +16,17 @@ interface DeleteUserDialogProps {
 const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ isOpen, onClose, onSubmit, user }) => {
 
   const { showToast } = useToast();
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
+    if (isDeleting) return;
 
     try {
         if (!user.Id) {
             throw new Error('User ID is required for deletion.');
         }
+        setIsDeleting(true);
         await deleteUser(user);
         onSubmit(user.Id);
         showToast({ message: 'User deleted successfully.', type: 'success' });
@@ -31,6 +34,8 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ isOpen, onClose, on
     } catch (error) {
         console.error('Error deleting user:', error);
         return;
+    } finally {
+        setIsDeleting(false);
     }
   };
 
@@ -67,7 +72,7 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ isOpen, onClose, on
               <Button type="button" onClick={onClose} color="zinc">
                 Cancel
               </Button>
-              <Button type="submit" color="red">
+              <Button type="submit" color="red" disabled={isDeleting}>
                 Delete User
               </Button>
             </div>

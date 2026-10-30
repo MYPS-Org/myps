@@ -21,7 +21,8 @@ const FilterUserGroupDialog: React.FC<FilterUserGroupDialogProps> = ({ isOpen, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Trimmed: " Admin" matched nothing (2026-10-31).
+    onSubmit({ GroupName: formData.GroupName.trim(), PermissionNames: formData.PermissionNames.trim() });
     setFormData({
         GroupName: '',
         PermissionNames: '',

@@ -5,6 +5,7 @@ import { XMarkIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/o
 import type { vUserGroups, UserGroupDropdowns, UpdateUserGroupPayload, ModulePermission } from '../Model.d';
 import { editUserGroup } from '../service';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import { RESTRICTED_GROUPS, SEE_ALL_GROUPS } from '../../../contexts/userScope';
 
 interface UpdateGroupDialogProps {
   isOpen: boolean;
@@ -256,6 +257,8 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
   dropdowns: _dropdowns,
 }) => {
   const { showToast } = useToast();
+  // 2026-10-31: project visibility is matched by these names, so the server refuses renaming them.
+  const nameLocked = [...RESTRICTED_GROUPS, ...SEE_ALL_GROUPS].includes(group?.GroupName ?? '');
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [applyFilter, setApplyFilter] = useState(false);
@@ -364,9 +367,16 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
                   type="text"
                   value={groupName}
                   onChange={e => setGroupName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  readOnly={nameLocked}
+                  maxLength={100}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 ${nameLocked ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                   autoComplete="off"
                 />
+                {nameLocked && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    This name cannot be changed: project visibility is matched by it.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>

@@ -130,8 +130,10 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
                     <h4 className="text-sm font-medium text-yellow-800">
                       Impact on Members
                     </h4>
+                    {/* 2026-10-31: the server refuses it while the group has members; this used to say
+                        their access "may be affected" and offer Delete anyway. */}
                     <p className="text-sm text-yellow-700 mt-1">
-                      This group has {group.NumberOfUsers || 0} member(s). Deleting this group may affect their access permissions.
+                      This group has {group.NumberOfUsers || 0} member(s), so it cannot be deleted. Remove it from their accounts in the Users tab first.
                     </p>
                   </div>
                 </div>
@@ -167,7 +169,7 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
               <Button 
                 type="submit" 
                 color="red" 
-                disabled={confirmText.toLowerCase() !== 'delete' || isDeleting}
+                disabled={confirmText.toLowerCase() !== 'delete' || isDeleting || (group.NumberOfUsers || 0) > 0}
                 className="disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isDeleting ? 'Deleting...' : 'Delete Group'}

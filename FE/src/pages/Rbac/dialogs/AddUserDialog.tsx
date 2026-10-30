@@ -33,6 +33,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
   const [availableGroups, setAvailableGroups] = useState<vUserGroups[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Fetch available user groups when dialog opens
   useEffect(() => {
@@ -44,15 +45,17 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
   const fetchAvailableGroups = async () => {
     try {
       setIsLoadingGroups(true);
+      // 200 is the server's page cap (it was 100, the newest groups only); sorted by name here because
+      // the list is ordered by Id.
       const response = await fetchUserGroups({
         page: 1,
-        limit: 100, // Fetch all groups
+        limit: 200,
         filters: {
           GroupName: ''
         }
       })
       if (response.Data && response.Data.lists) {
-        setAvailableGroups(response.Data.lists);
+        setAvailableGroups([...response.Data.lists].sort((a, b) => (a.GroupName || '').localeCompare(b.GroupName || '')));
       }
     }
     catch (error: any) {
@@ -97,6 +100,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
 
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
 
     try {
       if (!isDataLoaded) {
@@ -121,6 +125,12 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
       const selectedGroupIds = availableGroups
         .filter(g => formData.userGroups.includes(g.GroupName || ''))
         .map(g => g.Id);
+      // 2026-10-31: a user with no group has no row in vUsers, so they could not sign in and the list
+      // never showed them again (the server refuses it too).
+      if (selectedGroupIds.length === 0) {
+        setError('Select at least one user group.');
+        return;
+      }
       const userData = {
         Id: 0, // Will be set by the backend
         EmployeeId: formData.employeeId.trim(),
@@ -136,6 +146,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         UserGroupNames: selectedGroupNames,
       };
       
+      setIsSaving(true);
       await addUser(userData);
 
       // 2026-10-30: the parent re-reads the list for the new row's real Id; this used to hand it a
@@ -147,6 +158,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
     } catch (error: any) {
       console.error('Error submitting form:', error);
       setError(error.Message || 'Failed to add user');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -383,9 +396,9 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               <Button 
                 type="submit" 
                 color="orange"
-                disabled={!isDataLoaded || isLoading}
+                disabled={!isDataLoaded || isLoading || isSaving}
               >
-                {isLoading ? 'Loading...' : 'Add User'}
+                {isLoading ? 'Loading...' : isSaving ? 'Adding...' : 'Add User'}
               </Button>
             </div>
           </form>

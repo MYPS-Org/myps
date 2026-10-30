@@ -14,6 +14,37 @@ using System.Security.Claims;
 
 namespace WebAPI.Controllers
 {
+    /// <summary>
+    /// Steps 2 and 4 of <see cref="PermissionFilter"/> alone -- a signed-in claim and an ACTIVE vUsers
+    /// row -- for controllers that are not CoreController and so have no grantable actions
+    /// (ReportsController, 2026-10-31). Before it, [Authorize] there checked only the cookie: a
+    /// deactivated or deleted user could still queue and download reports for as long as the
+    /// cookie lived.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+    public class ActiveUserFilter : Attribute, IAsyncAuthorizationFilter
+    {
+        public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
+        {
+            if (context.ActionDescriptor.EndpointMetadata.Any(meta => meta is AllowAnonymousAttribute)) return;
+
+            var userId = context.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var _db = context.HttpContext.RequestServices.GetService<MYPSDbContext>();
+            if (string.IsNullOrWhiteSpace(userId) || _db == null
+                || !await _db.vUsers.AnyAsync(x => x.UserId == userId && x.IsActive))
+            {
+                context.Result = new UnauthorizedObjectResult(new
+                {
+                    Message = "Your account is inactive or your session has ended. Please sign in again.",
+                    Title = "Access Denied",
+                    data = new { Authenticated = false },
+                    user = new { },
+                    Redirect = "/login"
+                });
+            }
+        }
+    }
+
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = false)]
     public class PermissionFilter : Attribute, IAsyncAuthorizationFilter
     {

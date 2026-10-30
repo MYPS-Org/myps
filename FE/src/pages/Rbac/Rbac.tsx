@@ -56,6 +56,7 @@ const Rbac: React.FC = () => {
 		userGroupDropdowns,
 		userGroupList,
 		tabNumbers,
+		reloadSummary,
 		handleClear,
 		handleExpand,
 		getTableData,
@@ -145,13 +146,13 @@ const Rbac: React.FC = () => {
 			<AddUserDialog
 				isOpen={isAddUserDialogOpen}
 				onClose={() => setIsAddUserDialogOpen(false)}
-				onSubmit={() => reloadFirstPage(usersPager, EMPTY_USER_FILTER)}
+				onSubmit={() => { reloadFirstPage(usersPager, EMPTY_USER_FILTER); reloadSummary(); }}
 			/>
 
 			<AddGroupDialog
 				isOpen={isAddGroupDialogOpen}
 				onClose={() => setIsAddGroupDialogOpen(false)}
-				onSubmit={() => reloadFirstPage(userGroupsPager, EMPTY_GROUP_FILTER)}
+				onSubmit={() => { reloadFirstPage(userGroupsPager, EMPTY_GROUP_FILTER); reloadSummary(); }}
 			/>
 
 			{isViewUserDialogOpen && selectedUserId && (
@@ -176,7 +177,7 @@ const Rbac: React.FC = () => {
 					isOpen={isDeleteUserDialogOpen}
 					onClose={() => { setIsDeleteUserDialogOpen(false); setSelectedUserId(null); }}
 					user={usersPager.data.lists.find(u => u.Id === selectedUserId)!}
-					onSubmit={() => reloadAfterDelete(usersPager)}
+					onSubmit={() => { reloadAfterDelete(usersPager); reloadSummary(); }}
 				/>
 			)}
 
@@ -192,7 +193,7 @@ const Rbac: React.FC = () => {
 				<UpdateGroupDialog
 					isOpen={isUpdateGroupDialogOpen}
 					onClose={() => { setIsUpdateGroupDialogOpen(false); setSelectedGroupId(null); }}
-					group={userGroupsPager.data.lists.find(g => g.Id === selectedGroupId)!}				dropdowns={userGroupDropdowns}					onSubmit={() => userGroupsPager.refresh()}
+					group={userGroupsPager.data.lists.find(g => g.Id === selectedGroupId)!}				dropdowns={userGroupDropdowns}					onSubmit={() => { userGroupsPager.refresh(); reloadSummary(); }}
 				/>
 			)}
 
@@ -201,7 +202,7 @@ const Rbac: React.FC = () => {
 					isOpen={isDeleteGroupDialogOpen}
 					onClose={() => { setIsDeleteGroupDialogOpen(false); setSelectedGroupId(null); }}
 					group={userGroupsPager.data.lists.find(g => g.Id === selectedGroupId)!}
-					onSubmit={() => reloadAfterDelete(userGroupsPager)}
+					onSubmit={() => { reloadAfterDelete(userGroupsPager); reloadSummary(); }}
 				/>
 			)}
 

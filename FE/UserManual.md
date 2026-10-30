@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.28
+**Version:** 3.29
 **Date:** October 31, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -52,6 +52,7 @@
 | 3.26 | October 31, 2026 | RP | RP | Section 5.10 Lump Sum Projects (S07): **Sub-Category** on Add Lump Sum Project stays locked, showing *Select a Category first*, until a Category is chosen, and then lists only the Sub-Categories that Category permits for the program's year (an empty box used to show "PROGRAM OF WORKS/BUDGET COST" as if it were chosen); two Sub-Categories that share a description show their Infrastructure Type after it, e.g. *… Coastal Communities (Roads)* / *(Bridges)*, on the Lump Sum, Project and Modification forms; pointing at a dropdown shows a long name in full; the Lump Sum list gained the **Category** filter row and the **Clear** button in Section 5.10.1, and a search that matches nothing says *No Lump Sum Projects match your filters.* with **Clear filters**; Section 5.10.4: an import into a program whose projects have moved past BP no longer fails with *"Project ID generation failed: still colliding after 3 attempts"*, because a new Project ID skips every number a project carries as BP, P or MY |
 | 3.27 | October 31, 2026 | RP | RP | Section 5.6 Reports (S08): **RBP Summary Report** and **RBP Summary Report with Tier** now cover the program ticked in the Programs panel at the stage chosen, as the RBP report does, so a program at BP (or one that skipped RBP) no longer gives an empty summary, and the three reports tally; the AIP reports (Official, Executive, Official without LD) show a Major Item that has no work location with its Type of Work and Target Unit and a Physical Target of 0 (before, all three were blank); Regional Office corrected to **required** for the PDF reports (optional only for the Excel extracts, with Category, District Engineering Office and Implementing Office); a failed report now shows the reason alone, not the raw response; new Common Outcomes rows for the empty summary and the "Report-level parameter(s) not supplied" message |
 | 3.28 | October 31, 2026 | RP | RP | Section 5.4 Revisions (S03, ATA remark of 30 October 2026): new **PCMA status rules** in Section 5.4.4: a **Modification** is not allowed when the project's components are Completed or Terminated ("Modification is not allowed because the Project Component has been Completed/Terminated."), and **Change in Authority to Implement** only while they are Not Yet Started and Not Packaged; the revision page then shows a **Revision Not Allowed** notice with **Back to Project Details**; a reason with no Revision Field Permission for the project's status is refused in plain words; Section 5.4.3 notes that the fields are edited on the revision page reached through **Revise Project**, not on Project Details, which stays read-only at GAA-R; new Common Outcomes rows |
+| 3.29 | October 31, 2026 | RP | RP | Section 5.8 User Management (audit of 31 October 2026): **Sync Routes** and **Sync API** ask for confirmation and say what they remove; Sync Routes never removes a route a user group still has (it names it instead) and refuses an empty list; a module's name cannot be changed; **Add User** needs at least one user group; **Edit User** corrected: only the Employee ID (looked up in PIS with the search button), the user groups and the status can be changed, and the login, name, email, region and office are kept; your own account's Employee ID, groups and status, and its Delete, are locked; the DPC, RPC, AUC and DPD Admin group names are locked; a group with members cannot be deleted; a group name cannot contain double quotes or backslashes; saving a group keeps the permissions the dialog does not list; a group you belong to cannot lose the User Management page or session validation |
 
 ### Consultant
 
@@ -2731,7 +2732,7 @@ When **Can Add** is off for a section, the Add button is hidden during the revis
 **Step-by-Step: Editing a Module**
 
 1. Click the **pencil icon** on the module row you want to edit. The row switches to amber-highlighted inline edit mode.
-2. Update **Module Name** or **Description** as needed.
+2. Update the **Description** as needed. The **Module Name** is shown read-only: a module cannot be renamed (add a new module instead).
 3. Expand the **Controllers & Views** panel to link or unlink controllers and views by toggling their switches.
 4. Click **✓** to save, or **×** to cancel.
 
@@ -2754,19 +2755,19 @@ When **Can Add** is off for a section, the Add button is hidden during the revis
 
 **Step-by-Step: Syncing API Permissions**
 
-1. Click **Sync API**. The button label changes to "Syncing..." with a spinning icon while the operation runs.
-2. A success toast message appears when the sync completes.
+1. Click **Sync API**. A confirmation explains what the sync does; click **OK** to continue. The button label changes to "Syncing..." with a spinning icon while the operation runs.
+2. A success toast message appears when the sync completes, and the module list is reloaded.
 
-> Sync API reads the current API controller and action list from the backend and updates the permission database. Run this after backend code changes that add or remove controllers or actions.
+> Sync API reads the current API controller and action list from the backend and updates the permission database. It registers new actions and **removes** actions that no longer exist in the code, taking them off every user group. Run this after backend code changes that add or remove controllers or actions.
 
 ---
 
 **Step-by-Step: Syncing Routes**
 
-1. Click **Sync Routes**. The button label changes to "Syncing..." while the operation runs.
-2. A success toast message appears when the sync completes.
+1. Click **Sync Routes**. A confirmation explains what the sync does; click **OK** to continue. The button label changes to "Syncing..." while the operation runs.
+2. The toast gives the counts, for example *"Routes synchronized: 1 added, 0 updated, 0 removed."*, and the module list is reloaded.
 
-> Sync Routes reads the active frontend route list and updates the route permission database. Run this after new pages are added to the application.
+> Sync Routes reads the route list of the page you have open and updates the route permission database. A route this version of the page no longer has is removed **only if no user group has it**. One that a group still has is kept and named in the toast (*"Kept because user groups still have them: ..."*), so an old browser tab cannot take a page away from anyone. Run this after new pages are added to the application.
 
 ---
 
@@ -2845,7 +2846,7 @@ The column headers **User**, **User Group**, **Region**, **Office**, and **Statu
 2. In the **Employee ID** field, type the employee's PIS ID number.
 3. Click the **magnifying glass icon** next to the field. The system queries PIS and auto-fills **User ID**, **Name**, **Region**, **Email**, **Plantilla Office**, and **Plantilla Office Name**. A loading indicator appears while the lookup runs.
 4. Review the auto-filled data. You may edit the **Email** field if needed; all other auto-filled fields are read-only.
-5. In the **User Groups** section, tick one or more checkboxes to assign the user to group(s). The list shows all available groups with optional descriptions.
+5. In the **User Groups** section, tick one or more checkboxes to assign the user to group(s). At least one group is required. The list shows all available groups, in alphabetical order, with optional descriptions.
 6. Set the **Status** (defaults to Active).
 7. Click **Add User** to save. The dialog closes and the user list refreshes.
 
@@ -2861,6 +2862,7 @@ The column headers **User**, **User Group**, **Region**, **Office**, and **Statu
 | "Employee ID not found" | No PIS record matches the entered ID | Verify the ID is correct; contact HR if the employee is not yet registered in PIS |
 | "Please enter a valid Employee ID first" | The submit button was clicked before a successful PIS lookup | Complete the PIS lookup first by entering the ID and clicking the search icon |
 | "Failed to fetch user data" | PIS service is unavailable or returned an error | Retry; if the problem persists, contact the system administrator |
+| "Select at least one user group." | No group is ticked. A user without a group cannot sign in and would not appear in the list | Tick at least one group |
 | "Failed to add user" | A server-side error prevented the save | Check for duplicate User ID; retry or contact the administrator |
 
 ---
@@ -2871,24 +2873,34 @@ The column headers **User**, **User Group**, **Region**, **Office**, and **Statu
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0118-F01 | EMPLOYEE ID | Employee ID — editable in update mode | Text input; required |
-| UI-UX-0118-F02 | USER ID | System login identifier — editable in update mode | Text input; required |
-| UI-UX-0118-F03 | NAME | Employee's full name — editable in update mode | Text input; required |
-| UI-UX-0118-F04 | EMAIL | Work email address | Email input |
-| UI-UX-0118-F05 | PLANTILLA OFFICE | Assigned plantilla office code | Text input |
-| UI-UX-0118-F06 | PLANTILLA OFFICE NAME | Full name of the assigned plantilla office | Text input |
-| UI-UX-0118-F07 | USER GROUP | Checkbox list of all available groups; current assignments pre-ticked | Multi-select checkbox list |
-| UI-UX-0118-F08 | STATUS | Account status | Dropdown: Active / Inactive |
+| UI-UX-0118-F01 | EMPLOYEE ID | Employee ID, with a search button that looks it up in PIS | Text input. A new Employee ID must be searched before saving; a recorded one cannot be cleared |
+| UI-UX-0118-F02 | USER ID | System login identifier | Read-only: a login cannot be changed |
+| UI-UX-0118-F03 | NAME | Employee's full name | Read-only |
+| UI-UX-0118-F04 | REGION | The user's region | Read-only; replaced by the PIS search of a new Employee ID |
+| UI-UX-0118-F05 | EMAIL | Work email address | Read-only |
+| UI-UX-0118-F06 | PLANTILLA OFFICE | Name of the assigned plantilla office | Read-only; replaced by the PIS search of a new Employee ID |
+| UI-UX-0118-F07 | USER GROUP | Checkbox list of all available groups, in alphabetical order; current assignments pre-ticked | Multi-select checkbox list; locked on your own account |
+| UI-UX-0118-F08 | STATUS | Account status | Dropdown: Active / Inactive; locked on your own account |
 | UI-UX-0118-A01 | Cancel | Closes the dialog without saving | Button |
 | UI-UX-0118-A02 | Update User | Submits the updated user data | Button (blue) |
 
 **Step-by-Step:**
 
 1. On the user row, click the **pencil (Edit) icon**. The Update User dialog opens, pre-filled with the user's existing data.
-2. Modify any field as required. Unlike Add User, all fields are directly editable — there is no PIS lookup step.
+2. To change the Employee ID, type the new one and click the **search** icon. PIS fills in the **Region** and **Plantilla Office**; the login, name and email are kept. Saving without the search is refused.
 3. To change user group assignments, tick or untick checkboxes in the **User Group** list.
 4. Change the **Status** to Inactive to deactivate the account without deleting it.
 5. Click **Update User** to save. The dialog closes and the list row reflects the changes immediately.
+
+> **Your own account.** The Employee ID, user groups and status of the account you are signed in with are locked, and its Delete button is disabled: another administrator has to change them. This stops anyone from locking themselves out or widening their own project scope.
+
+**Common Outcomes & What to Do**
+
+| Message / Situation | What it Means | What You Should Do |
+|--------------------|---------------|--------------------|
+| "Click the search button to look up the new Employee ID in PIS before saving." | The Employee ID was changed but not searched, so the region and office would be the old employee's | Click the search icon, check the result, then save |
+| "The Employee ID ... cannot be cleared." | A recorded Employee ID was emptied | Search another employee's ID instead, or keep it |
+| "The User ID (login) '...' cannot be changed." | The request tried to change the login | Add a new user for a different login |
 
 [Insert Screenshot: Update User Dialog]
 
@@ -2977,7 +2989,7 @@ Click anywhere on a group row (not on the action buttons) to expand a permission
 **Step-by-Step:**
 
 1. Click **Add Group**. The Add New Group dialog opens.
-2. Enter the **Group Name** (required).
+2. Enter the **Group Name** (required, at most 100 characters, no double quotes `"` or backslashes `\`). Spaces before and after the name are removed, and a name that matches an existing group (ignoring case) is refused.
 3. Optionally enter a **Description** to describe the group's purpose.
 4. Tick **Apply Filter** if this group's members should only see records from their own regional office. Leave unchecked for groups that need system-wide data access. A user in several groups is limited to their region only when **all** of their groups have Apply Filter.
 5. Click **Create Group**.
@@ -2993,7 +3005,9 @@ Click anywhere on a group row (not on the action buttons) to expand a permission
 | Message / Situation | What it Means | What You Should Do |
 |--------------------|---------------|--------------------|
 | "Group name is required." | The Group Name field was left blank | Enter a name before clicking Create Group |
-| "Failed to create group." | A server-side error occurred | Check for duplicate group names; retry or contact the administrator |
+| "A group with the name '...' already exists." | Another group has that name (ignoring case and surrounding spaces) | Choose a different name |
+| "A group name cannot contain double quotes (\"), backslashes (\\) or line breaks." | The name has a character that would break the users' group list | Remove it, for example write `DPDC/PDC` with a forward slash |
+| "Failed to create group." | A server-side error occurred | Retry or contact the administrator |
 
 ---
 
@@ -3005,7 +3019,7 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0122-F01 | GROUP NAME | Name of the group — editable | Text input; required |
+| UI-UX-0122-F01 | GROUP NAME | Name of the group | Text input; required. Read-only for **DPC**, **RPC**, **AUC** and **DPD Admin**: project visibility is matched by these names |
 | UI-UX-0122-F02 | DESCRIPTION | Group description — editable | Textarea; optional |
 | UI-UX-0122-F03 | APPLY FILTER | Restricts members' data view to their own region/office | Checkbox |
 | UI-UX-0122-F04 | MODULE PERMISSIONS | Accordion-style list of all system modules with their API and route permissions | Interactive accordion |
@@ -3023,7 +3037,7 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 **Step-by-Step:**
 
 1. On the group row, click the **pencil (Edit) icon**. The Update Group dialog opens pre-filled with the group's current settings. All modules that already have granted permissions are automatically expanded.
-2. Edit **Group Name**, **Description**, or the **Apply Filter** checkbox if needed.
+2. Edit **Group Name**, **Description**, or the **Apply Filter** checkbox if needed. The names of **DPC**, **RPC**, **AUC** and **DPD Admin** cannot be changed, because which projects their members see is decided by the group name; their description, Apply Filter and permissions can still be changed.
 3. In the **Module Permissions** section, use **Expand All** or **Collapse All** to control visibility, or click individual module headers to open them one by one.
 4. **To grant/revoke API permissions:**
    - Expand a module to see its API Permissions section.
@@ -3040,6 +3054,15 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 
 **On Success:** A success toast ("Group updated successfully.") appears. All users in this group immediately inherit the updated permission set.
 
+> The dialog lists only the permissions of controllers and pages that belong to a module. A permission the group has outside those (for example one whose module was removed) is kept when you save, not taken away.
+
+**Common Outcomes & What to Do**
+
+| Message / Situation | What it Means | What You Should Do |
+|--------------------|---------------|--------------------|
+| "You are a member of '...'. Saving would remove your own User Management access (...)." | The change would take the User Management page, its actions, or session validation away from a group you belong to, and you would be locked out | Ask another administrator to make the change |
+| "'...' cannot be renamed: project visibility is matched by this group name." | The group is DPC, RPC, AUC or DPD Admin | Keep the name; change the description, Apply Filter or permissions instead |
+
 > Module headers highlighted in blue indicate at least one permission is currently granted in that module. Headers in grey indicate no permissions are set. Use the count badges (e.g., "3/10 API", "2/5 Routes") on module headers to quickly verify how much access is granted per module.
 
 ---
@@ -3051,7 +3074,7 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | UI-UX-0123-F01 | Group info panel | Displays Group Name, Members count, and total Permissions count of the group to be deleted | Read-only |
-| UI-UX-0123-F02 | Member impact warning | Shown if the group has one or more members; warns that their access may be affected | Warning block |
+| UI-UX-0123-F02 | Member warning | Shown if the group has one or more members: a group with members cannot be deleted | Warning block; Delete Group stays disabled |
 | UI-UX-0123-F03 | CONFIRMATION INPUT | Must type the word **DELETE** (case-insensitive) to enable the delete button | Text input; required |
 | UI-UX-0123-A01 | Cancel | Closes the dialog without deleting | Button |
 | UI-UX-0123-A02 | Delete Group | Submits the deletion; enabled only when the confirmation word has been typed | Button (red) |
@@ -3059,7 +3082,7 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 **Step-by-Step:**
 
 1. Click the **trash (Delete) icon** on the group row. The Delete Group dialog opens, showing a warning panel and the group's details (name, member count, permission count).
-2. If the group has members, an additional yellow warning block appears noting the impact on those users' access.
+2. If the group has members, a warning says it cannot be deleted and **Delete Group** stays disabled. Remove the group from those users' accounts in the **Users** tab first.
 3. In the confirmation field, type **DELETE** exactly.
 4. Click **Delete Group**. The dialog closes and the group is removed.
 
@@ -3072,7 +3095,8 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 | Message / Situation | What it Means | What You Should Do |
 |--------------------|---------------|--------------------|
 | Delete Group button remains disabled | The confirmation text has not been typed correctly | Type the word DELETE in the confirmation field |
-| "Failed to delete group." | A server-side error prevented deletion | Check whether the group still has active members or linked dependencies; retry or contact the administrator |
+| "This group has N member(s), so it cannot be deleted." | Users still belong to the group | Remove the group from their accounts in the Users tab, then delete it |
+| "Failed to delete group." | A server-side error prevented deletion | Retry or contact the administrator |
 
 > Deletion is permanent and cannot be undone. If the group should be retained but emptied, remove all users from the group using the Update User dialog for each affected user, rather than deleting the group.
 

@@ -7,6 +7,7 @@ import { Badge } from '../../../components/tailwindui/badge';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 import type { Users, UserFilter } from '../Model.d';
 import type { ListPager } from '../useRbac';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface UsersTabProps {
 	pager: ListPager<UserFilter, Users>;
@@ -32,6 +33,9 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 	onEdit,
 	onDelete,
 }) => {
+	const { user: sessionUser } = useAuth();
+	const isOwnRow = (userId?: string | null) =>
+		!!sessionUser?.UserId && !!userId && sessionUser.UserId.toLowerCase() === userId.toLowerCase();
 	const data = pager.data;
 	const filters = pager.currentFilters;
 	const hasActiveFilter =
@@ -142,7 +146,14 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 									<Button color="yellow" className="p-2" onClick={() => onEdit(user.Id)}>
 										<PencilIcon className="w-4 h-4" />
 									</Button>
-									<Button color="red" className="p-2" onClick={() => onDelete(user.Id)}>
+									{/* 2026-10-31: the server refuses deleting the signed-in account. */}
+									<Button
+										color="red"
+										className="p-2"
+										onClick={() => onDelete(user.Id)}
+										disabled={isOwnRow(user.UserId)}
+										title={isOwnRow(user.UserId) ? 'You cannot delete your own account.' : undefined}
+									>
 										<TrashIcon className="w-4 h-4" />
 									</Button>
 								</div>

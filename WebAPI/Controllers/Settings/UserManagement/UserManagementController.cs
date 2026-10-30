@@ -512,7 +512,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "User deleted updated successfully",
+                    Message = $"User '{getUser.UserId}' deleted successfully.",
                     Title = "Delete Complete"
                 });
             }
@@ -558,41 +558,69 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                // 2026-10-30 (S04-TC028): the Users list (vUsers) maps a user's stored code to its region and
-                // returns no RegCode when there is no region row for it (111 users on myps_db_dev, code OI10).
-                // Edit User sends the list row back, so every edit of those users -- even a deactivation --
-                // was refused here. A blank RegCode now keeps the stored one.
-                if (string.IsNullOrWhiteSpace(dto.RegCode))
-                {
-                    dto.RegCode = getUser.RegCode;
-                }
-                if (string.IsNullOrWhiteSpace(dto.RegCode))
+                // 2026-10-31 (User Management audit): THE LOGIN NEVER CHANGES. It is what a PIS sign-in
+                // maps to, and revision approvals, import and report jobs and the login history record it.
+                // Renaming your own logged you out for good; renaming someone else's cut them off from
+                // their history. The Edit dialog never offered it -- this enforces that on the server.
+                bool isOwnAccount = string.Equals(getUser.UserId, _Session.UserId, StringComparison.OrdinalIgnoreCase);
+                if (!string.Equals(getUser.UserId, dto.UserId.Trim(), StringComparison.OrdinalIgnoreCase))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = "Region code is required and cannot be empty.",
-                        Title = "Invalid Region Code"
-                    });
-                }
-
-                // 3. Check if UserId is already taken by another user
-                var userIdExists = await _db.tUsers
-                    .AnyAsync(x => x.UserId.ToLower() == dto.UserId.ToLower() && x.Id != dto.Id);
-
-                if (userIdExists)
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = $"A user with the ID '{dto.UserId}' already exists. Please use a different User ID.",
-                        Title = "User ID Already Exists"
+                        Message = $"The User ID (login) '{getUser.UserId}' cannot be changed. Add a new user for a different login.",
+                        Title = "User ID Not Editable"
                     });
                 }
 
                 // 2026-10-30, S04-TC028: blank is allowed here (344 users have none); a given Employee ID
                 // belongs to one user only.
+                var storedEmployeeId = getUser.EmployeeId?.Trim() ?? string.Empty;
                 var employeeId = dto.EmployeeId?.Trim() ?? string.Empty;
+                bool employeeIdChanged = !string.Equals(storedEmployeeId, employeeId, StringComparison.OrdinalIgnoreCase);
+                if (employeeIdChanged && employeeId.Length == 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"The Employee ID '{storedEmployeeId}' cannot be cleared. Search another employee in PIS to change it.",
+                        Title = "Invalid Employee ID"
+                    });
+                }
+                if (employeeIdChanged && isOwnAccount)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "You cannot change the Employee ID of the account used by the current session: it decides your region and office. Ask another administrator.",
+                        Title = "Own Employee ID Not Editable"
+                    });
+                }
                 var duplicateEmployeeId = await EmployeeIdOwnerAsync(employeeId, dto.Id, cancellationToken);
                 if (duplicateEmployeeId != null) return duplicateEmployeeId;
+
+                // 2026-10-31: NAME, REGION AND OFFICE FOLLOW THE EMPLOYEE ID. They come from PIS, so they
+                // change only with a new Employee ID (the dialog's PIS search fills them). Otherwise the
+                // stored values stay: the list row sent back carries vUsers' DERIVED region code, and
+                // saving it overwrote the stored office code of every user whose two differ (117 on
+                // myps_db_dev). A client could also widen its own project scope by posting another office.
+                // (S04-TC028, 2026-10-30, already let a blank RegCode keep the stored one.)
+                if (!employeeIdChanged)
+                {
+                    dto.Name = getUser.Name;
+                    dto.Email = getUser.Email;
+                    dto.RegCode = getUser.RegCode;
+                    dto.PlantillaOffice = getUser.PlantillaOffice;
+                }
+                if (string.IsNullOrWhiteSpace(dto.RegCode))
+                {
+                    dto.RegCode = getUser.RegCode;
+                }
+                if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.RegCode))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "The employee's name and region could not be read. Search the employee in PIS again.",
+                        Title = "Invalid Employee Details"
+                    });
+                }
 
                 // 4. Validate UserGroupIds exist in tGroups
                 if (dto.UserGroupIds.Length > 0)
@@ -624,7 +652,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 // 2026-10-30: an administrator could deactivate their own account or take away their
                 // own groups, and be locked out of User Management on the next request. Mirrors
                 // DeleteUser's self-deletion refusal.
-                if (string.Equals(oldUserId, _Session.UserId, StringComparison.OrdinalIgnoreCase))
+                if (isOwnAccount)
                 {
                     if (dto.IsActive != getUser.IsActive)
                     {
@@ -645,9 +673,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
                 }
 
-                // 5. Update User details
+                // 5. Update User details (the UserId is unchanged: refused above)
                 getUser.EmployeeId = employeeId;
-                getUser.UserId = dto.UserId.Trim();
                 getUser.Name = dto.Name.Trim();
                 getUser.Email = dto.Email?.Trim();
                 getUser.RegCode = dto.RegCode.Trim();
@@ -726,9 +753,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                // 2. Check if UserId already exists
+                // 2. Check if UserId already exists. Compared TRIMMED, as it is saved (2026-10-31): " juan"
+                //    passed the check and then hit the unique index as a 500.
+                var newUserId = dto.UserId.Trim();
                 var userExists = await _db.tUsers
-                    .AnyAsync(x => x.UserId.ToLower() == dto.UserId.ToLower(), cancellationToken);
+                    .AnyAsync(x => x.UserId.ToLower() == newUserId.ToLower(), cancellationToken);
 
                 if (userExists)
                 {
@@ -753,26 +782,34 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 var duplicateEmployeeId = await EmployeeIdOwnerAsync(employeeId, null, cancellationToken);
                 if (duplicateEmployeeId != null) return duplicateEmployeeId;
 
-                // 3. Validate UserGroupIds exist in tGroups
-                if (dto.UserGroupIds.Length > 0)
+                // 3. AT LEAST ONE GROUP (2026-10-31). vUsers -- what sign-in, the session check and the
+                //    Users list read -- joins tUserGroups, so a user added with no group had no row there:
+                //    not listed, unable to sign in, impossible to edit or delete, and refused as a duplicate
+                //    when added again.
+                if (dto.UserGroupIds.Length == 0)
                 {
-                    var existingGroupIds = await _db.tGroups
-                        .Where(x => dto.UserGroupIds.Contains(x.Id))
-                        .Select(x => x.Id)
-                        .ToListAsync(cancellationToken);
-
-                    var invalidGroupIds = dto.UserGroupIds
-                        .Except(existingGroupIds)
-                        .ToList();
-
-                    if (invalidGroupIds.Count > 0)
+                    return new BadRequestObjectResult(new
                     {
-                        return new BadRequestObjectResult(new
-                        {
-                            Message = $"The following Group IDs do not exist: {string.Join(", ", invalidGroupIds)}. Please ensure the groups exist.",
-                            Title = "Invalid Group IDs"
-                        });
-                    }
+                        Message = "Select at least one user group.",
+                        Title = "User Group Required"
+                    });
+                }
+                var existingGroupIds = await _db.tGroups
+                    .Where(x => dto.UserGroupIds.Contains(x.Id))
+                    .Select(x => x.Id)
+                    .ToListAsync(cancellationToken);
+
+                var invalidGroupIds = dto.UserGroupIds
+                    .Except(existingGroupIds)
+                    .ToList();
+
+                if (invalidGroupIds.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"The following Group IDs do not exist: {string.Join(", ", invalidGroupIds)}. Please ensure the groups exist.",
+                        Title = "Invalid Group IDs"
+                    });
                 }
 
                 var normalizedGroupIds = dto.UserGroupIds.Distinct().OrderBy(x => x).ToArray();
@@ -1415,9 +1452,13 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                // 2. Check if GroupName already exists in tGroups
+                var groupNameRefusal = GroupNameRefusal(dto.GroupName);
+                if (groupNameRefusal != null) return groupNameRefusal;
+
+                // 2. Check if GroupName already exists in tGroups (trimmed, as saved)
+                var newGroupName = dto.GroupName.Trim();
                 var groupExists = await _db.tGroups
-                    .AnyAsync(x => x.GroupName.ToLower() == dto.GroupName.ToLower(), cancellationToken);
+                    .AnyAsync(x => x.GroupName.ToLower() == newGroupName.ToLower(), cancellationToken);
 
                 if (groupExists)
                 {
@@ -1499,9 +1540,13 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                // 3. Check if GroupName is already taken by another group
+                var groupNameRefusal = GroupNameRefusal(dto.GroupName);
+                if (groupNameRefusal != null) return groupNameRefusal;
+
+                // 3. Check if GroupName is already taken by another group (trimmed, as saved)
+                var newGroupName = dto.GroupName.Trim();
                 var groupNameExists = await _db.tGroups
-                    .AnyAsync(x => x.GroupName.ToLower() == dto.GroupName.ToLower() && x.Id != dto.Id, cancellationToken);
+                    .AnyAsync(x => x.GroupName.ToLower() == newGroupName.ToLower() && x.Id != dto.Id, cancellationToken);
 
                 if (groupNameExists)
                 {
@@ -1555,29 +1600,64 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
                 }
 
+                // 2026-10-31 (User Management audit): GRANTS THE DIALOG CANNOT SHOW ARE KEPT. vUserGroups,
+                // which the Update Group dialog is built from, lists only the controllers and routes linked
+                // to an App Module; the dialog sends back only those, and the save replaced the whole set.
+                // So every save dropped the rest -- DPD Admin lost its PISController actions, and unlinking
+                // a controller in App Modules revoked it from the next group anyone saved.
+                var currentRoles = await _db.tGroupRoles.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.GroupId == dto.Id, cancellationToken);
+                var moduleNames = await _db.tAppModules.AsNoTracking().Select(x => x.ModuleName).ToListAsync(cancellationToken);
+                var shownControllers = await _db.tApiControllers.AsNoTracking()
+                    .Where(x => x.ModuleName != null && moduleNames.Contains(x.ModuleName))
+                    .Select(x => x.ControllerName)
+                    .ToListAsync(cancellationToken);
+                var shownActionIds = (await _db.tApiActions.AsNoTracking()
+                    .Where(x => shownControllers.Contains(x.ControllerName))
+                    .Select(x => x.Id)
+                    .ToListAsync(cancellationToken)).ToHashSet();
+                var shownViewIds = (await _db.tAppViews.AsNoTracking()
+                    .Where(x => x.ModuleName != null && moduleNames.Contains(x.ModuleName))
+                    .Select(x => x.Id)
+                    .ToListAsync(cancellationToken)).ToHashSet();
+                var finalActionIds = dto.PermissionActionIds
+                    .Concat((currentRoles?.ActionIds ?? Array.Empty<int>()).Where(id => !shownActionIds.Contains(id)))
+                    .Distinct().OrderBy(x => x).ToArray();
+                var finalViewIds = dto.PermissionViewIds
+                    .Concat((currentRoles?.ViewIds ?? Array.Empty<int>()).Where(id => !shownViewIds.Contains(id)))
+                    .Distinct().OrderBy(x => x).ToArray();
+
                 // 2026-10-30: editing one's own group could take away the User Management actions
                 // needed to put them back. Refuse when the editor would lose one they hold through this
-                // group and through none of their other groups.
+                // group and through none of their other groups. 2026-10-31: also the /user-management
+                // page itself and AuthController.Validate -- without Validate every page load answers 403
+                // and the browser is sent back to the login page in a loop.
                 if (_Session.UserGroupIds.Contains(dto.Id))
                 {
-                    var userManagementActions = await _db.tApiActions.AsNoTracking()
-                        .Where(x => x.ControllerName == nameof(UserManagementController))
+                    var essentialActions = await _db.tApiActions.AsNoTracking()
+                        .Where(x => x.ControllerName == nameof(UserManagementController)
+                                 || (x.ControllerName == "AuthController" && x.ActionName == "Validate"))
                         .Select(x => new { x.Id, x.ActionName })
                         .ToListAsync(cancellationToken);
-                    var heldHere = (await _db.tGroupRoles.AsNoTracking()
-                        .Where(x => x.GroupId == dto.Id)
-                        .Select(x => x.ActionIds)
-                        .FirstOrDefaultAsync(cancellationToken)) ?? Array.Empty<int>();
+                    var essentialViews = await _db.tAppViews.AsNoTracking()
+                        .Where(x => x.RouteName == "UserManagement")
+                        .Select(x => new { x.Id, x.RouteName })
+                        .ToListAsync(cancellationToken);
+                    var heldActionsHere = currentRoles?.ActionIds ?? Array.Empty<int>();
+                    var heldViewsHere = currentRoles?.ViewIds ?? Array.Empty<int>();
                     var otherGroupIds = _Session.UserGroupIds.Where(x => x != dto.Id).ToArray();
-                    var heldElsewhere = (await _db.tGroupRoles.AsNoTracking()
+                    var otherRoles = await _db.tGroupRoles.AsNoTracking()
                         .Where(x => otherGroupIds.Contains(x.GroupId))
-                        .Select(x => x.ActionIds)
-                        .ToListAsync(cancellationToken))
-                        .SelectMany(x => x)
-                        .ToHashSet();
-                    var lost = userManagementActions
-                        .Where(a => heldHere.Contains(a.Id) && !dto.PermissionActionIds.Contains(a.Id) && !heldElsewhere.Contains(a.Id))
+                        .Select(x => new { x.ActionIds, x.ViewIds })
+                        .ToListAsync(cancellationToken);
+                    var actionsElsewhere = otherRoles.SelectMany(x => x.ActionIds ?? Array.Empty<int>()).ToHashSet();
+                    var viewsElsewhere = otherRoles.SelectMany(x => x.ViewIds ?? Array.Empty<int>()).ToHashSet();
+                    var lost = essentialActions
+                        .Where(a => heldActionsHere.Contains(a.Id) && !finalActionIds.Contains(a.Id) && !actionsElsewhere.Contains(a.Id))
                         .Select(a => a.ActionName)
+                        .Concat(essentialViews
+                            .Where(v => heldViewsHere.Contains(v.Id) && !finalViewIds.Contains(v.Id) && !viewsElsewhere.Contains(v.Id))
+                            .Select(v => $"the {v.RouteName} page"))
                         .ToList();
                     if (lost.Count > 0)
                     {
@@ -1590,7 +1670,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 // 6. Update Group details
-                getGroup.GroupName = dto.GroupName.Trim();
+                getGroup.GroupName = newGroupName;
                 getGroup.Description = dto.Description?.Trim();
                 getGroup.ApplyFilter = dto.ApplyFilter;
                 _db.tGroups.Update(getGroup);
@@ -1600,8 +1680,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (getGroupRoles != null)
                 {
                     // Update existing GroupRoles
-                    getGroupRoles.ActionIds = dto.PermissionActionIds.Distinct().OrderBy(x => x).ToArray();
-                    getGroupRoles.ViewIds = dto.PermissionViewIds.Distinct().OrderBy(x => x).ToArray();
+                    getGroupRoles.ActionIds = finalActionIds;
+                    getGroupRoles.ViewIds = finalViewIds;
                     _db.tGroupRoles.Update(getGroupRoles);
                 }
                 else
@@ -1610,8 +1690,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var newGroupRoles = new DBHelper.Models.Table.User.GroupRoles
                     {
                         GroupId = dto.Id,
-                        ActionIds = dto.PermissionActionIds.Distinct().OrderBy(x => x).ToArray(),
-                        ViewIds = dto.PermissionViewIds.Distinct().OrderBy(x => x).ToArray(),
+                        ActionIds = finalActionIds,
+                        ViewIds = finalViewIds,
                     };
                     await _db.tGroupRoles.AddAsync(newGroupRoles, cancellationToken);
                 }
@@ -1689,8 +1769,40 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString());
             }
         }
+        /// <summary>
+        /// The refusal for a group name that cannot be stored, or null (2026-10-31). vUsers builds each
+        /// member's UserGroupNames as a JSON array by plain string concatenation, so a double quote or
+        /// a backslash in one name made that column unreadable: every request of every member -- sign-in
+        /// and the session check included -- failed. The length is the column's, which answered a 500.
+        /// </summary>
+        private BadRequestObjectResult? GroupNameRefusal(string groupName)
+        {
+            var name = groupName.Trim();
+            if (name.IndexOfAny(new[] { '"', '\\' }) >= 0 || name.Any(char.IsControl))
+            {
+                return new BadRequestObjectResult(new
+                {
+                    Message = "A group name cannot contain double quotes (\"), backslashes (\\) or line breaks.",
+                    Title = "Invalid Group Name"
+                });
+            }
+            if (name.Length > 100)
+            {
+                return new BadRequestObjectResult(new
+                {
+                    Message = "A group name can be at most 100 characters.",
+                    Title = "Invalid Group Name"
+                });
+            }
+            return null;
+        }
+
         private async Task<IActionResult?> SyncViewPermissionsValidated(SyncViewPermissionsDTO dto, Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, CancellationToken ct)
         {
+            // 2026-10-31 (User Management audit): the route list comes from the BROWSER, so an empty or
+            // stale one (an old cached bundle, a renamed route) must not be able to take pages away from
+            // anyone. Refused outright when empty; see the stale branch below for the rest.
+            if (dto.RoutesAvailable == null || dto.RoutesAvailable.Count == 0) return BadRequest(new { Message = "No routes were sent, so nothing was synchronized. Reload the page and try again.", Title = "Invalid Routes" });
             if (dto.RoutesAvailable.Any(x => string.IsNullOrWhiteSpace(x.RouteName) || string.IsNullOrWhiteSpace(x.path))) return BadRequest(new { Message = "RouteName and path are required.", Title = "Invalid Routes" });
             if (dto.RoutesAvailable.GroupBy(x => x.RouteName.Trim(), StringComparer.OrdinalIgnoreCase).Any(x => x.Count() > 1)) return BadRequest(new { Message = "Duplicate route names are not allowed.", Title = "Invalid Routes" });
             var existing = await _db.tAppViews.ToListAsync(ct);
@@ -1703,15 +1815,21 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 else if (current.RouteName != route.RouteName.Trim() || current.RoutePath != route.path.Trim()) { current.RouteName = route.RouteName.Trim(); current.RoutePath = route.path.Trim(); updated++; }
                 else unchanged++;
             }
+            // A route the page did not send is removed ONLY while no group grants it (2026-10-31). It used
+            // to be removed and stripped from every group, so a stale bundle took the page away from
+            // everyone who had it -- /user-management included. A granted one is kept and named back;
+            // take it off its groups and delete it from App Modules if it really is gone.
             var stale = existing.Where(x => !incoming.ContainsKey(x.RouteName)).ToList();
-            if (stale.Count > 0)
-            {
-                var staleIds = stale.Select(x => x.Id).ToHashSet();
-                foreach (var role in await _db.tGroupRoles.ToListAsync(ct)) role.ViewIds = role.ViewIds.Where(x => !staleIds.Contains(x)).Distinct().OrderBy(x => x).ToArray();
-                _db.tAppViews.RemoveRange(stale);
-            }
+            var grantedViewIds = (await _db.tGroupRoles.AsNoTracking().Select(x => x.ViewIds).ToListAsync(ct))
+                .SelectMany(x => x ?? Array.Empty<int>()).ToHashSet();
+            var keptGranted = stale.Where(x => grantedViewIds.Contains(x.Id)).ToList();
+            var removable = stale.Where(x => !grantedViewIds.Contains(x.Id)).ToList();
+            if (removable.Count > 0) _db.tAppViews.RemoveRange(removable);
             await _db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
-            return Ok(new { Message = "Route reconciliation complete.", Title = "Sync Complete", Added = added, Updated = updated, Removed = stale.Count, Unchanged = unchanged });
+            var message = $"Routes synchronized: {added} added, {updated} updated, {removable.Count} removed.";
+            if (keptGranted.Count > 0)
+                message += $" Kept because user groups still have them: {string.Join(", ", keptGranted.Select(x => x.RouteName))}.";
+            return Ok(new { Message = message, Title = "Sync Complete", Added = added, Updated = updated, Removed = removable.Count, Kept = keptGranted.Count, Unchanged = unchanged });
         }
 
         /// <summary>

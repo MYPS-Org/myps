@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type {
 	Users,
 	UserFilter,
@@ -77,30 +77,39 @@ export function useRbac() {
 	});
 	const [userGroupList, setUserGroupList] = useState<{ Id: number; GroupName: string }[]>([]);
 
-	useEffect(() => {
-		const fetchData = async () => {
-			try {
-				const [initialData, dropdownsRes, groupsRes] = await Promise.all([
-					fetchInitialData(),
-					fetchUserGroupDropdowns(),
-					fetchUserGroups({ page: 1, limit: 1000, sortField: 'GroupName', sortDirection: 0, filters: { GroupName: '' } }),
-				]);
-				setTabNumbers({
-					users: initialData.Data.NumberOfUsers || 0,
-					userGroups: initialData.Data.NumberOfGroups || 0,
-				});
-				if (dropdownsRes.Data) {
-					setUserGroupDropdowns(dropdownsRes.Data);
-				}
-				if (groupsRes.Data?.lists) {
-					setUserGroupList(groupsRes.Data.lists.map(g => ({ Id: g.Id, GroupName: g.GroupName })));
-				}
-			} catch (error) {
-				console.error('Error fetching initial data:', error);
-			}
-		};
-		fetchData();
+	/*  The tab counts, the Update Group dropdowns and the group list the Users filter offers.
+	    2026-10-31: loaded with allSettled, so one refused call no longer loses the other two (it used
+	    to clear the counts and the group filter), and RELOADED after every add, edit and delete -- the
+	    counts and the filter's group names stayed as they were when the page opened. 200 is the
+	    server's page cap; the list is sorted here because the server orders it by Id. */
+	const reloadSummary = useCallback(async () => {
+		const [initialData, dropdownsRes, groupsRes] = await Promise.allSettled([
+			fetchInitialData(),
+			fetchUserGroupDropdowns(),
+			fetchUserGroups({ page: 1, limit: 200, filters: { GroupName: '' } }),
+		]);
+		if (initialData.status === 'fulfilled') {
+			setTabNumbers({
+				users: initialData.value.Data.NumberOfUsers || 0,
+				userGroups: initialData.value.Data.NumberOfGroups || 0,
+			});
+		}
+		if (dropdownsRes.status === 'fulfilled' && dropdownsRes.value.Data) {
+			setUserGroupDropdowns(dropdownsRes.value.Data);
+		}
+		if (groupsRes.status === 'fulfilled' && groupsRes.value.Data?.lists) {
+			setUserGroupList(groupsRes.value.Data.lists
+				.map(g => ({ Id: g.Id, GroupName: g.GroupName }))
+				.sort((a, b) => (a.GroupName || '').localeCompare(b.GroupName || '')));
+		}
+		for (const r of [initialData, dropdownsRes, groupsRes]) {
+			if (r.status === 'rejected') console.error('Error fetching User Management summary:', r.reason);
+		}
 	}, []);
+
+	useEffect(() => {
+		reloadSummary();
+	}, [reloadSummary]);
 
 	const handleClear = () => {
 		if (selectedTab === 'users') usersPager.applyFilters(EMPTY_USER_FILTER);
@@ -156,6 +165,7 @@ export function useRbac() {
 		userGroupDropdowns,
 		userGroupList,
 		tabNumbers,
+		reloadSummary,
 		// Handlers
 		handleClear,
 		handleExpand,

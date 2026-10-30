@@ -44,7 +44,7 @@ Click any row (while not in edit mode) to expand it and see which controllers an
 ### Editing a Module
 
 1. Click the **pencil icon** on the row you want to edit.
-2. The row becomes editable. Update the name, description, or linked controllers/views.
+2. The row becomes editable. Update the description or the linked controllers/views. The **Module Name** stays read-only: a module cannot be renamed, so add a new module instead.
 3. Click the **checkmark** to save, or **X** to cancel.
 
 > Only one module can be edited at a time. Add/Edit operations are locked while another edit is in progress.
@@ -55,7 +55,7 @@ Click any row (while not in edit mode) to expand it and see which controllers an
 2. An inline confirmation appears in the Actions column ("Confirm" and "Cancel").
 3. Click **Confirm** to permanently delete the module, or **Cancel** to abort.
 
-> Deleting a module removes its association with all controllers and routes. Users in groups that referenced this module will lose those permissions on the next sync.
+> A module can be deleted only once no controller or route is linked to it. Unlink them first; the delete is refused while any is still linked.
 
 ### Syncing Permissions
 
@@ -63,10 +63,10 @@ Two sync buttons appear in the App Modules tab header:
 
 | Button | What it does |
 |---|---|
-| **Sync API** | Scans the backend for controller actions and registers any new ones in the system. Run this after deploying new backend endpoints. |
-| **Sync Routes** | Registers the current frontend page routes in the system. Run this after adding new pages or routes to the application. |
+| **Sync API** | Scans the backend for controller actions, registers new ones, and **removes** actions that no longer exist in the code from every group. Run this after deploying new backend endpoints. |
+| **Sync Routes** | Registers the page routes of the page you have open. A route this version no longer has is removed only if no user group has it; one a group still has is kept and named in the notification. Run this after adding new pages or routes to the application. |
 
-Both buttons are disabled while any module is being edited. After each sync, a notification confirms how many items were added or updated.
+Both buttons ask for confirmation first, and are disabled while any module is being edited. After each sync, a notification gives the counts (added, updated, removed) and the module list is reloaded.
 
 ---
 
@@ -107,7 +107,7 @@ Users are registered using their government Employee ID from the Personnel Infor
 2. In the dialog that opens, type the **Employee ID** of the person you want to add.
 3. Click the **search icon** (magnifying glass). The system looks up the employee in PIS.
 4. If found, the name, system ID, email, region, and office fields fill in automatically.
-5. Select one or more **User Groups** from the checkbox list to assign the user to groups.
+5. Select one or more **User Groups** from the checkbox list to assign the user to groups. At least one group is required: a user without a group cannot sign in.
 6. The **Status** field defaults to Active.
 7. Click **Add User** to save.
 
@@ -120,9 +120,12 @@ Users are registered using their government Employee ID from the Personnel Infor
 1. Click the **pencil icon** on the user's row.
 2. The Edit User dialog opens, pre-filled with the user's current data.
 3. You can update the user's group assignments (add or remove groups using the checkboxes) and their active/inactive status.
-4. Click **Save** to apply changes.
+4. To change the **Employee ID**, type the new one and click the **search icon**: PIS fills in the region and office. Saving a changed Employee ID without the search is refused, and a recorded Employee ID cannot be cleared.
+5. Click **Update User** to apply changes.
 
-> The Employee ID, name, email, region, and office fields come from PIS and cannot be changed here.
+> The User ID (login), name, email, region and office cannot be typed over here: the login never changes, and the region and office change only through the PIS search of a new Employee ID.
+>
+> On **your own account** the Employee ID, groups and status are locked, and the Delete button is disabled. Another administrator has to change them.
 
 ### Deleting a User
 
@@ -170,7 +173,7 @@ Click the row again to collapse.
 ### Adding a User Group
 
 1. Click **Add Group**.
-2. Fill in the **Group Name** (required) and **Description** (optional).
+2. Fill in the **Group Name** (required, at most 100 characters, without double quotes or backslashes) and **Description** (optional). A name that matches an existing group, ignoring case and surrounding spaces, is refused.
 3. Click **Create Group**.
 
 > A new group starts with **no permissions**. You must edit the group afterwards to assign permissions. Permissions are not set during the creation step.
@@ -181,7 +184,7 @@ This is the primary way to control what a group can access.
 
 1. Click the **pencil icon** on the group's row.
 2. The Edit Group dialog opens showing:
-   - **Group Name** — editable
+   - **Group Name** — editable, except for **DPC**, **RPC**, **AUC** and **DPD Admin**, whose names decide which projects their members see
    - **Description** — editable
    - **Module Permissions** accordion — a list of all application modules
 
@@ -201,6 +204,8 @@ Inside each expanded module:
 3. After configuring permissions, click **Save Changes**.
 
 > Permissions take effect immediately. Users already logged in may need to refresh their session to see changes.
+>
+> Permissions the dialog does not list (of controllers or pages outside every module) are kept when you save. A save that would take the User Management page, its actions or session validation away from a group **you** belong to is refused, so you cannot lock yourself out.
 
 ### Deleting a User Group
 
@@ -211,7 +216,7 @@ Deleting a group is a destructive operation and requires an explicit confirmatio
 3. Type **DELETE** (case-insensitive) in the confirmation field.
 4. Click **Delete Group** to confirm.
 
-> Deleting a group removes all permission assignments from that group and removes all users from the group. Users who were only in this group will lose all system access. This action cannot be undone.
+> A group that still has members cannot be deleted: the dialog says so and **Delete Group** stays disabled. Remove the group from those users' accounts in the **Users** tab first. Deleting an empty group removes its permission assignments and cannot be undone.
 
 ---
 
@@ -241,7 +246,7 @@ Deleting a group is a destructive operation and requires an explicit confirmatio
 
 1. Go to **Users** tab → click the pencil icon on the user → change Status to **Inactive** → save.
 
-The user will no longer be able to log in, but their account and history remain intact.
+The user will no longer be able to log in, and a session they already have open is refused (pages and reports alike), but their account and history remain intact.
 
 ---
 

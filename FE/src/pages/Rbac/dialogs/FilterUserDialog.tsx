@@ -40,7 +40,8 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Trimmed: " juan" matched nothing (2026-10-31).
+    onSubmit({ ...formData, Name: formData.Name?.trim() || undefined });
     onClose();
   };
 

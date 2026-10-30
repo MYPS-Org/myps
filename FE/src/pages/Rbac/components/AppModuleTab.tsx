@@ -133,11 +133,15 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ pager }) => {
 	const [isSyncingViews, setIsSyncingViews] = useState(false);
 	const { showToast } = useToast();
 
+	// 2026-10-31: both syncs can remove rows, so they ask first and say what goes; and the list is
+	// re-read afterwards (it kept showing removed items, and a save then failed on them).
 	const handleSyncApi = async () => {
+		if (!window.confirm('Sync API permissions with the server?\n\nNew controller actions are registered. Actions that no longer exist in the code are removed and taken off every user group.')) return;
 		setIsSyncingApi(true);
 		try {
 			const res = await callSyncPermissions();
 			showToast({ message: (res?.Data as any)?.Message || 'API permissions synced.', type: 'success' });
+			pager.refresh();
 		} catch (err: any) {
 			console.error('Sync API error:', err);
 		} finally {
@@ -146,13 +150,15 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ pager }) => {
 	};
 
 	const handleSyncViews = async () => {
+		if (!window.confirm('Sync routes with this version of the page?\n\nNew routes are registered. A route this version no longer has is removed only if no user group has it; one a group still has is kept and named.')) return;
 		setIsSyncingViews(true);
 		try {
 			const payload = protectedRoutes
-				.filter(r => r.path)
-				.map(({ RouteName, path }) => ({ RouteName, path: path! }));
+				.filter((r): r is typeof r & { RouteName: string; path: string } => !!r.RouteName && !!r.path)
+				.map(({ RouteName, path }) => ({ RouteName, path }));
 			const res = await callSyncViewPermissions(payload);
 			showToast({ message: (res?.Data as any)?.Message || 'Route permissions synced.', type: 'success' });
+			pager.refresh();
 		} catch (err: any) {
 			console.error('Sync views error:', err);
 		} finally {
@@ -375,11 +381,14 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ pager }) => {
 						>
 											<TableCell>
 												{isEditing ? (
+													// The name is the module's key: the server refuses renaming it (2026-10-31).
 													<input
-														autoFocus
+														autoFocus={editId === 0}
 														value={editForm.ModuleName}
 														onChange={e => setEditForm(f => ({ ...f, ModuleName: e.target.value }))}
-														className={inp}
+														readOnly={editId !== 0}
+														title={editId !== 0 ? 'A module cannot be renamed. Add a new module instead.' : undefined}
+														className={`${inp} ${editId !== 0 ? 'bg-gray-100 cursor-not-allowed' : ''}`}
 													/>
 												) : (
 													<div className="font-medium text-gray-900">{module.ModuleName}</div>
