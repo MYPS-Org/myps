@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { ProgramLatest } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
-import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, isThrustAllowedForCategory, toDateInputValue, validityYear, isCategoryValidForYear, isThrustValidForYear } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, isThrustAllowedForCategory, toDateInputValue, validityYear, isCategoryValidForYear, isThrustValidForYear, thrustOptionRows } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 import { DateInput } from '../../../components/tailwindui/date-input';
 import { useLocationFilters } from '../filteringLocations';
@@ -38,6 +38,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         () => new Set((projectEnums?.Thrusts ?? []).map(t => t.PAPKey)),
         [projectEnums?.Thrusts]
     );
+    // S07-TC003-P001: no PAPKey 0 row, and the two Sub-Category pairs sharing a description add their Infrastructure Type.
+    const thrustOptions = useMemo(() => thrustOptionRows(projectEnums?.Thrusts), [projectEnums?.Thrusts]);
 
     const {
         cities: filteredCities,
@@ -441,13 +443,13 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
                                             filterKeepingSelected(
-                                                projectEnums?.Thrusts,
+                                                thrustOptions,
                                                 x => isThrustValidForYear(x, programYear) && isThrustAllowedForCategory(x.PAPKey, projectDetails?.Category, projectEnums?.CategoryThrustMap, validThrustPAPKeys),
                                                 'PAPKey',
                                                 projectDetails?.Thrust
                                             ),
                                             'PAPKey',
-                                            'ThrustDescription',
+                                            'ThrustLabel',
                                             'Id'
                                         )}
                                         value={projectDetails?.Thrust || ''}

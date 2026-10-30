@@ -89,7 +89,13 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     };
   }, [isOpen]);
 
-  const selectedOption = options.find(option => option.value == value);
+  /*  Loose == so '16' finds 16 -- but an EMPTY value is no selection at all. With == alone,
+      '' found an option whose value is 0 ('' == 0 is true), so the Sub-Category list, which
+      holds a PAPKey 0 row, showed "PROGRAM OF WORKS/BUDGET COST" as chosen on an empty form
+      (S07-TC003-P001). */
+  const selectedOption = value === '' || value === undefined || value === null
+    ? undefined
+    : options.find(option => option.value == value);
 
   const handleToggle = () => {
     if (!disabled) {
@@ -133,7 +139,11 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
       >
         <div className="flex items-center overflow-hidden px-3 py-2">
           <div className="flex-1 min-w-0">
-            <span className={`block overflow-hidden text-ellipsis whitespace-nowrap ${selectedOption ? 'text-gray-900' : 'text-gray-500'}`}>
+            {/* title: a long label (a Sub-Category's runs past 100 characters) is cut off here. */}
+            <span
+              className={`block overflow-hidden text-ellipsis whitespace-nowrap ${selectedOption ? 'text-gray-900' : 'text-gray-500'}`}
+              title={selectedOption?.label}
+            >
               {selectedOption ? selectedOption.label : placeholder}
             </span>
           </div>

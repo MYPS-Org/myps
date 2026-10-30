@@ -176,6 +176,27 @@ because it is reported as a notice instead.
 
 ## Rules that are easy to break
 
+**The Sub-Category box waits for a Category and never offers PAPKey 0 (S07-TC003-P001,
+2026-10-30).** `tOptionProjectThrustList` holds a row keyed **0** ("PROGRAM OF WORKS/BUDGET
+COST", inactive), and 0 is this schema's "no Sub-Category". `SearchableDropdown` used to match
+the empty value `''` to it with `==`, so an empty Add form showed that row as chosen; it now
+treats `''`/`undefined`/`null` as no selection. `thrustOptionRows` (GlobalFunctions) drops the
+0 row and adds `ThrustLabel`: the description, plus ` (Infrastructure Type)` where two rows
+share it (the BIP and SIPAG Coastal Roads pairs). The Project and Modification forms use the
+same helper. The box is disabled until a Category is chosen, as on the Project form; with no
+Category there is no `ThrustsByCategory` entry and the list held all 165 rows.
+`tests/ls-subcategory-options.spec.ts` holds all three.
+
+**Itemized children get the next number no BP / P / MY form carries (S07-TC007-P002,
+2026-10-30).** A child is minted at GAA-R, so it takes a **P** id, but a program whose
+projects were created at BP and advanced already holds P numbers the P counter never issued
+(the stage-advance swap keeps the digits). `GenerateProjectID` used to retry +1 three times and
+throw `ProjectIdCollisionException`, so every import into such a program failed. It now treats
+a number as taken when any of its three forms is, and after a collision jumps the counter to
+the next free number in one reservation (`NextFreeSequenceSql`, run on the caller's
+transaction, because this import inserts the previous child before minting the next). See the
+comments in `Helpers/ProjectHelper.cs` and `MYPS.DatabaseTests/ProjectIdGenerationTests.cs`.
+
 **The atom starts empty.** Anything on screen came from the server or it is a
 bug. `lumpSumStore` used to be seeded from a mock snapshot, which meant the
 module rendered three fabricated projects before any request was made.

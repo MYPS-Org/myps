@@ -75,7 +75,11 @@ const LumpSumList: React.FC = () => {
     pagination.applyFilters({});
   };
 
-  const hasFilters = Object.values(draft).some((v) => v !== undefined && v !== '');
+  const isSet = (filter: LumpSumFilter | undefined) =>
+    Object.values(filter ?? {}).some((v) => v !== undefined && v !== '');
+  const hasFilters = isSet(draft);
+  // The filters the grid was last drawn with, not the draft being typed.
+  const filtersApplied = isSet(pagination.currentFilters);
 
   const formatCurrency = (amount: number) => `₱${amount.toLocaleString('en-PH')}`;
 
@@ -288,14 +292,26 @@ const LumpSumList: React.FC = () => {
             </>
           )}
 
+          {/*  S07-TC001-P002: an empty search said "No Lump Sum Projects found." and offered
+               "Create the first one", as if the module held none. */}
           {!pagination.isLoading && pageData.lists.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-gray-600">No Lump Sum Projects found.</p>
-              <Button color="green" onClick={() => navigate('/lumpsum/add')} className="mt-4">
-                <PlusIcon className="w-4 h-4 mr-1" />
-                Create the first one
-              </Button>
-            </div>
+            filtersApplied ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600">No Lump Sum Projects match your filters.</p>
+                <Button color="zinc" onClick={handleClear} className="mt-4">
+                  <XMarkIcon className="w-4 h-4 mr-1" />
+                  Clear filters
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-600">No Lump Sum Projects found.</p>
+                <Button color="green" onClick={() => navigate('/lumpsum/add')} className="mt-4">
+                  <PlusIcon className="w-4 h-4 mr-1" />
+                  Create the first one
+                </Button>
+              </div>
+            )
           )}
         </div>
       </div>

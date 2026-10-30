@@ -259,43 +259,136 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
         Assert.Equal("BP01000001LZ", projectId);
     }
 
-    // RISK-072 follow-up (2026-09-19): the retry cap is a deliberate, small circuit breaker (3
-    // attempts, not 100) -- once it's exhausted, GenerateProjectID must still fail loudly with the
-    // dedicated exception (not hang, not silently mint a duplicate), naming the last value tried.
+    // 2026-10-30 (S07-TC007-P002): a run of taken numbers longer than the retry cap is skipped in
+    // one jump. Until then the retry moved the counter by 1, three times, and threw
+    // ProjectIdCollisionException ("still colliding after 3 attempts") -- which is what a Lump Sum
+    // import into a program with seven advanced projects answered.
     [Fact]
     [Trait("Layer", "Conformance")]
-    public async Task GenerateProjectID_ThrowsProjectIdCollisionExceptionAfterExhaustingTheRetryCap()
+    public async Task GenerateProjectID_JumpsPastARunOfTakenNumbersLongerThanTheRetryCap()
     {
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync();
-        // Occupy all 3 values the retry loop will try (sequence 1, 2, 3) so every attempt collides.
-        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ'), (N'BP01000002LZ'), (N'BP01000003LZ');");
+        await ExecuteNonQueryAsync(connection,
+            "INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ'), (N'BP01000002LZ'), (N'BP01000003LZ'), (N'BP01000004LZ'), (N'BP01000005LZ'), (N'BP01000006LZ'), (N'BP01000007LZ'), (N'BP01000009LZ');");
 
         var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
         await using var db = new MYPSDbContext(options);
 
-        var request = new ProjectHelper.GenerateProjectIDParams
-        {
-            CategoryId = 1,
-            StageName = "BP",
-            IslandCode = "LZ",
-            YearStart = 2026
-        };
-
-        var ex = await Assert.ThrowsAsync<ProjectHelper.ProjectIdCollisionException>(
-            () => db.GenerateProjectID(request, CancellationToken.None));
-        Assert.Equal("BP01000003LZ", ex.ProjectId);
-        Assert.Contains("still colliding after 3 attempts", ex.Message);
+        Assert.Equal("BP01000008LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
+        // The counter now stands on 8, so the next one is the gap after 9, not 9 itself.
+        Assert.Equal("BP01000010LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
     }
 
-    // The core regression test for the 2026-09-19 durability fix, adapted for the retry loop:
-    // dbo.pReserveProjectIdBlock's counter increment previously shared the caller's ambient EF
-    // transaction (no BEGIN TRAN/COMMIT of its own in the proc), so a later
-    // transaction.RollbackAsync() silently undid every attempted reservation -- meaning even after
-    // exhausting the retry cap and rolling back, the NEXT call would repeat the exact same 3
-    // already-tried values forever. The fix runs each reservation on its own dedicated connection.
-    // Proves it: exhaust the retry cap inside an ambient transaction that then rolls back, then
-    // confirm the next call gets a genuinely fresh value (all 3 prior attempts stayed durable).
+    // The exact UAT / local data: a program's projects were created at BP (BP01100016LZ ..) and
+    // advanced, so their revisions carry P01100016LZ .., while tProjects keeps the BP form. The P
+    // counter never issued those numbers. A new P id (an itemized child at GAA-R) must land past them.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_TreatsTheSwappedPFormOfANumberAsTaken()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, """
+            INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ'), (N'BP01000002LZ'), (N'BP01000003LZ'), (N'BP01000004LZ'), (N'BP01000005LZ');
+            INSERT INTO dbo.tProjectRevisions (ProjectFK, ProjectId, IsDeleted) VALUES
+                (N'BP01000001LZ', N'BP01000001LZ', 0), (N'BP01000001LZ', N'P01000001LZ', 0),
+                (N'BP01000002LZ', N'BP01000002LZ', 0), (N'BP01000002LZ', N'P01000002LZ', 0),
+                (N'BP01000003LZ', N'BP01000003LZ', 0), (N'BP01000003LZ', N'P01000003LZ', 0),
+                (N'BP01000004LZ', N'BP01000004LZ', 0), (N'BP01000004LZ', N'P01000004LZ', 0),
+                (N'BP01000005LZ', N'BP01000005LZ', 0), (N'BP01000005LZ', N'P01000005LZ', 0);
+            """);
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        Assert.Equal("P01000006LZ", await db.GenerateProjectID(PLz2026, CancellationToken.None));
+    }
+
+    // A number whose BP form is still at BP is not free for a P id either: that project's program
+    // would later stop at its stage advance with "ProjectId Collision Detected".
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_AvoidsANumberWhoseBpFormIsStillAtBp()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        Assert.Equal("P01000002LZ", await db.GenerateProjectID(PLz2026, CancellationToken.None));
+    }
+
+    // And the other way round: a BP id avoids a number a P id was minted on directly (an import or
+    // an itemized child at a P stage), or that project would block this one's stage advance.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_AvoidsANumberWhosePFormWasMintedDirectly()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'P01000001LZ'), (N'MY01000002LZ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        Assert.Equal("BP01000003LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
+    }
+
+    // The Lump Sum import inserts a child and then mints the next one in the SAME transaction. The
+    // jump's lookup must see that uncommitted row and must not wait on it: this database runs
+    // without READ_COMMITTED_SNAPSHOT, so a lookup on another connection would block on the row
+    // until the 120-second command timeout.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_InsideTheCallersTransaction_SeesItsOwnUncommittedRowsWithoutWaiting()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.Database.ExecuteSqlRawAsync("INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'P01000002LZ');");
+
+        var generating = db.GenerateProjectID(PLz2026, CancellationToken.None);
+        Assert.Same(generating, await Task.WhenAny(generating, Task.Delay(TimeSpan.FromSeconds(30))));
+        Assert.Equal("P01000003LZ", await generating);
+        await transaction.RollbackAsync();
+    }
+
+    // A jump that would run past the category's Maximum is range exhaustion, not a collision.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_AJumpPastTheCategoryMaximumIsRangeExhaustion()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection, """
+            INSERT INTO dbo.tOptionProjectCategory (CategoryId, Minimum, Maximum) VALUES (3, 1, 3);
+            INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ'), (N'BP01000002LZ'), (N'BP01000003LZ');
+            """);
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        var ex = await Assert.ThrowsAsync<ProjectHelper.ProjectIdRangeExhaustedException>(() => db.GenerateProjectID(new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 3, StageName = "BP", IslandCode = "LZ", YearStart = 2026
+        }, CancellationToken.None));
+        Assert.Equal(3, ex.CategoryId);
+    }
+
+    // The core regression test for the 2026-09-19 durability fix, adapted for the jump: the
+    // counter increment previously shared the caller's ambient EF transaction (no BEGIN TRAN/COMMIT
+    // of its own in the proc), so a later transaction.RollbackAsync() silently undid the
+    // reservation and the NEXT call repeated the same value. The fix runs each reservation on its
+    // own dedicated connection. Proves it: generate inside an ambient transaction that then rolls
+    // back (the caller failed after the id was minted), then confirm the next call does not hand
+    // the same id out again.
     [Fact]
     [Trait("Layer", "Conformance")]
     public async Task GenerateProjectID_AllRetriedReservationsSurviveCallerTransactionRollback()
@@ -305,29 +398,20 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
         await ExecuteNonQueryAsync(connection, "INSERT INTO dbo.tProjects (ProjectPK) VALUES (N'BP01000001LZ'), (N'BP01000002LZ'), (N'BP01000003LZ');");
 
         var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
-        var request = new ProjectHelper.GenerateProjectIDParams
-        {
-            CategoryId = 1,
-            StageName = "BP",
-            IslandCode = "LZ",
-            YearStart = 2026
-        };
 
         // Simulate AddProject: an ambient transaction is open when GenerateProjectID is called
-        // (and exhausts its retry cap), and gets rolled back in the catch block when it throws.
+        // (and has to jump past 1-3), and gets rolled back when the save after it fails.
         await using (var db = new MYPSDbContext(options))
         {
             await using var ambientTransaction = await db.Database.BeginTransactionAsync();
-            await Assert.ThrowsAsync<ProjectHelper.ProjectIdCollisionException>(
-                () => db.GenerateProjectID(request, CancellationToken.None));
+            Assert.Equal("BP01000004LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
             await ambientTransaction.RollbackAsync();
         }
 
-        // If any of the 3 attempted reservations were rolled back too (the bug), this next call
-        // would repeat one of BP01000001LZ/2LZ/3LZ. With the fix, all 3 advanced independently.
+        // If the reservation had been rolled back too (the bug), this would repeat BP01000004LZ.
         await using var db2 = new MYPSDbContext(options);
-        string nextId = await db2.GenerateProjectID(request, CancellationToken.None);
-        Assert.Equal("BP01000004LZ", nextId);
+        string nextId = await db2.GenerateProjectID(BpLz2026, CancellationToken.None);
+        Assert.Equal("BP01000005LZ", nextId);
     }
 
     // The structural defect this pass found, live on myps_db_dev (ADR-134): a BP-form project's
@@ -403,6 +487,14 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
     {
         CategoryId = 1,
         StageName = "BP",
+        IslandCode = "LZ",
+        YearStart = 2026
+    };
+
+    private static readonly ProjectHelper.GenerateProjectIDParams PLz2026 = new()
+    {
+        CategoryId = 1,
+        StageName = "NEP",
         IslandCode = "LZ",
         YearStart = 2026
     };

@@ -180,6 +180,31 @@ export const formatDropdownOptions = (
   }));
 };
 
+/** The rows a Sub-Category (Thrust) dropdown offers (S07-TC003-P001).
+ *  - PAPKey 0 is dropped. 0 is the schema's "no Sub-Category" (ValidateThrustForCategoryAsync), so
+ *    the "PROGRAM OF WORKS/BUDGET COST" row keyed 0 is never a choice: picking it saved nothing.
+ *  - Each row gets a ThrustLabel: the description, plus " (Infrastructure Type)" when another row
+ *    carries the same description -- the BIP and the SIPAG "Coastal Roads to augment Resiliency of
+ *    Coastal Communities" each exist for Roads and for Bridges and read the same. Judged over the
+ *    full list, so a label does not change with the Category filter. Display only: the value is
+ *    still the PAPKey, and the import keeps matching the plain description. */
+export const thrustOptionRows = <T extends { PAPKey: number; ThrustDescription: string; InfrastructureType?: string | null }>(
+  thrusts: T[] | undefined | null
+): (T & { ThrustLabel: string })[] => {
+  if (!thrusts || !Array.isArray(thrusts)) return [];
+  const rows = thrusts.filter(t => t.PAPKey > 0);
+  const uses = new Map<string, number>();
+  rows.forEach(t => {
+    const key = (t.ThrustDescription ?? '').trim().toLowerCase();
+    uses.set(key, (uses.get(key) ?? 0) + 1);
+  });
+  return rows.map(t => {
+    const shared = (uses.get((t.ThrustDescription ?? '').trim().toLowerCase()) ?? 0) > 1;
+    const type = t.InfrastructureType?.trim();
+    return { ...t, ThrustLabel: shared && type ? `${t.ThrustDescription} (${type})` : t.ThrustDescription };
+  });
+};
+
 /** #488: the year Category / Sub-Category validity is judged for -- the project's program
  *  StartYear (as the server and the importer use), else this year. */
 export const validityYear = (programStartYear?: number | null) =>

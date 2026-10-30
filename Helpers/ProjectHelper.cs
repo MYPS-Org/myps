@@ -446,13 +446,26 @@ namespace Helpers
             // collision check already uses.
             // includeDeleted: a released id must not be carried even by a soft-deleted revision (a
             // soft-deleted project keeps its id reserved); a fresh counter value keeps the old check.
-            async Task<bool> InUseAsync(string projectId, bool includeDeleted = false) =>
-                await _db.tProjects
-                    .AsNoTracking()
-                    .AnyAsync(x => x.ProjectPK == projectId, cancellationToken)
-                || await _db.tProjectRevisions
-                    .AsNoTracking()
-                    .AnyAsync(x => x.ProjectId == projectId && (includeDeleted || !x.IsDeleted), cancellationToken);
+            //
+            // 2026-10-30 (S07-TC007-P002): a NUMBER is in use when any of its BP / P / MY forms is.
+            // The stage-advance swap turns BP01100016LZ into P01100016LZ (MY01100016LZ on a DIP
+            // stage) with the same digits, while each prefix keeps its own counter, so the P counter
+            // never hears of the numbers its BP twin handed out. A P id minted on a number a BP
+            // project still holds would also stop that program's next stage advance ("ProjectId
+            // Collision Detected"), so a new id of any prefix avoids every form of the number.
+            string[] FormsOf(int sequence) =>
+                SharedNumberPrefixes.Select(prefix => $"{prefix}{SecondSegment}{sequence:D5}{request.IslandCode}").ToArray();
+
+            async Task<bool> InUseAsync(int sequence, bool includeDeleted = false)
+            {
+                string[] forms = FormsOf(sequence);
+                return await _db.tProjects
+                        .AsNoTracking()
+                        .AnyAsync(x => forms.Contains(x.ProjectPK), cancellationToken)
+                    || await _db.tProjectRevisions
+                        .AsNoTracking()
+                        .AnyAsync(x => forms.Contains(x.ProjectId) && (includeDeleted || !x.IsDeleted), cancellationToken);
+            }
 
             // 2026-10-29 (delete-rules-projects-programs-stages.md): a BP/P id freed by a permanent
             // delete (dbo.tProjectIdReleased, filled by ExecuteProjectDeletion.sql and
@@ -477,7 +490,7 @@ namespace Helpers
                     }
 
                     string reusedProjectId = $"{FirstSegment}{SecondSegment}{releasedSequence.Value:D5}{request.IslandCode}";
-                    if (!await InUseAsync(reusedProjectId, includeDeleted: true))
+                    if (!await InUseAsync(releasedSequence.Value, includeDeleted: true))
                     {
                         return reusedProjectId;
                     }
@@ -485,16 +498,23 @@ namespace Helpers
             }
 
             // RISK-072 fix (2026-09-19): retry past a collision instead of failing outright.
-            // Each pReserveProjectIdBlock call durably advances the counter by exactly 1 (see the
-            // dedicated-connection note above), so a retry always evaluates a genuinely new value
-            // -- e.g. a project whose stage-advance swap already took P01012345LZ no longer blocks
-            // a new project, which simply advances to P01012346LZ. The cap is deliberately small:
-            // once the counter is durable and category ranges don't overlap, needing more than one
-            // retry means live concurrent contention, not stale data. Range exhaustion is NOT
-            // caught here -- it propagates, so the category's real Maximum stays the terminal
-            // condition and needs no separate logic.
+            // Each pReserveProjectIdBlock call durably advances the counter (see the
+            // dedicated-connection note above), so a retry always evaluates a genuinely new value.
+            //
+            // 2026-10-30 (S07-TC007-P002): a retry JUMPS past the whole run of taken numbers. The
+            // retry used to move the counter by 1, three times, on the belief that more than one
+            // collision meant live contention. It does not: a program whose projects advanced past
+            // BP holds a run of P numbers the P counter never issued (see FormsOf above), and
+            // category ranges do overlap (1 and 16 share 1-20000). On UAT and locally every
+            // itemized import into such a program failed with "still colliding after 3 attempts".
+            // So after a collision the lowest number above it with no form in use is looked up, and
+            // the next reservation takes the block up to it in one step. The cap now only bounds
+            // real contention, where another caller takes that number in between. Range exhaustion
+            // is NOT caught here -- it propagates, so the category's real Maximum stays the
+            // terminal condition (a jump past it raises like any other reservation).
             const int maxAttempts = 3;
             string collidedProjectId = string.Empty;
+            int reserveCount = 1;
 
             for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
@@ -503,7 +523,7 @@ namespace Helpers
                 parameters.Add("@Suffix", FirstSegment, DbType.String, ParameterDirection.Input);
                 parameters.Add("@IslandCode", request.IslandCode ?? string.Empty, DbType.String, ParameterDirection.Input);
                 parameters.Add("@YearStart", request.YearStart, DbType.Int32, ParameterDirection.Input);
-                parameters.Add("@Count", 1, DbType.Int32, ParameterDirection.Input);
+                parameters.Add("@Count", reserveCount, DbType.Int32, ParameterDirection.Input);
                 parameters.Add("@RangeStart", dbType: DbType.Int32, direction: ParameterDirection.Output);
                 parameters.Add("@RangeEnd", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
@@ -534,21 +554,67 @@ namespace Helpers
                         "Project ID generation failed: dbo.pReserveProjectIdBlock returned an invalid range.");
                 }
 
-                string ThirdSegment = rangeStart.ToString("D5");
+                // The block's LAST number: after a jump the block ends on the free number that was
+                // looked up, and the numbers before it are taken (an unused gap is harmless).
+                string ThirdSegment = rangeEnd.ToString("D5");
                 string ProjectId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{request.IslandCode}";
 
-                if (!await InUseAsync(ProjectId))
+                if (!await InUseAsync(rangeEnd))
                 {
                     return ProjectId;
                 }
 
                 collidedProjectId = ProjectId;
+
+                // On the CALLER's connection and transaction, like InUseAsync, not the reservation
+                // connection: the Lump Sum import calls this inside its transaction after inserting
+                // the previous child, and a read from another connection would wait on those
+                // uncommitted rows while the transaction waits on this call.
+                int? nextFree = await _db.Database.GetDbConnection().ExecuteScalarAsync<int?>(new CommandDefinition(
+                    NextFreeSequenceSql,
+                    new { Year = SecondSegment, IslandCode = request.IslandCode ?? string.Empty, After = rangeEnd },
+                    transaction: _db.Database.CurrentTransaction?.GetDbTransaction(),
+                    commandTimeout: 120,
+                    cancellationToken: cancellationToken));
+                reserveCount = Math.Max(1, (nextFree ?? rangeEnd + 1) - rangeEnd);
             }
 
             throw new ProjectIdCollisionException(
                 collidedProjectId,
                 $"Project ID generation failed: still colliding after {maxAttempts} attempts (last tried '{collidedProjectId}'). The allocator counter is likely out of sync with existing data -- verify dbo.tProjectIdSequence against dbo.tProjects/dbo.tProjectRevisions for this category, suffix, island and year before retrying.");
         }
+
+        /// <summary>The prefixes that share one number per year and island: the stage-advance swap
+        /// rewrites BP into P or MY and keeps the digits (ProgramController, ReplaceFirst("BP", ...)).</summary>
+        private static readonly string[] SharedNumberPrefixes = { "BP", "P", "MY" };
+
+        /// <summary>The lowest number above @After that no BP / P / MY id of this year and island
+        /// carries, in tProjects or in a live revision -- the same test as InUseAsync. @After itself
+        /// has just collided, so it counts as taken whatever the tables say now.</summary>
+        private const string NextFreeSequenceSql = """
+            WITH Ids AS (
+                SELECT ProjectPK AS Id FROM dbo.tProjects
+                WHERE ProjectPK LIKE N'BP' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
+                   OR ProjectPK LIKE N'P' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
+                   OR ProjectPK LIKE N'MY' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
+                UNION
+                SELECT ProjectId FROM dbo.tProjectRevisions
+                WHERE IsDeleted = 0
+                  AND (ProjectId LIKE N'BP' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
+                    OR ProjectId LIKE N'P' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
+                    OR ProjectId LIKE N'MY' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode)
+            ),
+            Taken AS (
+                SELECT TRY_CAST(SUBSTRING(Id, LEN(Id) - LEN(@IslandCode) - 4, 5) AS INT) AS Sequence FROM Ids
+                UNION
+                SELECT @After
+            )
+            SELECT MIN(t.Sequence + 1)
+            FROM Taken t
+            WHERE t.Sequence >= @After
+              AND NOT EXISTS (SELECT 1 FROM Taken n WHERE n.Sequence = t.Sequence + 1);
+            """;
+
         /// <summary>Takes the lowest released sequence of one counter bucket out of dbo.tProjectIdReleased
         /// (READPAST: two concurrent generators never get the same one). NULL when there is none, or
         /// while the table does not exist (before Migration.DeleteRulesAndProjectIdReuse.2026-10-29.sql).</summary>

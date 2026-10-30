@@ -54,6 +54,10 @@ free text against the description. The programme list only offers programs that
 actually hold a Lump Sum Project, so a filter can never return an empty grid for
 lack of one.
 
+When nothing matches, the list says *No Lump Sum Projects match your filters.*
+and offers **Clear filters**, which empties every filter and reloads the full
+list.
+
 **You only see projects in your own region.** If the list is empty and you
 expected entries, that is the most likely reason.
 
@@ -75,7 +79,12 @@ a time, in the order they appear on the form:
 - **Program** — choosing it fills in Start Year and Current Stage, neither of
   which you can edit
 - **Category** — the Project ID is generated from it
-- **Sub-Category**
+- **Sub-Category** — stays locked, showing *Select a Category first*, until you
+  choose a Category; it then lists only the Sub-Categories that Category
+  permits for the program's year. Changing the Category clears it. Where two
+  Sub-Categories share a description, the Infrastructure Type follows it, for
+  example *… Coastal Communities (Roads)* and *… (Bridges)*. Point at the box to
+  read a long name in full.
 - **Operating Unit**
 - **Description** — how the project is identified in every list
 - **Regionwide**
@@ -346,6 +355,12 @@ DEO must agree with that Province.
 
 Imported projects take their island code from their own Region, so they do
 **not** end in `LS` — only the parent does.
+
+Each one gets the next number that no project carries in any of its forms (BP,
+P or MY). A project created at BP keeps its number when its program moves on
+(BP01100016LZ becomes P01100016LZ), so an import into a program whose projects
+have moved on skips those numbers. Until 30 October 2026 such an import could
+fail with *"Project ID generation failed: still colliding after 3 attempts"*.
 
 Each imported project's **Alternate ID** is set to the parent Lump Sum
 Project's Project ID, so the project it was carved from is visible on the

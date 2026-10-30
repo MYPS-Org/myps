@@ -27,7 +27,7 @@ import React from 'react';
 import type { LumpSum } from '../Model.d';
 import type { ProjectEnums } from '../../Project/Model.d';
 import { useLocationFilters } from '../../Project/filteringLocations';
-import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, validityYear, isCategoryValidForYear, isThrustValidForYear } from '../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions, filterKeepingSelected, validityYear, isCategoryValidForYear, isThrustValidForYear, thrustOptionRows } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
 
 // Region Wide options — hardcoded same as ProjectDetailsForm to avoid an enum lookup
@@ -142,6 +142,9 @@ const LumpSumDetailsSection: React.FC<LumpSumDetailsSectionProps> = ({
     const Entry = projectEnums?.ThrustsByCategory?.find(x => x.CategoryId === lumpSum.CategoryId);
     return Entry ? new Set(Entry.PAPKeys) : null;
   }, [projectEnums, lumpSum.CategoryId]);
+
+  // S07-TC003-P001: no PAPKey 0 ("none") row, and the two Coastal Roads pairs labelled apart.
+  const thrustOptions = React.useMemo(() => thrustOptionRows(projectEnums?.Thrusts), [projectEnums]);
 
 
   // NOTE: Program selection (handleProgramChange) has moved to LumpSumProgramDetailsSection.
@@ -289,22 +292,27 @@ const LumpSumDetailsSection: React.FC<LumpSumDetailsSectionProps> = ({
                       ProjectDetailsForm.tsx; the server now refuses a value that is
                       not a PAPKey.
                       LABEL = ThrustDescription, same as ProjectDetailsForm.tsx (was
-                      SubProgramName, which is shorter and far less distinct). */
+                      SubProgramName, which is shorter and far less distinct), with the
+                      Infrastructure Type added where two rows share it (ThrustLabel).
+                      LOCKED UNTIL A CATEGORY IS CHOSEN (S07-TC003-P001), as on the Project
+                      form: with no Category there is no filter, and the list offered all
+                      165 Sub-Categories, most of which the save then refuses. */
                   options={formatDropdownOptions(
                     filterKeepingSelected(
-                      projectEnums?.Thrusts,
+                      thrustOptions,
                       x => isThrustValidForYear(x, programYear) && (allowedPAPKeys === null || allowedPAPKeys.has(x.PAPKey)),
                       'PAPKey',
                       lumpSum.SubCategoryId
                     ),
                     'PAPKey',
-                    'ThrustDescription',
+                    'ThrustLabel',
                     'Id'
                   )}
                   value={lumpSum.SubCategoryId || ''}
                   onChange={(value) => onChange('SubCategoryId', value === '' ? undefined : parseInt(value.toString()))}
-                  placeholder="Select Sub-Category"
-                  disabled={disabled}
+                  placeholder={lumpSum.CategoryId ? 'Select Sub-Category' : 'Select a Category first'}
+                  disabled={!lumpSum.CategoryId || disabled}
+                  error={!!errors.SubCategoryId}
                   allowClear={true}
                   searchPlaceholder="Search sub-categories..."
                 />

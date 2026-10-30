@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.25
-**Date:** October 30, 2026
+**Version:** 3.26
+**Date:** October 31, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -49,6 +49,7 @@
 | 3.23 | October 30, 2026 | RP | RP | Section 5.3.3 Component Cost: a year row's **Start Date** and **End Date** are now optional (the schedule may not be set yet), and a date that is entered is still checked against the row's Year; each year row's End Date may run up to December 31 of the following year (two-year fund validity); the "Please select a Start/End Date" messages were removed; on the project page and in Modification, a Year or date outside its range is now reported in a message at the top right when you click Save ("... must be between ... and ..."), instead of the browser's own pop-up under the field |
 | 3.24 | October 30, 2026 | RP | RP | Section 5.5 Project Groups (S05): **Add Project Group** now confirms "Project Group '<name>' added successfully." and opens the new group's details page (the manual said it only appeared in the list); **Update** on Project Group Details confirms "Project Group '<name>' updated successfully." (before, nothing was shown) and saves the Name and Description without surrounding spaces; a name a deleted group had is refused with "A deleted Project Group already used this name. Please enter a different name."; validation messages added for Section 5.5.2 |
 | 3.25 | October 30, 2026 | RP | RP | Section 5.9 Infra Management (S06): generated Road, Section Road and Bridge IDs take the **lowest** free 5-digit number, so the numbers left unused by the IDs migrated from RBIA are filled and the number of a deleted road, section or bridge is used again (a number a project refers to is never reused); a bridge's **From Chainage** is in meters and must lie within its road section (0 up to the section's Length), and a section's Length cannot be shortened below its bridges' From Chainage; the bridge dialog's From Chainage was labelled in kilometres although it is meters |
+| 3.26 | October 31, 2026 | RP | RP | Section 5.10 Lump Sum Projects (S07): **Sub-Category** on Add Lump Sum Project stays locked, showing *Select a Category first*, until a Category is chosen, and then lists only the Sub-Categories that Category permits for the program's year (an empty box used to show "PROGRAM OF WORKS/BUDGET COST" as if it were chosen); two Sub-Categories that share a description show their Infrastructure Type after it, e.g. *… Coastal Communities (Roads)* / *(Bridges)*, on the Lump Sum, Project and Modification forms; pointing at a dropdown shows a long name in full; the Lump Sum list gained the **Category** filter row and the **Clear** button in Section 5.10.1, and a search that matches nothing says *No Lump Sum Projects match your filters.* with **Clear filters**; Section 5.10.4: an import into a program whose projects have moved past BP no longer fails with *"Project ID generation failed: still colliding after 3 attempts"*, because a new Project ID skips every number a project carries as BP, P or MY |
 
 ### Consultant
 
@@ -3604,7 +3605,9 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog, with t
 | LS-F02 | Program | Limits the list to one program | Dropdown; defaults to all programs |
 | LS-F03 | Program Stage | Limits the list to one program stage | Dropdown; defaults to all stages (e.g. NEP, GAA-R) |
 | LS-F04 | Year | Limits the list to one budget year | Dropdown; defaults to all years |
-| LS-A01 | Search | Applies the filters above | Button |
+| LS-F05 | Category | Limits the list to one project category | Dropdown; defaults to all categories |
+| LS-A01 | Search | Applies the filters above | Button; pressing Enter in the search box does the same |
+| LS-A03 | Clear | Empties every filter and reloads the full list | Button; shown once a filter or a search word is set |
 | LS-A02 | Add Lump Sum Project | Opens the creation form (see Section 5.10.2) | Button |
 
 > **Allocation / Remaining column:** Shows the funded amount, and beneath it the balance not yet itemized. A Lump Sum Project showing the same figure twice has not been itemized at all.
@@ -3613,8 +3616,8 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog, with t
 
 1. Select **Lump Sum Projects** from the sidebar.
 2. Type any part of the Lump Sum Project description in **Search by description**, or leave it blank.
-3. Narrow the list further using **Program**, **Program Stage**, and **Year** as needed.
-4. Click **Search**.
+3. Narrow the list further using **Program**, **Program Stage**, **Category** and **Year** as needed.
+4. Click **Search**. When nothing matches, the list says *No Lump Sum Projects match your filters.*; click **Clear filters** (or **Clear**) to empty every filter and reload the full list.
 5. Click **View** on the Lump Sum Project to open its overview (see Section 5.10.3).
 
 [Insert Screenshot: Lump Sum Projects List]
@@ -3631,7 +3634,7 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog, with t
 |---|---|---|---|
 | LS-F10 | Program Name | The program that will fund the allocation | Dropdown; required. Selecting it fills the three fields below |
 | LS-F11 | Program Type / Start Year / Program Stage | Context of the selected program | Read-only; filled from the program |
-| LS-F12 | Category / Sub-Category | Classification of the allocation | Dropdowns; both required. Sub-Category options depend on Category |
+| LS-F12 | Category / Sub-Category | Classification of the allocation | Dropdowns; both required. Sub-Category stays locked (*Select a Category first*) until a Category is chosen, then lists only the Sub-Categories that Category permits for the program's year; changing the Category clears it. Two Sub-Categories sharing a description show their Infrastructure Type after it, e.g. *(Roads)* / *(Bridges)*. Point at the box to read a long name in full |
 | LS-F13 | Description | Describes what the Lump Sum allocation covers | Text; required. Shown in the list and on the overview page |
 | LS-F14 | Regionwide | Whether the allocation is Regionwide or Non Regionwide | Dropdown; required |
 | LS-F15 | Origin / Originating Agency | Where the allocation came from | Dropdowns |
@@ -3724,6 +3727,7 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog, with t
 | Every result-tab count returns zero and Import stays disabled | A required sheet is missing from the workbook, which stops parsing altogether | Rebuild the workbook from a freshly downloaded template |
 | One sheet's row count is short compared to the others (e.g. Funding shows 2 rows where Projects shows 3) | A data row on that sheet is missing a required field — only the affected row is dropped, the rest still parses | Correct the row in the workbook and re-upload; do not import with the gap, since an itemized project whose Funding Profile does not reach 100% cannot be completed later without a revision |
 | Balance Check does not pass | The import total exceeds the Lump Sum Project's available (Remaining) balance | Reduce the amounts being imported, or increase the Lump Sum Allocation first |
+| *"Project ID generation failed: still colliding after 3 attempts"* (before 31 October 2026) | The program's projects had moved past BP, and their P numbers were not known to the P Project ID counter | Nothing; fixed. A new Project ID now skips every number a project carries as BP, P or MY. Import the same workbook again |
 
 ---
 
