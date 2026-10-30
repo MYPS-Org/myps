@@ -38,13 +38,17 @@ namespace WebAPI.Controllers.Auth
                     ? ipAddress.MapToIPv4().ToString()
                     : ipAddress?.ToString() ?? "Unknown";
                 string hostName = string.Empty;
+                string? resolvedHost = null;
                 try
                 {
                     var hostEntry = await Dns.GetHostEntryAsync(ipAddress!);
+                    resolvedHost = hostEntry.HostName;
                     hostName = hostEntry.HostName.Replace(".","-");
                 }
                 catch
                 {
+                    // The HostName claim stays non-empty (Program IDs are built from it), so this
+                    // fallback must never pass the domain check below: that uses resolvedHost.
                     hostName = dto.UserName;//clientIp;
                 }
                 LoginLog = new LoginHistory()
@@ -55,6 +59,17 @@ namespace WebAPI.Controllers.Auth
                     LogDate = CurrentDate,
                     IsValid = false,
                 };
+                // 2026-10-31: the organization-domain rule, checked here once instead of on every
+                // request (CoreController's check could never refuse: see SignInConfig).
+                if (!Appsetting.SignIn.Allows(resolvedHost))
+                {
+                    string refused = $"Computer not under an allowed domain: {resolvedHost ?? "no host name"}";
+                    LoginLog.ValidationMessage = refused.Length > 100 ? refused[..100] : refused;
+                    _db.tLoginHistory.Add(LoginLog);
+                    await _db.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync();
+                    return UnauthorizedUser("Sign-in is allowed only from a computer under the organization domain. Use your office computer, or ask your administrator.");
+                }
                 var verifyAccount = await _db.vUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserName);
 
                 if (verifyAccount == null)

@@ -91,8 +91,9 @@ jobs:
           cache: npm
           cache-dependency-path: FE/package-lock.json
 
-      # vite build, not npm run build: that script runs tsc -b first, which stops on the known type
-      # errors under src/pages/Rbac. The bundle lands in Main/wwwroot (vite.config.ts outDir).
+      # Type-check first (2026-10-31: the src/pages/Rbac errors that kept it off are fixed), so a
+      # type error stops the deploy instead of shipping. vite build alone does not type-check.
+      # The bundle lands in Main/wwwroot (vite.config.ts outDir).
       - name: Build front end
         working-directory: FE
         env:
@@ -100,6 +101,7 @@ jobs:
           VITE_API_GIS_URL: ${{ vars.VITE_API_GIS_URL }}
         run: |
           npm ci
+          npm run typecheck
           npx vite build --mode production
 
       - uses: actions/setup-dotnet@v4
@@ -109,7 +111,7 @@ jobs:
       - name: Unit tests
         run: dotnet test MYPS.UnitTests/MYPS.UnitTests.csproj -c Release
 
-      # SkipFrontendBuild: Main.csproj's Release pre-build would run npm run build again (and fail on tsc).
+      # SkipFrontendBuild: Main.csproj's Release pre-build would run npm run build a second time.
       - name: Publish API
         run: dotnet publish Main/Main.csproj -c Release -o publish -p:SkipFrontendBuild=true
 

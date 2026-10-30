@@ -38,6 +38,32 @@ namespace Helpers
         /// <summary>User ID (as in vUsers) to password hash.</summary>
         public Dictionary<string, string> Users { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
+    /// <summary>
+    /// Limits sign-in to computers under the organization domain (2026-10-31). Off unless
+    /// "SignIn:AllowedHostDomains" lists at least one domain, e.g. ["dpwh.gov.ph"]: sign-in is then
+    /// refused when the client IP's reverse-DNS name does not end with one of them. Before, a
+    /// per-request "Invalid hostname" check promised this, but sign-in stored the User ID when the
+    /// lookup failed, so the name was never empty and the check never refused anyone.
+    /// </summary>
+    public class SignInConfig
+    {
+        public string[] AllowedHostDomains { get; set; } = [];
+
+        public bool Restricted => AllowedHostDomains.Any(d => !string.IsNullOrWhiteSpace(d));
+
+        /// <summary>True when unrestricted, or when <paramref name="hostName"/> is one of the domains or under one.</summary>
+        public bool Allows(string? hostName)
+        {
+            if (!Restricted) return true;
+            string host = (hostName ?? string.Empty).Trim().TrimEnd('.');
+            if (host.Length == 0) return false;
+            return AllowedHostDomains
+                .Select(d => (d ?? string.Empty).Trim().Trim('.'))
+                .Where(d => d.Length > 0)
+                .Any(d => host.Equals(d, StringComparison.OrdinalIgnoreCase)
+                       || host.EndsWith("." + d, StringComparison.OrdinalIgnoreCase));
+        }
+    }
     public class MYPSToPCMA
     {
         public string Host { get; set; } = string.Empty;
@@ -95,6 +121,7 @@ namespace Helpers
         public static LDAPConfig LDAP { get; set; } = new LDAPConfig();
         public static PISConfig PIS { get; set; } = new PISConfig();
         public static LocalLoginConfig LocalLogin { get; set; } = new LocalLoginConfig();
+        public static SignInConfig SignIn { get; set; } = new SignInConfig();
         public static MYPSToPCMA PCMA { get; set; } = new MYPSToPCMA();
         public static string WebRootPath { get; set; } = string.Empty;
         public static string RootPath { get; set; } = string.Empty;
@@ -109,6 +136,7 @@ namespace Helpers
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
             LocalLogin = config.GetSection("LocalLogin").Get<LocalLoginConfig>() ?? new LocalLoginConfig();
             LocalLogin.Users = new Dictionary<string, string>(LocalLogin.Users, StringComparer.OrdinalIgnoreCase);
+            SignIn = config.GetSection("SignIn").Get<SignInConfig>() ?? new SignInConfig();
             PCMA = config.GetSection("MYPSToPCMA").Get<MYPSToPCMA>()!;
             Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
             Resources.Internal = Path.Combine(Resources.Main, Resources.Internal);

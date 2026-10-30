@@ -91,17 +91,10 @@ namespace WebAPI.Controllers
                         return;
                     }
                     _Session = user;
-                    string HostName = User.FindFirstValue("HostName")!;
-                    if (Appsetting.Environment != "Development" && string.IsNullOrEmpty(HostName))
-                    {
-                        var response = new
-                        {
-                            status = 401,
-                            Title = "Invalid hostname",
-                            Message = "Hostname not found in the ip, make sure your working pc is under the organization domain."
-                        };
-                        context.Result = new UnauthorizedObjectResult(response);
-                    }
+                    // 2026-10-31: the "Invalid hostname" check that stood here is gone. Login always
+                    // put a non-empty HostName claim on the session (the User ID when reverse DNS
+                    // failed), so it never refused anyone. The organization-domain rule is now
+                    // checked at Login, from SignIn:AllowedHostDomains.
                 }
 
                 base.OnActionExecuting(context);

@@ -39,9 +39,8 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         }
 
         string userId = userIdValues.ToString();
-        // CoreController.OnActionExecuting requires a non-empty HostName claim once
-        // Appsetting.Environment != "Development" -- the test host runs as "Testing", so this
-        // must default to something non-empty, matching a real caller's machine name.
+        // A real session always carries a non-empty HostName claim (Login sets it, and Program IDs
+        // are built from it), so this defaults to something non-empty, like a caller's machine name.
         string hostName = Request.Headers.TryGetValue(HostNameHeader, out var hostValues) && !string.IsNullOrEmpty(hostValues.ToString())
             ? hostValues.ToString()
             : "TEST-HOST";
