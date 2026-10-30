@@ -14,6 +14,7 @@ import { MajorItemLocationsAtom } from '../atoms/majorItemOfWorks.atom';
 import '../../../utils/GlobalFunctions';
 import { generateTempId } from '../../../utils/GlobalFunctions';
 import { autoFillComponentDescription } from '../../Project/Service';
+import { costRowDateLimits, validateCostRowDates } from '../../Project/utils/componentCostDates';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -435,12 +436,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             showToast({ type: 'error', message: 'Please enter a valid amount.' });
             return;
           }
-          if (!cost.StartDate) {
-            showToast({ type: 'error', message: 'Please select a Start Date.' });
-            return;
-          }
-          if (!cost.EndDate) {
-            showToast({ type: 'error', message: 'Please select an End Date.' });
+          const dateError = validateCostRowDates(cost, { min: programDetails?.StartYear, max: programDetails?.YearEnd });
+          if (dateError) {
+            showToast({ type: 'error', message: dateError });
             return;
           }
         }
@@ -561,7 +559,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <XMarkIcon className="h-6 w-6" />
                 </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} noValidate className="p-6 space-y-6">
                 {/* Component Type and ID Row */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -697,6 +695,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         <div className="space-y-3 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-3">
                             {componentCostPerYear.map((cost, index) => {
                                 if (cost.IsDeleted) return null;
+                                const dateLimits = costRowDateLimits(cost);
                                 return (
                                     <div key={index} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr_auto] gap-3 items-end p-3 bg-gray-50 rounded border">
                                         <div>
@@ -766,8 +765,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 value={cost.StartDate ? cost.StartDate.split('T')[0] : ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'StartDate', e.target.value || null)}
                                                 onKeyDown={(e) => e.preventDefault()}
-                                                min={cost.Year ? `${cost.Year}-01-01` : undefined}
-                                                max={cost.EndDate ? cost.EndDate.split('T')[0] : (cost.Year ? `${cost.Year}-12-31` : undefined)}
+                                                min={dateLimits.startMin}
+                                                max={dateLimits.startMax}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                                             />
                                         </div>
@@ -779,8 +778,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 value={cost.EndDate ? cost.EndDate.split('T')[0] : ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'EndDate', e.target.value || null)}
                                                 onKeyDown={(e) => e.preventDefault()}
-                                                min={cost.StartDate ? cost.StartDate.split('T')[0] : (cost.Year ? `${cost.Year}-01-01` : undefined)}
-                                                max={cost.Year ? `${cost.Year}-12-31` : undefined}
+                                                min={dateLimits.endMin}
+                                                max={dateLimits.endMax}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                                             />
                                         </div>

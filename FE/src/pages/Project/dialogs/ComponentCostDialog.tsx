@@ -10,6 +10,7 @@ import '../../../utils/GlobalFunctions';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
 import type { ProgramLatest } from '../../Program/Model';
 import { autoFillComponentDescription } from '../Service';
+import { costRowDateErrors, costRowDateLimits, validateCostRowDates } from '../utils/componentCostDates';
 // LS component type is exclusive to the LumpSum module — exclude it from regular project dropdowns
 import { LUMPSUM_EXCLUSIVE_COMPONENT_TYPES } from '../../LumpSum/utils/constants';
 
@@ -343,31 +344,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         });
         return;
       }
-      if (!cost.StartDate) {
-        showToast({
-          type: 'error',
-          message: 'Please select a Start Date.'
-        });
-        return;
-      }
-      if (!cost.EndDate) {
-        showToast({
-          type: 'error',
-          message: 'Please select an End Date.'
-        });
-        return;
-      }
-      // Validate date range
-      const startStr = cost.StartDate.split('T')[0];
-      const endStr   = cost.EndDate.split('T')[0];
-      const yearMin  = `${cost.Year}-01-01`;
-      const yearMax  = `${cost.Year}-12-31`;
-      if (startStr < yearMin || startStr > yearMax || (endStr && startStr > endStr)) {
-        showToast({ type: 'error', message: `Start Date for entry ${i + 1} is out of range.` });
-        return;
-      }
-      if (endStr < yearMin || endStr > yearMax || (startStr && endStr < startStr)) {
-        showToast({ type: 'error', message: `End Date for entry ${i + 1} is out of range.` });
+      const dateError = validateCostRowDates(cost, { min: programDetails?.StartYear, max: programDetails?.YearEnd });
+      if (dateError) {
+        showToast({ type: 'error', message: dateError });
         return;
       }
     }
@@ -491,7 +470,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <XMarkIcon className="h-6 w-6" />
                 </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} noValidate className="p-6 space-y-6">
                 {/* Component Type and ID Row */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -593,19 +572,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
                                 const startDateStr = cost.StartDate ? cost.StartDate.split('T')[0] : '';
                                 const endDateStr   = cost.EndDate   ? cost.EndDate.split('T')[0]   : '';
-                                const yearMin = cost.Year ? `${cost.Year}-01-01` : '';
-                                const yearMax = cost.Year ? `${cost.Year}-12-31` : '';
-
-                                const isStartDateInvalid = startDateStr !== '' && (
-                                    (yearMin && startDateStr < yearMin) ||
-                                    (yearMax && startDateStr > yearMax) ||
-                                    (endDateStr && startDateStr > endDateStr)
-                                );
-                                const isEndDateInvalid = endDateStr !== '' && (
-                                    (yearMin && endDateStr < yearMin) ||
-                                    (yearMax && endDateStr > yearMax) ||
-                                    (startDateStr && endDateStr < startDateStr)
-                                );
+                                const dateLimits = costRowDateLimits(cost);
+                                const dateErrors = costRowDateErrors(cost);
+                                const isStartDateInvalid = !!dateErrors.start;
+                                const isEndDateInvalid = !!dateErrors.end;
 
                                 return (
                                     <div key={index} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr_auto] gap-3 items-end p-3 bg-gray-50 rounded border">
@@ -674,8 +644,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                             <DateInput
                                                 value={startDateStr}
                                                 onChange={(e) => handleEditPerYearCost(index, 'StartDate', e.target.value || null)}
-                                                min={yearMin || undefined}
-                                                max={endDateStr || yearMax || undefined}
+                                                min={dateLimits.startMin}
+                                                max={dateLimits.startMax}
                                                 className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 ${
                                                     isStartDateInvalid
                                                         ? 'border-red-500 focus:ring-red-500 bg-red-50 text-red-900'
@@ -691,8 +661,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                             <DateInput
                                                 value={endDateStr}
                                                 onChange={(e) => handleEditPerYearCost(index, 'EndDate', e.target.value || null)}
-                                                min={startDateStr || yearMin || undefined}
-                                                max={yearMax || undefined}
+                                                min={dateLimits.endMin}
+                                                max={dateLimits.endMax}
                                                 className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 ${
                                                     isEndDateInvalid
                                                         ? 'border-red-500 focus:ring-red-500 bg-red-50 text-red-900'

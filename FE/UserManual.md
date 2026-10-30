@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.22
+**Version:** 3.23
 **Date:** October 30, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -46,6 +46,7 @@
 | 3.20 | October 29, 2026 | RP | RP | Delete rules: a permanent delete happens only at the **BP** or **RBP** stage. Section 5.2 (Deleting a Program): a program can be deleted only while it is at BP or RBP. Section 5.2.5: new **Deleted projects (N)** button and panel in Program Details, to restore a project deleted at the current stage without typing its ID. Section 5.2.6: Batch Delete and the row Delete permanently delete only a project still at BP or RBP; at any other stage they delete it at that stage only, and it can be restored; the success message names only what happened. A BP/P Project ID freed by a permanent delete is given to the next new project |
 | 3.21 | October 29, 2026 | RP | RP | Section 5.2.5: **Deleted projects** also lists projects deleted at an earlier stage, with an info note; **Restore into &lt;stage&gt;** adds such a project to the program's current stage with the data it had when deleted. A project deleted before the program moves on stays deleted. Program list and Program Details: a deleted project no longer counts in **No. of Projects** or **Cost** |
 | 3.22 | October 30, 2026 | RP | RP | Section 5.7 Code Tables (S04): **Validation Dates** are saved and limit when a new revision request can be made for a funding year (5.7.7); Program Stages are fixed and cannot be added, Program Type and Program Status ask only for the Name (5.7.5); adding a Type of Work on **Scope of Work** needs a Target Unit and a Max, and an Infrastructure Type in use cannot be removed from a Type of Work (5.7.4). Section 5.7 User Management, User Groups: what **Permission Name** in Filter Group matches, and how **Apply Filter** works for a user in several groups |
+| 3.23 | October 30, 2026 | RP | RP | Section 5.3.3 Component Cost: a year row's **Start Date** and **End Date** are now optional (the schedule may not be set yet), and a date that is entered is still checked against the row's Year; each year row's End Date may run up to December 31 of the following year (two-year fund validity); the "Please select a Start/End Date" messages were removed; on the project page and in Modification, a Year or date outside its range is now reported in a message at the top right when you click Save ("... must be between ... and ..."), instead of the browser's own pop-up under the field |
 
 ### Consultant
 
@@ -1186,8 +1187,8 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 | CC-F04 | Cost Breakdown by Year | Section containing one or more per-year cost rows | Repeating group |
 | CC-F05 | Year | Fiscal year for this cost entry | Numeric input; pre-filled to Program Start Year; required |
 | CC-F06 | Amount | Budget amount for this year (₱) | Numeric input; required; must be > 0 |
-| CC-F07 | Start Date | Implementation start date for this year | Date input; required |
-| CC-F08 | End Date | Implementation end date for this year | Date input; required |
+| CC-F07 | Start Date | Implementation start date for this year | Date input; optional — leave blank if the schedule is not yet set; must fall within the row's Year |
+| CC-F08 | End Date | Implementation end date for this year | Date input; optional — leave blank if the schedule is not yet set; cannot be before the Start Date. May run from the start of the row's Year up to December 31 of the following year (funds are valid for two years) |
 | CC-A05 | Add Year | Add a new per-year cost row to the component | Button (blue); each click adds one row starting from the next year |
 | CC-A06 | Delete per-year row | Remove a per-year cost row | Per-row trash icon; new (unsaved) rows are hard-deleted; existing rows are soft-deleted |
 | CC-F09 | Total | Sum of all per-year amounts; automatically calculated | Read-only; displayed at the bottom of the dialog |
@@ -1216,7 +1217,7 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 3. Select the **Component Type** — the **Component ID** is auto-generated and cannot be edited.
 4. Optionally enter or auto-fill the **Description**.
 5. Click **Add Year** to add a cost row.
-6. Enter the **Year**, **Amount** (₱), **Start Date**, and **End Date** for that row.
+6. Enter the **Year** and **Amount** (₱) for that row, and the **Start Date** and **End Date** if the schedule is already known.
 7. Repeat step 5–6 for each additional fiscal year as needed.
 8. Click **Save** to save the component.
 
@@ -1248,8 +1249,10 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 | *"Component details are required for at least one year."* | No year rows were added (or all were deleted) before clicking Save. | Click **Add Year** and fill in at least one year entry. |
 | *"Please enter a valid year for cost entry N."* | A year row has a blank or zero Year field. | Enter a valid fiscal year for that row. |
 | *"Please enter a valid amount for cost entry N."* | A year row has a blank or zero Amount field. | Enter a valid amount greater than zero. |
-| *"Please select a Start Date for cost entry N."* | The Start Date field of a year row is empty. | Select a start date. |
-| *"Please select an End Date for cost entry N."* | The End Date field of a year row is empty. | Select an end date. |
+| *"Year must be between A and B."* | The row's Year is outside the program's years. | Enter a year from the program's Start Year to its end year. |
+| *"Start Date must be between 01/01/YYYY and 12/31/YYYY."* | The row's Start Date is outside its Year. | Pick a Start Date inside the row's Year, or clear it. |
+| *"End Date must be between 01/01/YYYY and 12/31/YYYY+1."* | The row's End Date is before its Year, or after December 31 of the following year. | Pick an End Date within that range, or clear it. |
+| *"End Date cannot be before its Start Date."* | The End Date is earlier than the Start Date. | Change one of the two dates. |
 | *"Total amount must be greater than zero."* | All per-year amounts were zero or blank. | Enter at least one year row with an amount > 0. |
 | *"This cost will exceed the maximum budget by ₱X."* (confirmation prompt) | The total component cost would exceed the Funding Profile allocation. | Click **OK** to proceed anyway, or **Cancel** and reduce the amount or increase the Funding Profile allocation. |
 
