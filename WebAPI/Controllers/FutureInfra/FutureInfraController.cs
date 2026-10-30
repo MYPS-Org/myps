@@ -39,26 +39,19 @@ namespace WebAPI.Controllers.Programs
         });
 
         /// <summary>
-        /// Next free future infra ID: prefix (FR / FS / FB) + the next 5-digit number + island code.
+        /// Next free future infra ID: prefix (FR / FS / FB) + the lowest free 5-digit number + island code.
         /// IDs are generated, never typed (S06-TC003-P001, TC005, TC010). The number runs across all
-        /// islands (FR00001LZ, FR00002VS, ...), as in the Add dialog's example. Null when 99999 is used.
-        /// Call inside the Add transaction after <see cref="LockInfraIdAsync"/>.
+        /// islands (FR00001LZ, FR00002VS, ...), as in the Add dialog's example, and a number freed by a
+        /// delete is handed out again (see <see cref="FutureInfraIds.LowestFreeNumber"/>). Null when all
+        /// 99999 are used. Call inside the Add transaction after <see cref="LockInfraIdAsync"/>.
         /// </summary>
-        private static readonly System.Text.RegularExpressions.Regex InfraIdNumber =
-            new(@"^F[RSB](\d{5})[A-Z]{2}$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-
         private static async Task<string?> NextInfraIdAsync(IQueryable<string> ids, string prefix, string islandCode, CancellationToken ct)
         {
             var existing = await ids.Where(id => id.StartsWith(prefix)).ToListAsync(ct);
-            // One shared regex: IsValidFutureInfraId builds a compiled Regex per call, and this runs over
-            // ~17k project references (93 s per Add, which also timed out the other Adds' lock waits).
-            int max = existing
-                .Select(id => InfraIdNumber.Match(id.Trim()))
-                .Where(m => m.Success)
-                .Select(m => int.Parse(m.Groups[1].Value))
-                .DefaultIfEmpty(0)
-                .Max();
-            return max >= 99999 ? null : $"{prefix}{max + 1:D5}{islandCode}";
+            // One shared regex inside FutureInfraIds: IsValidFutureInfraId builds a compiled Regex per call, and
+            // this runs over ~17k project references (93 s per Add, which also timed out the other Adds' lock waits).
+            int? number = FutureInfraIds.LowestFreeNumber(existing, prefix);
+            return number == null ? null : FutureInfraIds.Format(prefix, number.Value, islandCode);
         }
 
         /// <summary>
@@ -659,6 +652,15 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Length '{dto.RoadLength}' is not a valid number of meters greater than 0.", Title = "Invalid Length" });
                 }
+                // Its bridges' From Chainage must stay within the section (S06-TC010-P001).
+                double? furthestBridgeFrom = await _db.tFutureBridge.AsNoTracking()
+                    .Where(x => x.RoadSectionId == checkRoad.RoadSectionId)
+                    .MaxAsync(x => (double?)x.From, cancellationToken);
+                var shorten = BridgePlacement.ShortenRefusal(lengthM, furthestBridgeFrom);
+                if (shorten != null)
+                {
+                    return new BadRequestObjectResult(new { Message = shorten, Title = "Invalid Length" });
+                }
                 var checkDEO = await _db.vAdminDEO.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
                 {
@@ -919,6 +921,11 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section '{dto.RoadSectionId}' is not valid.", Title = "Invalid Road Section" });
                 }
+                var placement = BridgePlacement.Refusal(dto.From, dto.Length, checkRoadSectionId.LengthM, checkRoadSectionId.RoadSectionId);
+                if (placement != null)
+                {
+                    return new BadRequestObjectResult(new { Message = placement, Title = "Invalid Bridge Position" });
+                }
                 // Generated: FB + next number + the section's island code (S06-TC010-P001).
                 await LockInfraIdAsync("FB", cancellationToken);
                 string? bridgeId = await NextInfraIdAsync(_db.tFutureBridge.AsNoTracking().Select(x => x.BridgeId).Concat(ProjectInfraIds()), "FB", dto.RoadSectionId[^2..], cancellationToken);
@@ -978,6 +985,11 @@ namespace WebAPI.Controllers.Programs
                 if (checkRoadSectionId == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} does not exist in the system. Please use other Road ID.", Title = "Invalid Road Section ID" });
+                }
+                var placement = BridgePlacement.Refusal(dto.From, dto.Length, checkRoadSectionId.LengthM, checkRoadSectionId.RoadSectionId);
+                if (placement != null)
+                {
+                    return new BadRequestObjectResult(new { Message = placement, Title = "Invalid Bridge Position" });
                 }
                 // The ID is not typed: the bridge keeps its number under its (possibly new) section's island.
                 string? derivedBridgeId = IdUnderParent("FB", checkBridge.BridgeId, dto.RoadSectionId);

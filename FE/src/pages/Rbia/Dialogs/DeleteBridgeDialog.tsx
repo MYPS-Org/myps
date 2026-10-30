@@ -102,7 +102,7 @@ const DeleteBridgeDialog: React.FC<DeleteBridgeDialogProps> = ({ isOpen, onClose
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">From Chainage:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bridge.From} km</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bridge.From} m</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Length:</span>

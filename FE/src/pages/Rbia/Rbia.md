@@ -403,7 +403,7 @@ On mount: `getInfraCounts()` → `POST FutureInfra/GetInfraInfo` → sets all th
 
 - Dual-mode: add (when `selectedItemAtom === null`) or edit (when `selectedItemAtom` is a `FutureRoads`).
 - Required fields: Island (add) / Road ID (edit, read-only), Road Name, Classification (dropdown from `roadClassificationsAtom`, option value = `ClassificationId`).
-- Road ID is never typed: add mode shows an Island dropdown (`roadIslandCodesAtom`, LZ / VS / MN) and the API generates the next free `FR{5-digit-number}{IslandCode}`; the success toast shows it. Edit mode shows the Road ID read-only.
+- Road ID is never typed: add mode shows an Island dropdown (`roadIslandCodesAtom`, LZ / VS / MN) and the API generates the lowest free `FR{5-digit-number}{IslandCode}` (a number freed by a delete is reused; `Helpers/FutureInfraIds.cs`); the success toast shows it. Edit mode shows the Road ID read-only.
 - Add payload sent to `addFutureRoad`: `AddFutureRoadRequest` `{ IslandCode, Name, Classification: number }`.
 - Edit payload sent to `editFutureRoad`: full `FutureRoads` object (numeric `Classification`). The API refuses RBIA-migrated roads ("Maintained in RBIA").
 

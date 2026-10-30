@@ -54,7 +54,7 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
     }
   }, [isEdit, selectedItem]);
 
-  // The Section Road ID is never typed (S06-TC005-P001): Add gets the next free number from the API;
+  // The Section Road ID is never typed (S06-TC005-P001): Add gets the lowest free number from the API;
   // Edit keeps the section's number, under the island code of the road selected here.
   const editedSectionId = isEdit && sectionDigits && currentIslandCode ? `FS${sectionDigits}${currentIslandCode}` : "";
 
@@ -204,7 +204,7 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
               <p className="text-xs text-gray-500 mt-1">
                 {isEdit
                   ? "The number stays the same; the island code follows the selected road."
-                  : "Generated when you save: FS, the next free 5-digit number, then the road's island code."}
+                  : "Generated when you save: FS, the lowest free 5-digit number, then the road's island code."}
               </p>
             </div>
 

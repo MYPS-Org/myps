@@ -41,6 +41,12 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
   });
 
   const currentIslandCode = getIslandCode(formData.RoadSectionId);
+  // The selected section's length in meters, when it is known here (a row's Add Bridge, or a section
+  // on the page last shown). The API checks the From Chainage against it either way.
+  const sectionLength = roadSection?.RoadSectionId === formData.RoadSectionId
+    ? roadSection.RoadLength
+    : roadSections.find(s => s.RoadSectionId === formData.RoadSectionId)?.RoadLength;
+  const meters = (m: number) => String(Number(m.toFixed(2)));
 
   useEffect(() => {
     if (isEdit) {
@@ -51,7 +57,7 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
     }
   }, [isEdit, selectedItem]);
 
-  // The Bridge ID is never typed (S06-TC010-P001): Add gets the next free number from the API;
+  // The Bridge ID is never typed (S06-TC010-P001): Add gets the lowest free number from the API;
   // Edit keeps the bridge's number, under the island code of the section selected here.
   const editedBridgeId = isEdit && bridgeDigits && currentIslandCode ? `FB${bridgeDigits}${currentIslandCode}` : "";
 
@@ -61,6 +67,15 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
     if (!formData.RoadSectionId || !formData.Name || !Number.isFinite(Number(formData.From)) ||
         !formData.Length || !formData.CarriageWay ) {
       showToast({ type: 'error', message: 'Please fill in all required fields with valid values.' });
+      return;
+    }
+    // The From Chainage is a distance along the section (S06-TC010-P001); the bridge may run past its end.
+    const from = Number(formData.From);
+    if (typeof sectionLength === 'number' && (from < 0 || from > sectionLength)) {
+      showToast({
+        type: 'error',
+        message: `From Chainage must be between 0 and ${meters(sectionLength)} m, the length of road section ${formData.RoadSectionId}.`,
+      });
       return;
     }
 
@@ -178,7 +193,7 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                   )}
                   {roadSections.map((section) => (
                     <option key={section.RoadSectionId} value={section.RoadSectionId}>
-                      {section.RoadSectionId} - {section.RoadLength}km (District {section.DEO})
+                      {section.RoadSectionId} - {section.RoadLength} m (District {section.DEO})
                     </option>
                   ))}
                 </select>
@@ -202,7 +217,7 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
               <p className="text-xs text-gray-500 mt-1">
                 {isEdit
                   ? "The number stays the same; the island code follows the selected road section."
-                  : "Generated when you save: FB, the next free 5-digit number, then the section's island code."}
+                  : "Generated when you save: FB, the lowest free 5-digit number, then the section's island code."}
               </p>
             </div>
             <div>
@@ -221,7 +236,7 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
             {/* From Chainage */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                From Chainage (km) <span className="text-red-500">*</span>
+                From Chainage (m) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -230,10 +245,12 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                 value={formData.From}
                 onChange={(e) => handleChange('From', Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                placeholder="Enter starting chainage in kilometers"
+                placeholder="Enter starting chainage in meters"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Starting point of the bridge along the road section
+                {typeof sectionLength === 'number'
+                  ? `Starting point of the bridge, in meters from the start of the road section: 0 to ${meters(sectionLength)} m.`
+                  : 'Starting point of the bridge, in meters from the start of the road section.'}
               </p>
             </div>
 

@@ -102,7 +102,7 @@ const DeleteRoadSectionDialog: React.FC<DeleteRoadSectionDialogProps> = ({ isOpe
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Length:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{roadSection.RoadLength} km</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{roadSection.RoadLength} m</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Engineering District:</span>

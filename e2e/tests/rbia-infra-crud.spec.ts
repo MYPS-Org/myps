@@ -163,6 +163,12 @@ test.describe('Infra Management — Roads, Road Sections, Bridges CRUD', () => {
         await dialog(page).getByPlaceholder(/starting chainage/).fill('0');
         await dialog(page).getByPlaceholder(/bridge length/).fill('25');
         await dialog(page).getByPlaceholder(/carriageway width/).fill('7');
+        // The From Chainage (meters) must lie on the section, 150 m after the edit above (S06-TC010-P001).
+        await expect(dialog(page).getByText('From Chainage (m)')).toBeVisible();
+        await dialog(page).getByPlaceholder(/starting chainage/).fill('151');
+        await dialog(page).getByRole('button', { name: 'Create Bridge' }).click();
+        await expect(page.getByText(`From Chainage must be between 0 and 150 m, the length of road section ${SECTION_ID}.`)).toBeVisible();
+        await dialog(page).getByPlaceholder(/starting chainage/).fill('0');
         await dialog(page).getByRole('button', { name: 'Create Bridge' }).click();
         const toast = page.getByText(/^Future bridge FB\d{5}LZ added\.$/);
         await expect(toast).toBeVisible();

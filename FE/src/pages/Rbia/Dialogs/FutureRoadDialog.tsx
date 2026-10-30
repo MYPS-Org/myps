@@ -158,7 +158,7 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose, onSaved })
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  The Road ID is generated when you save: FR, the next free 5-digit number, then the island code (e.g., FR00001LZ).
+                  The Road ID is generated when you save: FR, the lowest free 5-digit number, then the island code (e.g., FR00001LZ).
                 </p>
               </div>
             )}

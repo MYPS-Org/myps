@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.24
+**Version:** 3.25
 **Date:** October 30, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -48,6 +48,7 @@
 | 3.22 | October 30, 2026 | RP | RP | Section 5.7 Code Tables (S04): **Validation Dates** are saved and limit when a new revision request can be made for a funding year (5.7.7); Program Stages are fixed and cannot be added, Program Type and Program Status ask only for the Name (5.7.5); adding a Type of Work on **Scope of Work** needs a Target Unit and a Max, and an Infrastructure Type in use cannot be removed from a Type of Work (5.7.4). Section 5.7 User Management, User Groups: what **Permission Name** in Filter Group matches, and how **Apply Filter** works for a user in several groups |
 | 3.23 | October 30, 2026 | RP | RP | Section 5.3.3 Component Cost: a year row's **Start Date** and **End Date** are now optional (the schedule may not be set yet), and a date that is entered is still checked against the row's Year; each year row's End Date may run up to December 31 of the following year (two-year fund validity); the "Please select a Start/End Date" messages were removed; on the project page and in Modification, a Year or date outside its range is now reported in a message at the top right when you click Save ("... must be between ... and ..."), instead of the browser's own pop-up under the field |
 | 3.24 | October 30, 2026 | RP | RP | Section 5.5 Project Groups (S05): **Add Project Group** now confirms "Project Group '<name>' added successfully." and opens the new group's details page (the manual said it only appeared in the list); **Update** on Project Group Details confirms "Project Group '<name>' updated successfully." (before, nothing was shown) and saves the Name and Description without surrounding spaces; a name a deleted group had is refused with "A deleted Project Group already used this name. Please enter a different name."; validation messages added for Section 5.5.2 |
+| 3.25 | October 30, 2026 | RP | RP | Section 5.9 Infra Management (S06): generated Road, Section Road and Bridge IDs take the **lowest** free 5-digit number, so the numbers left unused by the IDs migrated from RBIA are filled and the number of a deleted road, section or bridge is used again (a number a project refers to is never reused); a bridge's **From Chainage** is in meters and must lie within its road section (0 up to the section's Length), and a section's Length cannot be shortened below its bridges' From Chainage; the bridge dialog's From Chainage was labelled in kilometres although it is meters |
 
 ### Consultant
 
@@ -3087,7 +3088,7 @@ The tabs are labelled with text only (no icons). Each tab shows a count badge wi
 
 > The **+ Add Section** (road rows) and **+ Add Bridge** (road section rows) buttons stay available on RBIA rows, so you can add a section to an RBIA road and a bridge to an RBIA section.
 
-**Generated IDs:** Road IDs (`FR{5digits}{IslandCode}`), Section Road IDs (`FS{5digits}{IslandCode}`) and Bridge IDs (`FB{5digits}{IslandCode}`) are never typed. MYPS assigns the next free 5-digit number when you save, and the success message shows the new ID.
+**Generated IDs:** Road IDs (`FR{5digits}{IslandCode}`), Section Road IDs (`FS{5digits}{IslandCode}`) and Bridge IDs (`FB{5digits}{IslandCode}`) are never typed. MYPS assigns the lowest free 5-digit number when you save, and the success message shows the new ID. The numbers left unused by the IDs migrated from RBIA are filled first, and the number of a road, section or bridge that was deleted is used again. A section or bridge number that a project refers to is never reused.
 
 **Hierarchy Rule:**
 
@@ -3253,7 +3254,7 @@ Each road row has a blue **+ Add Section** button. This is the only way to creat
 | UI-UX-0128-RS-A01 | ✕ (close) / Cancel | Dismiss the dialog without saving | Button (✕ in the header; **Cancel** (zinc) beside the submit button) |
 | UI-UX-0128-RS-A02 | Create Road Section | Validate and save the road section | Button (orange) |
 
-> The **Section Road ID** is never typed. When you save, MYPS assigns `FS` + the next free 5-digit number + the parent road's island code (e.g., if the road is `FR00001LZ`, the island code is `LZ`), and the success message shows the new ID.
+> The **Section Road ID** is never typed. When you save, MYPS assigns `FS` + the lowest free 5-digit number + the parent road's island code (e.g., if the road is `FR00001LZ`, the island code is `LZ`), and the success message shows the new ID.
 
 1. Locate the road in the Roads table.
 2. Click the blue **+ Add Section** button on that road's row.
@@ -3320,7 +3321,7 @@ The **Edit Future Road Section** dialog opens when the pencil icon is clicked di
 
 1. Click the yellow **pencil icon** on the road section's row.
 2. The **Edit Future Road Section** dialog opens, pre-filled with the section's current data. The Section Road ID is shown read-only.
-3. Update the **Parent Road ID**, **Length (meters)** and/or **Engineering District** as needed. If you pick a road on another island, the Section Road ID's island code changes with it (and so do the IDs of the section's bridges).
+3. Update the **Parent Road ID**, **Length (meters)** and/or **Engineering District** as needed. The Length cannot be less than the From Chainage of the section's bridges ("A bridge on this road section starts at N m, so its Length cannot be less than N m."). If you pick a road on another island, the Section Road ID's island code changes with it (and so do the IDs of the section's bridges).
 4. Click **Update Road Section**.
 
 [Insert Screenshot: Edit Future Road Section Dialog]
@@ -3398,19 +3399,19 @@ Each road section row has a blue **+ Add Bridge** button. This is the only way t
 | UI-UX-0128-B-F01 | SECTION ROAD ID | The road section this bridge belongs to | Read-only; pre-filled with the parent section's ID |
 | UI-UX-0128-B-F02 | BRIDGE ID | Bridge identifier, generated by MYPS | Read-only; shows `FB·····{IslandCode}` as a preview (island code taken from the parent Section Road ID). The 5-digit number is assigned when you save |
 | UI-UX-0128-B-F03 | BRIDGE NAME | Name of the bridge | Text input; required |
-| UI-UX-0128-B-F04 | FROM CHAINAGE (km) | Starting position of the bridge along the road section, in kilometres | Numeric input (step 0.01, min 0); required (0 is allowed: the start of the section) |
+| UI-UX-0128-B-F04 | FROM CHAINAGE (m) | Starting position of the bridge along the road section, in meters from the start of the section | Numeric input (step 0.01, min 0); required (0 is allowed: the start of the section). Must not be more than the road section's Length; the hint under the field shows the range. The bridge itself may run past the end of the section |
 | UI-UX-0128-B-F05 | BRIDGE LENGTH (m) | Total length of the bridge structure, in metres | Numeric input (step 0.01, min 0.01); required |
 | UI-UX-0128-B-F06 | CARRIAGEWAY WIDTH (m) | Width of the bridge's carriageway, in metres | Numeric input (step 0.01, min 0); required |
 | UI-UX-0128-B-A01 | ✕ (close) / Cancel | Dismiss the dialog without saving | Button (✕ in the header; **Cancel** (zinc) beside the submit button) |
 | UI-UX-0128-B-A02 | Create Bridge | Validate and save the bridge | Button (orange) |
 
-> The **Bridge ID** is never typed. When you save, MYPS assigns `FB` + the next free 5-digit number + the parent section's island code, and the success message shows the new ID.
+> The **Bridge ID** is never typed. When you save, MYPS assigns `FB` + the lowest free 5-digit number + the parent section's island code, and the success message shows the new ID.
 
 1. Locate the road section in the Road Sections table.
 2. Click the blue **+ Add Bridge** button on that section's row.
 3. The **Add New Future Bridge** dialog opens. The **Section Road ID** is pre-filled and read-only, and the **Bridge ID** shows a read-only preview.
 4. Enter the **Bridge Name**.
-5. Enter the **From Chainage** (starting position in kilometres along the road section).
+5. Enter the **From Chainage** (starting position in meters from the start of the road section, from 0 up to the section's Length).
 6. Enter the **Bridge Length** in metres.
 7. Enter the **Carriageway Width** in metres.
 8. Click **Create Bridge**.
@@ -3424,6 +3425,7 @@ Each road section row has a blue **+ Add Bridge** button. This is the only way t
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
 | *"Please fill in all required fields with valid values."* | One or more of Section Road ID, Bridge Name, From Chainage, Bridge Length, or Carriageway Width was left blank, or Bridge Length / Carriageway Width is zero | Complete all required fields with valid values before clicking Create Bridge |
+| *"From Chainage must be between 0 and N m, the length of road section FS…."* | The From Chainage is more than the road section's Length (or below 0) | Enter a From Chainage within the section, or pick the right road section |
 
 ---
 

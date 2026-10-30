@@ -6,6 +6,8 @@ import RoadSectionList from "../components/RoadSection";
 import BridgeList from "../components/Bridge";
 import ImportDialog from '../Dialogs/ImportDialog';
 import { getInfraCounts } from './../Service';
+import { useAuth } from '../../../contexts/AuthContext';
+import { isRestrictedUser } from '../../../contexts/userScope';
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
@@ -17,6 +19,10 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 const Rbia: React.FC = () => {
     const [selectedTab, setSelectedTab] = useState<'roads' | 'roadSections' | 'bridges'>('roads');
     const [importDialogOpen, setImportDialogOpen] = useState(false);
+    // The RBIA / AAMS / IOMS imports are for PS Admin (S06-TC015/TC016). They run in the GIS service,
+    // which does not check MYPS permissions, so district and regional users (DEO / RO) get no Import button.
+    const { user } = useAuth();
+    const canImport = !isRestrictedUser(user);
     const [roadCount, setRoadCount] = useState(0);
     const [roadSectionCount, setRoadSectionCount ] = useState(0);
     const [bridgeCount, setBridgeCount] = useState(0);
@@ -86,6 +92,7 @@ const Rbia: React.FC = () => {
                 </div>
 
                 {/* Import Button */}
+                {canImport && (
                 <button
                     onClick={() => setImportDialogOpen(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-sm"
@@ -93,6 +100,7 @@ const Rbia: React.FC = () => {
                     <ArrowUpTrayIcon className="w-4 h-4" />
                     Import
                 </button>
+                )}
             </div>
 
             {/* Tab Navigation */}

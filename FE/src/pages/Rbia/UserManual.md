@@ -53,7 +53,7 @@ Roads, sections and bridges migrated from **RBIA** are view-only: their rows sho
 Road IDs follow this format: **`FR{5-digit-number}{IslandCode}`**
 
 - `FR` — prefix for Future Roads
-- 5 digits — the next free number, zero-padded (e.g., `00001`). MYPS generates it; you do not type it.
+- 5 digits — the lowest free number, zero-padded (e.g., `00001`). MYPS generates it; you do not type it. The number of a deleted road is used again.
 - Island Code — the alphabetic code for the island group (e.g., `LZ` for Luzon, `VS` for Visayas)
 
 Example: `FR00001LZ`
@@ -112,7 +112,7 @@ A road section is a defined segment of a road, with a measured length and an ass
 Road Section IDs follow this format: **`FS{5-digit-number}{IslandCode}`**
 
 - `FS` — prefix for Future Sections
-- 5 digits — the next free number. MYPS generates it; you do not type it. It skips every number a project already refers to.
+- 5 digits — the lowest free number. MYPS generates it; you do not type it. It skips every number a project already refers to, and the number of a deleted item is used again.
 - Island Code — the last two letters of the parent Road ID
 
 ### Road Sections Table Columns
@@ -170,7 +170,7 @@ A bridge is a structure on a road section. It records the starting position (cha
 Bridge IDs follow this format: **`FB{5-digit-number}{IslandCode}`**
 
 - `FB` — prefix for Future Bridges
-- 5 digits — the next free number. MYPS generates it; you do not type it. It skips every number a project already refers to.
+- 5 digits — the lowest free number. MYPS generates it; you do not type it. It skips every number a project already refers to, and the number of a deleted item is used again.
 - Island Code — the last two letters of the parent Road Section ID
 
 ### Bridges Table Columns
@@ -191,7 +191,7 @@ Bridges can only be added from the **Road Sections tab**. Find the road section 
 
 The dialog opens with the parent road section pre-filled:
 1. Enter the **Bridge Name** (required).
-2. Enter the **From** value — the chainage (in metres) from the start of the road section.
+2. Enter the **From** value — the chainage (in metres) from the start of the road section, from 0 up to the section's Length. The bridge may run past the end of the section.
 3. Enter the **Length** in metres.
 4. Enter the **Carriageway Width** in metres.
 5. Click **Create Bridge**.
