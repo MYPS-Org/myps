@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.23
+**Version:** 3.24
 **Date:** October 30, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -47,6 +47,7 @@
 | 3.21 | October 29, 2026 | RP | RP | Section 5.2.5: **Deleted projects** also lists projects deleted at an earlier stage, with an info note; **Restore into &lt;stage&gt;** adds such a project to the program's current stage with the data it had when deleted. A project deleted before the program moves on stays deleted. Program list and Program Details: a deleted project no longer counts in **No. of Projects** or **Cost** |
 | 3.22 | October 30, 2026 | RP | RP | Section 5.7 Code Tables (S04): **Validation Dates** are saved and limit when a new revision request can be made for a funding year (5.7.7); Program Stages are fixed and cannot be added, Program Type and Program Status ask only for the Name (5.7.5); adding a Type of Work on **Scope of Work** needs a Target Unit and a Max, and an Infrastructure Type in use cannot be removed from a Type of Work (5.7.4). Section 5.7 User Management, User Groups: what **Permission Name** in Filter Group matches, and how **Apply Filter** works for a user in several groups |
 | 3.23 | October 30, 2026 | RP | RP | Section 5.3.3 Component Cost: a year row's **Start Date** and **End Date** are now optional (the schedule may not be set yet), and a date that is entered is still checked against the row's Year; each year row's End Date may run up to December 31 of the following year (two-year fund validity); the "Please select a Start/End Date" messages were removed; on the project page and in Modification, a Year or date outside its range is now reported in a message at the top right when you click Save ("... must be between ... and ..."), instead of the browser's own pop-up under the field |
+| 3.24 | October 30, 2026 | RP | RP | Section 5.5 Project Groups (S05): **Add Project Group** now confirms "Project Group '<name>' added successfully." and opens the new group's details page (the manual said it only appeared in the list); **Update** on Project Group Details confirms "Project Group '<name>' updated successfully." (before, nothing was shown) and saves the Name and Description without surrounding spaces; a name a deleted group had is refused with "A deleted Project Group already used this name. Please enter a different name."; validation messages added for Section 5.5.2 |
 
 ### Consultant
 
@@ -2180,7 +2181,15 @@ In the modification form, major items can be copied to a different component usi
 
 [Insert Screenshot: Add Project Group Dialog]
 
-**On Success:** The new project group appears in the Project Groups list.
+**On Success:** The message "Project Group '<name>' added successfully." appears and the new group's **Project Group Details** page opens, ready for projects to be added (Section 5.5.3). The group is also listed on the Project Groups screen.
+
+**Validation messages:**
+
+| Message | Cause |
+|---|---|
+| Project Group Name is required. / Description is required. / User Group is required. | A field was left empty |
+| Project Group Name already exists. | Another project group has this name |
+| A deleted Project Group already used this name. Please enter a different name. | A project group that was deleted had this name. The name of a deleted group cannot be used again |
 
 ---
 
@@ -2216,7 +2225,7 @@ A project can belong to only one project group at a time.
 **Step-by-Step:**
 
 1. Open a project group from the list.
-2. To update group info: edit the fields and click **Update**.
+2. To update group info: edit the fields and click **Update**. The message "Project Group '<name>' updated successfully." confirms the save. Spaces before or after the Name and Description are not saved. The same name rules as in Section 5.5.2 apply: a name another group has, or a deleted group had, is refused, and the saved name stays.
 3. To add projects:
    1. Click **Add Projects**.
    2. Paste or type the Project IDs. You can copy a list of IDs from another screen or a spreadsheet and paste it in.
@@ -2238,7 +2247,8 @@ A project can belong to only one project group at a time.
 [Insert Screenshot: Add Projects to Group Dialog — result view]
 
 **On Success:**
-- **Add:** the Added projects appear in the projects table when the dialog is closed.
+- **Update:** the message "Project Group '<name>' updated successfully." appears. The Add Projects and Remove dialogs show the saved name.
+- **Add:** the dialog shows "N project(s) added to group." The Added projects appear in the projects table when the dialog is closed.
 - **Remove:** a message confirms how many projects were removed, and their rows disappear from the table. If any selected project was no longer in this group, a second message lists it.
 
 **Validation messages:**

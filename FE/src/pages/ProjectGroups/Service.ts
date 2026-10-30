@@ -1,4 +1,4 @@
-import type { ProjectGroupFilter, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns, UserGroups, updateProjectGroupModel, AddProjectsToGroupResult, RemoveProjectsFromGroupResult } from "./Model.d";
+import type { ProjectGroupFilter, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns, UserGroups, updateProjectGroupModel, AddProjectsToGroupResult, RemoveProjectsFromGroupResult, ProjectGroupMessage } from "./Model.d";
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 
 export const fetchProjectGroup = async (data: PaginatedRequest<ProjectGroupFilter>) => {
@@ -15,7 +15,7 @@ export const fetchProjectGroup = async (data: PaginatedRequest<ProjectGroupFilte
 
 export const addProjectGroup = async (data: AddProjectGroupModel) => {
     try {
-        const response = await httpClient.post<AddProjectGroupModel>('/projectgroup/addprojectgroup', data, {
+        const response = await httpClient.post<AddProjectGroupModel & ProjectGroupMessage>('/projectgroup/addprojectgroup', data, {
             preloaderMessage: 'Adding project group...'
         });
         return response;
@@ -39,7 +39,7 @@ export const fetchProjectGroupByName = async (name: string) => {
 
 export const updateProjectGroup = async (data: Pick<updateProjectGroupModel, 'GroupDetails'>) => {
     try {
-        const response = await httpClient.post<ProjectGroupDetailsModel>(`/projectgroup/updateprojectgroupdetails`, data, {
+        const response = await httpClient.post<ProjectGroupMessage>(`/projectgroup/updateprojectgroupdetails`, data, {
             preloaderMessage: 'Updating project group...'
         });
         return response;

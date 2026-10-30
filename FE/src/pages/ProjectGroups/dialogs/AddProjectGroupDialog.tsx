@@ -60,6 +60,7 @@ const AddProjectGroupDialog: React.FC<AddProjectGroupDialogProps> = ({
     try {
         const response = await addProjectGroup(formData);
         if (response) {
+            showToast({ type: 'success', message: response.Data.Message });
             navigate(`/project-groups/${response.Data.NewGroupId}`); // Redirect to the project groups page after successful submission
             onSubmit(formData); // Call the onSubmit prop with the form data
             handleClose(); // Reset the form after submission

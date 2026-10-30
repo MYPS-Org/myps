@@ -93,6 +93,12 @@ export interface ProjectGroupsDropDowns extends PaginationResponse<ProjectGroupL
     Dropdowns: { UserGroups: UserGroups[] }
 }
 
+/** What AddProjectGroup / UpdateProjectGroupDetails answer on success. */
+export interface ProjectGroupMessage {
+    Message: string;
+    Title: string;
+}
+
 /** Response of /projectgroup/addproject. IDs are Project IDs, even when the request matched by PK. */
 export interface AddProjectsToGroupResult {
     Message: string;

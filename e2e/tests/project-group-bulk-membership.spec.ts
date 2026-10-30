@@ -11,7 +11,7 @@
 //   - Remove only touches projects in THIS group. The old DeleteProject took a
 //     bare ProjectId and unlinked it from whichever group held it.
 //   - After add/remove the table refreshes in place: an unsaved Description edit
-//     survives. A refresh through fetchProjectGroupDetails would overwrite it.
+//     survives. A refresh that reloads the page the way it first loads would overwrite it.
 //   - Update saves while the group has projects. The page used to send the project
 //     rows too, and the API refused them (400 on their numeric Category).
 //   - A Project ID opens /projects/project-details/<ProjectId>:<StageName>. The bare

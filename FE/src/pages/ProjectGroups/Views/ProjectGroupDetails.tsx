@@ -47,40 +47,34 @@ const ProjectGroupDetails: React.FC = () => {
     Projects: []
   });
 
+  // Only the latest load may fill the form. A load that finishes after its effect was cleaned up
+  // (another group opened, or StrictMode's second mount in dev) is dropped: applied late, it
+  // overwrote whatever had been typed since the first load showed the form.
   useEffect(() => {
-    const loadProjectGroupDetails = async () => {
-      try {
-        if (groupId) {
-          await fetchProjectGroupDetails(groupId);
-          console.log('Project group details loaded:', groupId);
-        }
-      } catch (error) {
-        console.error('Error fetching project group details:', error);
-      }
+    if (!groupId) return;
+    let current = true;
+    setIsLoading(true);
+    fetchProjectGroupByName(groupId)
+      .then((response) => {
+        if (!current) return;
+        setProjectGroupDetails(response.Data);
+        setFormData({
+          GroupDetails: response.Data.GroupDetails,
+          Projects: response.Data.Projects
+        });
+      })
+      .catch((error) => console.error('Error fetching project group details:', error))
+      .finally(() => {
+        if (current) setIsLoading(false);
+      });
+    return () => {
+      current = false;
     };
-    loadProjectGroupDetails();
   }, [groupId]);
 
-  const fetchProjectGroupDetails = async (groupId: string) => {
-    setIsLoading(true);
-    try {
-      const response = await fetchProjectGroupByName(groupId);
-      setProjectGroupDetails(response.Data);
-      setFormData({
-        GroupDetails: response.Data.GroupDetails,
-        Projects: response.Data.Projects
-      });
-    } catch (error) {
-      console.error('Error fetching program details:', error);
-    //   setProgramEnums(defaultProgramEnums);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Reloads only the Projects table after an add/remove. It must not go through
-  // fetchProjectGroupDetails: isLoading swaps the page for the skeleton (unmounting any open
-  // dialog), and it would overwrite unsaved Name/Description edits in formData.
+  // Reloads only the Projects table after an add/remove. It must not reload the way the page
+  // first loads: isLoading swaps the page for the skeleton (unmounting any open dialog), and it
+  // would overwrite unsaved Name/Description edits in formData.
   const refreshProjects = async () => {
     if (!groupId) return;
     try {
@@ -171,9 +165,17 @@ const ProjectGroupDetails: React.FC = () => {
     try {
       // Only the group's own fields. Membership is saved by Add Projects / Remove, and sending the
       // project rows here made Update fail validation (400) for any group that had projects.
-      await updateProjectGroup({ GroupDetails: formData.GroupDetails });
-      // The dialogs show the saved name, so keep the saved copy in step.
-      setProjectGroupDetails(prev => ({ ...prev, GroupDetails: formData.GroupDetails }));
+      const response = await updateProjectGroup({ GroupDetails: formData.GroupDetails });
+      // The API saves Name and Description trimmed. Show those, and keep the saved copy in step:
+      // the dialogs show the saved name.
+      const saved = {
+        ...formData.GroupDetails,
+        Name: formData.GroupDetails.Name.trim(),
+        Description: formData.GroupDetails.Description?.trim() ?? '',
+      };
+      setFormData(prev => ({ ...prev, GroupDetails: saved }));
+      setProjectGroupDetails(prev => ({ ...prev, GroupDetails: saved }));
+      showToast({ type: 'success', message: response.Data.Message });
     } catch (error) {
       console.error('Error updating program details:', error);
       // httpClient interceptor already showed the API error toast

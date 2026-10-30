@@ -288,7 +288,7 @@ Full CRUD page for a single project group: edit group metadata and manage the pr
 
 ### Initialization
 
-On mount: `fetchProjectGroupDetails(groupId)` → `fetchProjectGroupByName(groupId)` → populates both `projectGroupDetails` (read/display) and `formData` (edit copy).
+On mount (and whenever `groupId` changes) the effect calls `fetchProjectGroupByName(groupId)` and populates both `projectGroupDetails` (read/display) and `formData` (edit copy). Only the latest load is applied. A load whose effect was already cleaned up (another group opened, or StrictMode's second mount in dev) is dropped. Until 2026-10-30, that late response overwrote whatever had been typed since the first load showed the form.
 
 ### Layout
 
@@ -308,7 +308,12 @@ UserGroup dropdown is populated from `projectGroupDetails.UserGroups` (loaded wi
 
 ### Update Flow
 
-Click **Update** → `handleUpdate()` → `updateProjectGroup({ GroupDetails: formData.GroupDetails })` → `POST /projectgroup/updateprojectgroupdetails`. On success the saved copy (`projectGroupDetails.GroupDetails`) is set from `formData`, so the dialogs show the new name. No re-fetch.
+Click **Update** → `handleUpdate()` → `updateProjectGroup({ GroupDetails: formData.GroupDetails })` → `POST /projectgroup/updateprojectgroupdetails`. On success:
+- A success toast shows the API's message: "Project Group '<Name>' updated successfully."
+- The form and the saved copy (`projectGroupDetails.GroupDetails`) take the Name and Description **trimmed**, as the API saves them, so the dialogs show the saved name.
+- There is no re-fetch.
+
+Until 2026-10-30 a successful Update showed nothing, and the API's message named the group's row number.
 
 > Until 2026-10-25 the page sent `formData.Projects` too, and the DTO bound them as `ProjectsInGroup` (string `Category`). The rows carry a numeric `Category`, so Update failed with 400 "Category: Please provide a valid text value." for any group with projects.
 
@@ -324,7 +329,7 @@ Header buttons: **Remove selected (N)** (red, disabled at N = 0) → `setRemoveI
 
 Both dialogs call `onClose(changed)`. When `changed` is true the page calls `refreshProjects()`, which re-fetches the details and replaces **only** `Projects` in both states, then clears the selection.
 
-> **Do not refresh through `fetchProjectGroupDetails`.** It sets `isLoading`, and `if (isLoading) return <skeleton/>` unmounts the whole page, including any open dialog. It also overwrites `formData.GroupDetails`, which throws away unsaved Name/Description edits.
+> **Do not refresh the way the page first loads.** That load sets `isLoading`, and `if (isLoading) return <skeleton/>` unmounts the whole page, including any open dialog. It also overwrites `formData.GroupDetails`, which throws away unsaved Name/Description edits.
 
 ### Add Projects Flow
 

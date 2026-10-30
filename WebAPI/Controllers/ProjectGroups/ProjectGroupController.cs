@@ -173,12 +173,10 @@ namespace WebAPI.Controllers.ProjectGroup
                     return new BadRequestObjectResult(new { Message = "Selected user group not found.", Title = "Not Found" });
                 }
 
-                var duplicateName = await _db.tProjectGroups
-                    .AsNoTracking()
-                    .AnyAsync(x => x.Name == normalizedName, cancellationToken);
-                if (duplicateName)
+                var duplicate = await DuplicateNameRefusalAsync(normalizedName, null, cancellationToken);
+                if (duplicate != null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project Group Name already exists.", Title = "Duplicate Name" });
+                    return duplicate;
                 }
 
                 var newGroup = new ProjectGroupTable
@@ -198,7 +196,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 return Ok(new
                 {
                     NewGroupId = newGroup.Id.ToString(),
-                    Message = "Project Group added successfully",
+                    Message = $"Project Group '{newGroup.Name}' added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -688,13 +686,10 @@ namespace WebAPI.Controllers.ProjectGroup
 
                 if (groupDetail.Name != newName)
                 {
-                    var duplicateName = await _db.tProjectGroups
-                        .AsNoTracking()
-                        .AnyAsync(x => x.Id != groupDetail.Id && x.Name == newName, cancellationToken);
-
-                    if (duplicateName)
+                    var duplicate = await DuplicateNameRefusalAsync(newName, groupDetail.Id, cancellationToken);
+                    if (duplicate != null)
                     {
-                        return new BadRequestObjectResult(new { Message = "Project Group Name already exists.", Title = "Duplicate Name" });
+                        return duplicate;
                     }
 
                     transactionLogs.Add(new TransactionLog
@@ -748,7 +743,7 @@ namespace WebAPI.Controllers.ProjectGroup
 
                 return Ok(new
                 {
-                    Message = $"Project Group {groupDetail.Id} updated successfully.",
+                    Message = $"Project Group '{groupDetail.Name}' updated successfully.",
                     Title = "Update Complete"
                 });
             }
@@ -757,6 +752,32 @@ namespace WebAPI.Controllers.ProjectGroup
                 await transaction.RollbackAsync(cancellationToken);
                 return _exceptionHandler.Handle(ex, dto, _Session.UserId?.ToString() ?? string.Empty);
             }
+        }
+
+        /// <summary>
+        /// The 400 for a name another group already holds, or null when the name is free. UQ_tProjectGroups_Name
+        /// covers deleted groups too, so a deleted group's name cannot be reused; say so, since that group is not
+        /// in the list and "already exists" sent users looking for it.
+        /// </summary>
+        private async Task<IActionResult?> DuplicateNameRefusalAsync(string name, int? exceptGroupId, CancellationToken cancellationToken)
+        {
+            var holder = await _db.tProjectGroups
+                .AsNoTracking()
+                .Where(x => x.Name == name && (exceptGroupId == null || x.Id != exceptGroupId))
+                .Select(x => new { x.IsDeleted })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (holder == null)
+            {
+                return null;
+            }
+
+            return new BadRequestObjectResult(new
+            {
+                Message = holder.IsDeleted
+                    ? "A deleted Project Group already used this name. Please enter a different name."
+                    : "Project Group Name already exists.",
+                Title = "Duplicate Name"
+            });
         }
 
         private static bool TryParseGroupId(string? value, out int groupId)
