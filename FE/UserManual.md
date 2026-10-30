@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.26
+**Version:** 3.27
 **Date:** October 31, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -50,6 +50,7 @@
 | 3.24 | October 30, 2026 | RP | RP | Section 5.5 Project Groups (S05): **Add Project Group** now confirms "Project Group '<name>' added successfully." and opens the new group's details page (the manual said it only appeared in the list); **Update** on Project Group Details confirms "Project Group '<name>' updated successfully." (before, nothing was shown) and saves the Name and Description without surrounding spaces; a name a deleted group had is refused with "A deleted Project Group already used this name. Please enter a different name."; validation messages added for Section 5.5.2 |
 | 3.25 | October 30, 2026 | RP | RP | Section 5.9 Infra Management (S06): generated Road, Section Road and Bridge IDs take the **lowest** free 5-digit number, so the numbers left unused by the IDs migrated from RBIA are filled and the number of a deleted road, section or bridge is used again (a number a project refers to is never reused); a bridge's **From Chainage** is in meters and must lie within its road section (0 up to the section's Length), and a section's Length cannot be shortened below its bridges' From Chainage; the bridge dialog's From Chainage was labelled in kilometres although it is meters |
 | 3.26 | October 31, 2026 | RP | RP | Section 5.10 Lump Sum Projects (S07): **Sub-Category** on Add Lump Sum Project stays locked, showing *Select a Category first*, until a Category is chosen, and then lists only the Sub-Categories that Category permits for the program's year (an empty box used to show "PROGRAM OF WORKS/BUDGET COST" as if it were chosen); two Sub-Categories that share a description show their Infrastructure Type after it, e.g. *… Coastal Communities (Roads)* / *(Bridges)*, on the Lump Sum, Project and Modification forms; pointing at a dropdown shows a long name in full; the Lump Sum list gained the **Category** filter row and the **Clear** button in Section 5.10.1, and a search that matches nothing says *No Lump Sum Projects match your filters.* with **Clear filters**; Section 5.10.4: an import into a program whose projects have moved past BP no longer fails with *"Project ID generation failed: still colliding after 3 attempts"*, because a new Project ID skips every number a project carries as BP, P or MY |
+| 3.27 | October 31, 2026 | RP | RP | Section 5.6 Reports (S08): **RBP Summary Report** and **RBP Summary Report with Tier** now cover the program ticked in the Programs panel at the stage chosen, as the RBP report does, so a program at BP (or one that skipped RBP) no longer gives an empty summary, and the three reports tally; the AIP reports (Official, Executive, Official without LD) show a Major Item that has no work location with its Type of Work and Target Unit and a Physical Target of 0 (before, all three were blank); Regional Office corrected to **required** for the PDF reports (optional only for the Excel extracts, with Category, District Engineering Office and Implementing Office); a failed report now shows the reason alone, not the raw response; new Common Outcomes rows for the empty summary and the "Report-level parameter(s) not supplied" message |
 
 ### Consultant
 
@@ -2294,14 +2295,14 @@ A project can belong to only one project group at a time.
 | RPT-F01 | Report Type | Type of report to generate and its output format | Dropdown; required. Defaults to "Select a report type" — must be chosen before a report can be generated. Options are loaded dynamically from the server |
 | RPT-F02 | Year | Budget year covered by the report | Dropdown; optional. Defaults to All years |
 | RPT-F03 | Program Stage | Budget stage of the programs to include (see Section 5.2.4) | Dropdown; optional. Defaults to All stages |
-| RPT-F04 | Regional Office | Regional office scope of the report | Dropdown; optional. Defaults to All regions |
+| RPT-F04 | Regional Office | Regional office scope of the report | Dropdown. **Required** for the PDF reports (RBP, RBP Summary, AIP); optional for the Excel extracts, which then cover every region. Category, District Engineering Office and Implementing Office (Excel extracts only) are optional too |
 | RPT-F05 | Planning Engineer | Name of the Planning Engineer generating the report | Text input; optional |
 | RPT-F06 | Approved By | Name of the person approving the report | Text input; optional |
 | RPT-F07 | Reviewed By | Name of the person reviewing the report | Text input; optional |
 | RPT-F08 | Programs | Panel listing the programs available for selection (see Section 5.6.2) | Populated only once a specific Year and Program Stage are chosen |
 | RPT-A01 | Generate Report | Generate and download the report using the selected filters | Button |
 
-> Report Type is the only required field. The Year and Program Stage selections drive the Programs panel — while either is left at its All default the panel stays empty, and changing either value reloads the program list and clears the current selection.
+> Report Type is required, and so is Regional Office for a PDF report. The RBP Summary reports need exactly one ticked program. The Year and Program Stage selections drive the Programs panel — while either is left at its All default the panel stays empty, and changing either value reloads the program list and clears the current selection.
 
 **Step-by-Step:**
 
@@ -2309,8 +2310,8 @@ A project can belong to only one project group at a time.
 2. Select the **Report Type** — this field is required.
 3. Select the **Year** covered by the report, or leave All years.
 4. Select the **Program Stage** of the programs to include, or leave All stages.
-5. Select the **Regional Office**, or leave All regions to include every region the user is permitted to view.
-6. Optionally enter **Planning Engineer**, **Reviewed By**, and **Approved By** — these print on the signature block of the generated report.
+5. Select the **Regional Office**. It is required for the PDF reports; for an Excel extract it may be left empty to include every region the user is permitted to view.
+6. Optionally enter **Planning Engineer**, **Reviewed By**, and **Approved By** (RBP and RBP Summary reports) — these print on the signature block of the generated report. Left empty, the signature block prints only the role titles.
 7. Select the programs to include in the **Programs** panel (see Section 5.6.2).
 8. Click **Generate Report**.
 
@@ -2327,6 +2328,9 @@ A project can belong to only one project group at a time.
 | Programs panel shows "None selected" and "Selected: 0 items" | No program has been ticked, so the report has no data scope. | Expand the Programs panel and select at least one program, or click Select All. |
 | "(Field Name) is required." | A required filter was left blank. | Complete Report Type and any other required filter before clicking Generate Report. |
 | No file appears after clicking Generate Report | The generated PDF was blocked or saved silently by the browser. | Check the browser download bar and download folder; confirm a PDF viewer is installed (see Section 2). |
+| The RBP Summary Report is empty while the RBP report for the same program has projects (before 31 October 2026) | The summary only read programs that had an RBP stage, so a program at BP, or one that went from BP straight to NEP, gave an empty summary. | Nothing; fixed. Both summaries now cover the ticked program at the chosen stage, and their totals per category match the RBP report. |
+| An AIP report shows a component's cost but no Type of Work, Target Unit or Physical Target (before 31 October 2026) | The component's Major Item of Work has no work location. | Fixed: such a Major Item now prints its Type of Work and Target Unit with a Physical Target of 0. Add its work locations (Section 5.3.5) to report the real target. A Major Item whose Year of Work differs from the component's cost year is still not printed under that year. |
+| "Report-level parameter(s) not supplied: @PlanningEngineer, …" when the signatory names are left empty | The report service on the server is older than the 23 October 2026 change that made these names optional. | Ask the administrator to deploy the current report service. Until then, enter the three names. |
 
 ---
 

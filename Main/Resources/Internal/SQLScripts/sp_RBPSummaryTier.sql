@@ -31,7 +31,10 @@ CREATE OR ALTER PROCEDURE [dbo].[sp_RBPSummaryTier]
 AS
 BEGIN
     SET NOCOUNT ON;
-    -- Shared base -- avoids repeating the same 7-table join 4 times
+    -- Shared base -- avoids repeating the same join 4 times
+    -- 2026-10-31: DEO / Legislative District / RO are never NULL here (''), because the final
+    -- SELECT joins the category CTEs back on them with '=': a NULL group printed 0 projects
+    -- and 0 amount while the RBP report listed its projects.
     -- 2026-10-24 fix: DISTINCT drops duplicate tProjectComponentCost rows (same project, component
     -- and cost -- present in migrated data, e.g. myps_db_dev "RBP FY 2024 NCR"), matching sp_RBP's
     -- own component-level DISTINCT so RBP and RBP Summary with Tier totals tally. Without it every
@@ -41,9 +44,9 @@ BEGIN
             pr.ProgramId                                      AS ProgramId,
             pr.ProjectId                                       AS Project_Id,
             cc.ComponentId                                     AS Activity_Component_Id,
-            ISNULL(deo.Name,  pr.DEO)                          AS DEO,
-            ISNULL(ld.Name,   pr.LegislativeDistrict)          AS Legislative_District,
-            ISNULL(ar.Name,   pr.Region)                       AS RO,
+            ISNULL(ISNULL(deo.Name, pr.DEO), '')             AS DEO,
+            ISNULL(ISNULL(ld.Name, pr.LegislativeDistrict), '') AS Legislative_District,
+            ISNULL(ISNULL(ar.Name, pr.Region), '')           AS RO,
             cc.Total                                           AS Component_Cost,
             pr.Category                                        AS CategoryId,
             ISNULL(tier.Name, CAST(pr.Tier AS NVARCHAR(50)))   AS tier
@@ -51,11 +54,13 @@ BEGIN
         INNER JOIN dbo.tProjectComponentCost cc
             ON  cc.ProjectRevisionFK = pr.Id
             AND cc.IsDeleted         = 0
-        INNER JOIN dbo.tProgramStages ps
-            ON  ps.ProgramFK  = pr.ProgramFK
-            AND ps.StageName  = 'RBP'
-            AND (@programid IS NULL OR ps.ProgramId IN (SELECT TRIM(value)
-                                                          FROM STRING_SPLIT(@programid, ',')))
+        -- 2026-10-31 fix (S08-TC002-P002/P003): revisions are chosen by the stage ProgramId the
+        -- Reports page sends -- the same rule sp_RBP uses -- not through an 'RBP' tProgramStages
+        -- row. The Programs panel lists each program at its LATEST stage (vProgramLatest), so a
+        -- program at BP (or one that skipped RBP, BP -> NEP) sent a BP stage ProgramId, matched no
+        -- RBP row, and the summary came back empty while the RBP report had rows. The old join
+        -- also took the revisions of EVERY stage of a matched program, counting a project once per
+        -- stage. With no @programid, the program's RBP stage revisions are taken, as before.
         INNER JOIN dbo.tPrograms prog
             ON  prog.ProgramPK  = pr.ProgramFK
             AND prog.StartYear  = @yearstart
@@ -68,7 +73,15 @@ BEGIN
         LEFT JOIN dbo.tOptionProjectTier tier
             ON  tier.NameId = pr.Tier
         WHERE pr.IsDeleted = 0
+            AND RIGHT(pr.ProjectId, 2) <> 'NP'   -- Non-Project entries, excluded by sp_RBP too
             AND (@region IS NULL OR pr.Region = @region)
+            AND (
+                    (@programid IS NOT NULL
+                     AND pr.ProgramId IN (SELECT TRIM(value) FROM STRING_SPLIT(@programid, ',')))
+                 OR (@programid IS NULL
+                     AND EXISTS (SELECT 1 FROM dbo.tProgramStages ps
+                                 WHERE ps.ProgramId = pr.ProgramId AND ps.StageName = 'RBP'))
+                )
     ),
 
     -- Per-project cost per category+tier (de-duplicate components)

@@ -97,7 +97,7 @@ namespace Hangfire.Services
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        var errorDetail = await response.Content.ReadAsStringAsync();
+                        var errorDetail = ReportServiceErrorText(await response.Content.ReadAsStringAsync());
                         response.Dispose();
 
                         await TrySaveTerminalStatusAsync(jobRecord, "Failed", errorDetail);
@@ -176,6 +176,35 @@ namespace Hangfire.Services
                 : string.Empty;
 
             return $"{safeReportName}{yearSegment}_{ImportFileNaming.BuildFileSuffix(payload.JobId, completedAt)}.{fileExtension}";
+        }
+
+        // CrystalReportService answers an error as Web API's {"Message": "..."} body. That JSON used
+        // to reach the user verbatim, braces and all, in the toast and the Failed panel (seen on UAT,
+        // S08-TC002-P001). The Message alone is what to show; any other body is shown as it came.
+        public static string ReportServiceErrorText(string? body)
+        {
+            if (string.IsNullOrWhiteSpace(body)) return string.Empty;
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(body);
+                if (document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    foreach (var property in document.RootElement.EnumerateObject())
+                    {
+                        if (string.Equals(property.Name, "Message", StringComparison.OrdinalIgnoreCase)
+                            && property.Value.ValueKind == System.Text.Json.JsonValueKind.String
+                            && !string.IsNullOrWhiteSpace(property.Value.GetString()))
+                        {
+                            return property.Value.GetString()!;
+                        }
+                    }
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // Not JSON (an IIS error page, plain text): shown as it came.
+            }
+            return body;
         }
 
         private static string TruncateMessage(string message)

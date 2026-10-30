@@ -283,15 +283,33 @@ never silently cut.
 
 | Object | Type | Purpose | Notes |
 |--------|------|---------|-------|
-| `sp_RBP` | Proc | Detail-level rows backing the `rbp` report | `[myps_db]` bug fixed 2026-09-05 |
-| `sp_RBPSummary` | Proc | Backs `rbp-summary-report` (OO1/OO2/CSSP/LP rollup by DEO/Legislative District/RO) | Confirmed live/filtering correctly on `myps_db_dev3` 2026-10-23; current script `Main/Resources/Internal/SQLScripts/sp_RBPSummary.sql` |
-| `sp_RBPSummaryTier` | Proc | Backs `rbp-summary-report-with-tier` (same rollup, split by Tier) | Confirmed live/filtering correctly on `myps_db_dev3` 2026-10-23; current script `Main/Resources/Internal/SQLScripts/sp_RBPSummaryTier.sql` |
-| `a1_usp_AIP2` | Proc | Backs all 4 AIP report variants | `[myps_db]` bug fixed 2026-09-05 |
+| `sp_RBP` | Proc | Detail-level rows backing the `rbp` report | `[myps_db]` bug fixed 2026-09-05; current script `Main/Resources/Internal/SQLScripts/sp_RBP.sql` (2026-10-24 LEFT JOIN / Target_Amount fix) |
+| `sp_RBPSummary` | Proc | Backs `rbp-summary-report` (OO1/OO2/CSSP/LP rollup by DEO/Legislative District/RO) | Current script `Main/Resources/Internal/SQLScripts/sp_RBPSummary.sql`. **2026-10-31 (S08-TC002-P002):** selects revisions by the stage ProgramId the Reports page sends, exactly as `sp_RBP` does, and excludes `NP` projects. It used to require an `RBP` `tProgramStages` row, so a program at BP (or one that went BP → NEP) gave an empty summary, and a matched program's revisions at every stage were counted. DEO/LD/RO are `''` instead of NULL so the final joins keep those rows. Verified to tally with `sp_RBP` per category on `RBP FY 2026 Region III` (1,965 projects) and on a BP 2027 program |
+| `sp_RBPSummaryTier` | Proc | Backs `rbp-summary-report-with-tier` (same rollup, split by Tier) | Current script `Main/Resources/Internal/SQLScripts/sp_RBPSummaryTier.sql`; the same 2026-10-31 selection fix as `sp_RBPSummary` |
+| `a1_usp_AIP2` | Proc | Backs all 4 AIP report variants | `[myps_db]` bug fixed 2026-09-05; current script `Main/Resources/Internal/SQLScripts/a1_usp_AIP2.sql`. **2026-10-31 (S08-TC003, #424):** a Major Item with no work location prints Type of Work / Target Unit and a Physical Target of 0 (the x CTE used an inner join to the locations, so all three were blank) |
 | `usp_extract_PC_MIOW_list` | Proc | Extract PCMIOW raw data export | `[myps_db]` bug fixed 2026-09-05; renders via Excel, not Crystal |
 | `MYPS_vw_rptRBPSummary` | View | Rollup equivalent to `sp_RBPSummary` | No longer used by any Crystal report as of 2026-10-23 (`rbp-summary-report` is proc-backed) — left in place, not dropped |
 | `MYPS_vw_rptRBPSummaryTier` | View | Rollup equivalent to `sp_RBPSummaryTier`, split by Tier | No longer used by any Crystal report as of 2026-10-23 (`rbp-summary-report-with-tier` switched to the proc) — left in place, not dropped |
 
-Full fix history and rationale: `Main/Resources/Internal/SQLScripts/Reports.CrystalReportSQLFixes.sql`.
+Full fix history and rationale: `Main/Resources/Internal/SQLScripts/Reports.CrystalReportSQLFixes.sql`. Its
+`sp_RBP` and `a1_usp_AIP2` blocks were removed on 2026-10-31: they predated the current scripts, so
+re-running the file rolled both reports back.
+
+### Deploying report fixes to a server (UAT, DPD)
+
+A push to `main` deploys **neither** of these. Both are by hand, on each server:
+
+1. **The procedures.** Run, with `sqlcmd -I -i <file>` against that server's MYPS database:
+   `sp_RBP.sql`, `sp_RBPSummary.sql`, `sp_RBPSummaryTier.sql` and `a1_usp_AIP2.sql` from
+   `Main/Resources/Internal/SQLScripts`. Each is a single `CREATE OR ALTER PROCEDURE`, safe to re-run.
+   Check with `SELECT name, modify_date FROM sys.procedures WHERE name IN (...)`.
+2. **The report service.** Build `CrystalReportService` from `main` and publish it to that server's
+   IIS site (`connectionStrings.config` stays the server's own). A service older than 2026-10-23
+   refuses an RBP report whose signatory names are empty with "Report-level parameter(s) not
+   supplied: @PlanningEngineer, @ReviewdBy, @ApprovedBy, @ReviewedBy" -- what UAT answered on
+   2026-10-30 although the page already showed the fields as optional.
+
+Until both are done, ATA's re-test of S08 on that server repeats the old results.
 
 ---
 
