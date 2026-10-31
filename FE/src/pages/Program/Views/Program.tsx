@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchProgramList, fetchProgramEnums, fetchStagesByProgramId } from '../Service';
 import type { ProgramEnums, ProgramLatest, ProgramFilter, StageList } from '../Model.d';
 import { usePagination } from '../../../hooks/usePagination';
+import { useAuth } from '../../../contexts/AuthContext';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
@@ -25,6 +26,7 @@ import type { TableEnum } from '../../Project/Model';
 
 const Program: React.FC = () => {
     const navigate = useNavigate();
+    const { can } = useAuth();
 
     // isEnumsLoading is separate from pagination.isLoading — it covers the enum-fetch
     // that happens when the user opens the Add Program dialog or Filter dialog for the first time.
@@ -218,10 +220,12 @@ const Program: React.FC = () => {
                                         </span>
                                     )}
                                 </Button>
+                                {can('Program', 'AddProgram') && (
                                 <Button color="blue" onClick={handleOpenDialog} disabled={isEnumsLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
                                     {isEnumsLoading ? 'Loading...' : 'Add Program'}
                                 </Button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -257,6 +261,7 @@ const Program: React.FC = () => {
                                     {/* The server says whether this program can be deleted and why not (Approved,
                                         progressed, or it still has projects to delete first); say so here rather
                                         than let the user type DELETE into a refusal. DeleteProgram still decides. */}
+                                    {can('Program', 'DeleteProgram') && (
                                     <Button
                                         color="red"
                                         disabled={program.CanDelete === false || (program.CanDelete == null && program.Status === 'Approved')}
@@ -267,6 +272,7 @@ const Program: React.FC = () => {
                                     >
                                         <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
                                     </Button>
+                                    )}
                                 </div>
                             )
                         }

@@ -56,7 +56,7 @@ interface ProjectFormProps {
 const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramPK, initialStageName, onRefresh }) => {
 
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, can } = useAuth();
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
@@ -84,7 +84,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       'LS' here. Children are ordinary projects and stay editable. */
   const isLumpSumProject = initialData?.ProjectDetails?.IslandCode === 'LS';
 
+  // 2026-10-31: a group without Edit Project (access matrix) sees the project read-only.
+  const canEditProject = can('Project', 'UpdateProjectDetails');
   const isDisabled = Boolean(
+    (mode === 'edit' && !canEditProject) ||
     (initialData?.IsActive === false) ||
     isLumpSumProject ||
     (initialData?.ProgramDetails?.StageName === 'GAA-R' && Number(initialData?.ProgramDetails?.Status) === 1)
@@ -1015,7 +1018,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   mutually exclusive with CanRevise below by construction — see ProjectController.cs
                   ShowProjectDetails. Number(...) !== 1 is the pre-existing, separate stage-lock
                   condition, unchanged. */}
-              {mode === 'edit' && !isLumpSumProject && initialData?.CanUpdate === true && Number(initialData?.ProgramDetails?.Status) !== 1 && (
+              {mode === 'edit' && !isLumpSumProject && canEditProject && initialData?.CanUpdate === true && Number(initialData?.ProgramDetails?.Status) !== 1 && (
                 <>
                   <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
                     {updateAllProject ? 'Updating...' : 'Update Project'}
@@ -1024,7 +1027,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               )}
               {/* A Lump Sum Project is not revisable — RevisionController refuses it.
                   CanRevise already encodes IsPublished + no-open-revision server-side. */}
-              {mode === 'edit' && !isLumpSumProject && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.CanRevise && (
+              {mode === 'edit' && !isLumpSumProject && initialData?.ProgramDetails?.StageName === 'GAA-R' && initialData?.CanRevise && can('Revision', 'ReviseProject') && (
                 <Menu as="div" className="relative inline-block text-left">
                   <MenuButton
                     as={Button}
@@ -1283,7 +1286,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               onDelete={handleDeleteDoc}
               initialData={initialData}
               dropDownOptions={componentDropdowns?.SupportingDocs}
-              disabled={isDisabled}
+              disabled={isDisabled || !can('Project', 'UploadSupportingDocs')}
             />
           </div>
         </div>

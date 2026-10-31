@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import type { ProjectLists, ProjectFilter, ProjectRevisionList } from '../Model.d'; // Adjust the import path as necessary
 import { fetchProject, fetchProjectStagesByProjectId } from '../Service'; // Adjust the import path as necessary
 import { usePagination } from '../../../hooks/usePagination';
+import { useAuth } from '../../../contexts/AuthContext';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
 import { CollapsibleTable, ExpandToggleButton, ExpandedPanel } from '../../../components/tailwindui/collapsible-table'; // Adjust the import path as necessary
@@ -18,6 +19,7 @@ import {
 
 const Project: React.FC = () => {
     const navigate = useNavigate();
+    const { can } = useAuth();
     const [searchInput, setSearchInput] = useState<string>(''); // Separate state for search input
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
     const [revisionLists, setRevisionLists] = useState<Record<string, ProjectRevisionList>>({}); // Store revisions per project ID
@@ -168,10 +170,12 @@ const Project: React.FC = () => {
                                         </Button>
                                     )}
                                 </div>
+                                {can('Project', 'AddProject') && (
                                 <Button color="blue" onClick={handleAddProject} disabled={pagination.isLoading}>
                                     <PlusIcon className="w-4 h-4 mr-1" />
                                     {pagination.isLoading ? 'Loading...' : 'Add Project'}
                                 </Button>
+                                )}
                             </div>
                         </div>
                     </div>

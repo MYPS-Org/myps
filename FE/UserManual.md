@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.29
+**Version:** 3.30
 **Date:** October 31, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -53,6 +53,7 @@
 | 3.27 | October 31, 2026 | RP | RP | Section 5.6 Reports (S08): **RBP Summary Report** and **RBP Summary Report with Tier** now cover the program ticked in the Programs panel at the stage chosen, as the RBP report does, so a program at BP (or one that skipped RBP) no longer gives an empty summary, and the three reports tally; the AIP reports (Official, Executive, Official without LD) show a Major Item that has no work location with its Type of Work and Target Unit and a Physical Target of 0 (before, all three were blank); Regional Office corrected to **required** for the PDF reports (optional only for the Excel extracts, with Category, District Engineering Office and Implementing Office); a failed report now shows the reason alone, not the raw response; new Common Outcomes rows for the empty summary and the "Report-level parameter(s) not supplied" message |
 | 3.28 | October 31, 2026 | RP | RP | Section 5.4 Revisions (S03, ATA remark of 30 October 2026): new **PCMA status rules** in Section 5.4.4: a **Modification** is not allowed when the project's components are Completed or Terminated ("Modification is not allowed because the Project Component has been Completed/Terminated."), and **Change in Authority to Implement** only while they are Not Yet Started and Not Packaged; the revision page then shows a **Revision Not Allowed** notice with **Back to Project Details**; a reason with no Revision Field Permission for the project's status is refused in plain words; Section 5.4.3 notes that the fields are edited on the revision page reached through **Revise Project**, not on Project Details, which stays read-only at GAA-R; new Common Outcomes rows |
 | 3.29 | October 31, 2026 | RP | RP | Section 5.8 User Management (audit of 31 October 2026): **Sync Routes** and **Sync API** ask for confirmation and say what they remove; Sync Routes never removes a route a user group still has (it names it instead) and refuses an empty list; a module's name cannot be changed; **Add User** needs at least one user group; **Edit User** corrected: only the Employee ID (looked up in PIS with the search button), the user groups and the status can be changed, and the login, name, email, region and office are kept; your own account's Employee ID, groups and status, and its Delete, are locked; the DPC, RPC, AUC and DPD Admin group names are locked; a group with members cannot be deleted; a group name cannot contain double quotes or backslashes; saving a group keeps the permissions the dialog does not list; a group you belong to cannot lose the User Management page or session validation |
+| 3.30 | October 31, 2026 | RP | RP | New Section 5.8.4 What Each User Group Can Do: the user groups' permissions follow the client's access matrix (AUC, DPD Admin, DPDC/PDC, PDC, PDA, PPC, RPO, RPC, DPC, UPC and the new VIEW group), and buttons a group may not use are hidden. Section 5.6 Reports: every user group can open Reports; the AIP reports are for AUC, DPD Admin and PDA only. |
 
 ### Consultant
 
@@ -2282,7 +2283,7 @@ A project can belong to only one project group at a time.
 
 **Purpose:** Generate official budget and planning documents from program data already encoded in MYPS. The user selects a report type, the budget year and program stage to be covered, the nationwide or regional scope, and the specific programs to include; the system compiles the matching records and downloads the result as a PDF. Reports are read-only outputs — generating a report does not alter any program or project record.
 
-**Who uses this:** RPC, PS Admin
+**Who uses this:** every user group (see Section 5.8.4)
 
 **Prerequisites:** Successful login (see Section 3.1); at least one program encoded at the selected Program Stage for the selected Year (see Sections 5.2.1 and 5.2.4); a PDF viewer installed on the workstation (see Section 2).
 
@@ -2292,8 +2293,10 @@ A project can belong to only one project group at a time.
 
 | Role | Access | Typical Use |
 |------|--------|-------------|
-| RPC | Generate reports for programs within the assigned regional office | Produce the Regional Budget Proposal for review and signature |
-| PS Admin | Generate reports across all regions (All regions option) | Consolidate and validate regional submissions at central office level |
+| Every user group | RBP, RBP Summary Report, RBP Summary Report with Tier, Extract PCMIOW and Extract PC | Produce the Regional Budget Proposal and the extracts for review |
+| AUC, DPD Admin, PDA | The above, and the AIP reports: AIP Official, AIP Executive, AIP Official without LD, AIP Executive 2 | Produce the Annual Infrastructure Program |
+
+> The AIP reports are not listed under **Report Type** for the other user groups, and are refused if requested.
 
 ---
 
@@ -3099,6 +3102,32 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 | "Failed to delete group." | A server-side error prevented deletion | Retry or contact the administrator |
 
 > Deletion is permanent and cannot be undone. If the group should be retained but emptied, remove all users from the group using the Update User dialog for each affected user, rather than deleting the group.
+
+---
+
+#### 5.8.4 What Each User Group Can Do
+
+The user groups' permissions follow the client's access matrix. Every group can **view** programs, projects, project groups, revisions, future infrastructure and reports. The table lists what each group can **do**. A button for something your group cannot do is not shown, and the server refuses the action as well.
+
+| Action | AUC | DPD Admin | PDA | DPDC/PDC, PDC | PPC | RPO | RPC | DPC | UPC | VIEW |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Add Program, edit a program (**Update**), delete a program, **Proceed to** the next stage, **Publish Program** | Yes | Yes | Yes | — | — | — | — | — | — | — |
+| **Export Projects** | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | — |
+| Add, edit and delete projects; **Import / Update Projects**; **Batch Delete**, **Batch Restore** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — |
+| **Revise Project** | Yes | Yes | Yes | Yes | — | — | Yes | Yes | Yes | — |
+| **Allow Publishing** | Yes | Yes | Yes | Yes | — | — | — | — | — | — |
+| **Restrict Publishing** (Do Not Publish) | Yes | Yes | Yes | — | — | — | — | — | — | — |
+| Add and delete Supporting Documents | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | — |
+| Add, edit and delete project groups, and add or remove their projects | Yes | Yes | Yes | — | — | — | — | — | — | — |
+| AIP reports | Yes | Yes | Yes | — | — | — | — | — | — | — |
+| Other reports (RBP, RBP Summary, Extracts) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| User Management | Yes | — | — | — | — | — | — | — | — | — |
+| Add, edit and delete future roads, road sections and bridges; Infra Management **Import** | Yes | Yes | — | — | — | — | — | — | — | — |
+| Code Tables | Yes | Yes | Yes | — | — | — | — | — | — | — |
+
+> These are the groups' starting permissions. An administrator can still change a group's permissions in **Edit Group** (Section 5.8.3). The **Admin** and **SD** groups are not part of the matrix and keep their own permissions. Lump Sum and the approval of revisions (RPC and AUC) are unchanged.
+>
+> Not in MYPS yet, so not in the table: Submit Annual Proposal, Submit / Unlock / Manage NEP and HGAB Revisions, Synchronize PIP, Calculate EAO, Archive / Restore Program, Change Project Status, Conduct MCA, Project Profile, Republish Project Group, Manage MCA Groups and Manage Report Groups.
 
 ---
 

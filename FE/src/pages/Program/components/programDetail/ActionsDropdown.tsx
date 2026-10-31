@@ -29,7 +29,7 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
 }) => {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const { ViewAccess } = useAuth();
+  const { ViewAccess, can } = useAuth();
   const setPendingJobs = useSetAtom(pendingImportJobsAtom);
   const [isOpen, setIsOpen] = useState(false);
   const [importDialogMode, setImportDialogMode] = useState<'import' | 'update' | null>(null);
@@ -99,12 +99,20 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
   // page's own report types and signatories), so this opens it for this program's year, stage and
   // program instead of the old in-page AIP/RBP/RDIP dialog. Hidden from anyone who cannot open Reports.
   const canOpenReports = ViewAccess.includes('Reports');
+  // 2026-10-31: each entry only for the groups the API lets do it (access matrix: Import and Export).
+  const canDownloadTemplate = can('Importing', 'DownloadTemplate');
+  const canImport = can('Importing', 'ImportProject');
+  const canUpdate = can('Importing', 'UpdateProject');
+  const canExport = can('Importing', 'ExportProjects');
+  const hasAnyAction = canDownloadTemplate || canImport || canUpdate || canExport || canOpenReports;
 
   const handleGenerateReports = () => {
     setIsOpen(false);
     const query = new URLSearchParams({ year: String(startYear), stage: stageName, program: reportProgramId });
     navigate(`/reports?${query}`);
   };
+
+  if (!hasAnyAction) return null;
 
   return (
     <>
@@ -127,6 +135,7 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
             {/* Import/Export Menu */}
             <div className="absolute right-0 top-full z-20 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
               <div className="py-1">
+                {canDownloadTemplate && (
                 <button
                   onClick={handleDownloadTemplate}
                   className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
@@ -136,6 +145,8 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
                   </svg>
                   Download Template
                 </button>
+                )}
+                {canImport && (
                 <button
                   onClick={handleImportProjects}
                   className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
@@ -145,6 +156,8 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
                   </svg>
                   Import Projects
                 </button>
+                )}
+                {canUpdate && (
                 <button
                   onClick={handleUpdateProjects}
                   className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
@@ -152,6 +165,8 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
                   <ArrowPathIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" aria-hidden="true" />
                   Update Projects
                 </button>
+                )}
+                {canExport && (
                 <button
                   onClick={handleExportProjects}
                   className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
@@ -161,6 +176,7 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
                   </svg>
                   Export Projects
                 </button>
+                )}
                 {canOpenReports && (
                 <button
                   onClick={handleGenerateReports}

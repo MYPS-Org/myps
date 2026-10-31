@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowPathIcon, ChevronDownIcon, TagIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 import { batchAllowPublishing, batchDeleteProjects, batchRestrictPublishing } from '../../Service';
 import BatchTagDialog from '../../dialogs/BatchTagDialog';
 
@@ -28,6 +29,7 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
   onBatchRestore,
 }) => {
   const { showToast } = useToast();
+  const { can } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [batchAction, setBatchAction] = useState<'tag' | 'delete' | 'unpublish' | 'publish'>('tag');
@@ -88,6 +90,13 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
   };
 
   const showPublishActions = isActive && isTerminalStage && defaultStatus === 1;
+  // 2026-10-31: each action only for the groups the API lets do it (access matrix). Batch Restore puts
+  // projects back through BatchAddExistingProject ("Copy a Project to a Program").
+  const canDelete = can('Program', 'BatchDelete') && can('Program', 'PreviewBatchDelete');
+  const canRestore = can('Program', 'BatchAddExistingProject');
+  const canRestrict = showPublishActions && can('Program', 'BatchRestrictPublish');
+  const canAllow = showPublishActions && can('Program', 'BatchAllowPublish');
+  if (!canDelete && !canRestore && !canRestrict && !canAllow) return null;
 
   return (
     <>
@@ -110,6 +119,7 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
             {/* Batch Actions Menu */}
             <div className="absolute left-0 top-full z-20 mt-2 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
               <div className="py-1">
+                {canDelete && (
                 <button
                   onClick={() => handleBatchTagging('delete')}
                   className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-red-500 hover:text-white"
@@ -119,8 +129,10 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
                   </svg>
                   Batch Delete
                 </button>
+                )}
                 {/* Undoes Batch Delete. Its only entry point used to be the "Add Existing Project"
                     button, commented out in de295446, which left restore unreachable (S01-TC008-P001). */}
+                {canRestore && (
                 <button
                   onClick={() => {
                     setIsOpen(false);
@@ -131,8 +143,8 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
                   <ArrowPathIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" aria-hidden="true" />
                   Batch Restore
                 </button>
-                {showPublishActions && (
-                  <>
+                )}
+                {canRestrict && (
                     <button
                       onClick={() => handleBatchTagging('unpublish')}
                       className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-orange-500 hover:text-white"
@@ -142,6 +154,8 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
                       </svg>
                       Restrict Publishing
                     </button>
+                )}
+                {canAllow && (
                     <button
                       onClick={() => handleBatchTagging('publish')}
                       className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-500 hover:text-white"
@@ -151,7 +165,6 @@ const BatchActionsDropdown: React.FC<BatchActionsDropdownProps> = ({
                       </svg>
                       Allow Publishing
                     </button>
-                  </>
                 )}
               </div>
             </div>

@@ -89,9 +89,12 @@ namespace WebAPI.Controllers.CrystalReport
                 })
                 .ToListAsync(ct);
 
+            bool canRunAip = await CanRunAipAsync(ct);
             return Ok(new ReportOptionsDTO
             {
-                ReportTypes = ReportCatalog.SupportedReports,
+                ReportTypes = canRunAip
+                    ? ReportCatalog.SupportedReports
+                    : ReportCatalog.SupportedReports.Where(r => !ReportCatalog.IsAip(r.Id)).ToList(),
                 ProgramYears = programYears,
                 ProgramStages = programStages,
                 RegionalOffices = regionalOffices
@@ -131,6 +134,15 @@ namespace WebAPI.Controllers.CrystalReport
                 {
                     Title = "Unsupported report",
                     Message = $"'{reportName}' is not a supported report type."
+                });
+            }
+
+            if (ReportCatalog.IsAip(reportName) && !await CanRunAipAsync(ct))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    Title = "Access Denied",
+                    Message = "Your user group cannot generate the AIP reports. Ask your administrator if you need them."
                 });
             }
 
@@ -205,6 +217,17 @@ namespace WebAPI.Controllers.CrystalReport
                 Message = "Report generation queued. You will be notified when ready.",
                 Title = "Report Queued"
             });
+        }
+
+        // The same grant table [PermissionFilter] reads, for the one grant the AIP reports need.
+        private async Task<bool> CanRunAipAsync(CancellationToken ct)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrEmpty(userId) && await _db.vUserActionPermission.AnyAsync(x =>
+                x.UserId == userId &&
+                x.IsActive &&
+                x.PermissionController == ReportCatalog.AipPermissionController &&
+                x.PermissionAction == ReportCatalog.AipPermissionAction, ct);
         }
 
         // ── Poll endpoint: catches jobs whose SignalR broadcast was missed ──

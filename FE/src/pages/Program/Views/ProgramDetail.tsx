@@ -20,6 +20,7 @@ import BatchRestoreDialog from '../dialogs/BatchRestoreDialog';
 import CheckboxList from '../../../components/ui/CheckboxList';
 import { usePagination } from '@/hooks/usePagination';
 import { PaginationBar } from '@/components/tailwindui/PaginationBar';
+import { useAuth } from '@/contexts/AuthContext';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -143,6 +144,9 @@ const ProgramDetail: React.FC = () => {
     }
   });
   const [isLoading, setIsLoading] = useState(true);
+  const { can } = useAuth();
+  // 2026-10-31: a group without Edit Program (access matrix) sees the program read-only.
+  const canEditProgram = can('Program', 'UpdateProgramDetails');
   // const [searchTerm, setSearchTerm] = useState('');
   // const [isDataSecurityExpanded, setIsDataSecurityExpanded] = useState(false);
   const [isNextStageDialogOpen, setIsNextStageDialogOpen] = useState(false);
@@ -262,15 +266,16 @@ const ProgramDetail: React.FC = () => {
   };
 
   const currentProgramId = programEnums?.Details.ProgramId;
+  const canListDeleted = can('Program', 'ShowDeletedProjects');
   const loadDeletedCount = useCallback(async () => {
-    if (!currentProgramId) return;
+    if (!currentProgramId || !canListDeleted) return;
     try {
       const response = await fetchDeletedProjects(currentProgramId, { silent: true });
       setDeletedCount(response.Data.Projects?.length ?? 0);
     } catch {
       setDeletedCount(null);
     }
-  }, [currentProgramId]);
+  }, [currentProgramId, canListDeleted]);
 
   useEffect(() => {
     loadDeletedCount();
@@ -576,8 +581,8 @@ const ProgramDetail: React.FC = () => {
                   <select 
                     value={programEnums?.Details.Status}
                     onChange={(e) => handleChange('Status', Number(e.target.value))}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 ${!programEnums?.IsActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={!programEnums?.IsActive}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 ${!programEnums?.IsActive || !canEditProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!programEnums?.IsActive || !canEditProgram}
                   >
                     {programEnums?.Dropdowns.Statuses.map((status) => (
                       <option key={status.Id} value={status.NameId}>
@@ -607,7 +612,7 @@ const ProgramDetail: React.FC = () => {
               nameKey="name"
               searchPlaceholder="Search user groups..."
               emptyMessage="No user groups available"
-              disabled={!programEnums?.IsActive}
+              disabled={!programEnums?.IsActive || !canEditProgram}
             />
 
             {/* Data Security Multiple Select */}
@@ -634,6 +639,7 @@ const ProgramDetail: React.FC = () => {
               nameKey="name"
               searchPlaceholder="Search organizations..."
               emptyMessage="No data security options available"
+              disabled={!canEditProgram}
             />
 
             <div className="grid grid-cols-2 gap-4">
@@ -660,19 +666,19 @@ const ProgramDetail: React.FC = () => {
             <div className="pt-4 flex justify-end gap-4">
               {programEnums.IsActive &&
                 programEnums.Details &&
-                !isTerminalStage && (
+                !isTerminalStage && can('Program', 'UpdateProgramStage') && (
                   <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(false)}>
                     Proceed to {nextStageName}
                   </Button>
               )}
               {programEnums.IsActive &&
                 programEnums.Details &&
-                (programEnums?.Details?.StageId === 2 || programEnums?.Details?.StageId === 4) && (
+                (programEnums?.Details?.StageId === 2 || programEnums?.Details?.StageId === 4) && can('Program', 'UpdateProgramStage') && (
                   <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(true)}>
                     Proceed to {skipStageName}
                   </Button>
               )}
-              {programEnums.IsActive && (
+              {programEnums.IsActive && canEditProgram && (
                 <Button 
                   color="green" 
                   className="w-24 items-center" 
@@ -710,14 +716,14 @@ const ProgramDetail: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
           <div className="flex items-center gap-4">
-            {programEnums.IsActive && isTerminalStage && defaultProgramEnums.Details.Status === 1 && defaultProgramEnums.CanPublish && (
+            {programEnums.IsActive && isTerminalStage && defaultProgramEnums.Details.Status === 1 && defaultProgramEnums.CanPublish && can('PCMA', 'PublishProgram') && (
               <Button color="yellow" onClick={handlePublishToPCMA}>
                 Publish Program
               </Button>
             )}
             {programEnums.IsActive &&
               defaultProgramEnums.Details.Status === 3 &&
-              (!isTerminalStage || programEnums?.Details?.StageId === RBP_STAGE_ID) && (
+              (!isTerminalStage || programEnums?.Details?.StageId === RBP_STAGE_ID) && can('Project', 'AddProject') && (
               <Button color="blue" onClick={handleAddProject}>
                 Add Project
               </Button>
@@ -839,6 +845,7 @@ const ProgramDetail: React.FC = () => {
                   <TableCell className="px-6 py-4 whitespace-nowrap text-center">
                     {/* No client-side rule for which rows can be deleted: the server preview the
                         button opens says whether this project would be deleted, and why not. */}
+                    {can('Program', 'BatchDelete') && (
                     <DeleteProjectButton
                       programId={programEnums?.Details.ProgramId ?? ''}
                       programName={programEnums?.Details.Name ?? ''}
@@ -851,6 +858,7 @@ const ProgramDetail: React.FC = () => {
                       }}
                       onLoadingChange={setIsLoading}
                     />
+                    )}
                   </TableCell>
                   {/* { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && programEnums?.Details?.IsPublished && (
                   <TableCell className='px-6 py-4 whitespace-nowrap text-sm font-medium text-center'>

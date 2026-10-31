@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { PaginationBar } from "../../../components/tailwindui/PaginationBar";
 import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
 import FilterRoadSectionDialog from "../Dialogs/FilterRoadSectionDialog";
+import { useAuth } from "../../../contexts/AuthContext";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string; title?: string }> = ({
@@ -57,6 +58,11 @@ const Button: React.FC<{
 };
 
 const RoadSectionList: React.FC = () => {
+  // 2026-10-31: Edit, Delete and Add Bridge only for the groups that edit future infrastructure (access matrix).
+  const { can } = useAuth();
+  const canEditSection = can('FutureInfra', 'EditFutureRoadSections');
+  const canDeleteSection = can('FutureInfra', 'DeleteFutureRoadSection');
+  const canAddBridge = can('FutureInfra', 'AddFutureBridge');
   const [, setSelectedItem] = useAtom(selectedItemAtom);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRoadSectionDialogOpen, setIsRoadSectionDialogOpen] = useState(false);
@@ -266,6 +272,7 @@ const RoadSectionList: React.FC = () => {
                       {/* RBIA rows are view-only (S06-TC008): Edit and Delete only for MYPS sections. */}
                       {isCreatedInMyps(section) ? (
                         <>
+                          {canEditSection && (
                           <button
                             onClick={() => handleEdit(section)}
                             title="Edit"
@@ -274,6 +281,8 @@ const RoadSectionList: React.FC = () => {
                           >
                             <PencilIcon className="w-4 h-4" />
                           </button>
+                          )}
+                          {canDeleteSection && (
                           <button
                             onClick={() => handleDelete(section)}
                             title="Delete"
@@ -282,10 +291,12 @@ const RoadSectionList: React.FC = () => {
                           >
                             <TrashIcon className="w-4 h-4" />
                           </button>
+                          )}
                         </>
                       ) : (
                         <Badge color="gray" className="text-xs" title={RBIA_READ_ONLY_TITLE}>RBIA</Badge>
                       )}
+                      {canAddBridge && (
                       <button
                         onClick={() => { handleAddBridge(section) }}
                         className="p-2 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors duration-200"
@@ -293,6 +304,7 @@ const RoadSectionList: React.FC = () => {
                       >
                         <PlusIcon className="w-4 h-4 text-white-500" /> Add Bridge
                       </button>
+                      )}
                     </div>
 
                   </TableCell>

@@ -69,6 +69,16 @@ public static class ReportCatalog
         }
     ];
 
+    /// <summary>
+    /// The grant the AIP reports need (2026-10-31, the access matrix's "Annual Infrastructure Program"
+    /// row: AUC, DPD Admin and PDA). The other reports are open to every signed-in user.
+    /// </summary>
+    public const string AipPermissionController = "ReportingController";
+    public const string AipPermissionAction = "RequestReportAIPOfficial";
+
+    public static bool IsAip(string reportName) =>
+        TryGetFamily(reportName, out var family) && family == ReportFamily.Aip;
+
     public static bool IsSupported(string reportName) =>
         TryGetFamily(reportName, out _);
 

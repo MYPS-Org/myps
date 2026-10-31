@@ -223,7 +223,11 @@ namespace WebAPI.Controllers.Auth
                     return UnauthorizedUser();
                 }
                 var ViewAccess = _db.vUserViewPermission.Where(x => x.UserId == _Session.UserId && x.IsActive == true).Select(x => x.RouteName).ToList();
-                return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = _Session, ViewAccess = ViewAccess } });
+                // 2026-10-31: the granted API actions too ("ProgramController.AddProgram"), so the pages can
+                // hide what the user's groups may not do instead of showing a button that answers 403.
+                var ActionAccess = _db.vUserActionPermission.Where(x => x.UserId == _Session.UserId && x.IsActive == true)
+                    .Select(x => x.PermissionController + "." + x.PermissionAction).Distinct().ToList();
+                return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = _Session, ViewAccess = ViewAccess, ActionAccess = ActionAccess } });
             }
             catch (Exception ex) { 
                 return _exceptionHandler.Handle(ex, null, _Session.UserId.ToString()); 

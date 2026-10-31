@@ -14,6 +14,7 @@ import DeleteBridgeDialog from "../Dialogs/DeleteBridgeDialog";
 import FilterBridgeDialog from "../Dialogs/FilterBridgeDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
 import { PaginationBar } from "../../../components/tailwindui/PaginationBar";
+import { useAuth } from "../../../contexts/AuthContext";
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string; title?: string }> = ({
   children,
@@ -54,6 +55,10 @@ const Button: React.FC<{
 };
 
 const FutureBridgeList: React.FC = () => {
+  // 2026-10-31: Edit and Delete only for the groups that edit future infrastructure (access matrix).
+  const { can } = useAuth();
+  const canEditBridge = can('FutureInfra', 'EditFutureBridge');
+  const canDeleteBridge = can('FutureInfra', 'DeleteFutureBridg');
   const [, setSelectedItem] = useAtom(selectedItemAtom);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -271,6 +276,7 @@ const FutureBridgeList: React.FC = () => {
                       {/* RBIA rows are view-only (S06-TC013): Edit and Delete only for MYPS bridges. */}
                       {isCreatedInMyps(bridge) ? (
                         <>
+                          {canEditBridge && (
                           <button
                             onClick={() => handleEdit(bridge)}
                             title="Edit"
@@ -279,6 +285,8 @@ const FutureBridgeList: React.FC = () => {
                           >
                             <PencilIcon className="w-4 h-4" />
                           </button>
+                          )}
+                          {canDeleteBridge && (
                           <button
                             onClick={() => handleDelete(bridge)}
                             title="Delete"
@@ -287,6 +295,7 @@ const FutureBridgeList: React.FC = () => {
                           >
                             <TrashIcon className="w-4 h-4" />
                           </button>
+                          )}
                         </>
                       ) : (
                         <Badge color="gray" className="text-xs" title={RBIA_READ_ONLY_TITLE}>RBIA</Badge>

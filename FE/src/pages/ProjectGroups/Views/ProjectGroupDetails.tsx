@@ -9,6 +9,7 @@ import { AddProjectDialog, RemoveProjectsDialog } from '../dialogs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import { useAuth } from '../../../contexts/AuthContext';
 // import { editProjectGroup, fetchProjectGroupByName } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -17,6 +18,11 @@ const ProjectGroupDetails: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  // 2026-10-31: Update, Add Projects and Remove only for the groups that manage project groups (access matrix).
+  const { can } = useAuth();
+  const canUpdateGroup = can('ProjectGroup', 'UpdateProjectGroupDetails');
+  const canAddProjects = can('ProjectGroup', 'AddProject');
+  const canRemoveProjects = can('ProjectGroup', 'DeleteProject');
   const [projectGroupDetails, setProjectGroupDetails] = useState<ProjectGroupDetailsModel>({
     GroupDetails: {
         Id: 0,
@@ -281,11 +287,13 @@ const ProjectGroupDetails: React.FC = () => {
                   </div>
                 </div>
 
+                {canUpdateGroup && (
                 <div className="pt-4 text-right">
                 <Button color="green" className="w-24" onClick={handleUpdate}>
                     Update
                 </Button>
                 </div>
+                )}
             </div>
 
             {/* Right Column - Map */}
@@ -308,6 +316,7 @@ const ProjectGroupDetails: React.FC = () => {
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
             <div className="flex gap-2">
+              {canRemoveProjects && (
               <Button
                 color="red"
                 disabled={selectedIds.size === 0}
@@ -315,9 +324,12 @@ const ProjectGroupDetails: React.FC = () => {
               >
                   Remove selected ({selectedIds.size})
               </Button>
+              )}
+              {canAddProjects && (
               <Button color="blue" onClick={() => setIsAddProjectOpen(true)}>
                   Add Projects
               </Button>
+              )}
             </div>
             </div>
 
@@ -393,9 +405,11 @@ const ProjectGroupDetails: React.FC = () => {
                           {project.CreatedDate ? project.CreatedDate.StringToDate() : ''}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {canRemoveProjects && (
                           <Button onClick={() => setRemoveIds([project.ProjectId])} color="red" className="px-2 py-1" aria-label={`Remove ${project.ProjectId}`}>
                             <TrashIcon />
                           </Button>
+                          )}
                       </TableCell>
                     </TableRow>
                 ))}

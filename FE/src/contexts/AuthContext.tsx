@@ -9,12 +9,16 @@ interface AuthState {
   isLoading: boolean;
   user: User | null;
   ViewAccess : string[];
+  /** Granted API actions, as "ProgramController.AddProgram". */
+  ActionAccess: string[];
 }
 
 interface AuthContextType extends AuthState {
   validateSession: () => Promise<void>;
   logout: () => Promise<void>;
   hasRole: (role: string | string[]) => boolean;
+  /** True when the user's groups may call the action: can('Program', 'AddProgram'). */
+  can: (controller: string, action: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -37,7 +41,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isAuthenticated: false,
         isLoading: true,
         user: null,
-        ViewAccess: []
+        ViewAccess: [],
+        ActionAccess: []
     });
 
     const validateSession = async () => {
@@ -57,7 +62,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     user: { ...response.Data.Data.User,
                         // UserGroup: response.Data.Data.User.UserGroup
                         },
-                    ViewAccess: visibleRoutesFor(response.Data.Data.User, response.Data.Data.ViewAccess || [])
+                    ViewAccess: visibleRoutesFor(response.Data.Data.User, response.Data.Data.ViewAccess || []),
+                    ActionAccess: response.Data.Data.ActionAccess || []
                 });
                 if(window.location.pathname === '/login') {
                     const storedPath = localStorage.getItem('currentPath');
@@ -74,7 +80,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     isAuthenticated: false,
                     isLoading: false,
                     user: null,
-                    ViewAccess: []
+                    ViewAccess: [],
+                    ActionAccess: []
                 });
                 localStorage.setItem('currentPath', window.location.pathname);
                 if (window.location.pathname !== '/login') {
@@ -90,7 +97,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 isAuthenticated: false,
                 isLoading: false,
                 user: null,
-                ViewAccess: []
+                ViewAccess: [],
+                ActionAccess: []
             });
             if (window.location.pathname !== '/login') {
                 window.location.href = '/login';
@@ -124,7 +132,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             isAuthenticated: false,
             isLoading: false,
             user: null,
-            ViewAccess: []
+            ViewAccess: [],
+            ActionAccess: []
         });
     };
 
@@ -134,13 +143,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return roles.includes(authState.user.UserRole);
     };
 
+    /*  2026-10-31: hides what the API would refuse with 403 (it checks the same grants). The API stays the
+        gate; this only keeps a button from being offered to a group that may not use it. */
+    const can = (controller: string, action: string): boolean =>
+        authState.ActionAccess.includes(`${controller}Controller.${action}`);
+
     return (
         <AuthContext.Provider
             value={{
                 ...authState,
                 validateSession,
                 logout,
-                hasRole
+                hasRole,
+                can
             }}
         >
             {children}

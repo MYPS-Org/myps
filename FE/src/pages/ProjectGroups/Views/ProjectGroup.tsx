@@ -5,6 +5,7 @@ import { fetchProjectGroup } from '../Service'; // Adjust the import path as nec
 import type { ProjectGroupFilter, ProjectGroupList, ProjectGroupsDropDowns, UserGroups } from '../Model.d'; // Adjust the import path as necessary
 import { usePagination } from '../../../hooks/usePagination';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
+import { useAuth } from '../../../contexts/AuthContext';
 
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
 
@@ -22,6 +23,8 @@ import {
 
 const ProjectGroup: React.FC = () => {
     const navigate = useNavigate();
+    // 2026-10-31: Add and Delete only for the groups that manage project groups (access matrix).
+    const { can } = useAuth();
 
     const [isAddProjectGroupOpen, setIsAddProjectGroupOpen] = useState(false);
     const [isDeleteProjectGroupOpen, setIsDeleteProjectGroupOpen] = useState(false);
@@ -111,10 +114,12 @@ const ProjectGroup: React.FC = () => {
                                         })()}
                                     </Button>
                                 </div>
+                                {can('ProjectGroup', 'AddProjectGroup') && (
                                 <Button color="blue" onClick={handleOpenDialog} disabled={pagination.isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
                                     {pagination.isLoading ? 'Loading...' : 'Add Project Group'}
                                 </Button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -167,9 +172,11 @@ const ProjectGroup: React.FC = () => {
                                 >
                                     View
                                 </Button>
+                                {can('ProjectGroup', 'DeleteProjectGroup') && (
                                 <Button color="red" onClick={() => {setIsDeleteProjectGroupOpen(true); setSelectedProjectGroup(group.GroupId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
                                     <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
                                 </Button>
+                                )}
                             </div>
                         </TableCell>
                         </TableRow>
