@@ -37,6 +37,7 @@ ServerStackIcon,
 UserIcon,
 UserGroupIcon,
 DocumentChartBarIcon,
+CalendarDaysIcon,
 } from '@heroicons/react/20/solid'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext' // for getting data friom context
@@ -127,20 +128,18 @@ const currentPath = (localStorage.getItem('currentPath') != undefined) ? localSt
 					<Square2StackIcon />
 					<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
 			</SidebarItem> */}
-			{/* <SidebarDropdown
-				hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/programs')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/projects')?.RouteName || '')}
-				label="Multi-Year Management"
+			{/* Multi-Year (documents/plans/multi-year-phase-1-portfolio-module.md): RDIP, UDIP and PIP portfolios. */}
+			<SidebarDropdown
+				hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multi-year/portfolios')?.RouteName || '')}
+				label="Multi-Year"
 				defaultOpen={false}
 				className="text-gray-500"
 				>
 				<CalendarDaysIcon />
-				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/programs')?.RouteName || '')} href="/multiyear/programs" current={currentPath === '/multiyear/programs'}>
-					<SidebarLabel>Programs</SidebarLabel>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multi-year/portfolios')?.RouteName || '')} href="/multi-year/portfolios" current={currentPath === '/multi-year/portfolios'}>
+					<SidebarLabel>Portfolios</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/projects')?.RouteName || '')} href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
-					<SidebarLabel>Projects</SidebarLabel>
-				</SidebarDropdownItem>
-			</SidebarDropdown> */}
+			</SidebarDropdown>
 			<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports')?.RouteName || '')} href="/reports" current={currentPath === '/reports'}>
 				<DocumentChartBarIcon />
 				<SidebarLabel className="text-gray-500">Reports</SidebarLabel>

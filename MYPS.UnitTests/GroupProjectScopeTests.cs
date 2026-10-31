@@ -55,10 +55,27 @@ public class GroupProjectScopeTests
     [Theory]
     [InlineData(0, true)]
     [InlineData(3, true)]
+    [InlineData(4, true)]
     [InlineData(-1, false)]
-    [InlineData(4, false)]
-    public void IsValid_AcceptsTheFourScopes(int value, bool valid)
+    [InlineData(5, false)]
+    public void IsValid_AcceptsTheFiveScopes(int value, bool valid)
     {
         Assert.Equal(valid, GroupProjectScopes.IsValid(value));
+    }
+
+    // Own UPMO cluster (2026-10-31) scopes the Multi-Year portfolios only. The Projects list must
+    // not change for a group that chooses it: it is DataSecurity there, and adds nothing to Region
+    // or District.
+    [Fact]
+    public void Cluster_IsDataSecurityForProjects()
+    {
+        Assert.Null(GroupProjectScopes.Widest(new[] { GroupProjectScope.Cluster }, out bool region, out bool district));
+        Assert.False(region);
+        Assert.False(district);
+
+        var widest = GroupProjectScopes.Widest(new[] { GroupProjectScope.Cluster, GroupProjectScope.Region }, out region, out district);
+        Assert.Equal(GroupProjectScope.Region, widest);
+        Assert.True(region);
+        Assert.False(district);
     }
 }

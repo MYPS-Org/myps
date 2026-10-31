@@ -59,6 +59,13 @@ namespace Helpers
         public const string ProgramNotFoundMessage =
             "This program could not be found. It may have been deleted. Reload the Program List and open it again.";
 
+        /// <summary>
+        /// True when a vProgramLatest.Status is Approved. The view returns the status NAME
+        /// ("Approved" / "Working"), never the number, so compare names, not "1".
+        /// </summary>
+        public static bool IsApprovedStatus(string? status) =>
+            string.Equals(status?.Trim(), EnumProgramStatus.Approved.ToString(), StringComparison.OrdinalIgnoreCase);
+
         /// <summary>"program 'HGAB 2025 SSP'", or "this program" when the name is blank.</summary>
         public static string ProgramLabel(string? name) =>
             string.IsNullOrWhiteSpace(name) ? "this program" : $"program '{name.Trim()}'";

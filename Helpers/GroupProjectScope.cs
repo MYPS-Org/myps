@@ -21,6 +21,12 @@ namespace Helpers
         Region = 2,
         /// <summary>The district office that is the user's Plantilla Office.</summary>
         District = 3,
+        /// <summary>The UPMO cluster that is the user's Plantilla Office (2026-10-31). It scopes the
+        /// Multi-Year portfolios only (Helpers/MultiYear/MultiYearAccess.cs): that cluster's UDIP, or
+        /// every UDIP for the UPMO itself. For projects it is <see cref="DataSecurity"/>; see
+        /// <see cref="GroupProjectScopes.Widest"/>. Storable once
+        /// Migration.GroupProjectScopeCluster.2026-10-31.sql has widened the column's check.</summary>
+        Cluster = 4,
     }
 
     public static class GroupProjectScopes
@@ -49,11 +55,22 @@ namespace Helpers
             _ => GroupProjectScope.DataSecurity,
         };
 
-        public static bool IsValid(int value) => value is >= 0 and <= 3;
+        public static bool IsValid(int value) => value is >= 0 and <= 4;
 
         /// <summary>
-        /// A user in several groups gets the widest: All wins; otherwise Region and District add up;
-        /// otherwise DataSecurity. Null means DataSecurity (the user is in no group with a scope).
+        /// True once Migration.GroupProjectScopeCluster.2026-10-31.sql has widened
+        /// CK_tGroups_ProjectScope to 0-4. Until then the database refuses <see cref="GroupProjectScope.Cluster"/>.
+        /// </summary>
+        public static async Task<bool> IsClusterStorableAsync(MYPSDbContext db, CancellationToken ct) =>
+            await IsConfigurableAsync(db, ct)
+            && await db.Database
+                .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM sys.check_constraints WHERE name = N'CK_tGroups_ProjectScope' AND parent_object_id = OBJECT_ID(N'dbo.tGroups') AND definition LIKE N'%<=(4)%'")
+                .SingleAsync(ct) > 0;
+
+        /// <summary>
+        /// The project view scope of a user in several groups: All wins; otherwise Region and District
+        /// add up; otherwise DataSecurity. Null means DataSecurity (the user is in no group with a
+        /// scope). Cluster is not a project scope, so it counts as DataSecurity here.
         /// </summary>
         public static GroupProjectScope? Widest(IEnumerable<GroupProjectScope> scopes, out bool region, out bool district)
         {

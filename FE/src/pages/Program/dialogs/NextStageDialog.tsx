@@ -4,6 +4,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '../../../components/tailwindui/button';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { nextStage as proceedToNextStage } from '../Service';
+import { multiYearUpdateToast } from '../../MultiYear/utils';
 import type { ProgramDetails, TableEnum } from '../Model';
 import { getStageProgression } from '../utils/stageProgression';
 
@@ -110,12 +111,14 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                     : formData.Name
             };
 
-            await proceedToNextStage({ ProgramId: payload.ProgramId, ProgramPK: payload.ProgramPK, Stage: payload.Stage, Name: payload.Name });
+            const response = await proceedToNextStage({ ProgramId: payload.ProgramId, ProgramPK: payload.ProgramPK, Stage: payload.Stage, Name: payload.Name });
             
             showToast({
                 type: 'success',
                 message: `Successfully proceeded to ${formData.StageName}`,
             });
+            const multiYear = multiYearUpdateToast(response?.Data);
+            if (multiYear) showToast(multiYear);
             
             onSubmit(payload);
             handleClose();

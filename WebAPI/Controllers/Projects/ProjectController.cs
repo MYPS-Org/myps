@@ -966,7 +966,9 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Program Revision not found.", Title = "Program Not Found" });
                 }
-                if (CurrentProgramVersion.StageName == "RBP" && CurrentProgramVersion.Status == "1")
+                // vProgramLatest.Status is the status NAME ("Approved" / "Working"); this compared it
+                // with "1" until 2026-10-31, so an Approved RBP program never locked its projects.
+                if (CurrentProgramVersion.StageName == "RBP" && ProgramHelper.IsApprovedStatus(CurrentProgramVersion.Status))
                 {
                     return new BadRequestObjectResult(new
                     {

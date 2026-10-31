@@ -28,6 +28,9 @@ namespace DBHelper.Models.Table.Project
         public string? UACS { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        // The year's MYOA approval date. Unmapped until 2026-10-31, so every stage advance and
+        // restore copied the year rows without it and the AIP lost its "MYOA" mark.
+        public DateTime? DateOfApproval { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

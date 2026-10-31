@@ -566,6 +566,52 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
         Assert.Equal(2, await ScalarAsync(connection, "SELECT COUNT(*) FROM dbo.tProjectIdReleased;"));
     }
 
+    // 2026-10-31 (Multi-Year module): a planning project's MY id lives in dbo.tMultiYearProject only,
+    // and still holds its number. Every other test in this file runs WITHOUT that table, which is the
+    // "server before Migration.MultiYear.Schema" case: generation must not change there.
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_AvoidsANumberAPlanningProjectHolds()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection,
+            "CREATE TABLE dbo.tMultiYearProject (Id int IDENTITY PRIMARY KEY, ProjectId nvarchar(20) NOT NULL UNIQUE);" +
+            "INSERT dbo.tMultiYearProject (ProjectId) VALUES (N'MY01000001LZ'), (N'MY01000002LZ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        // The counter hands out 1; its MY form belongs to a planning project, and so does 2. The MY
+        // counter is its own bucket and jumps the same way (BP01000003LZ was returned, never saved).
+        Assert.Equal("BP01000003LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
+        Assert.Equal("MY01000003LZ", await db.GenerateProjectID(new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1, StageName = "RDIP", IslandCode = "LZ", YearStart = 2026
+        }, CancellationToken.None));
+    }
+
+    // Phase 2: an annual project's Multi Year ID is how the GAA update finds a planning project, so a
+    // new MY id never takes a number written there. BP and P are unaffected (they never become MY).
+    [Fact]
+    [Trait("Layer", "Conformance")]
+    public async Task GenerateProjectID_NewMyId_AvoidsANumberUsedAsAMultiYearId()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteNonQueryAsync(connection,
+            "INSERT INTO dbo.tProjects (ProjectPK, MYId) VALUES (N'HOST_LEGACY_1', N' MY01000001LZ ');");
+
+        var options = new DbContextOptionsBuilder<MYPSDbContext>().UseSqlServer(ConnectionString).Options;
+        await using var db = new MYPSDbContext(options);
+
+        Assert.Equal("MY01000002LZ", await db.GenerateProjectID(new ProjectHelper.GenerateProjectIDParams
+        {
+            CategoryId = 1, StageName = "RDIP", IslandCode = "LZ", YearStart = 2026
+        }, CancellationToken.None));
+        Assert.Equal("BP01000001LZ", await db.GenerateProjectID(BpLz2026, CancellationToken.None));
+    }
+
     [Fact]
     [Trait("Layer", "Conformance")]
     public async Task GenerateProjectID_WithoutTheReleasedTable_UsesTheCounterAsBefore()
@@ -646,7 +692,7 @@ public sealed class ProjectIdGenerationTests : IAsyncLifetime
     private const string SchemaSql = """
         CREATE TABLE dbo.tOptionProjectCategory(CategoryId int NOT NULL PRIMARY KEY, Minimum int NOT NULL, Maximum int NULL);
         CREATE TABLE dbo.tProjectIdSequence(CategoryId int NOT NULL, Suffix nvarchar(2) NOT NULL, IslandCode nvarchar(2) NOT NULL, YearStart int NOT NULL, CurrentSequence int NOT NULL, UpdatedDate datetime NOT NULL, CONSTRAINT UQ_tProjectIdSequence UNIQUE (CategoryId, Suffix, IslandCode, YearStart));
-        CREATE TABLE dbo.tProjects(ProjectPK nvarchar(200) NOT NULL PRIMARY KEY);
+        CREATE TABLE dbo.tProjects(ProjectPK nvarchar(200) NOT NULL PRIMARY KEY, MYId nvarchar(200) NULL);
         CREATE TABLE dbo.tProjectRevisions(Id int IDENTITY PRIMARY KEY, ProjectFK nvarchar(200) NOT NULL, ProjectId nvarchar(200) NOT NULL, IsDeleted bit NOT NULL);
         """;
 

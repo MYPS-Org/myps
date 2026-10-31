@@ -1,3 +1,94 @@
+# UserManual.md — Changelog v3.32 → v3.33 (FE/UserManual.md)
+
+**Date:** November 1, 2026
+**Branch:** main (uncommitted, on top of `ecd2d56b`)
+**Source:** docs/multi-year (the client's Multi-Year requirements MY-PFL-10, -11, -17 to -22, -24, MY-PRJ-02, -03, MY-STK-02). Implemented under `documents/plans/multi-year-phase-2-annual-program-linking.md` (Phase 2: linking the portfolios to the annual programs), with the user's decisions of 2026-10-31: GAA projects join PIP by Multi Year ID only; a withdrawn GAA entry sends an Ongoing project back to New. Verified by `e2e/tests/multi-year-portfolios.narrated.spec.ts`, an API smoke run against `localhost/myps_db_dev` and `MYPS.DatabaseTests/MultiYearPortfolioUpdateTests.cs`.
+
+---
+
+## 1. Document Header
+
+| Field | v3.32 | v3.33 |
+|-------|-------|-------|
+| Version | 3.32 | 3.33 |
+| Date | October 31, 2026 | November 1, 2026 |
+
+A v3.33 row was added to the Revision History table, and 5.11.8–5.11.12 to the Table of Contents.
+
+---
+
+## 2. Changed sections
+
+| # | Section | Old | New | Reason |
+|---|---------|-----|-----|--------|
+| 1 | 5.2 Program Details — Status | "Working or Approved" | Adds: approving a GAA or GAA-R (or moving a GAA on to GAA-R) also updates the Multi-Year portfolios, with a second message (Section 5.11.10) | The approval now runs the portfolio update |
+| 2 | 5.11 (intro) | PPC "sees the PIP"; "Not in this phase: proposing …, Add to PIP, the automatic update …, importing …, locking past years, and the TRIP, MTPIP and CIP reports" | Who does what in Phase 2; the Multi Year ID as the link to the BP / NEP / GAA programs; "Not in this phase: locking past years, the Multi-Year Costing Changes rules, the TRIP, MTPIP and CIP reports, and converting the old RDIP and PIP programs" | Phase 2 delivered the rest |
+| 3 | 5.11.2 A Portfolio | Projects and Budget Ceilings tabs | PIP columns **From**, **PIP Cost**, **Original Cost** with **Set PIP Cost**; the open-term buttons (**Import Projects**, **Add Project to PIP**); **Saved Totals** tab | New actions and tab |
+| 4 | 5.11.3 Add Planning Project | "Add to PIP, a later phase"; MY-F15 optional | Points to 5.11.9 and 5.11.11; MY-F15 notes the fields needed before proposing | — |
+| 5 | 5.11.4 A Multi-Year Project | "Potential and Ongoing come from the annual budget stages (a later phase)"; "Status history" | **Annual Programs** and **Proposals to RBP / UBP**; the *Before the start year: re-plan it* flag; Potential from proposing, Ongoing from the GAA update; **Propose to RBP / UBP** and **Set PIP Cost**; **History** with start year and PIP cost changes and *(GAA update)* | Phase 2 actions and history |
+| 6 | 5.11.6 Who Sees Which Portfolio | Starting permissions of Phase 1 | Adds GAA Updates (Admin, AUC), Import and Propose (coordinators), Add to PIP and Set PIP Cost (Admin, PPC), Saved Totals and Save Totals; Add to PIP lists every RDIP / UDIP | New permissions |
+
+---
+
+## 3. New subsections
+
+| # | Subsection | Content |
+|---|------------|---------|
+| 1 | 5.11.8 Propose to RBP / UBP | Prerequisites (New or Ongoing; location complete; a Working RBP of the owner; that year's planned cost), steps, the dialog's annual-project fields, what is created (BP project, CW1 with that year's cost, Multi Year ID), seven messages, keeping the Multi Year ID |
+| 2 | 5.11.9 Add to PIP and the PIP Cost | Candidates (New / Potential of every open RDIP and UDIP), MCA Score, Original Cost never changes, From; Set PIP Cost; three messages; GAA projects added by the update |
+| 3 | 5.11.10 The Update After a GAA Approval | When it runs; the status table; PIP for unlinked Multi Year IDs; the messages, including the one when it did not finish; GAA Updates and Run GAA Update |
+| 4 | 5.11.11 Import Planning Projects | The template's three sheets, Amount 1 … N, codes or names, row results; four messages; 500 rows |
+| 5 | 5.11.12 Saved Totals | When they are saved, the Approved / Proposed / Planned rule, never edited |
+
+---
+
+# UserManual.md — Changelog v3.31 → v3.32 (FE/UserManual.md)
+
+**Date:** October 31, 2026
+**Branch:** main (uncommitted, on top of `ecd2d56b`)
+**Source:** docs/multi-year (the client's 84 Multi-Year requirements). Implemented under `documents/plans/multi-year-phase-1-portfolio-module.md` (Phase 1: the Multi-Year module), with the user's decisions of 2026-10-31: a new sidebar module, portfolio access by Edit Group settings, not group names. Verified by `e2e/tests/multi-year-portfolios.narrated.spec.ts` and an API smoke run against `localhost/myps_db_dev`.
+
+---
+
+## 1. Document Header
+
+| Field | v3.31 | v3.32 |
+|-------|-------|-------|
+| Version | 3.31 | 3.32 |
+| Date | October 31, 2026 | October 31, 2026 |
+
+A v3.32 row was added to the Revision History table, and Section 5.11 (with 5.11.1–5.11.7) to the Table of Contents.
+
+---
+
+## 2. Changed sections
+
+| # | Section | Old | New | Reason |
+|---|---------|-----|-----|--------|
+| 1 | 4.1 Module & Feature Discovery | Ten sidebar items, and the note "Multi-Year Management remains commented out in the sidebar and is not accessible to users; it is not documented in Section 5." | Row 11 **Multi-Year — Portfolios** (/multi-year/portfolios, MultiYearPortfolios, Section 5.11); the note removed | The module is live |
+| 2 | 5.7 Code Tables | Seven tabs | **Multi-Year** tab added: Basis for Implementation, NEDA Project Status, Readiness Level, RDP Outcomes, RDP Outputs, shown only with the Multi-Year code lists permission | New code lists |
+| 3 | 5.8.3 Add Group / Edit Group | Project visibility: four choices | Fifth choice **Own UPMO cluster** (UI-UX-0121-F04, UI-UX-0122-F10) | New group setting for the UDIP portfolios |
+| 4 | 5.8.3 Common Outcomes | — | **New:** "Own UPMO cluster cannot be chosen on this server until its database update (Migration.GroupProjectScopeCluster) has been run. Ask your administrator." | The choice needs a database update |
+| 5 | 5.8.4 What Each User Group Can Do | Four Project visibility rows | Row **Own UPMO cluster**: the same projects as By program Data Security; it changes only the Multi-Year portfolios | Projects are not affected |
+| 6 | 9 Notes & Limitations | "Inactive modules: Multi-Year Management is currently disabled …" | "Live modules: … Multi-Year (Section 5.11) …", with what the first phase does not do yet | The module is live |
+
+---
+
+## 3. New Section 5.11 — Multi-Year
+
+| # | Subsection | Content |
+|---|------------|---------|
+| 1 | 5.11 (intro) | RDIP per region, UDIP per UPMO cluster, the national PIP; fixed six-year terms; one record per project, joining portfolios as a member; nothing is deleted; what the first phase does not do yet |
+| 2 | 5.11.1 Portfolios | List filters; Create Portfolio fields MY-F01–MY-F03, MY-A01; the three term refusals |
+| 3 | 5.11.2 A Portfolio | Header, Projects tab (six term years, Later Years, Total, Set Status), Budget Ceilings tab |
+| 4 | 5.11.3 Add Planning Project | Fields MY-F10–MY-F19; MY Project ID; status New, years Planned; six messages |
+| 5 | 5.11.4 A Multi-Year Project | Edit Project rules (Category and Region fixed, Start Year only while New, Original Cost never changes), Edit Planning Fields, Set Status and its diagram, Status history; four messages |
+| 6 | 5.11.5 Open Next Term | What is carried, what stays, the closed term |
+| 7 | 5.11.6 Who Sees Which Portfolio | Portfolio visibility per Project visibility; the Show PIP permission; starting permissions |
+| 8 | 5.11.7 Multi-Year Code Lists | Fields, the Active-or-valid rule, retire instead of delete, the in-use rename refusal |
+
+---
+
 # UserManual.md — Changelog v3.15 → v3.16 (FE/UserManual.md)
 
 **Date:** October 25, 2026

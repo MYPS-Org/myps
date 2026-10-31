@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, ProgramProjectFilter, ProgramProjects } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
+import { multiYearUpdateToast } from '../../MultiYear/utils';
 import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects, ShowProjectsInProgram, fetchDeletedProjects, restoreToCurrentStage } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -392,6 +393,8 @@ const ProgramDetail: React.FC = () => {
           type: 'success',
           message: 'Program details updated successfully.',
         });
+        const multiYear = multiYearUpdateToast(response.Data);
+        if (multiYear) showToast(multiYear);
       }
       console.log('Update program details');
       await fetchProgramDetail(programEnums?.Details.ProgramPK, programEnums?.Details.StageName);

@@ -22,6 +22,14 @@ import LegislativeDistrictTable from '../tables/adminArea/LegislativeDistrictTab
 import DEOTable from '../tables/adminArea/DEOTable';
 import { CodeTableProvider } from '../CodeTableContext';
 import { AdminAreaProvider } from '../AdminAreaContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import {
+  BasisForImplementationTable,
+  NedaProjectStatusTable,
+  ReadinessLevelTable,
+  RdpOutcomeTable,
+  RdpOutputTable,
+} from '../tables/multiYear/MultiYearCodeListTable';
 import {
   ClipboardDocumentListIcon,
   CubeIcon,
@@ -30,6 +38,7 @@ import {
   ArrowPathIcon,
   PresentationChartBarIcon,
   MapPinIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 interface TableTab {
@@ -43,6 +52,8 @@ interface GroupTab {
   label: string;
   icon: React.FC<{ className?: string }>;
   tables: TableTab[];
+  /** Shown only to users granted this action (controller, action). */
+  requires?: [string, string];
 }
 
 const GROUPS: GroupTab[] = [
@@ -116,20 +127,36 @@ const GROUPS: GroupTab[] = [
       { id: 'deo',           label: 'DEOs',                  component: DEOTable },
     ],
   },
+  {
+    // The Multi-Year module's planning code lists, served by MultiYearController.
+    id: 'multi-year',
+    label: 'Multi-Year',
+    icon: CalendarDaysIcon,
+    requires: ['MultiYear', 'ShowMultiYearCodeLists'],
+    tables: [
+      { id: 'my-basis',     label: 'Basis for Implementation', component: BasisForImplementationTable },
+      { id: 'my-neda',      label: 'NEDA Project Status',      component: NedaProjectStatusTable },
+      { id: 'my-readiness', label: 'Readiness Level',          component: ReadinessLevelTable },
+      { id: 'my-outcome',   label: 'RDP Outcomes',             component: RdpOutcomeTable },
+      { id: 'my-output',    label: 'RDP Outputs',              component: RdpOutputTable },
+    ],
+  },
 ];
 
 
 const CodeTables: React.FC = () => {
+  const { can } = useAuth();
+  const groups = GROUPS.filter(g => !g.requires || can(g.requires[0], g.requires[1]));
   const [activeGroupId, setActiveGroupId] = useState(GROUPS[0].id);
   const [activeTableId, setActiveTableId] = useState(GROUPS[0].tables[0].id);
 
   const switchGroup = (groupId: string) => {
-    const group = GROUPS.find(g => g.id === groupId);
+    const group = groups.find(g => g.id === groupId);
     setActiveGroupId(groupId);
     if (group) setActiveTableId(group.tables[0].id);
   };
 
-  const activeGroup = GROUPS.find(g => g.id === activeGroupId)!;
+  const activeGroup = groups.find(g => g.id === activeGroupId)!;
   const activeTable = activeGroup.tables.find(t => t.id === activeTableId)!;
   const ActiveComponent = activeTable.component;
 
@@ -146,7 +173,7 @@ const CodeTables: React.FC = () => {
 
           {/* Group tabs — pill style */}
           <div className="flex flex-wrap gap-2">
-            {GROUPS.map(group => {
+            {groups.map(group => {
               const Icon = group.icon;
               const isActive = group.id === activeGroupId;
               return (

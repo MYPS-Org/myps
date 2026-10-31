@@ -10,6 +10,7 @@ import type { ProjectDetails } from '../../Project/Model';
 import { useAtomValue } from 'jotai';
 import { transactionIdAtom } from '../store/routeContextStore';
 import { approveRevision } from '../Service';
+import { multiYearUpdateToast } from '../../MultiYear/utils';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { usePdfUpload } from '../hooks/usePdfUpload';
@@ -64,7 +65,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
         setIsSubmitting(true);
 
         try {
-            await approveRevision(
+            const response = await approveRevision(
                 transactionId,
                 isCentralOffice ? approvalDocument ?? undefined : undefined
             );
@@ -75,6 +76,8 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                     ? 'Modification request approved successfully. Changes will be published to MYPS, PCMA, and other applications.'
                     : 'Modification request endorsed successfully. It has been forwarded to the Central Office for approval.'
             });
+            const multiYear = multiYearUpdateToast(response?.Data);
+            if (multiYear) showToast(multiYear);
 
             onClose();
 

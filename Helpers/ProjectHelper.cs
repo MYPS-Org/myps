@@ -43,7 +43,8 @@ namespace Helpers
               Region             every DEO whose parent region is tUsers.PlantillaOffice
               DataSecurity       unchanged: today's ApplyFilter behaviour ("Legacy")
             District and Region add up. A Region/District user whose PlantillaOffice does not fit sees
-            nothing (fail closed). Lump Sum parents are never visible to a Region/District user; itemized
+            nothing (fail closed). Own UPMO cluster (2026-10-31) scopes the Multi-Year portfolios only;
+            here it counts as DataSecurity (GroupProjectScopes.Widest ignores it). Lump Sum parents are never visible to a Region/District user; itemized
             children follow the DEO rule. */
 
         public const string NoProjectAccessTitle = "No Project Access";
@@ -452,6 +453,13 @@ namespace Helpers
             string[] FormsOf(int sequence) =>
                 SharedNumberPrefixes.Select(prefix => $"{prefix}{SecondSegment}{sequence:D5}{request.IslandCode}").ToArray();
 
+            // 2026-10-31 (Multi-Year module): a planning project's MY id (dbo.tMultiYearProject) holds
+            // its number as well. It has no tProjects row of its own: proposing it into an RBP creates
+            // a separate BP project with a fresh number for the program's year, linked by its
+            // Multi Year ID (tProjects.MYId) -- so a NEW MY id must also never be a number already
+            // written in some annual project's Multi Year ID, or that project would count as the
+            // planning project's GAA entry (Helpers/MultiYear/PortfolioGaaUpdate.cs). Checked for MY
+            // only: a BP or P id never becomes an MY id, and the scan would slow every import.
             async Task<bool> InUseAsync(int sequence, bool includeDeleted = false)
             {
                 string[] forms = FormsOf(sequence);
@@ -460,7 +468,16 @@ namespace Helpers
                         .AnyAsync(x => forms.Contains(x.ProjectPK), cancellationToken)
                     || await _db.tProjectRevisions
                         .AsNoTracking()
-                        .AnyAsync(x => forms.Contains(x.ProjectId) && (includeDeleted || !x.IsDeleted), cancellationToken);
+                        .AnyAsync(x => forms.Contains(x.ProjectId) && (includeDeleted || !x.IsDeleted), cancellationToken)
+                    || await _db.Database.GetDbConnection().ExecuteScalarAsync<bool>(new CommandDefinition(
+                        PlanningProjectIdInUseSql,
+                        new { Forms = forms },
+                        transaction: _db.Database.CurrentTransaction?.GetDbTransaction(),
+                        commandTimeout: 120,
+                        cancellationToken: cancellationToken))
+                    || (FirstSegment == "MY" && await _db.tProjects
+                        .AsNoTracking()
+                        .AnyAsync(x => x.MYId != null && forms.Contains(x.MYId.Trim()), cancellationToken));
             }
 
             // 2026-10-29 (delete-rules-projects-programs-stages.md): a BP/P id freed by a permanent
@@ -584,10 +601,34 @@ namespace Helpers
         /// rewrites BP into P or MY and keeps the digits (ProgramController, ReplaceFirst("BP", ...)).</summary>
         private static readonly string[] SharedNumberPrefixes = { "BP", "P", "MY" };
 
+        /// <summary>1 when a planning project (dbo.tMultiYearProject) carries one of @Forms. 0 while the
+        /// table does not exist (before Migration.MultiYear.Schema.2026-10-31.sql), so a server
+        /// without the Multi-Year module generates ids exactly as before.</summary>
+        private const string PlanningProjectIdInUseSql = """
+            IF OBJECT_ID(N'dbo.tMultiYearProject', N'U') IS NULL
+                SELECT CAST(0 AS bit);
+            ELSE
+                SELECT CAST(CASE WHEN EXISTS (SELECT 1 FROM dbo.tMultiYearProject WHERE ProjectId IN @Forms) THEN 1 ELSE 0 END AS bit);
+            """;
+
         /// <summary>The lowest number above @After that no BP / P / MY id of this year and island
-        /// carries, in tProjects or in a live revision -- the same test as InUseAsync. @After itself
-        /// has just collided, so it counts as taken whatever the tables say now.</summary>
-        private const string NextFreeSequenceSql = """
+        /// carries, in tProjects, in a live revision or (once the table exists) in a planning
+        /// project -- the same test as InUseAsync. @After itself has just collided, so it counts as
+        /// taken whatever the tables say now.</summary>
+        private static readonly string NextFreeSequenceSql =
+            "IF OBJECT_ID(N'dbo.tMultiYearProject', N'U') IS NULL\nBEGIN\n"
+            + NextFreeSequenceTemplate.Replace("{PlanningIds}", string.Empty)
+            + "\nEND\nELSE\nBEGIN\n"
+            + NextFreeSequenceTemplate.Replace("{PlanningIds}", """
+                UNION
+                SELECT ProjectId FROM dbo.tMultiYearProject
+                WHERE ProjectId LIKE N'BP' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
+                   OR ProjectId LIKE N'P' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
+                   OR ProjectId LIKE N'MY' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
+                """)
+            + "\nEND";
+
+        private const string NextFreeSequenceTemplate = """
             WITH Ids AS (
                 SELECT ProjectPK AS Id FROM dbo.tProjects
                 WHERE ProjectPK LIKE N'BP' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
@@ -599,6 +640,7 @@ namespace Helpers
                   AND (ProjectId LIKE N'BP' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
                     OR ProjectId LIKE N'P' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode
                     OR ProjectId LIKE N'MY' + @Year + N'[0-9][0-9][0-9][0-9][0-9]' + @IslandCode)
+                {PlanningIds}
             ),
             Taken AS (
                 SELECT TRY_CAST(SUBSTRING(Id, LEN(Id) - LEN(@IslandCode) - 4, 5) AS INT) AS Sequence FROM Ids

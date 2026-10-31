@@ -2452,10 +2452,20 @@ namespace WebAPI.Controllers.Revision
 
                 await transaction.CommitAsync(cancellationToken);
                 transactionCommitted = true;
+
+                // Multi-Year Phase 2 (MY-PFL-22): a fully approved Non-Implementable, or Termination with
+                // No Disbursements, re-runs the portfolio update for the project's program year. After
+                // commit and never throwing, so the catch below (which rolls back) is never reached by it.
+                var multiYearUpdate = approvalStatusAfterSave?.IsFullyApproved == 1
+                    ? await Helpers.MultiYear.PortfolioGaaUpdate.AfterRevisionApprovalAsync(_db, RevisionRoot.RevisionGroupId, RevisionRoot.ReasonId,
+                        RevisionRoot.ProjectFK, SelectedProjectRevision.ProgramFK, RevisionRoot.Id, _Session.UserId,
+                        ex => _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString()), cancellationToken)
+                    : null;
                 return Ok(new
                 {
                     Message = "Revision request has been approved successfully.",
-                    Title = "Revision Approved"
+                    Title = "Revision Approved",
+                    MultiYearUpdate = multiYearUpdate,
                 });
             }
             catch (Exception ex)

@@ -170,8 +170,12 @@ public sealed class RevisionControllerContractTests
     {
         string source = ReadSourceFile("WebAPI", "Controllers", "Revision", "RevisionController.cs");
 
+        // 2026-11-01: the rule moved into Helpers/RevisionStatusEligibility.ProjectStatus (unit-tested in
+        // RevisionStatusEligibilityTests), which every status read in the controller now calls.
+        string helper = ReadSourceFile("Helpers", "RevisionStatusEligibility.cs");
         Assert.DoesNotContain("FirstOrDefault(x => x.IsPackaged == true) != null) ?", source, StringComparison.Ordinal);
-        Assert.Contains("ComponentCost.Any(x => x.IsPackaged != true)", source, StringComparison.Ordinal);
+        Assert.Contains("RevisionStatusEligibility.ProjectStatus(", source, StringComparison.Ordinal);
+        Assert.Contains("list.Any(x => x.IsPackaged != true) ? NotPackaged : Packaged", helper, StringComparison.Ordinal);
     }
 
     [Fact]

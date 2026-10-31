@@ -18,6 +18,10 @@ import Reports from '../pages/Reports/Reports';
 import AddLumpSum from '../pages/LumpSum/Views/AddLumpSum';
 import LumpSumList from '../pages/LumpSum/Views/LumpSumList';
 import LumpSumDetail from '../pages/LumpSum/Views/LumpSumDetail';
+import PortfolioList from '../pages/MultiYear/Views/PortfolioList';
+import PortfolioDetail from '../pages/MultiYear/Views/PortfolioDetail';
+import AddPlanningProject from '../pages/MultiYear/Views/AddPlanningProject';
+import MultiYearProjectDetail from '../pages/MultiYear/Views/MultiYearProjectDetail';
 // ✅ Extend RouteObject with a permission key
 export type AppRoute = RouteObject & {
   RouteName?: string; // matches keys returned by your session/API
@@ -68,5 +72,14 @@ const protectedRoutes: AppRoute[] = [
   { RouteName: 'AddWallet', path: '/lumpsum/add', element: <AddLumpSum /> },
   { RouteName: 'LumpSumDetails', path: '/lumpsum/:lumpSumId', element: <LumpSumDetail /> },
   // #endregion Lump Sum Routes
+
+  // #region Multi-Year Routes
+  /*  New RouteNames on new /multi-year paths: the old MultiYearList / MultiYearDetails rows
+      (/multiyear/...) belonged to a removed mock-up, and a server may still grant them. */
+  { RouteName: 'MultiYearPortfolios', path: '/multi-year/portfolios', element: <PortfolioList /> },
+  { RouteName: 'MultiYearAddProject', path: '/multi-year/portfolios/:portfolioId/add-project', element: <AddPlanningProject /> },
+  { RouteName: 'MultiYearPortfolioDetails', path: '/multi-year/portfolios/:portfolioId', element: <PortfolioDetail /> },
+  { RouteName: 'MultiYearProjectDetails', path: '/multi-year/projects/:projectId', element: <MultiYearProjectDetail /> },
+  // #endregion Multi-Year Routes
 ];
 export default protectedRoutes;

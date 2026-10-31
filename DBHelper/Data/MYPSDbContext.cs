@@ -291,6 +291,46 @@ namespace DBHelper.Data
 
         #endregion
 
+        #region MultiYear
+
+        /*  The Multi-Year module (documents/plans/multi-year-phase-1-portfolio-module.md): RDIP, UDIP
+            and PIP portfolios over six-year terms, the lasting record of each multi-year project, its
+            memberships and the shared yearly cost stream. Created by
+            Main/Resources/MultiYear/SQL/Migration.MultiYear.Schema.2026-10-31.sql; Phase 2's
+            proposals, update runs and saved totals by Migration.MultiYear.Linking.2026-10-31.sql
+            (documents/plans/multi-year-phase-2-annual-program-linking.md). Outside the module only the
+            portfolio update after a GAA / revision approval (Helpers/MultiYear/PortfolioGaaUpdate.cs)
+            touches them. */
+
+        #region Tables
+        public DbSet<Models.Table.MultiYear.MultiYearPortfolio> tMultiYearPortfolio { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearPortfolioCeiling> tMultiYearPortfolioCeiling { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearProject> tMultiYearProject { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearComponent> tMultiYearComponent { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearComponentCostPerYear> tMultiYearComponentCostPerYear { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearPortfolioMember> tMultiYearPortfolioMember { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearMemberStatusLog> tMultiYearMemberStatusLog { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearProposal> tMultiYearProposal { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearUpdateRun> tMultiYearUpdateRun { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearTotalsSnapshot> tMultiYearTotalsSnapshot { get; set; }
+        public DbSet<Models.Table.MultiYear.MultiYearTotalsLine> tMultiYearTotalsLine { get; set; }
+        #endregion
+
+        #region Views
+        public DbSet<Models.Views.MultiYear.PortfolioMemberListRow> vMultiYearPortfolioMemberList { get; set; }
+        #endregion
+
+        #region Lookups
+        public DbSet<Models.Table.MultiYear.OptionMultiYearType> tOptionMultiYearType { get; set; }
+        public DbSet<Models.Table.MultiYear.OptionBasisForImplementation> tOptionBasisForImplementation { get; set; }
+        public DbSet<Models.Table.MultiYear.OptionNedaProjectStatus> tOptionNedaProjectStatus { get; set; }
+        public DbSet<Models.Table.MultiYear.OptionReadinessLevel> tOptionReadinessLevel { get; set; }
+        public DbSet<Models.Table.MultiYear.OptionRdpOutcome> tOptionRdpOutcome { get; set; }
+        public DbSet<Models.Table.MultiYear.OptionRdpOutput> tOptionRdpOutput { get; set; }
+        #endregion
+
+        #endregion
+
         #region Users and User Access
 
         #region Tables
@@ -334,6 +374,8 @@ namespace DBHelper.Data
             modelBuilder.Entity<Models.Views.Lumpsum.LumpSum>().HasNoKey().ToView("vLumpSumSet");
             modelBuilder.Entity<Models.Views.Lumpsum.LumpSumBalance>().HasNoKey().ToView("vLumpSumBalance");
             modelBuilder.Entity<Models.Views.Lumpsum.LumpSumChild>().ToView("vLumpSumChildSet");
+            // Multi-Year — the Members tab's paged list (keyless view).
+            modelBuilder.Entity<Models.Views.MultiYear.PortfolioMemberListRow>().HasNoKey().ToView("vMultiYearPortfolioMemberList");
 
             // Component Cost → Costs Per Year
             modelBuilder.Entity<Models.Table.Project.ProjectComponentCost>()

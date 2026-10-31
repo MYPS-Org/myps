@@ -46,6 +46,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     Message = "Project visibility cannot be changed on this server until its database update (Migration.GroupProjectScope) has been run. Ask your administrator.",
                     Title = "Project Visibility Unavailable"
                 });
+            if ((GroupProjectScope)scope.Value == GroupProjectScope.Cluster && !await GroupProjectScopes.IsClusterStorableAsync(_db, ct))
+                return BadRequest(new
+                {
+                    Message = "Own UPMO cluster cannot be chosen on this server until its database update (Migration.GroupProjectScopeCluster) has been run. Ask your administrator.",
+                    Title = "Project Visibility Unavailable"
+                });
             return null;
         }
 

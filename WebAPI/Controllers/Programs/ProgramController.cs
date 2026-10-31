@@ -7,6 +7,7 @@ using DBHelper.Models.Table.Program;
 using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views.Program;
 using Helpers;
+using Helpers.MultiYear;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -840,6 +841,7 @@ namespace WebAPI.Controllers.Programs
                 UACS = y.UACS,
                 StartDate = y.StartDate,
                 EndDate = y.EndDate,
+                DateOfApproval = y.DateOfApproval,
                 CreatedBy = y.CreatedBy,
                 CreatedDate = y.CreatedDate,
                 IsDeleted = false
@@ -1094,6 +1096,7 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 bool hasUpdated = false;
+                bool approvedGaa = false;
                 string ProgramId = dto.ProgramId;
                 DateTime CurrentDate = Functions.CurrentDate();
 
@@ -1237,6 +1240,9 @@ namespace WebAPI.Controllers.Programs
                 if (dto.Status != ProgramRevisions.Status)
                 {
                     hasUpdated = true;
+                    // Multi-Year Phase 2: a GAA or GAA-R just approved updates the portfolios after commit.
+                    approvedGaa = dto.Status == EnumProgramStatus.Approved
+                        && ProgramStage.StageId is EnumProgramStage.GAA or EnumProgramStage.GAAR;
                     var Current = await _db.tOptionProgramStatus.FirstOrDefaultAsync(x => x.NameId == (int)ProgramRevisions.Status);
                     ProgramRevisions.Status = dto.Status;
                     transactionLogs.Add(new TransactionLog
@@ -1315,11 +1321,19 @@ namespace WebAPI.Controllers.Programs
                     await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
                 }
+
+                // After commit, never throwing: the approval stands whatever the update does.
+                var multiYearUpdate = approvedGaa
+                    ? await PortfolioGaaUpdate.AfterApprovalAsync(_db, ProgramParent.StartYear,
+                        ProgramStage.StageId == EnumProgramStage.GAAR ? EnumUpdateTrigger.GaaRApproved : EnumUpdateTrigger.GaaApproved,
+                        ProgramParent.ProgramPK, null, _Session.UserId, ex => _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString()), cancellationToken)
+                    : null;
                 return Ok(new
                 {
                     Data = $"Program {dto.ProgramId} updated successfully.",
                     Message = "Program updated successfully.",
-                    Title = "Update Complete"
+                    Title = "Update Complete",
+                    MultiYearUpdate = multiYearUpdate,
                 });
             }
             catch (Exception ex)
@@ -1458,10 +1472,18 @@ namespace WebAPI.Controllers.Programs
                     await _db.tProgramStages.AddAsync(newStage);
                     await _db.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync();
+
+                    // Multi-Year Phase 2: leaving GAA approves it (below), so the portfolios update after
+                    // commit, never throwing -- the advance stands whatever the update does.
+                    var multiYearUpdate = ProgramStage.StageId == EnumProgramStage.GAA
+                        ? await PortfolioGaaUpdate.AfterApprovalAsync(_db, ProgramParent.StartYear, EnumUpdateTrigger.GaaAdvanced,
+                            ProgramParent.ProgramPK, null, _Session.UserId, ex => _exceptionHandler.Handle(ex, dto, _Session.UserId.ToString()), cancellationToken)
+                        : null;
                     return Ok(new
                     {
                         Message = "Program updated successfully.",
-                        Title = "Update Stage Complete"
+                        Title = "Update Stage Complete",
+                        MultiYearUpdate = multiYearUpdate,
                     });
                 }
 
@@ -1704,6 +1726,7 @@ namespace WebAPI.Controllers.Programs
 
                                     StartDate = year.StartDate,
                                     EndDate = year.EndDate,
+                                    DateOfApproval = year.DateOfApproval,
 
                                     CreatedBy = year.CreatedBy,
                                     CreatedDate = year.CreatedDate,

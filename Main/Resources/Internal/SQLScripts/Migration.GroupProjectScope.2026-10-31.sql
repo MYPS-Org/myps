@@ -15,6 +15,12 @@
                                    the user's Plantilla Office)
      3  Own district office       (the district office that is the user's
                                    Plantilla Office)
+     4  Own UPMO cluster          (Multi-Year portfolios only: the UDIP of the
+                                   user's PMO cluster office, every UDIP for the
+                                   UPMO itself. Projects: as 0.)
+
+   The check allows 0-4 when this script adds the column. A server where it ran
+   before 4 existed (0-3) is widened by Migration.GroupProjectScopeCluster.
 
    ADDITIVE, AND IT CHANGES WHAT NO ONE SEES: when the column is first added, each
    group gets the scope its name gave it until now (AUC, DPD Admin = 1; RPC = 2;
@@ -39,7 +45,7 @@ IF COL_LENGTH('dbo.tGroups', 'ProjectScope') IS NULL
 BEGIN
     ALTER TABLE dbo.tGroups ADD ProjectScope tinyint NOT NULL
         CONSTRAINT DF_tGroups_ProjectScope DEFAULT (0)
-        CONSTRAINT CK_tGroups_ProjectScope CHECK (ProjectScope BETWEEN 0 AND 3);
+        CONSTRAINT CK_tGroups_ProjectScope CHECK (ProjectScope BETWEEN 0 AND 4);
 
     -- The scope each group had by name (Helpers.GroupProjectScopes.ByName). Dynamic SQL: the column
     -- does not exist when this batch is compiled.
@@ -56,7 +62,8 @@ GO
 SELECT Id, GroupName, ApplyFilter,
        ProjectScope,
        CASE ProjectScope WHEN 0 THEN 'By program Data Security' WHEN 1 THEN 'All projects'
-                         WHEN 2 THEN 'Own region' WHEN 3 THEN 'Own district office' END AS ProjectVisibility
+                         WHEN 2 THEN 'Own region' WHEN 3 THEN 'Own district office'
+                         WHEN 4 THEN 'Own UPMO cluster' END AS ProjectVisibility
 FROM dbo.tGroups
 ORDER BY Id;
 GO

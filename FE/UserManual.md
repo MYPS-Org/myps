@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.31
-**Date:** October 31, 2026
+**Version:** 3.33
+**Date:** November 1, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -54,6 +54,8 @@
 | 3.28 | October 31, 2026 | RP | RP | Section 5.4 Revisions (S03, ATA remark of 30 October 2026): new **PCMA status rules** in Section 5.4.4: a **Modification** is not allowed when the project's components are Completed or Terminated ("Modification is not allowed because the Project Component has been Completed/Terminated."), and **Change in Authority to Implement** only while they are Not Yet Started and Not Packaged; the revision page then shows a **Revision Not Allowed** notice with **Back to Project Details**; a reason with no Revision Field Permission for the project's status is refused in plain words; Section 5.4.3 notes that the fields are edited on the revision page reached through **Revise Project**, not on Project Details, which stays read-only at GAA-R; new Common Outcomes rows |
 | 3.29 | October 31, 2026 | RP | RP | Section 5.8 User Management (audit of 31 October 2026): **Sync Routes** and **Sync API** ask for confirmation and say what they remove; Sync Routes never removes a route a user group still has (it names it instead) and refuses an empty list; a module's name cannot be changed; **Add User** needs at least one user group; **Edit User** corrected: only the Employee ID (looked up in PIS with the search button), the user groups and the status can be changed, and the login, name, email, region and office are kept; your own account's Employee ID, groups and status, and its Delete, are locked; the DPC, RPC, AUC and DPD Admin group names are locked; a group with members cannot be deleted; a group name cannot contain double quotes or backslashes; saving a group keeps the permissions the dialog does not list; a group you belong to cannot lose the User Management page or session validation |
 | 3.30 | October 31, 2026 | RP | RP | New Section 5.8.4 What Each User Group Can Do: the user groups' permissions follow the client's access matrix (AUC, DPD Admin, DPDC/PDC, PDC, PDA, PPC, RPO, RPC, DPC, UPC and the new VIEW group), and buttons a group may not use are hidden. Section 5.6 Reports: every user group can open Reports; the AIP reports are for AUC, DPD Admin and PDA only. |
+| 3.32 | October 31, 2026 | RP | RP | New Section 5.11 **Multi-Year**: RDIP, UDIP and PIP portfolios over six-year terms (5.11.1 Portfolios, 5.11.2 A Portfolio, 5.11.3 Add Planning Project, 5.11.4 A Multi-Year Project, 5.11.5 Open Next Term, 5.11.6 Who Sees Which Portfolio, 5.11.7 Multi-Year Code Lists). Section 4.1 module map and Section 9 list Multi-Year as a live module. Section 5.7 gains the **Multi-Year** tab; Section 5.8 gains the **Own UPMO cluster** Project visibility and its database-update message. |
+| 3.33 | November 1, 2026 | RP | RP | Section 5.11 **Multi-Year**, Phase 2: new 5.11.8 Propose to RBP / UBP, 5.11.9 Add to PIP and the PIP Cost, 5.11.10 The Update After a GAA Approval, 5.11.11 Import Planning Projects and 5.11.12 Saved Totals; 5.11.2 gains the Saved Totals tab, Import Projects, Add Project to PIP and the PIP columns; 5.11.4 gains Propose to RBP / UBP, Set PIP Cost, History and Annual Programs; 5.11.6 lists the new permissions. Section 5.2 notes the Multi-Year notice after approving a GAA / GAA-R. |
 | 3.31 | October 31, 2026 | RP | RP | Section 5.8.3: new **Project visibility** setting on each user group (Add Group, Edit Group and the User Groups list): which projects the group's members see. It replaces the fixed rule on the names AUC, DPD Admin, RPC and DPC, which keep the same visibility. Only DPC, RPC and AUC still cannot be renamed (the revision approval steps use their names). Section 5.8.4 explains the four choices. |
 
 ### Consultant
@@ -128,6 +130,19 @@
 | 5.10.6 | Deleting a Lump Sum Project |
 | 5.10.7 | Deleting an Itemized Project |
 | 5.10.8 | Editing a Lump Sum Project |
+| 5.11 | Multi-Year |
+| 5.11.1 | Portfolios |
+| 5.11.2 | A Portfolio |
+| 5.11.3 | Add Planning Project |
+| 5.11.4 | A Multi-Year Project |
+| 5.11.5 | Open Next Term |
+| 5.11.6 | Who Sees Which Portfolio |
+| 5.11.7 | Multi-Year Code Lists |
+| 5.11.8 | Propose to RBP / UBP |
+| 5.11.9 | Add to PIP and the PIP Cost |
+| 5.11.10 | The Update After a GAA Approval |
+| 5.11.11 | Import Planning Projects |
+| 5.11.12 | Saved Totals |
 | 6 | Workflows |
 | 7 | Error Handling |
 | 8 | Frequently Asked Questions |
@@ -349,8 +364,7 @@ The following table maps each active sidebar item to its route and source compon
 | 8 | Settings — User Management | /user-management | UserManagement | pages/Rbac/Rbac.tsx | 5.8 |
 | 9 | Settings — Infra Management | /infrastructure-management | InfraManagement | pages/Rbia/Views/Rbia.tsx | 5.9 |
 | 10 | Lump Sum Projects | /lumpsum | LumpSumList | pages/LSWallet/Views/LSWalletList.tsx | 5.10 |
-
-> Multi-Year Management remains commented out in the sidebar and is not accessible to users; it is not documented in Section 5.
+| 11 | Multi-Year — Portfolios | /multi-year/portfolios | MultiYearPortfolios | pages/MultiYear/Views/PortfolioList.tsx | 5.11 |
 
 ---
 
@@ -700,7 +714,7 @@ When a program row is expanded, a nested table lists all budget stages under tha
 | Start Year | Fiscal year of the program |
 | Program Type | Classification of the program |
 | Cost | Total cost (derived from Project Details) of the projects at the program's current stage. A deleted project does not count. |
-| Status | Working or Approved |
+| Status | Working or Approved. Approving a **GAA** or **GAA-R** program (or moving a GAA on to GAA-R) also updates the Multi-Year portfolios; a second message says what changed (Section 5.11.10) |
 | User Groups | Groups with access to this program |
 | Data Security Access | Data visibility restriction |
 | Created Date | Date the program was created |
@@ -2396,6 +2410,7 @@ A project can belong to only one project group at a time.
 | Program | Program Stage, Program Type, Program Status |
 | Project Details | Agency, Category, Origin, Thrust |
 | Revision | Categories, Documents, Headers, Reasons, Rules, Statuses, Validation Dates |
+| Multi-Year | Basis for Implementation, NEDA Project Status, Readiness Level, RDP Outcomes, RDP Outputs (see Section 5.11.7). Shown only to groups with the Multi-Year code lists permission |
 
 **Toggle Active / Inactive**
 
@@ -2987,7 +3002,7 @@ Click anywhere on a group row (not on the action buttons) to expand a permission
 |---|---|---|---|
 | UI-UX-0121-F01 | GROUP NAME | The name of the new group | Text input; required (marked with *) |
 | UI-UX-0121-F02 | DESCRIPTION | Optional explanation of the group's role | Textarea; optional |
-| UI-UX-0121-F04 | PROJECT VISIBILITY | Which projects the group's members see (see Section 5.8.4) | Dropdown: **By program Data Security** (default), **All projects**, **Own region**, **Own district office** |
+| UI-UX-0121-F04 | PROJECT VISIBILITY | Which projects the group's members see (see Section 5.8.4) | Dropdown: **By program Data Security** (default), **All projects**, **Own region**, **Own district office**, **Own UPMO cluster** |
 | UI-UX-0121-F03 | APPLY FILTER | When checked, this group applies a data filter (restricts data visible to its members to their own region/office only) | Checkbox; defaults to unchecked |
 | UI-UX-0121-A01 | Cancel | Closes the dialog without creating the group | Button |
 | UI-UX-0121-A02 | Create Group | Submits the form and creates the group | Button (blue); disabled if Group Name is empty |
@@ -3028,7 +3043,7 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 |---|---|---|---|
 | UI-UX-0122-F01 | GROUP NAME | Name of the group | Text input; required. Read-only for **DPC**, **RPC** and **AUC**: the revision approval steps are matched by these names |
 | UI-UX-0122-F02 | DESCRIPTION | Group description — editable | Textarea; optional |
-| UI-UX-0122-F10 | PROJECT VISIBILITY | Which projects the group's members see (see Section 5.8.4) | Dropdown: **By program Data Security** (default), **All projects**, **Own region**, **Own district office** |
+| UI-UX-0122-F10 | PROJECT VISIBILITY | Which projects the group's members see (see Section 5.8.4) | Dropdown: **By program Data Security** (default), **All projects**, **Own region**, **Own district office**, **Own UPMO cluster** |
 | UI-UX-0122-F03 | APPLY FILTER | Restricts members' data view to their own region/office | Checkbox |
 | UI-UX-0122-F04 | MODULE PERMISSIONS | Accordion-style list of all system modules with their API and route permissions | Interactive accordion |
 | UI-UX-0122-A01 | Expand All | Expands all module accordions simultaneously | Link button |
@@ -3071,6 +3086,7 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 | "You are a member of '...'. Saving would remove your own User Management access (...)." | The change would take the User Management page, its actions, or session validation away from a group you belong to, and you would be locked out | Ask another administrator to make the change |
 | "'...' cannot be renamed: the revision approval steps are matched by this group name." | The group is DPC, RPC or AUC | Keep the name; change the description, settings or permissions instead |
 | "Project visibility cannot be changed on this server until its database update … has been run." | The server's database has not had the Project visibility update yet. Until then groups keep the visibility their names gave them | Ask your administrator to run the update |
+| "Own UPMO cluster cannot be chosen on this server until its database update (Migration.GroupProjectScopeCluster) has been run. Ask your administrator." | The server's database does not allow the Own UPMO cluster choice yet. Every other choice works | Ask your administrator to run the update |
 
 > Module headers highlighted in blue indicate at least one permission is currently granted in that module. Headers in grey indicate no permissions are set. Use the count badges (e.g., "3/10 API", "2/5 Routes") on module headers to quickly verify how much access is granted per module.
 
@@ -3121,6 +3137,7 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 | **Own region** | The projects of every district office in the region that is the member's **Plantilla Office** | RPC |
 | **Own district office** | The projects of the district engineering office that is the member's **Plantilla Office** | DPC |
 | **By program Data Security** | With **Apply Filter** on: the projects of programs whose Data Security Access includes the member's region. With it off: every project | Every other group |
+| **Own UPMO cluster** | The same projects as **By program Data Security**. It changes only the Multi-Year portfolios: the UDIP of the UPMO cluster that is the member's **Plantilla Office**, or every UDIP when it is the UPMO itself (Section 5.11.6) | No group; choose it in Edit Group |
 
 A user in several groups sees the widest: **All projects** wins, and **Own region** and **Own district office** add up. A member whose Plantilla Office does not fit the group's Own region or Own district office sees no projects ("Your plantilla office is not set up for project access for your user group."). The new groups PDA, PDC, PPC, RPO, UPC and VIEW start at By program Data Security with Apply Filter on; set their Project visibility to what the client intends for each role.
 
@@ -3879,6 +3896,318 @@ To edit the Lump Sum Project record itself (its own allocation, category, fundin
 
 ---
 
+### 5.11 Multi-Year
+
+**Purpose:** Keep the multi-year investment programs as **portfolios**: an **RDIP** (Regional Development Investment Program) for each region, a **UDIP** (UPMO Development Investment Program) for each UPMO cluster, and the national **PIP** (Public Investment Program). Each portfolio covers one fixed six-year term, for example 2023–2028.
+
+**Who uses this:** PS Admin (AUC) creates portfolios, opens their next terms and checks the GAA updates; coordinators (RPC, DPC, UPC) add, import and maintain planning projects and propose them into the RBP / UBP; PPC adds projects to the PIP and keeps their PIP cost.
+
+**Key ideas:**
+
+* A multi-year project has **one record for its whole life**. It joins portfolios as a **member**; it is never copied. The same project can be in an RDIP and in the PIP.
+* Each membership keeps its own **status**, start year, cost and planning fields.
+* Terms never overlap. A new term is opened from the old one, which then becomes **closed and read-only**.
+* Nothing is deleted: portfolios stay readable forever, a wrong planning project is **cancelled**, and code-list values are **retired**.
+* A planning project reaches the annual budget by **Propose to RBP / UBP** (Section 5.11.8). The BP project made carries the project's MY ID as its **Multi Year ID**, and that is how MYPS recognises it in the BP, NEP and GAA programs later, so keep it on the project.
+* When a GAA or GAA-R is approved, every open portfolio updates itself (Section 5.11.10).
+
+> Not in this phase: locking past years, the Multi-Year Costing Changes rules, the TRIP, MTPIP and CIP reports, and converting the old RDIP and PIP programs into portfolios. The RDIP and PIP stages in the Programs list are a separate, older track and are unchanged.
+
+---
+
+#### 5.11.1 Portfolios
+
+**Purpose:** Find a portfolio and create a new one.
+
+**Step-by-Step:**
+
+1. In the sidebar, click **Multi-Year → Portfolios**.
+2. Narrow the list with **Portfolio** (RDIP, UDIP or PIP), the region or cluster, **Open terms / Closed terms** and a **Year** (only the terms that include it).
+3. Click a row to open the portfolio (Section 5.11.2).
+
+The list shows only the portfolios your user group may see (Section 5.11.6).
+
+**Field Reference — Create Portfolio**
+
+| Field ID | Label | Description | Behavior / Validation |
+|---|---|---|---|
+| MY-F01 | Portfolio | RDIP, UDIP or PIP | Required. PIP is offered only to users who may see the PIP |
+| MY-F02 | Region / UPMO Cluster | The portfolio's owner | Required for RDIP (a region) and UDIP (a UPMO cluster office); none for PIP |
+| MY-F03 | Term Start Year | First year of the six-year term | Required, 1990–2095. The term always ends five years later |
+| MY-A01 | Create | Creates the portfolio and opens it | Shown only with the Create Portfolio permission |
+
+**Common Outcomes & What to Do**
+
+| Message / Situation | What it Means | What You Should Do |
+|---|---|---|
+| "RDIP … 2023–2028 already exists." | One portfolio per kind, owner and term | Open the existing portfolio |
+| "… overlaps the term …. Terms of the same owner cannot overlap; the next term after it starts in …." | The new term shares years with an existing one | Use the term start the message names |
+| "… is the term before it. Use Open Next Term on that portfolio instead, so its unfinished projects are carried forward." | The term right after an existing one is opened from it | Open the earlier portfolio and use **Open Next Term** (Section 5.11.5) |
+
+[Insert Screenshot: Multi-Year Portfolios list]
+
+---
+
+#### 5.11.2 A Portfolio
+
+**Purpose:** See a term's projects, record its budget ceilings and read its saved totals.
+
+The header shows the portfolio, its status (**Open** or **Closed, read-only**), the number of projects, the planned cost of the projects that are not cancelled, a count per status, and links to the **Previous term** and **Next term**.
+
+**Projects tab:** one row per project: **Project ID** (opens the project, Section 5.11.4; *owner* marks the portfolio that created it), Description, Category, Status, Start, the planned cost of each of the six term years, **Later Years**, and **Total**. Search by Project ID or description and filter by status. **Set Status** appears where a coordinator may change the status (Section 5.11.4). In the **PIP**, each row also shows **From** (the RDIP or UDIP it came from, or *Added from the GAA*), the **PIP Cost** and the **Original Cost**, with **Set PIP Cost** (Section 5.11.9).
+
+**Buttons in an open term:** **Add Planning Project** and **Import Projects** (RDIP and UDIP, Sections 5.11.3 and 5.11.11), **Add Project to PIP** (PIP, Section 5.11.9) and **Open Next Term**.
+
+**Budget Ceilings tab:** for each year of the term, the **Planned** cost of the projects that are not cancelled, the **Budget Ceiling**, and **Ceiling less Planned** (red when planned cost is over the ceiling). In an open term, users with the permission type the ceilings and click **Save Budget Ceilings**. A ceiling cannot be negative, and a year outside the term is refused.
+
+**Saved Totals tab:** the portfolio's saved totals (Section 5.11.12).
+
+A closed term shows everything but offers no change.
+
+[Insert Screenshot: Portfolio — Projects tab]
+
+---
+
+#### 5.11.3 Add Planning Project
+
+**Purpose:** Put a new multi-year project into an open RDIP or UDIP. Projects enter the PIP from there (Add to PIP, Section 5.11.9). To add many at once, use Import Projects (Section 5.11.11).
+
+**Step-by-Step:**
+
+1. Open the portfolio and click **Add Planning Project**.
+2. Fill in the project, its location, its Civil Works component and its planned yearly cost (Field Reference below).
+3. Fill in the planning fields if known (Section 5.11.4).
+4. Click **Add Planning Project**.
+
+**Field Reference**
+
+| Field ID | Label | Description | Behavior / Validation |
+|---|---|---|---|
+| MY-F10 | Description | The project's name | Required, at most 1000 characters |
+| MY-F11 | Category / Sub-Category | As on the Project form | Required Category. Offered when Active or valid for the Start Year. Fixed after saving (it is part of the Project ID) |
+| MY-F12 | Horizon | Short term (3 years), Medium term (6 years), Long term (open-ended) | Required. Drives warnings, not limits |
+| MY-F13 | Start Year / End Year | First year of implementation; last year when known | Start Year required, in the term or later; End Year optional, not before the Start Year |
+| MY-F14 | Region | Where the project is | RDIP: the portfolio's region. UDIP: chosen. Fixed after saving (it is part of the Project ID) |
+| MY-F15 | Province, City / Municipality, Legislative District, District Engineering Office | Location | Optional; must be inside the region and province chosen. Needed, with Implementing Office and Region Wide, before the project can be proposed into an RBP (Section 5.11.8) |
+| MY-F16 | Implementing Office | Who implements it | RDIP: an office of the region. UDIP: the portfolio's cluster office |
+| MY-F17 | Reporting Region, Region Wide | Reporting fields | Optional. Reporting Region is shown for UDIP |
+| MY-F18 | Infrastructure Type / Dominant Type of Work / Physical Target | The one major item of work of the Civil Works component (CW1) | Infrastructure Type and Type of Work required; the Type of Work must belong to the Infrastructure Type. The target's unit comes from the Type of Work |
+| MY-F19 | Planned yearly cost | A Year and an amount per row | At least one row; see the messages below |
+
+**On Success:** The project gets an **MY Project ID** (for example MY00700026VS) and its page opens. Its status in the portfolio is **New**, and every year of its cost is marked **Planned**.
+
+**Common Outcomes & What to Do**
+
+| Message / Situation | What it Means | What You Should Do |
+|---|---|---|
+| "The planned cost for … must be more than zero." | A year has no amount | Remove the row, or enter the amount |
+| "… is entered more than once." | Two rows have the same year | Put the amounts in one row |
+| "… is before the Start Year (…)." / "… is after the End Year (…)." | A year is outside the project's years | Change the year, or the Start / End Year |
+| "… beyond the … horizon (…). Saved anyway." | A year is later than the horizon covers | Nothing, if intended; or choose a longer horizon |
+| "'…' is not a type of work for …." | The Type of Work does not belong to the Infrastructure Type | Choose a Type of Work offered for it |
+| "A new planning project in … starts in … or later." | The Start Year is before the term | Use a year of the term or later |
+
+[Insert Screenshot: Add Planning Project]
+
+---
+
+#### 5.11.4 A Multi-Year Project
+
+**Purpose:** See a project's single record and its place in each portfolio.
+
+The page shows the project (Category, Sub-Category, Horizon, Years, location, **Original Cost** and **Current Cost**), its Civil Works component, its **Yearly cost** with each year marked **Planned**, **Annual Programs** (every annual program holding a project whose Multi Year ID is this MY ID, at its latest stage there, with that program year's amount; *approved* marks an approved GAA / GAA-R, *withdrawn* a Non-Implementable or terminated entry; under it, the **Proposals to RBP / UBP** made), and a card for each portfolio it belongs to that you may see. A planned year marked **Before the start year: re-plan it** was left behind when the GAA update moved the Start Year on (Section 5.11.10); change or remove it with Edit Project.
+
+* **Edit Project** (through the portfolio that owns it, while its term is open and the project is not completed or cancelled) changes the project's fields and planned yearly cost. **Category** and **Region** cannot change. The **Start Year** can change only while the project is **New**. The **Original Cost** never changes; the **Current Cost** follows the planned years.
+* **Edit Planning Fields** on a portfolio card sets that portfolio's **Basis for Implementation**, **NEDA Project Status** (no default), **Readiness Level** (several), **RDP Results Matrix** (for each outcome the project serves, one output), **Tier** and **MCA Score** (0 to 100). The values offered are those Active or valid for the start year; a value already saved stays.
+* **Set Status** on a portfolio card: a project starts **New**. A coordinator may set **New → Cancelled**, **Ongoing → Completed** and **Ongoing → Cancelled**. **Potential** comes from Propose to RBP / UBP (Section 5.11.8) and **Ongoing** from the GAA update (Section 5.11.10). A **Completed** or **Cancelled** project can no longer be edited in that portfolio, and the status cannot be undone.
+* **Propose to RBP / UBP** on an RDIP or UDIP card (Section 5.11.8) and **Set PIP Cost** on a PIP card (Section 5.11.9).
+* Each card's **History** lists every change: status, start year and PIP cost, who made it and why; *(GAA update)* marks the changes the update after a GAA approval made.
+
+| Message | What it Means | What You Should Do |
+|---|---|---|
+| "A New project can only be set to Cancelled." | The status diagram allows no other change from New | — |
+| "This project is Cancelled in this portfolio and can no longer change." | Completed and cancelled lock the project there | — |
+| "The Category cannot be changed: it is part of the Project ID." | Category and Region are fixed | Cancel the project and add a new one if they are wrong |
+| "The term … is closed and read-only." | The portfolio's next term has been opened | Make the change in the open term |
+
+[Insert Screenshot: Multi-Year Project]
+
+---
+
+#### 5.11.5 Open Next Term
+
+**Purpose:** Continue a portfolio into its next six-year term.
+
+**Step-by-Step:**
+
+1. Open the portfolio and click **Open Next Term**.
+2. Read the dialog: every project that is not completed or cancelled is carried into the new term with its status and planning fields; completed and cancelled projects stay in the old term; the old term becomes **closed and read-only** and cannot be reopened. A warning shows when the term has not ended yet.
+3. Click **Open …** to confirm.
+
+**On Success:** The new term opens. The message says how many projects were carried forward and how many stayed behind. No project is copied: the carried projects keep their one record.
+
+[Insert Screenshot: Open Next Term dialog]
+
+---
+
+#### 5.11.6 Who Sees Which Portfolio
+
+Which portfolios a user sees follows their user group's **Project visibility** (Section 5.8.4), set in **User Management → User Groups → Edit Group**:
+
+| Project visibility | Portfolios seen |
+|---|---|
+| **All projects** | Every RDIP, UDIP and the PIP |
+| **Own region** | The RDIP of the region that is the member's Plantilla Office |
+| **Own district office** | The RDIP of the region of the member's district office |
+| **Own UPMO cluster** | The UDIP of the UPMO cluster that is the member's Plantilla Office; every UDIP when it is the UPMO itself |
+| **By program Data Security** | Every RDIP and UDIP with Apply Filter off; with it on, the RDIP of the member's region (every RDIP and UDIP for a Central Office or UPMO member) |
+
+The **PIP** is seen with **All projects**, or with the **Show PIP** permission (given to PPC to start with). A user in several groups sees what each group allows. A deep link to a portfolio you may not see answers "This portfolio could not be opened."
+
+What a user may **do** follows the group's Multi-Year permissions in Edit Group. To start with: Create Portfolio, Open Next Term and GAA Updates for Admin and AUC; Add / Update / Import Planning Projects, Propose to RBP / UBP, Edit Planning Fields and Budget Ceilings for Admin, AUC, RPC, DPC and UPC; Set Status also for PPC; Add to PIP and Set PIP Cost for Admin and PPC; Saved Totals for every group that sees portfolios, and Save Totals for all of them except DPD Admin. Add to PIP lists the projects of every RDIP and UDIP, whatever the PPC's own visibility.
+
+---
+
+#### 5.11.7 Multi-Year Code Lists
+
+**Purpose:** Maintain the values of the planning fields.
+
+In **Code Tables → Multi-Year** (shown to groups that maintain Code Tables): **Basis for Implementation**, **NEDA Project Status**, **Readiness Level**, **RDP Outcomes** and **RDP Outputs** (each output belongs to one outcome). The lists start empty.
+
+* **Add** or edit (pencil) a value: Name (required), Description, **Valid From** / **Valid To** (years; 0 = no limit) and **Active**.
+* A value can be chosen when it is **Active or valid for the project's start year**.
+* There is no Delete. **Retire** a value with Active off or a Valid To year; projects that chose it keep it.
+* A value in use cannot be renamed: "'…' is in use, so it cannot be renamed. Retire it (Active off, or a Valid To year) and add a new value instead."
+
+---
+
+#### 5.11.8 Propose to RBP / UBP
+
+**Purpose:** Send a planning project into the annual budget: it becomes a project of an RBP (a region's) or UBP (a UPMO cluster's) program for one budget year.
+
+**Who uses this:** RPC, DPC, UPC (and AUC).
+
+**Prerequisites:**
+
+* The project is **New** (it becomes Potential) or **Ongoing** (it stays Ongoing; this is its next year) in an open RDIP or UDIP. A Potential project already waits for the GAA.
+* The project has Province, City / Municipality, Legislative District, District Engineering Office, Implementing Office and Region Wide (Edit Project).
+* An RBP-stage program for the year exists, is **Working**, and its Data Security is the RDIP's region; for a UDIP, the cluster office or the UPMO (that program is the UBP).
+* The project has a planned cost for the program's year.
+
+**Step-by-Step:**
+
+1. Open the project (Section 5.11.4) and click **Propose to RBP / UBP** on its RDIP or UDIP card.
+2. Choose the **Program**. Each shows its year and the project's planned cost for it; a year without planned cost, or already proposed, cannot be chosen.
+3. Fill in the annual-project fields a planning project does not have: **Operating Unit**, **Tier** (the portfolio's Tier to start with), **Origin**, **Originating Agency**, **Implementation Mode**, **Emergency Mode**, **ROW Available**, **Feasibility Study** and **Detailed Design** (with their dates when Yes).
+4. Click **Propose**.
+
+**On Success:** "Proposed to … as BP… with the … planned cost of …. Open it in Programs to add its Funding and locations." The new BP project is in the program, with the project's description, Category and location, one Civil Works component (CW1) holding that year's planned cost and its major item, and the project's MY ID as its **Multi Year ID**. The program's cost is updated. The project is **Potential** in the portfolio, and Annual Programs lists the RBP entry.
+
+**Common Outcomes & What to Do**
+
+| Message / Situation | What it Means | What You Should Do |
+|---|---|---|
+| "An annual project needs the …. Add them on this project's page (Edit Project) first." | A location field is missing | Fill them in with Edit Project, then propose |
+| "This project is already proposed and waits for the GAA. …" | It is Potential | Wait for the GAA approval (Section 5.11.10) |
+| "This project is already proposed for …. A project is proposed once per budget year." | A live proposal exists for that year | — (if its BP project was deleted, the year is free again) |
+| "This project has no planned cost for …." | No amount for the program's year | Add the year with Edit Project |
+| "… is at the … stage. A project is proposed into an RBP or UBP program." / "… is Approved and takes no new projects." | Not a Working RBP | Choose another program |
+| "… is not an RBP of …." | The program belongs to another region or cluster | Choose the portfolio owner's RBP / UBP |
+| No program in the list | No Working RBP / UBP for the owner and the project's years | Ask PS Admin to create the RBP program |
+
+> Keep the **Multi Year ID** when the project moves on from the RBP to the BP, NEP and GAA programs (by export / import or by hand): the GAA update finds the planning project by it.
+
+[Insert Screenshot: Propose to RBP / UBP dialog]
+
+---
+
+#### 5.11.9 Add to PIP and the PIP Cost
+
+**Purpose:** Choose the projects of the national PIP and keep their PIP cost.
+
+**Who uses this:** PPC (and Admin).
+
+**Step-by-Step — Add Project to PIP:**
+
+1. Open the PIP of the term and click **Add Project to PIP**.
+2. The list shows the **New** and **Potential** projects of every open RDIP and UDIP that start by the end of the PIP term and are not in it yet. Search by Project ID or description and choose one.
+3. Enter the **MCA Score** (0 to 100) and click **Add to PIP**.
+
+**On Success:** "… added to PIP … with an Original Cost of …." The project joins the PIP with its status, start year and planning fields. Its cost is copied into its **Original Cost**, which never changes, and the RDIP or UDIP it came from shows as **From**.
+
+**Set PIP Cost:** on the project's PIP row or card, enter the new **PIP Cost** (more than zero) and a reason. The Original Cost stays; the change is kept in the project's History.
+
+| Message | What it Means | What You Should Do |
+|---|---|---|
+| "Enter the project's MCA Score." / "MCA Score must be between 0 and 100." | The score is missing or out of range | Enter 0–100 |
+| "This project is already in this PIP." | One membership per PIP | — |
+| "Only a New or Potential project can be added to PIP; this one is …." | Ongoing, completed and cancelled projects are not chosen here | — |
+
+Projects of an approved GAA whose Multi Year ID matches no planning project are added to the PIP by the GAA update; they show *Added from the GAA* (Section 5.11.10).
+
+---
+
+#### 5.11.10 The Update After a GAA Approval
+
+**Purpose:** Keep the portfolios in step with the approved budget, without anyone re-keying it.
+
+**When it runs:** when a **GAA** or **GAA-R** program's Status is set to **Approved** and saved; when a GAA program moves on to **GAA-R**; and when a **Non-Implementable** revision, or a **Termination** with No Disbursements, is approved for a project of an approved GAA / GAA-R. It looks at every **open** portfolio. A project is *in the GAA* when a project of that approved GAA or GAA-R carries its MY ID as **Multi Year ID**.
+
+| Before | When | After |
+|---|---|---|
+| Potential | In the approved GAA of the year | **Ongoing** |
+| Potential | Not in it, but implemented in another year's GAA | **Ongoing** |
+| Potential | Not in it, never implemented | **New**, Start Year = the next year |
+| Potential | Proposed for a later year | Unchanged |
+| New | Found in an approved GAA (it reached it without a proposal) | **Potential**, then **Ongoing** |
+| New | Its Start Year is this year or earlier | Start Year = the next year |
+| Ongoing | Its only GAA entries were withdrawn (Non-Implementable, or Terminated with No Disbursements) | **New**, Start Year = the next year |
+| Completed, Cancelled | — | Never changed |
+
+A GAA project whose Multi Year ID is an MY ID that matches no planning project becomes a multi-year project and joins the **PIP** of that term as **Ongoing**, with its cost and years from the GAA. When no open PIP covers the year, it is not added and the message says so.
+
+**What you see:** after the save, a second message, for example "Multi-Year portfolios updated for the GAA 2025: 2 status changes, 1 start year moved to 2026, 1 project added to PIP." Running it again changes nothing ("… checked for the GAA 2025: nothing to change."). Each change appears in the project's History, marked *(GAA update)*, and each portfolio covering the year saves its totals (Section 5.11.12).
+
+> **The approval never depends on it.** If the update cannot finish, the program is still approved and the message says: "The Multi-Year portfolio update for … did not finish; the approval itself is saved. An Admin or AUC user can run it again from Multi-Year > Portfolios > GAA Updates."
+
+**GAA Updates** (Portfolios page, AUC and Admin): every update with its year, what started it and what it changed. **Run GAA Update** repeats it for a year with an approved GAA or GAA-R; a year without one is refused with "No GAA or GAA-R program for … is approved, so there is nothing to update from."
+
+---
+
+#### 5.11.11 Import Planning Projects
+
+**Purpose:** Add many planning projects to an open RDIP or UDIP from a spreadsheet.
+
+**Step-by-Step:**
+
+1. Open the portfolio and click **Import Projects**.
+2. Click **Download Template**. The file has three sheets: **Planning Projects** (one project per row), **Lists** (the codes and names each list column accepts) and **Instructions**.
+3. Fill one row per project. **Amount 1** is the Start Year's planned cost, **Amount 2** the next year's, and so on; add Amount 11, Amount 12 … columns for longer projects. List columns take the code or the exact name from the Lists sheet; Readiness Levels are separated by ";", and RDP Outcomes are written "Outcome > Output; …".
+4. Choose the filled file (.xlsx) and click **Import**.
+
+**On Success:** each valid row becomes a **New** planning project with its own MY ID, exactly as Add Planning Project makes it. A refused row does not stop the others: the dialog lists the projects added and each refused row with its row number and reasons. At most 500 rows per file.
+
+| Message | What it Means | What You Should Do |
+|---|---|---|
+| "Amount 2 (2027) is blank, but a later amount is filled. …" | A year inside the project has no amount | Fill every year from the Start Year on |
+| "Amount 1 (2026) must be more than zero." | A zero amount | Enter the cost, or end the amounts earlier |
+| "Category "…" is not in the Lists sheet." / "… matches 2 entries. Use its code from the Lists sheet." | The value is unknown or ambiguous | Copy the code from the Lists sheet |
+| "Column … must be "…" …. Download the template again." | The columns were moved or renamed | Use a fresh template |
+
+---
+
+#### 5.11.12 Saved Totals
+
+**Purpose:** Keep how a portfolio's cost stood at a moment, for comparison later.
+
+The **Saved Totals** tab of a portfolio lists its saved totals, newest first: why they were saved (**Term opened**, **Term closed**, **After a GAA update**, **Saved on request**), when, by whom, and for each term year the **Approved**, **Proposed** and **Planned** cost and the year's **Ceiling**. **View … projects** shows them per project.
+
+* Each project's year counts once: **Approved** when an approved GAA or GAA-R of that year holds it, else **Proposed** when an annual program of that year holds it, else **Planned**. Cancelled projects do not count.
+* They are saved when a term opens or closes, after each GAA update (only when something changed), and with **Save Totals** (open term) and an optional note.
+* Saved totals are never edited or deleted.
+
+---
+
 ## 6. Workflows
 
 ### Workflow 1: Create a Program and Encode a Project
@@ -3994,7 +4323,7 @@ Whenever a revision comes back **For Correction** — from either the RPC or PS 
 
 ## 9. Notes & Limitations
 
-* **Inactive modules:** Multi-Year Management is currently disabled in the sidebar and is not accessible to users. Reports (Section 5.6) and Lump Sum Projects (Section 5.10) are live modules.
+* **Live modules:** Reports (Section 5.6), Lump Sum Projects (Section 5.10) and Multi-Year (Section 5.11) are live modules. Multi-Year is in its first phase: proposing a planning project into an RBP or UBP, Add to PIP, the portfolio update on GAA approval, importing planning projects, locking past years and the TRIP / MTPIP / CIP reports are not available yet. The RDIP and PIP stages in the Programs list are the older, separate program track and are unchanged.
 * **Code Tables dependency:** Program Types, Program Stages, Categories, Infrastructure Types, Funding Sources, and all other dropdown options are sourced from Code Tables. Ensure all required reference data is configured in Code Tables before users begin encoding.
 * **PCMA publishing prerequisite:** A project must be published to PCMA before revisions are possible. Publishing is controlled by PS Admin using the Allow Publishing batch action on a GAA-R program.
 * **Role-based visibility:** Features and modules visible to each user depend on their assigned User Group permissions. Contact your PS Admin if expected features are not visible.

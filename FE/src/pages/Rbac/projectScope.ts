@@ -16,4 +16,9 @@ export const PROJECT_SCOPES = [
     label: 'Own district office',
     hint: "The projects of the district engineering office that is the user's Plantilla Office.",
   },
+  {
+    value: 4,
+    label: 'Own UPMO cluster',
+    hint: "Multi-Year: the UDIP of the UPMO cluster that is the user's Plantilla Office (every UDIP for the UPMO itself). Projects: as By program Data Security.",
+  },
 ] as const;
