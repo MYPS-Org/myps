@@ -3125,7 +3125,7 @@ The user groups' permissions follow the client's access matrix. Every group can 
 | Add, edit and delete future roads, road sections and bridges; Infra Management **Import** | Yes | Yes | — | — | — | — | — | — | — | — |
 | Code Tables | Yes | Yes | Yes | — | — | — | — | — | — | — |
 
-> These are the groups' starting permissions. An administrator can still change a group's permissions in **Edit Group** (Section 5.8.3). The **Admin** and **SD** groups are not part of the matrix and keep their own permissions. Lump Sum and the approval of revisions (RPC and AUC) are unchanged.
+> These are the groups' starting permissions, not rules fixed in MYPS. Every row is a permission an administrator can give or take away in **User Groups → Edit Group** (Section 5.8.3): for example, ticking **ReportingController › RequestReportAIPOfficial** gives a group the AIP reports, and ticking the **CodeTables** page under Route Access gives it Code Tables. The buttons and pages follow the change when the user reloads the page. The **Admin** and **SD** groups are not part of the matrix and keep their own permissions. Lump Sum and the approval of revisions (RPC and AUC) are unchanged.
 >
 > Not in MYPS yet, so not in the table: Submit Annual Proposal, Submit / Unlock / Manage NEP and HGAB Revisions, Synchronize PIP, Calculate EAO, Archive / Restore Program, Change Project Status, Conduct MCA, Project Profile, Republish Project Group, Manage MCA Groups and Manage Report Groups.
 

@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../pages/login/Service';
 import type { User } from '../pages/login/Service';
-import { isRestrictedUser } from './userScope';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -23,14 +22,9 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-/*  2026-10-18: Lump Sum and Code Tables are hidden from DPC/RPC users -- in the FRONTEND ONLY for now;
-    the API for those modules is unchanged and will be restricted in a later change. Dropping the routes
-    from ViewAccess hides both the sidebar entries (AppSidebar) and the routes (usePermittedRoutes).
-    Who counts as restricted: isRestrictedUser (./userScope). */
-const ROUTES_HIDDEN_FROM_RESTRICTED = ['LumpSumList', 'AddWallet', 'LumpSumDetails', 'CodeTables'];
-
-const visibleRoutesFor = (user: User | null, viewAccess: string[]): string[] =>
-    isRestrictedUser(user) ? viewAccess.filter((r) => !ROUTES_HIDDEN_FROM_RESTRICTED.includes(r)) : viewAccess;
+/*  Pages (ViewAccess) and actions (ActionAccess) are exactly what the user's groups are granted in
+    User Management > User Groups > Edit Group. 2026-10-31: the 2026-10-18 rule that always hid Lump Sum
+    and Code Tables from DPC/RPC by group name is gone; those pages follow the group's grants like the rest. */
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -62,7 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     user: { ...response.Data.Data.User,
                         // UserGroup: response.Data.Data.User.UserGroup
                         },
-                    ViewAccess: visibleRoutesFor(response.Data.Data.User, response.Data.Data.ViewAccess || []),
+                    ViewAccess: response.Data.Data.ViewAccess || [],
                     ActionAccess: response.Data.Data.ActionAccess || []
                 });
                 if(window.location.pathname === '/login') {

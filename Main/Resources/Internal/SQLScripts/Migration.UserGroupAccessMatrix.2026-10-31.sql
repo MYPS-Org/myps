@@ -27,6 +27,12 @@
    Report Groups. The RDC, PIP, Investment and BED/BARG/PGS reports are not separate
    reports in MYPS; RBP, RBP Summary and the extracts count as "Other Reports".
 
+   THIS IS A STARTING SETUP, NOT A RULE IN CODE. The application reads permissions
+   only from tGroupRoles, which User Management > User Groups > Edit Group writes:
+   after this script, administrators change any group there. Run it ONCE per
+   server; running it again sets the features above back to the matrix and undoes
+   any change made in Edit Group since.
+
    Matched BY NAME, never by Id (Ids differ per database). Idempotent. Run by hand
    per environment, like the other Migration.* scripts; it prints what it changes.
    The application also gates the AIP reports on ReportingController.

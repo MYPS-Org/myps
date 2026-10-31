@@ -7,7 +7,6 @@ import BridgeList from "../components/Bridge";
 import ImportDialog from '../Dialogs/ImportDialog';
 import { getInfraCounts } from './../Service';
 import { useAuth } from '../../../contexts/AuthContext';
-import { isRestrictedUser } from '../../../contexts/userScope';
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
@@ -19,11 +18,11 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 const Rbia: React.FC = () => {
     const [selectedTab, setSelectedTab] = useState<'roads' | 'roadSections' | 'bridges'>('roads');
     const [importDialogOpen, setImportDialogOpen] = useState(false);
-    // The RBIA / AAMS / IOMS imports are for PS Admin (S06-TC015/TC016). They run in the GIS service,
-    // which does not check MYPS permissions, so district and regional users (DEO / RO) get no Import button.
-    // 2026-10-31: and only groups that may add future infrastructure (access matrix: AUC, DPD Admin).
-    const { user, can } = useAuth();
-    const canImport = !isRestrictedUser(user) && can('FutureInfra', 'AddFutureRoads');
+    // The RBIA / AAMS / IOMS imports run in the GIS service, which does not check MYPS permissions, so the
+    // button is the only gate (S06-TC015/TC016). 2026-10-31: it follows the group's grant to add future
+    // infrastructure (FutureInfraController.AddFutureRoads in Edit Group), not a fixed list of group names.
+    const { can } = useAuth();
+    const canImport = can('FutureInfra', 'AddFutureRoads');
     const [roadCount, setRoadCount] = useState(0);
     const [roadSectionCount, setRoadSectionCount ] = useState(0);
     const [bridgeCount, setBridgeCount] = useState(0);
