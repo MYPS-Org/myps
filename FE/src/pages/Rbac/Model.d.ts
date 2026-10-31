@@ -103,6 +103,8 @@ export interface AddUserGroups {
     PermissionIds: number[]; // Dialog works with array of IDs
 	Description?: string;
 	ApplyFilter?: boolean;
+	/** Project visibility (projectScope.ts); omitted = By program Data Security. */
+	ProjectScope?: number;
 }
 
 export interface UpdateUserGroupPayload {
@@ -110,6 +112,7 @@ export interface UpdateUserGroupPayload {
 	GroupName: string;
 	Description?: string;
 	ApplyFilter: boolean;
+	ProjectScope?: number;
 	PermissionActionIds: number[];
 	PermissionViewIds: number[];
 }
@@ -149,6 +152,8 @@ export interface vUserGroups{
     Id: number;
     GroupName: string;
     ApplyFilter: boolean;
+    /** Project visibility (projectScope.ts). */
+    ProjectScope?: number;
     NumberOfUsers: number;
     Description?: string;
     CreatedBy: string;

@@ -8,6 +8,7 @@ import { Badge } from '../../../components/tailwindui/badge';
 import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 import type { vUserGroups, UserGroupFilter } from '../Model.d';
 import type { ListPager } from '../useRbac';
+import { PROJECT_SCOPES } from '../projectScope';
 
 interface UserGroupsTabProps {
 	pager: ListPager<UserGroupFilter, vUserGroups>;
@@ -80,6 +81,7 @@ export const UserGroupsTab: React.FC<UserGroupsTabProps> = ({
 						<TableHeader className="text-gray-700">Group Name</TableHeader>
 						<TableHeader className="text-gray-700">Members</TableHeader>
 						<TableHeader className="text-gray-700">Permissions</TableHeader>
+						<TableHeader className="text-gray-700">Project visibility</TableHeader>
 						<TableHeader className="text-gray-700">Description</TableHeader>
 						<TableHeader className="text-gray-700">Created</TableHeader>
 						<TableHeader className="text-gray-700">Actions</TableHeader>
@@ -133,6 +135,9 @@ export const UserGroupsTab: React.FC<UserGroupsTabProps> = ({
 											<Badge color="zinc" className="text-xs">No permissions</Badge>
 										)}
 									</TableCell>
+									<TableCell className="text-gray-700 whitespace-nowrap">
+										{(PROJECT_SCOPES.find(s => s.value === (group.ProjectScope ?? 0)) ?? PROJECT_SCOPES[0]).label}
+									</TableCell>
 									<TableCell className="text-gray-500 max-w-xs truncate">
 										{group.Description}
 									</TableCell>
@@ -160,7 +165,7 @@ export const UserGroupsTab: React.FC<UserGroupsTabProps> = ({
 								{/* Expanded detail row */}
 								{isExpanded && (
 									<TableRow className="bg-blue-50/60">
-										<TableCell colSpan={6} className="p-0 border-b border-blue-100">
+										<TableCell colSpan={7} className="p-0 border-b border-blue-100">
 											<div className="px-8 py-4">
 												{!hasPerms ? (
 													<p className="text-sm text-gray-400 italic">No permissions assigned to this group.</p>

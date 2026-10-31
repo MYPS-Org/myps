@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addUserGroup } from '../service';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import ProjectScopeField from './ProjectScopeField';
 
 interface AddGroupDialogProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [applyFilter, setApplyFilter] = useState(false);
+  const [projectScope, setProjectScope] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,7 +30,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
     setIsSubmitting(true);
     setError('');
     try {
-      await addUserGroup({ GroupName: groupName.trim(), Description: description.trim() || undefined, ApplyFilter: applyFilter, PermissionIds: [] });
+      await addUserGroup({ GroupName: groupName.trim(), Description: description.trim() || undefined, ApplyFilter: applyFilter, ProjectScope: projectScope, PermissionIds: [] });
       showToast({ message: `Group '${groupName.trim()}' created successfully.`, type: 'success' });
       onSubmit({ GroupName: groupName.trim(), Description: description.trim() });
       handleClose();
@@ -44,6 +46,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
     setGroupName('');
     setDescription('');
     setApplyFilter(false);
+    setProjectScope(0);
     setError('');
     onClose();
   };
@@ -102,6 +105,8 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
             <p className="text-xs text-gray-400 -mt-2">
               A user in several groups is region-filtered only when all their groups have Apply Filter.
             </p>
+
+            <ProjectScopeField value={projectScope} onChange={setProjectScope} />
 
             <p className="text-xs text-gray-400">
               Permissions can be assigned after the group is created via the Edit action.

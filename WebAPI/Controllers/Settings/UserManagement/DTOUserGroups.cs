@@ -22,6 +22,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
         public string? Description { get; set; }
         [Required]
         public bool ApplyFilter { get; set; } = true;
+        /// <summary>Project visibility (Helpers.GroupProjectScope); null keeps the default, DataSecurity.</summary>
+        public int? ProjectScope { get; set; }
     }
     public class UpdateUserGroupDTO {
 
@@ -32,6 +34,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
         public string? Description { get; set; }
         [Required]
         public bool ApplyFilter { get; set; } = true;
+        /// <summary>Project visibility (Helpers.GroupProjectScope); null leaves it unchanged.</summary>
+        public int? ProjectScope { get; set; }
         public int[] PermissionActionIds { get; set; } = [];
         public int[] PermissionViewIds { get; set; } = [];
     }

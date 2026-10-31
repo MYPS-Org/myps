@@ -24,9 +24,30 @@ namespace WebAPI.Controllers.Settings.UserManagement
     {
         public UserManagementController(MYPSDbContext db, IHubContext<SignalRHub> hub, PCMADbContext pcma, IMYPSExceptionHandler exceptionHandler) : base(db, hub, pcma, exceptionHandler) { }
 
-        // The group names Helpers/ProjectHelper.cs's project view gate matches (ScopeGroupDPC/RPC,
-        // ScopeSeeAllGroups). Keep in step with it; UpdateUserGroup refuses renaming them.
-        private static readonly string[] ProjectScopeGroupNames = { "DPC", "RPC", "AUC", "DPD Admin" };
+        // The group names the revision approval steps match (DPC submits, RPC endorses, AUC approves:
+        // RevisionController, RevisionHelper, the Revision pages). UpdateUserGroup refuses renaming them.
+        // 2026-10-31: project visibility is a group setting (Helpers.GroupProjectScope), so DPD Admin is
+        // locked only on a server whose tGroups has no ProjectScope yet, where visibility is still by name.
+        private static readonly string[] WorkflowGroupNames = { "DPC", "RPC", "AUC" };
+        private const string NameScopedGroup = "DPD Admin";
+
+        /// <summary>
+        /// Null when the group may get <paramref name="scope"/>. Before Migration.GroupProjectScope has
+        /// run, only the scope the group already has by name is accepted (nothing can be stored).
+        /// </summary>
+        private async Task<IActionResult?> ProjectScopeRefusalAsync(int? scope, string groupName, CancellationToken ct)
+        {
+            if (scope == null) return null;
+            if (!GroupProjectScopes.IsValid(scope.Value))
+                return BadRequest(new { Message = "Choose a Project visibility from the list.", Title = "Invalid Project Visibility" });
+            if (!await GroupProjectScopes.IsConfigurableAsync(_db, ct) && (GroupProjectScope)scope.Value != GroupProjectScopes.ByName(groupName))
+                return BadRequest(new
+                {
+                    Message = "Project visibility cannot be changed on this server until its database update (Migration.GroupProjectScope) has been run. Ask your administrator.",
+                    Title = "Project Visibility Unavailable"
+                });
+            return null;
+        }
 
         #region MODULE TAB
         [HttpPost]
@@ -1428,6 +1449,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         });
                 }
 
+                // 2026-10-31: each group's Project visibility (not in vUserGroups; see UserGroups.ProjectScope).
+                var scopes = await GroupProjectScopes.LoadAsync(_db, cancellationToken);
+                foreach (var group in result.Data.lists)
+                    group.ProjectScope = (int)(scopes.TryGetValue(group.Id, out var scope) ? scope : GroupProjectScope.DataSecurity);
+
                 return Ok(result.Data);
             }
             catch (Exception ex)
@@ -1468,6 +1494,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         Title = "Group Already Exists"
                     });
                 }
+
+                var scopeRefusal = await ProjectScopeRefusalAsync(dto.ProjectScope, newGroupName, cancellationToken);
+                if (scopeRefusal != null) return scopeRefusal;
+
                 var NewGroup = new DBHelper.Models.Table.User.Groups
                 {
                     GroupName = dto.GroupName.Trim(),
@@ -1486,6 +1516,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 };
                 await _db.tGroupRoles.AddAsync(NewGroupRoles);
                 await _db.SaveChangesAsync(cancellationToken);
+                if (dto.ProjectScope != null && await GroupProjectScopes.IsConfigurableAsync(_db, cancellationToken))
+                    await GroupProjectScopes.SaveAsync(_db, NewGroup.Id, (GroupProjectScope)dto.ProjectScope.Value, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new
@@ -1527,18 +1559,26 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
 
-                // 2026-10-30: the project view gate (Helpers/ProjectHelper.cs) recognises these groups by
-                // NAME, exactly as spelled. A rename silently changed which projects their members see.
+                // 2026-10-30: these groups are recognised by NAME, exactly as spelled, so a rename would
+                // silently change what their members do (see WorkflowGroupNames).
                 var currentGroupName = getGroup.GroupName ?? string.Empty;
-                if (ProjectScopeGroupNames.Contains(currentGroupName, StringComparer.Ordinal)
+                bool workflowName = WorkflowGroupNames.Contains(currentGroupName, StringComparer.Ordinal);
+                bool scopeByName = string.Equals(currentGroupName, NameScopedGroup, StringComparison.Ordinal)
+                    && !await GroupProjectScopes.IsConfigurableAsync(_db, cancellationToken);
+                if ((workflowName || scopeByName)
                     && !string.Equals(currentGroupName, dto.GroupName.Trim(), StringComparison.Ordinal))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"'{currentGroupName}' cannot be renamed: project visibility is matched by this group name. Its description, Apply Filter and permissions can still be changed.",
+                        Message = workflowName
+                            ? $"'{currentGroupName}' cannot be renamed: the revision approval steps are matched by this group name. Its description, settings and permissions can still be changed."
+                            : $"'{currentGroupName}' cannot be renamed on this server yet: its project visibility is still matched by name until the Project visibility database update is run.",
                         Title = "Group Name Locked"
                     });
                 }
+
+                var scopeRefusal = await ProjectScopeRefusalAsync(dto.ProjectScope, currentGroupName, cancellationToken);
+                if (scopeRefusal != null) return scopeRefusal;
 
                 var groupNameRefusal = GroupNameRefusal(dto.GroupName);
                 if (groupNameRefusal != null) return groupNameRefusal;
@@ -1697,6 +1737,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
 
                 await _db.SaveChangesAsync(cancellationToken);
+                if (dto.ProjectScope != null && await GroupProjectScopes.IsConfigurableAsync(_db, cancellationToken))
+                    await GroupProjectScopes.SaveAsync(_db, dto.Id, (GroupProjectScope)dto.ProjectScope.Value, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
                 return Ok(new

@@ -10,6 +10,10 @@ namespace DBHelper.Models.Views
         public int Id { get; set; }
         public string? GroupName { get; set; }
         public bool ApplyFilter { get; set; } = false;
+        /// <summary>Project visibility (Helpers.GroupProjectScope), filled by ShowUserGroups: tGroups.ProjectScope
+        /// is read apart from this view so the API still works before its migration is run.</summary>
+        [NotMapped]
+        public int ProjectScope { get; set; }
         public string? Description { get; set; }
         public int? NumberOfUsers { get; set; }
 

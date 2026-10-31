@@ -1,6 +1,6 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.30
+**Version:** 3.31
 **Date:** October 31, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
@@ -54,6 +54,7 @@
 | 3.28 | October 31, 2026 | RP | RP | Section 5.4 Revisions (S03, ATA remark of 30 October 2026): new **PCMA status rules** in Section 5.4.4: a **Modification** is not allowed when the project's components are Completed or Terminated ("Modification is not allowed because the Project Component has been Completed/Terminated."), and **Change in Authority to Implement** only while they are Not Yet Started and Not Packaged; the revision page then shows a **Revision Not Allowed** notice with **Back to Project Details**; a reason with no Revision Field Permission for the project's status is refused in plain words; Section 5.4.3 notes that the fields are edited on the revision page reached through **Revise Project**, not on Project Details, which stays read-only at GAA-R; new Common Outcomes rows |
 | 3.29 | October 31, 2026 | RP | RP | Section 5.8 User Management (audit of 31 October 2026): **Sync Routes** and **Sync API** ask for confirmation and say what they remove; Sync Routes never removes a route a user group still has (it names it instead) and refuses an empty list; a module's name cannot be changed; **Add User** needs at least one user group; **Edit User** corrected: only the Employee ID (looked up in PIS with the search button), the user groups and the status can be changed, and the login, name, email, region and office are kept; your own account's Employee ID, groups and status, and its Delete, are locked; the DPC, RPC, AUC and DPD Admin group names are locked; a group with members cannot be deleted; a group name cannot contain double quotes or backslashes; saving a group keeps the permissions the dialog does not list; a group you belong to cannot lose the User Management page or session validation |
 | 3.30 | October 31, 2026 | RP | RP | New Section 5.8.4 What Each User Group Can Do: the user groups' permissions follow the client's access matrix (AUC, DPD Admin, DPDC/PDC, PDC, PDA, PPC, RPO, RPC, DPC, UPC and the new VIEW group), and buttons a group may not use are hidden. Section 5.6 Reports: every user group can open Reports; the AIP reports are for AUC, DPD Admin and PDA only. |
+| 3.31 | October 31, 2026 | RP | RP | Section 5.8.3: new **Project visibility** setting on each user group (Add Group, Edit Group and the User Groups list): which projects the group's members see. It replaces the fixed rule on the names AUC, DPD Admin, RPC and DPC, which keep the same visibility. Only DPC, RPC and AUC still cannot be renamed (the revision approval steps use their names). Section 5.8.4 explains the four choices. |
 
 ### Consultant
 
@@ -2939,6 +2940,7 @@ The column headers **User**, **User Group**, **Region**, **Office**, and **Statu
 | UI-UX-0120-F01 | GROUP NAME | Name of the user group; click the row to expand permissions detail | Display; row is clickable |
 | UI-UX-0120-F02 | MEMBERS | Number of users currently assigned to this group (with user icon) | Display |
 | UI-UX-0120-F03 | PERMISSIONS | Summary badges: "X API" (blue) for granted API actions, "Y Routes" (green) for granted route access | Display |
+| UI-UX-0120-F06 | PROJECT VISIBILITY | Which projects the group's members see (see Section 5.8.4) | Display |
 | UI-UX-0120-F04 | DESCRIPTION | Optional description text | Display |
 | UI-UX-0120-F05 | CREATED | Date the group was created | Display |
 | UI-UX-0120-A01 | Filter Group | Opens the Filter User Group dialog | Button |
@@ -2985,6 +2987,7 @@ Click anywhere on a group row (not on the action buttons) to expand a permission
 |---|---|---|---|
 | UI-UX-0121-F01 | GROUP NAME | The name of the new group | Text input; required (marked with *) |
 | UI-UX-0121-F02 | DESCRIPTION | Optional explanation of the group's role | Textarea; optional |
+| UI-UX-0121-F04 | PROJECT VISIBILITY | Which projects the group's members see (see Section 5.8.4) | Dropdown: **By program Data Security** (default), **All projects**, **Own region**, **Own district office** |
 | UI-UX-0121-F03 | APPLY FILTER | When checked, this group applies a data filter (restricts data visible to its members to their own region/office only) | Checkbox; defaults to unchecked |
 | UI-UX-0121-A01 | Cancel | Closes the dialog without creating the group | Button |
 | UI-UX-0121-A02 | Create Group | Submits the form and creates the group | Button (blue); disabled if Group Name is empty |
@@ -2995,7 +2998,8 @@ Click anywhere on a group row (not on the action buttons) to expand a permission
 2. Enter the **Group Name** (required, at most 100 characters, no double quotes `"` or backslashes `\`). Spaces before and after the name are removed, and a name that matches an existing group (ignoring case) is refused.
 3. Optionally enter a **Description** to describe the group's purpose.
 4. Tick **Apply Filter** if this group's members should only see records from their own regional office. Leave unchecked for groups that need system-wide data access. A user in several groups is limited to their region only when **all** of their groups have Apply Filter.
-5. Click **Create Group**.
+5. Choose the **Project visibility**: which projects the group's members see (Section 5.8.4). Leave **By program Data Security** if unsure; it is how groups without a setting have always worked.
+6. Click **Create Group**.
 
 > Permissions are not configured during group creation. After the group is created, use the **Edit** action to assign module permissions.
 
@@ -3022,8 +3026,9 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0122-F01 | GROUP NAME | Name of the group | Text input; required. Read-only for **DPC**, **RPC**, **AUC** and **DPD Admin**: project visibility is matched by these names |
+| UI-UX-0122-F01 | GROUP NAME | Name of the group | Text input; required. Read-only for **DPC**, **RPC** and **AUC**: the revision approval steps are matched by these names |
 | UI-UX-0122-F02 | DESCRIPTION | Group description — editable | Textarea; optional |
+| UI-UX-0122-F10 | PROJECT VISIBILITY | Which projects the group's members see (see Section 5.8.4) | Dropdown: **By program Data Security** (default), **All projects**, **Own region**, **Own district office** |
 | UI-UX-0122-F03 | APPLY FILTER | Restricts members' data view to their own region/office | Checkbox |
 | UI-UX-0122-F04 | MODULE PERMISSIONS | Accordion-style list of all system modules with their API and route permissions | Interactive accordion |
 | UI-UX-0122-A01 | Expand All | Expands all module accordions simultaneously | Link button |
@@ -3040,7 +3045,7 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 **Step-by-Step:**
 
 1. On the group row, click the **pencil (Edit) icon**. The Update Group dialog opens pre-filled with the group's current settings. All modules that already have granted permissions are automatically expanded.
-2. Edit **Group Name**, **Description**, or the **Apply Filter** checkbox if needed. The names of **DPC**, **RPC**, **AUC** and **DPD Admin** cannot be changed, because which projects their members see is decided by the group name; their description, Apply Filter and permissions can still be changed.
+2. Edit **Group Name**, **Description**, the **Apply Filter** checkbox or the **Project visibility** if needed. The names of **DPC**, **RPC** and **AUC** cannot be changed, because the revision approval steps are matched by them (DPC submits, RPC endorses, AUC approves); their other settings and permissions can still be changed.
 3. In the **Module Permissions** section, use **Expand All** or **Collapse All** to control visibility, or click individual module headers to open them one by one.
 4. **To grant/revoke API permissions:**
    - Expand a module to see its API Permissions section.
@@ -3064,7 +3069,8 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 | Message / Situation | What it Means | What You Should Do |
 |--------------------|---------------|--------------------|
 | "You are a member of '...'. Saving would remove your own User Management access (...)." | The change would take the User Management page, its actions, or session validation away from a group you belong to, and you would be locked out | Ask another administrator to make the change |
-| "'...' cannot be renamed: project visibility is matched by this group name." | The group is DPC, RPC, AUC or DPD Admin | Keep the name; change the description, Apply Filter or permissions instead |
+| "'...' cannot be renamed: the revision approval steps are matched by this group name." | The group is DPC, RPC or AUC | Keep the name; change the description, settings or permissions instead |
+| "Project visibility cannot be changed on this server until its database update … has been run." | The server's database has not had the Project visibility update yet. Until then groups keep the visibility their names gave them | Ask your administrator to run the update |
 
 > Module headers highlighted in blue indicate at least one permission is currently granted in that module. Headers in grey indicate no permissions are set. Use the count badges (e.g., "3/10 API", "2/5 Routes") on module headers to quickly verify how much access is granted per module.
 
@@ -3106,6 +3112,17 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 ---
 
 #### 5.8.4 What Each User Group Can Do
+
+**Project visibility** (set per group in Add Group and Edit Group) decides which projects the group's members see in the project lists, project details, Project Groups and Global Search:
+
+| Project visibility | Members see | Starting setting of |
+|---|---|---|
+| **All projects** | Every project in every region | AUC, DPD Admin |
+| **Own region** | The projects of every district office in the region that is the member's **Plantilla Office** | RPC |
+| **Own district office** | The projects of the district engineering office that is the member's **Plantilla Office** | DPC |
+| **By program Data Security** | With **Apply Filter** on: the projects of programs whose Data Security Access includes the member's region. With it off: every project | Every other group |
+
+A user in several groups sees the widest: **All projects** wins, and **Own region** and **Own district office** add up. A member whose Plantilla Office does not fit the group's Own region or Own district office sees no projects ("Your plantilla office is not set up for project access for your user group."). The new groups PDA, PDC, PPC, RPO, UPC and VIEW start at By program Data Security with Apply Filter on; set their Project visibility to what the client intends for each role.
 
 The user groups' permissions follow the client's access matrix. Every group can **view** programs, projects, project groups, revisions, future infrastructure and reports. The table lists what each group can **do**. A button for something your group cannot do is not shown, and the server refuses the action as well.
 

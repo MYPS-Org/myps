@@ -36,19 +36,15 @@ namespace Helpers
             The rule, per STAGE: a stage is visible when its DEO is in the user's scope, where a stage's DEO
             is that stage revision's latest fully approved modification snapshot DEO, else the stage
             revision's own tProjectRevisions.DEO (StageDeoSql). A project is listed when ANY of its stages
-            is visible. Scope by group:
-              AUC or DPD Admin   everything (wins over DPC/RPC)
-              DPC                the DEO in tUsers.PlantillaOffice
-              RPC                every DEO whose parent region is tUsers.PlantillaOffice
-              none of the four   unchanged: today's ApplyFilter behaviour ("Legacy")
-            A DPC/RPC user whose PlantillaOffice does not fit the group sees nothing (fail closed). Lump Sum
-            parents are never visible to a DPC/RPC user; itemized children follow the DEO rule. The group
-            names are matched by NAME -- renaming one in User Management silently breaks this. The frontend
-            mirrors the same set in FE/src/contexts/AuthContext.tsx. */
-
-        private const string ScopeGroupDPC = "DPC";
-        private const string ScopeGroupRPC = "RPC";
-        private static readonly string[] ScopeSeeAllGroups = { "AUC", "DPD Admin" };
+            is visible. Scope by the group's Project visibility (GroupProjectScope, set in User Management >
+            User Groups since 2026-10-31; before, by the group NAMES AUC / DPD Admin / RPC / DPC):
+              All                everything (wins over the others)
+              District           the DEO in tUsers.PlantillaOffice
+              Region             every DEO whose parent region is tUsers.PlantillaOffice
+              DataSecurity       unchanged: today's ApplyFilter behaviour ("Legacy")
+            District and Region add up. A Region/District user whose PlantillaOffice does not fit sees
+            nothing (fail closed). Lump Sum parents are never visible to a Region/District user; itemized
+            children follow the DEO rule. */
 
         public const string NoProjectAccessTitle = "No Project Access";
         public const string NoProjectAccessMessage = "Your plantilla office is not set up for project access for your user group. Please contact your administrator.";
@@ -63,13 +59,13 @@ namespace Helpers
 
         private static async Task<ProjectViewScope> ResolveProjectViewScopeAsync(MYPSDbContext _db, DBHelper.Models.Views.Users session, CancellationToken cancellationToken)
         {
-            var groups = session.UserGroupNames ?? Array.Empty<string>();
-            if (groups.Any(g => ScopeSeeAllGroups.Contains(g)))
+            var scopes = await GroupProjectScopes.LoadAsync(_db, cancellationToken);
+            var widest = GroupProjectScopes.Widest(
+                (session.UserGroupIds ?? Array.Empty<int>()).Select(id => scopes.TryGetValue(id, out var s) ? s : GroupProjectScope.DataSecurity),
+                out bool byRegion, out bool byDistrict);
+            if (widest == GroupProjectScope.All)
                 return new ProjectViewScope { Kind = ProjectViewScopeKind.All };
-
-            bool isDpc = groups.Contains(ScopeGroupDPC);
-            bool isRpc = groups.Contains(ScopeGroupRPC);
-            if (!isDpc && !isRpc)
+            if (widest == null)
                 return new ProjectViewScope { Kind = ProjectViewScopeKind.Legacy };
 
             // OFFICE SOURCE: the ONLY place this gate reads the user's office. If the office moves to
@@ -82,9 +78,9 @@ namespace Helpers
             var deos = new HashSet<string>();
             if (!string.IsNullOrEmpty(office))
             {
-                if (isDpc && await _db.vAdminDEO.AsNoTracking().AnyAsync(d => d.ParticipantId == office, cancellationToken))
+                if (byDistrict && await _db.vAdminDEO.AsNoTracking().AnyAsync(d => d.ParticipantId == office, cancellationToken))
                     deos.Add(office);
-                if (isRpc && await _db.tOptionAdminAreaRegion.AsNoTracking().AnyAsync(r => r.ParticipantId == office, cancellationToken))
+                if (byRegion && await _db.tOptionAdminAreaRegion.AsNoTracking().AnyAsync(r => r.ParticipantId == office, cancellationToken))
                     deos.UnionWith(await _db.vAdminDEO.AsNoTracking()
                         .Where(d => d.RegionParticipantId == office)
                         .Select(d => d.ParticipantId)

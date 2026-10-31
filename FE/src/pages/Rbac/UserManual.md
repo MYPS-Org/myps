@@ -184,8 +184,9 @@ This is the primary way to control what a group can access.
 
 1. Click the **pencil icon** on the group's row.
 2. The Edit Group dialog opens showing:
-   - **Group Name** — editable, except for **DPC**, **RPC**, **AUC** and **DPD Admin**, whose names decide which projects their members see
+   - **Group Name** — editable, except for **DPC**, **RPC** and **AUC**, whose names the revision approval steps use (DPC submits, RPC endorses, AUC approves)
    - **Description** — editable
+   - **Project visibility** — which projects the members see: **All projects**, **Own region** or **Own district office** (from the member's Plantilla Office), or **By program Data Security** (with Apply Filter, the programs whose Data Security Access includes the member's region). A user in several groups sees the widest. The same choice is in the Add Group dialog, and the User Groups list shows each group's setting.
    - **Module Permissions** accordion — a list of all application modules
 
 **Working with the Module Permissions accordion:**

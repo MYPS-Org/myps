@@ -5,7 +5,8 @@ import { XMarkIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/o
 import type { vUserGroups, UserGroupDropdowns, UpdateUserGroupPayload, ModulePermission } from '../Model.d';
 import { editUserGroup } from '../service';
 import { useToast } from '../../../components/toaster/ToasterContext';
-import { RESTRICTED_GROUPS, SEE_ALL_GROUPS } from '../../../contexts/userScope';
+import { NAME_LOCKED_GROUPS } from '../../../contexts/userScope';
+import ProjectScopeField from './ProjectScopeField';
 
 interface UpdateGroupDialogProps {
   isOpen: boolean;
@@ -257,11 +258,12 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
   dropdowns: _dropdowns,
 }) => {
   const { showToast } = useToast();
-  // 2026-10-31: project visibility is matched by these names, so the server refuses renaming them.
-  const nameLocked = [...RESTRICTED_GROUPS, ...SEE_ALL_GROUPS].includes(group?.GroupName ?? '');
+  // The revision approval steps are matched by these names, so the server refuses renaming them.
+  const nameLocked = NAME_LOCKED_GROUPS.includes(group?.GroupName ?? '');
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [applyFilter, setApplyFilter] = useState(false);
+  const [projectScope, setProjectScope] = useState(0);
   const [actionIds, setActionIds] = useState<number[]>([]);
   const [viewIds, setViewIds] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -273,6 +275,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
       setGroupName(group.GroupName || '');
       setDescription(group.Description || '');
       setApplyFilter(group.ApplyFilter ?? false);
+      setProjectScope(group.ProjectScope ?? 0);
       // Derive pre-selected IDs from ModulePermissions where IsGranted === true
       const mods = group.ModulePermissions || [];
       const grantedActionIds = mods.flatMap(m =>
@@ -322,6 +325,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
         GroupName: groupName.trim(),
         Description: description.trim() || undefined,
         ApplyFilter: applyFilter,
+        ProjectScope: projectScope,
         PermissionActionIds: actionIds,
         PermissionViewIds: viewIds,
       };
@@ -374,7 +378,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
                 />
                 {nameLocked && (
                   <p className="text-xs text-gray-500 mt-1">
-                    This name cannot be changed: project visibility is matched by it.
+                    This name cannot be changed: the revision approval steps are matched by it.
                   </p>
                 )}
               </div>
@@ -407,6 +411,8 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
             <p className="text-xs text-gray-400 -mt-2">
               A user in several groups is region-filtered only when all their groups have Apply Filter.
             </p>
+
+            <ProjectScopeField value={projectScope} onChange={setProjectScope} />
 
             {/* Selection summary */}
             <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg text-xs text-gray-500">
